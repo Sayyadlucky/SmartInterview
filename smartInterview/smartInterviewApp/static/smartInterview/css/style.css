@@ -1,0 +1,120 @@
+:root {
+  --c1: #09162b;
+  --c2: #1a3463;
+  --c3: #23293b;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', sans-serif;
+  color: #fff;
+  margin: 0;
+  background: linear-gradient(135deg, var(--c1), var(--c2), var(--c3));
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+  /* removed overflow-hidden so page can scroll */
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+#mainHeader { transition: background 500ms ease; }
+#mainHeader.overlay {
+  background: linear-gradient(to bottom, rgba(2,12,27,0.70), rgba(2,12,27,0));
+}
+.frosted {
+  backdrop-filter: blur(25px);
+  background-color: rgba(18, 27, 40, 0.62);
+  border: 1.5px solid rgba(0,191,255,0.14);
+  box-shadow: 0 12px 40px 0 rgba(38,112,255,0.14),
+              -5px 0 25px rgba(0,191,255,0.16);
+}
+input:focus {
+  outline: none;
+  border-color: #0fd9ff;
+  box-shadow: 0 0 0 3px rgba(15,217,255,0.5);
+}
+button, .sign-in-btn {
+  background: linear-gradient(90deg, #0fd9ff 0%, #2e57ff 100%);
+  box-shadow: 0 2px 30px 0 rgba(40,75,255,0.16);
+}
+button:hover, .sign-in-btn:hover {
+  background: linear-gradient(90deg, #51e2f5 0%, #284bff 100%);
+  box-shadow: 0 4px 32px 0 rgba(40, 75, 255, 0.28);
+  color: #fff;
+}
+.text-xl, h1, .font-bold {
+  text-shadow: 1px 1px 8px rgba(40,75,255,0.08);
+}
+.placeholder-gray-400::placeholder {
+  color: #a8b0c5;
+  opacity: 1;
+}
+/* put particles behind content so sections are clickable/visible */
+canvas#particles {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, var(--c1), var(--c2), var(--c3));
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+  pointer-events: none;
+}
+
+/* Updated close button styles */
+#closeLogin {
+  z-index: 9999;
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* Floating label styles (new) */
+.floating {
+  position: relative;
+}
+/* input base */
+.floating input.floating-input {
+  width: 100%;
+  padding-left: 2.5rem;   /* keep space for icon (matches pl-10 / 2.5rem) */
+  padding-top: 1.25rem;   /* space for label when floating */
+  padding-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(0,0,0,0.40);
+  border: 1px solid rgba(148,163,184,0.12);
+  color: #fff;
+  transition: box-shadow .18s ease, border-color .18s ease;
+}
+/* label placed above input when active, centered vertically when empty */
+.floating label.floating-label {
+  position: absolute;
+  left: 2.5rem;       /* aligns with input text */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: #a8b0c5;
+  pointer-events: none;
+  transition: all 180ms ease;
+}
+/* when input focused or has content, move label up and shrink */
+.floating input.floating-input:focus + label.floating-label,
+.floating input.floating-input:not(:placeholder-shown) + label.floating-label {
+  top: 0.3rem;           /* small gap from input top */
+  transform: translateY(0);
+  font-size: 0.78rem;
+  color: #0fd9ff;
+}
+
+/* small tweak for password dots visibility */
+.floating input.floating-input[type="password"] {
+  letter-spacing: 0.25em;
+}
+
+/* ensure icons don't capture pointer events */
+.floating .icon-left { pointer-events: none; position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #9aa6bb; }
+
+/* small Sign In button in header (keeps visual subtle) */
+#openLoginBtn { z-index: 45; }
