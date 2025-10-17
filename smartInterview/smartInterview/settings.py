@@ -13,7 +13,7 @@ SECRET_KEY = 'django-insecure--o3*fivnd_=lrfz$6(@9$bsiynr(hv1+!#fd+0o@3m*_7#nfj+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -64,7 +64,6 @@ STATICFILES_DIRS = [
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 WSGI_APPLICATION = 'smartInterview.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

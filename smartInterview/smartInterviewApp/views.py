@@ -64,7 +64,9 @@ def dashboardData(request):
             candidate_details['recording_url'] = candidate.recording_url
             candidate_details['notes'] = candidate.notes
             candidate_details['date'] = candidate.date
-            candidate_details['role'] = candidate.role
+            candidate_details['role'] = candidate.role.role
+            candidate_details['role_id'] = candidate.role.id
+
             candidate_list.append(candidate_details)
         # login_user = serializers.serialize("json", [admin])
         login_user = {'name': (admin.first_name).title() + " " + (admin.last_name).title()}
