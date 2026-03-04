@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import UserProfile, Interview, Notification
+from .models import UserProfile, Interview, Notification, Vacancies
+
 
 # Define an inline admin descriptor for UserProfile model
 # which acts a bit like a singleton
@@ -22,3 +23,4 @@ admin.site.register(User, UserAdmin)
 # Register other models
 admin.site.register(Interview)
 admin.site.register(Notification)
+admin.site.register(Vacancies)

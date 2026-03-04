@@ -1,6 +1,7 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 from django.utils import timezone
+
 
 # Profile table linked to built-in User
 class UserProfile(models.Model):
@@ -14,7 +15,7 @@ class UserProfile(models.Model):
         ('female', 'Female'),
         ('other', 'Other'),
     )
-
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='candidate')
     profile_picture = models.URLField(blank=True, null=True)
@@ -33,7 +34,6 @@ class UserProfile(models.Model):
         return f"{self.user.username} ({self.role})"
 
 
-# Interview table
 class Interview(models.Model):
     STATUS_CHOICES = (
         ('scheduled', 'Scheduled'),
@@ -56,14 +56,21 @@ class Interview(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='recruiter_interviews',
-        limit_choices_to={'profile__role': 'recruiter'}
+        limit_choices_to={'profile__role': 'recruiter'},
+        null=True, blank=True
     )
     date = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     score = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recording_url = models.URLField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
-    role = models.CharField(max_length=100,default='')
+    role = models.ForeignKey(
+        'Vacancies',
+        on_delete=models.CASCADE,
+        related_name='interviews',
+        null=True,
+        blank=True
+    )
     hr = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -85,3 +92,29 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}"
+
+
+class Vacancies(models.Model):
+    STATUS_CHOICES = (
+        ('active', 'Active'),
+        ('hired', 'Hired'),
+        ('canceled', 'Canceled'),
+        ('closed', 'Closed'),
+    )
+    role = models.CharField(max_length=100)
+    recruiter = models.ManyToManyField(
+        User,
+        related_name='vacancies',
+        limit_choices_to={'profile__role': 'recruiter'},
+        blank=True
+    )
+    description = models.TextField()
+    position = models.CharField(max_length=100)
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='active')
+    date = models.DateTimeField(default=timezone.now)
+    admin = models.ForeignKey(User, null=True, on_delete=models.CASCADE, related_name='admin', limit_choices_to={'profile__role': 'admin'})
+
+    def __str__(self):
+        return f"Vacancy: {self.role} - {self.status}"
+    
+    
