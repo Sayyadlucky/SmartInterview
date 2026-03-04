@@ -1,0 +1,240 @@
+<div class="navbar">
+  <i class="ph ph-cube text-cyan-400 text-2xl"></i>
+  <div class="navbar-right">
+    <a href="#" class="active"><i class="ph ph-gauge"></i> Dashboard</a>
+    <a href="#"><i class="ph ph-briefcase"></i> Jobs</a>
+    <a href="#"><i class="ph ph-users"></i> Candidates</a>
+    <a href="#"><i class="ph ph-user-plus"></i> Talent</a>
+    <a href="logout/"><i class="ph ph-sign-out"></i> Logout</a>
+  </div>
+</div>
+
+<div class="dashboard-wrap">
+  <main class="dashboard-card">
+    <div class="dashboard-title"> Welcome, {{ loginUser }}</div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview"><i class="ph ph-chart-bar"></i> Overview</button>
+      <button class="tab-btn" data-tab="evaluators"><i class="ph ph-identification-badge"></i> Evaluators</button>
+      <button class="tab-btn" data-tab="candidates"><i class="ph ph-user"></i> Candidates</button>
+      <button class="tab-btn" data-tab="invite"><i class="ph ph-paper-plane-right"></i> Invite</button>
+      <button class="tab-btn" data-tab="activity"><i class="ph ph-activity"></i> Activity</button>
+      <button class="tab-btn" data-tab="analytics"><i class="ph ph-graph"></i> Analytics</button>
+    </div>
+
+    <!-- ================= OVERVIEW TAB ================= -->
+    <div class="tab-content active" id="overview">
+      <div *ngIf="loading" class="loading-indicator">Loading data...</div>
+      <div *ngIf="!loading">
+
+      <!-- 🔹 Unified Grid: Summary + Middle + Sidebar -->
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        
+        <!-- Left Content (3 columns wide) -->
+        <div class="col-span-3 flex flex-col gap-6">
+          
+          <!-- Summary Cards Row -->
+          <div class="grid grid-cols-4 gap-4">
+            <div class="dashboard-card py-1 text-center">
+              <div class="text-5xl font-bold text-cyan-400">{{ candidatesData?.length || 0 }}</div>
+              <div class="text-gray-300">Total Candidates</div>
+            </div>
+            <div class="dashboard-card py-1 text-center">
+              <div class="text-5xl font-bold text-cyan-400">{{ scheduledCandidates?.length || 0 }}</div>
+              <div class="text-gray-300">Scheduled Candidates</div>
+            </div>
+            <div class="dashboard-card py-1 text-center">
+              <div class="text-5xl font-bold text-cyan-400">{{ hiredCandidates?.length || 0 }}</div>
+              <div class="text-gray-300">Hired</div>
+            </div>
+            <div class="dashboard-card py-1 text-center">
+              <div class="text-5xl font-bold text-cyan-400">{{ rejectedCandidates?.length || 0 }}</div>
+              <div class="text-gray-300">Disqualified</div>
+            </div>
+          </div>
+
+          <!-- Pipeline / Chart / Role Progress Row -->
+          <div class="grid grid-cols-3 gap-4">
+            
+            <!-- Pipeline -->
+            <div class="dashboard-card p-4">
+              <h3 class="text-lg font-semibold mb-4">Pipeline</h3>
+              <ul class="space-y-2">
+                <li class="flex items-center justify-between bg-gradient-to-r bg-[#f59e0b] px-3 py-2 rounded">
+                  <span>Assessment Pending</span>
+                  <span class="font-bold">{{ assessmentPendingCandidates?.length || 0 }}</span>
+                </li>
+                <li class="flex items-center justify-between bg-gradient-to-r bg-[#22d3ee] px-3 py-2 rounded">
+                  <span>In Progress</span>
+                  <span class="font-bold">{{ scheduledCandidates?.length || 0 }}</span>
+                </li>
+                <li class="flex items-center justify-between bg-gradient-to-r bg-[#3b82f6] px-3 py-2 rounded">
+                  <span>Shortlisted</span>
+                  <span class="font-bold">{{ shortlistedCandidates?.length || 0 }}</span>
+                </li>
+                <li class="flex items-center justify-between bg-gradient-to-r bg-[#10b981] px-3 py-2 rounded">
+                  <span>Hired</span>
+                  <span class="font-bold">{{ hiredCandidates?.length || 0 }}</span>
+                </li>
+                <li class="flex items-center justify-between bg-gradient-to-r bg-[#ef4444] px-3 py-2 rounded">
+                  <span>Disqualified</span>
+                  <span class="font-bold">{{ rejectedCandidates?.length || 0 }}</span>
+                </li>
+                <li class="flex items-center justify-between bg-gradient-to-r bg-[#9ca3af] px-3 py-2 rounded">
+                  <span>Cancelled</span>
+                  <span class="font-bold">{{ cancelledCandidates?.length || 0 }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Source Performance -->
+            <div class="dashboard-card p-4 flex flex-col items-center">
+              <h3 class="text-lg font-semibold mb-4 self-start">Source Performance</h3>
+              <canvas #sourcePerformanceCanvas class="w-[180px] h-[180px]"></canvas>
+              <!-- <div class="flex gap-4 mt-4 text-sm text-gray-400">
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-[#22d3ee]"></span> In Progress</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-[#3b82f6]"></span> Shortlisted</div><br/>
+              </div>
+              <div class="flex gap-4 mt-4 text-sm text-gray-400">
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-[#f59e0b]"></span> Assessment Pending</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-[#9ca3af]"></span> Cancelled</div><br/>
+              </div>
+              <div class="flex gap-4 mt-4 text-sm text-gray-400">
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-[#10b981]"></span> Hired</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-[#ef4444]"></span> Rejected</div><br/>
+              </div> -->
+            </div>
+
+            <!-- Role Progress -->
+            <div class="dashboard-card p-4">
+              <h3 class="text-lg font-semibold mb-4">Role Progress</h3>
+              <ul class="divide-y divide-gray-700/50">
+                <li *ngIf="!(candidatesData?.length)" class="py-2 text-sm text-gray-400">No candidates available</li>
+                 @for (candidate of candidatesData?.slice(0,4); track trackCandidate($index, candidate)) {
+                   <li class="flex justify-between py-2">
+                     <span class="font-medium text-gray-200">{{ candidate.name || ('Candidate ' + ($index + 1)) }}</span>
+                     <span class="text-sm text-gray-400">
+                       {{ candidate.status ? (('' + candidate.status) | titlecase) : (candidate.role || '—') }}
+                     </span>
+                   </li>
+                 }
+                  @if (candidatesData?.length > 4) {
+                    <li class="py-2 text-sm text-gray-400 text-center">And {{ candidatesData.length - 4 }} more...</li>
+                  }
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Sidebar Actions (spans full height of both rows) -->
+        <div class="flex flex-col gap-4">
+          <div class="dashboard-card no-padding text-center">
+          <button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]" (click)="addUser()">Add Candidate</button>
+        </div>
+        <div class="dashboard-card no-padding text-center pt-8"><button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]" (click)="addRRole()">Add Role</button></div>
+        <div class="dashboard-card no-padding text-center pt-8"><button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]" (click)="openConfirmation()">Export Data</button></div>
+        <div class="dashboard-card no-padding text-center pt-8"><button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]">Invite</button></div>
+        <div class="dashboard-card no-padding text-center pt-8"><button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]">Action 2</button></div>
+        <div class="dashboard-card no-padding text-center pt-8"><button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]">Action 3</button></div>
+        <div class="dashboard-card no-padding text-center pt-8"><button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]">Action 4</button></div>
+      </div>
+      </div>
+
+
+      
+        <!-- Layout (Sidebar + Candidate Table) -->
+        <div class="w-full min-h-[100%] flex">
+          <!-- Sidebar -->
+          <div class="w-[25%] h-full text-align-left">
+            <div class="status-row">
+              <div class="status-item" [class.active]="!selectedStatus" (click)="setStatusFilter(null)">
+                <i class="ph ph-list"></i> All Candidates (<span>{{ candidatesData?.length || 0 }}</span>)
+              </div>
+              <div class="status-item" [class.active]="selectedStatus==='scheduled'" (click)="setStatusFilter('scheduled')">
+                <i class="ph ph-file-text"></i> In-Progress (<span>{{ scheduledCandidates?.length || 0 }}</span>)
+              </div>
+              <div class="status-item" [class.active]="selectedStatus==='rejected'" (click)="setStatusFilter('rejected')">
+                <i class="ph ph-x-circle"></i> Disqualified (<span>{{ rejectedCandidates?.length || 0 }}</span>)
+              </div>
+              <div class="status-item" [class.active]="selectedStatus==='shortlisted'" (click)="setStatusFilter('shortlisted')">
+                <i class="ph ph-check-circle"></i> Shortlisted (<span>{{ shortlistedCandidates?.length || 0 }}</span>)
+              </div>
+            </div>
+            <div class="status-row">
+              <div class="status-item" [class.active]="selectedStatus==='completed'" (click)="setStatusFilter('completed')">
+                <i class="ph ph-handshake"></i> Hired (<span>{{ hiredCandidates?.length || 0 }}</span>)
+              </div>
+              <div class="status-item" [class.active]="selectedStatus==='cancelled'" (click)="setStatusFilter('cancelled')">
+                <i class="ph ph-clock"></i> Cancelled (<span>{{ cancelledCandidates?.length || 0 }}</span>)
+              </div>
+              <div class="status-item" [class.active]="selectedStatus==='assessment pending'" (click)="setStatusFilter('assessment pending')">
+                <i class="ph ph-pencil"></i> Assessments Pending (<span>{{ assessmentPendingCandidates?.length || 0 }}</span>)
+              </div>
+              <div class="status-item" [class.active]="selectedStatus==='Auto Screened'" (click)="setStatusFilter('Auto Screened')">
+                <i class="ph ph-magic-wand"></i> Auto Screened (<span>(Coming soon)</span>)
+              </div>
+            </div>
+          </div>
+
+          <!-- Candidate Table -->
+          <div class="w-[75%] h-full">
+            <div class="min-h-[70vh] flex flex-col">
+              <table class="w-full">
+                <thead>
+                  <tr>
+                    <th>Candidate</th>
+                    <th>Status</th>
+                    <th>Evaluator</th>
+                    <th>Role</th>
+                  </tr>
+                </thead>
+                <tbody id="candidateTable">
+                  @for (candidate of filteredCandidates; track trackCandidate($index, candidate)) {
+                  <tr [attr.data-status]="candidate.status">
+                    <td>
+                      <a class="candidate-link" (click)="profileUpdate(candidate)">
+                        {{ candidate.name }}
+                      </a>
+                    </td>
+                    <td>{{ candidate.status | titlecase }}</td>
+                    <td>{{ candidate.recruiter }}</td>
+                    <td>
+                      <span class="role-link group cursor-pointer hover:underline flex items-center" (click)="openRoldeModal(candidate.role_id)">
+                        {{ candidate.role }}
+                      </span>
+                    </td>
+                  </tr>
+                  }
+                  @if (filteredCandidates?.length === 0) {
+                  <tr>
+                    <td colspan="4" class="text-center py-6">
+                      <img src="static/assets/images/dataError.png" alt="No Candidates Found"
+                           class="opacity-80 w-[40%] h-auto mx-auto" />
+                    </td>
+                  </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div id="pagination" *ngIf="showPagination" class="flex items-center justify-center gap-2 mt-4">
+              <button (click)="prevPage()" [disabled]="currentPage === 1"
+                class="px-3 py-1 rounded bg-cyan-600 disabled:opacity-40">Previous</button>
+
+              <span class="text-cyan-300">Page {{ currentPage }} of {{ totalPages }}</span>
+
+              <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+                class="px-3 py-1 rounded bg-cyan-600 disabled:opacity-40">Next</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================= EVALUATORS TAB ================= -->
+    <div class="tab-content" id="evaluators">
+      <app-evaluators></app-evaluators>
+    </div>
+  </main>
+</div>

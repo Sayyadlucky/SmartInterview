@@ -1,0 +1,8 @@
+.modal-overlay {inset:0; background:rgba(16,34,57,0.27); align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; animation:fadeIn 0.2s; }
+.modal-card { background:#121e2f; box-shadow:0 6px 32px 0 rgba(0,191,255,0.27); padding:2rem 2.5rem; width:550px; color:#dbedff; position:relative; font-size:1em; }
+.modal-close { position:absolute; right:18px; top:18px; font-size:1.35em; color:#48d1ff; background:none; border:none; cursor:pointer; }
+.modal-card .side-title { color:#40e7ff; font-weight:400; margin-bottom:1.15em; font-size:2.07em; }
+.shadow {
+  box-shadow:0 6px 32px 0 rgba(0,191,255,0.27);
+}
