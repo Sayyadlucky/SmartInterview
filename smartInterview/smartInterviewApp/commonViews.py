@@ -62,7 +62,7 @@ def addUser(request):
                         # Add the created user profile to the Interview model if needed
                         recruiter = User.objects.get(id=recruiter)
                         hr = User.objects.get(username=request.user.username)
-                        candidate = Interview.objects.create(candidate=obj, recruiter=recruiter, hr=hr, status='assessment_Pending', role=role_obj)
+                        candidate = Interview.objects.create(candidate=obj, recruiter=recruiter, hr=hr, status='assessment_pending', role=role_obj)
                         candidate.save()
                         candidate_details = {}
                         candidate_details['id'] = candidate.id
@@ -107,7 +107,7 @@ def addUser(request):
                         recruiter = User.objects.get(id=recruiter)
                         hr = User.objects.get(username=request.user.username)
                         candidate = Interview.objects.create(candidate=obj, recruiter=recruiter, hr=hr,
-                                                             status='assessment_Pending', role=role_obj)
+                                                             status='assessment_pending', role=role_obj)
                         candidate.save()
                         candidate_details = {}
                         candidate_details['id'] = candidate.id
@@ -193,6 +193,7 @@ def getRoleList(request):
             role_details['id'] = role.id
             role_details['name'] = role.role
             role_details['description'] = role.description
+            role_details['vacancies'] = int(role.position) if str(role.position).isdigit() else 0
             role_list.append(role_details)
         return JsonResponse({"Success":True, "Error":None, "RoleData":role_list})
     except Exception as e:
@@ -212,7 +213,7 @@ def getRoleData(request, id):
             interviews
             .annotate(
                 normalized_status=Case(
-                    When(status__in=["shortlisted", "assessment_Pending"], then=Value("shortlisted")),
+                    When(status__in=["shortlisted", "assessment_Pending", "assessment_pending", "assessment pending"], then=Value("shortlisted")),
                     default="status",  # keep other statuses unchanged
                     output_field=CharField()
                 )
@@ -337,6 +338,4 @@ def getVacancyReruiters(request, id):
         return JsonResponse({"Success": True, "Error": None, "RecruiterData": recruiter_list})
     except Exception as e:
         return JsonResponse({"Success": False, "Error": str(e)})
-
-
 

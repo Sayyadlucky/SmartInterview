@@ -12,6 +12,25 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .models import Interview
 
 
+def normalize_interview_status(value: str) -> str:
+    raw = (value or '').strip().lower().replace('-', ' ').replace('_', ' ')
+    raw = ' '.join(raw.split()).replace('assesment', 'assessment')
+    status_map = {
+        'scheduled': 'scheduled',
+        'completed': 'completed',
+        'cancelled': 'cancelled',
+        'shortlisted': 'shortlisted',
+        'hired': 'hired',
+        'rejected': 'rejected',
+        'assessment pending': 'assessment_pending',
+        'assessment completed': 'assessment_completed',
+        'auto screened': 'auto_screening_scheduled',
+        'auto screening': 'auto_screening_scheduled',
+        'auto screening scheduled': 'auto_screening_scheduled',
+    }
+    return status_map.get(raw, raw.replace(' ', '_'))
+
+
 def home(request):
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
@@ -59,7 +78,7 @@ def dashboardData(request):
             candidate_details['name'] = (candidate.candidate.first_name + " " + candidate.candidate.last_name).title()
             candidate_details['email'] = candidate.candidate.email
             candidate_details['recruiter'] = (candidate.recruiter.first_name + " " + candidate.recruiter.last_name).title()
-            candidate_details['status'] = candidate.status
+            candidate_details['status'] = normalize_interview_status(candidate.status)
             candidate_details['score'] = candidate.score
             candidate_details['recording_url'] = candidate.recording_url
             candidate_details['notes'] = candidate.notes
@@ -82,7 +101,10 @@ def dashboardData(request):
 def updateCandidateStatus(request):
     try:
         candidate_id = request.POST.get('candidateId')
-        status = request.POST.get('newStatus')
+        status = normalize_interview_status(request.POST.get('newStatus'))
+        valid_statuses = {choice[0] for choice in Interview.STATUS_CHOICES}
+        if status not in valid_statuses:
+            return JsonResponse({"Success": False, "Error": f"Invalid status '{status}'"})
         candidate = Interview.objects.get(id=candidate_id)
         candidate.status = status
         candidate.save()

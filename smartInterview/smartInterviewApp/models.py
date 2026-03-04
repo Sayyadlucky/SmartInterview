@@ -41,9 +41,10 @@ class Interview(models.Model):
         ('cancelled', 'Cancelled'),
         ('shortlisted', 'Shortlisted'),
         ('hired', 'Hired'),
-        ('assessment_Pending', 'Assessment Pending'),
+        ('assessment_pending', 'Assessment Pending'),
         ('rejected', 'Rejected'),
-        ('Assesment_Completed', 'Assesment Completed'),
+        ('assessment_completed', 'Assessment Completed'),
+        ('auto_screening_scheduled', 'Auto Screening Scheduled'),
     )
 
     candidate = models.ForeignKey(
@@ -60,7 +61,7 @@ class Interview(models.Model):
         null=True, blank=True
     )
     date = models.DateTimeField(default=timezone.now)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='scheduled')
     score = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recording_url = models.URLField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
