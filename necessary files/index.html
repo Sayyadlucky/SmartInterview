@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Office Manager Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <style>
+    /* ✅ Particle background */
+    #particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+  <style>
+    :root { --c1:#09162b;--c2:#1a3463;--c3:#23293b; }
+    html { scroll-behavior: smooth; }
+    body { margin:0;font-family:'Inter',sans-serif;color:#dbedff;
+      background:linear-gradient(135deg,var(--c1),var(--c2),var(--c3));
+      background-size:400% 400%;animation:gradientShift 12s ease infinite;
+      min-height:100vh; }
+    h1,h2,h3,h4,h5,h6 { color:#ffffff; }
+    @keyframes gradientShift { 0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%} }
+
+    .navbar { background:#0a172d;color:#b3d7ff;font-weight:600;padding:0.6rem 2rem;font-size:1.25rem;display:flex;align-items:center;justify-content:space-between;letter-spacing:-1px;}
+    .navbar-right { font-size:1rem;display:flex;gap:2rem;font-weight:500;}
+    .navbar-right a { color:#b3d7ff;text-decoration:none;transition:color 0.2s;}
+    .navbar-right a.active, .navbar-right a:hover { color:#40e7ff;border-bottom:2px solid #40e7ff;}
+    
+    .dashboard-wrap { max-width:1200px;margin:38px auto;display:flex;gap:32px;}
+    .dashboard-card { background:rgba(12,25,46,0.85);border-radius:16px;box-shadow:0 8px 40px 0 rgba(40,75,255,0.18);padding:2.5rem 2rem;flex:1;color:#ffffff;}
+    .dashboard-title { font-size:2.4rem;font-weight:700;margin-bottom:2rem;color:#ffffff;letter-spacing:-0.05em;}
+
+    .tabs { display:flex;gap:10px;margin-bottom:2rem; }
+    .tab-btn { background:rgba(12,25,46,0.85); color:#ffffff; border:none; border-radius:7px 7px 0 0; padding:10px 38px; font-size:1.12rem; font-weight:600; cursor:pointer; opacity:0.5; transition:opacity 0.13s ease, background 0.13s, transform 0.2s, box-shadow 0.2s; }
+    .tab-btn.active { background:#40e7ff; color:#0a172d; border-bottom:3px solid rgba(255,255,255,0.7); opacity:1; box-shadow:0 1px 10px 0 rgba(40,75,255,0.28);}
+    .tab-btn:hover { opacity:0.9; transform:scale(1.05); background:#40e7ff; color:#0a172d; border-bottom:3px solid rgba(255,255,255,0.7);  box-shadow:0 4px 15px rgba(64,231,255,0.3);}
+
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    .status-bar, .status-row { display:grid; gap:14px; margin-bottom:18px; }
+    .status-bar { grid-template-columns:repeat(5,1fr);}
+    .status-row { grid-template-columns:repeat(4,1fr);}
+    .status-item { background:rgba(12,25,46,0.8); text-align:center; padding:18px 0 10px; border-radius:10px; font-weight:600; font-size:1.2rem; color:#ffffff; box-shadow:0 0 6px -1px #40e7ff9e; transition:background 0.2s ease, transform 0.2s, box-shadow 0.2s; cursor:pointer; }
+    .status-item.active { background:#40e7ff; color:#0a172d; font-weight:700; box-shadow:0 6px 25px 0 #40e7ff92; }
+    .status-item:hover { transform:scale(1.05); box-shadow:0 6px 25px 0 rgba(64,231,255,0.5);}
+    .status-item span { display:block; font-weight:700; font-size:1.1rem; margin-top:3px; }
+
+    table { width:100%; border-collapse:collapse; font-size:1rem; margin-top:24px; color:#bde7ff; border-radius:10px; overflow:hidden; background:transparent; }
+    th, td { padding:1.05em 0.7em; text-align:left; }
+    th { background:rgba(20,56,108,0.85); color:#99dcff; font-weight:700; border-bottom:2px solid #113869; }
+    td { background:transparent; border-bottom:1px solid #14386c; }
+    .stars { color:#29f2fc; font-size:1.1em; letter-spacing:2px; }
+    a.candidate-link { color:#40e7ff; font-weight:700; cursor:pointer; text-decoration:underline; transition:color 0.15s; }
+    a.candidate-link:hover { color:#0fd9ff; }
+
+    .pagination { margin-top:20px; text-align:center; }
+    .pagination button { background:rgba(64,231,255,0.2); border:none; color:#40e7ff; margin:0 4px; padding:6px 12px; border-radius:6px; cursor:pointer; transition:all 0.2s; }
+    .pagination button.active { background:#40e7ff; color:#0a172d; font-weight:700; }
+    .pagination button:hover { background:#29dfff; color:#0a172d; }
+
+    .modal-overlay { position:fixed; inset:0; background:rgba(16,34,57,0.27); display:none; z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.active { display:flex; animation:fadeIn 0.2s; }
+    .modal-card { background:#121e2f; border-radius:16px; box-shadow:0 6px 32px 0 rgba(0,191,255,0.27); padding:2rem 2.5rem; width:350px; max-width:90vw; color:#dbedff; position:relative; font-size:1em; }
+    .modal-close { position:absolute; right:18px; top:18px; font-size:1.35em; color:#48d1ff; background:none; border:none; cursor:pointer; }
+    .modal-card .side-title { color:#40e7ff; font-weight:700; margin-bottom:1.15em; font-size:1.07em; }
+    .modal-card .candidate-name { font-size:1.18em; font-weight:700; margin-bottom:8px; }
+    .modal-card .candidate-info { font-size:0.98em; margin-bottom:10px; line-height:1.5; color:#9fc0df; }
+    .modal-card .side-actions button { background:linear-gradient(90deg, #0fd9ff 0%, #2e57ff 100%); color:#090c1b; border:none; border-radius:7px; padding:6px 16px; font-weight:700; font-size:0.99em; margin-right:10px; margin-bottom:5px; cursor:pointer; box-shadow:0 2px 8px rgba(40,75,255,0.22); transition:background 0.3s ease; }
+    .modal-card .side-actions button:hover { background:linear-gradient(90deg, #30e5ff 0%, #1a4fff 100%);}
+    .modal-card .candidate-notes { margin-top:1.15em; padding:0.8em 1.05em; background:#172a3a; border-radius:8px; font-size:0.98em; color:#7aa6d1;}
+    @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <i class="ph ph-cube text-cyan-400 text-2xl"></i>
+    <div class="navbar-right">
+      <a href="#" class="active"><i class="ph ph-gauge"></i> Dashboard</a>
+      <a href="#"><i class="ph ph-briefcase"></i> Jobs</a>
+      <a href="#"><i class="ph ph-users"></i> Candidates</a>
+      <a href="#"><i class="ph ph-user-plus"></i> Talent</a>
+      <a href="#"><i class="ph ph-sign-out"></i> Logout</a>
+    </div>
+  </div>
+
+  <div class="dashboard-wrap">
+    <main class="dashboard-card">
+      <div class="dashboard-title">Office Manager</div>
+      <div class="tabs">
+         <button class="tab-btn active" data-tab="overview"><i class="ph ph-chart-bar"></i> Overview</button>
+        <button class="tab-btn" data-tab="evaluators"><i class="ph ph-identification-badge"></i> Evaluators</button>
+        <button class="tab-btn" data-tab="candidates"><i class="ph ph-user"></i> Candidates</button>
+        <button class="tab-btn" data-tab="invite"><i class="ph ph-paper-plane-right"></i> Invite</button>
+        <button class="tab-btn" data-tab="activity"><i class="ph ph-activity"></i> Activity</button>
+        <button class="tab-btn" data-tab="analytics"><i class="ph ph-graph"></i> Analytics</button>
+      </div>
+
+      <div id="overview" class="tab-content active">
+        <div class="status-bar">
+          <div class="status-item active" data-status="Applied"><i class="ph ph-file-text"></i> Applied <span>100</span></div>
+          <div class="status-item" data-status="Auto Screened"><i class="ph ph-magic-wand"></i> Auto Screened <span>(Coming soon)</span></div>
+          <div class="status-item" data-status="Disqualified"><i class="ph ph-x-circle"></i> Disqualified <span>12</span></div>
+          <div class="status-item" data-status="Shortlisted"><i class="ph ph-check-circle"></i> Shortlisted <span>22</span></div>
+          <div class="status-item" data-status="Hired"><i class="ph ph-handshake"></i> Hired <span>3</span></div>
+        </div>
+        <div class="status-row">
+          <div class="status-item" data-status="Interview Pending"><i class="ph ph-clock"></i> Interview Pending <span>12</span></div>
+          <div class="status-item" data-status="Interviews Done"><i class="ph ph-chat-circle-text"></i> Interviews Done <span>9</span></div>
+          <div class="status-item" data-status="Assessments Pending"><i class="ph ph-pencil"></i> Assessments Pending <span>3</span></div>
+          <div class="status-item" data-status="Assessments Done"><i class="ph ph-seal-check"></i> Assessments Done <span>1</span></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              <th>Status</th>
+              <th>Evaluator</th>
+              <th>Rating</th>
+            </tr>
+          </thead>
+          <tbody id="candidateTable">
+            <!-- Candidate rows (dummy for now) -->
+            <tr data-status="Applied">
+              <td><a class="candidate-link" data-name="John Doe" data-role="Frontend Dev" data-notes="Experienced in React & Tailwind">John Doe</a></td>
+              <td>Applied</td>
+              <td>Jane Smith</td>
+              <td><span class="stars">★★★★☆</span></td>
+            </tr>
+            <tr data-status="Applied">
+              <td><a class="candidate-link" data-name="Alice Brown" data-role="UI Designer" data-notes="Strong Figma skills">Alice Brown</a></td>
+              <td>Applied</td>
+              <td>Mark Lee</td>
+              <td><span class="stars">★★★☆☆</span></td>
+            </tr>
+            <tr data-status="Disqualified">
+              <td><a class="candidate-link" data-name="Bob White" data-role="Backend Dev" data-notes="Node.js expert">Bob White</a></td>
+              <td>Disqualified</td>
+              <td>Anne Clark</td>
+              <td><span class="stars">★☆☆☆☆</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- Pagination Controls -->
+		<div id="pagination" class="flex items-center justify-center gap-2 mt-4">
+		  <button id="prevBtn" class="px-3 py-1 rounded bg-cyan-600 disabled:opacity-40">Previous</button>
+		  <div id="pageNumbers" class="flex gap-1"></div>
+		  <button id="nextBtn" class="px-3 py-1 rounded bg-cyan-600 disabled:opacity-40">Next</button>
+		</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose">&times;</button>
+      <div class="side-title">Candidate Details</div>
+      <div class="candidate-name" id="modalName"></div>
+      <div class="candidate-info" id="modalRole"></div>
+      <div class="candidate-notes" id="modalNotes"></div>
+      <div class="side-actions">
+        <button>Shortlist</button>
+        <button>Disqualify</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tabs
+    const tabs = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        tabContents.forEach(c => c.classList.remove('active'));
+        document.getElementById(target).classList.add('active');
+      });
+    });
+
+    // Pagination & Status filter
+    const statusItems = document.querySelectorAll('.status-item');
+    const candidateRows = document.querySelectorAll('#candidateTable tr');
+    const pagination = document.getElementById('pagination');
+    let currentPage = 1;
+    const rowsPerPage = 15;
+    let currentStatus = "Applied";
+
+    function displayRows(status, page) {
+      let rows = Array.from(candidateRows).filter(r => r.dataset.status === status);
+      let start = (page - 1) * rowsPerPage;
+      let end = start + rowsPerPage;
+
+      candidateRows.forEach(r => r.style.display = "none");
+      rows.slice(start, end).forEach(r => r.style.display = "");
+
+      setupPagination(rows.length, page);
+    }
+
+    function setupPagination(totalRows, page) {
+      pagination.innerHTML = "";
+      let totalPages = Math.ceil(totalRows / rowsPerPage);
+      for (let i = 1; i <= totalPages; i++) {
+        let btn = document.createElement("button");
+        btn.textContent = i;
+        if (i === page) btn.classList.add("active");
+        btn.addEventListener("click", () => {
+          currentPage = i;
+          displayRows(currentStatus, currentPage);
+        });
+        pagination.appendChild(btn);
+      }
+    }
+
+    statusItems.forEach(item => {
+      item.addEventListener('click', () => {
+        statusItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        currentStatus = item.dataset.status;
+        currentPage = 1;
+        displayRows(currentStatus, currentPage);
+      });
+    });
+
+    // Default Applied
+    displayRows(currentStatus, currentPage);
+
+    // Modal
+    const modal = document.getElementById('modal');
+    const modalClose = document.getElementById('modalClose');
+    const modalName = document.getElementById('modalName');
+    const modalRole = document.getElementById('modalRole');
+    const modalNotes = document.getElementById('modalNotes');
+
+    document.querySelectorAll('.candidate-link').forEach(link => {
+      link.addEventListener('click', e => {
+        modalName.textContent = link.dataset.name;
+        modalRole.textContent = link.dataset.role;
+        modalNotes.textContent = link.dataset.notes;
+        modal.classList.add('active');
+      });
+    });
+
+    modalClose.addEventListener('click', () => modal.classList.remove('active'));
+    modal.addEventListener('click', e => { if(e.target === modal) modal.classList.remove('active'); });
+  </script>
+
+  <!-- ✅ Particle background script -->
+  <script>
+    const canvas = document.createElement("canvas");
+    canvas.id = "particles";
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+    let particlesArray = [];
+
+    function sizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    sizeCanvas();
+
+    class Particle {
+      constructor(x, y, size, vx, vy) {
+        this.x = x; this.y = y; this.size = size; this.vx = vx; this.vy = vy;
+      }
+      update() {
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+      }
+      draw() {
+        ctx.fillStyle = "rgba(0,191,255,0.7)";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      particlesArray = [];
+      for (let i = 0; i < 60; i++) {
+        const size = Math.random() * 3 + 1;
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const vx = (Math.random() - 0.5) * 1;
+        const vy = (Math.random() - 0.5) * 1;
+        particlesArray.push(new Particle(x, y, size, vx, vy));
+      }
+    }
+
+    function connectParticles() {
+      for (let a = 0; a < particlesArray.length; a++) {
+        for (let b = a + 1; b < particlesArray.length; b++) {
+          const dx = particlesArray[a].x - particlesArray[b].x;
+          const dy = particlesArray[a].y - particlesArray[b].y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 120) {
+            ctx.strokeStyle = "rgba(0,191,255," + (1 - dist/120) + ")";
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+            ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particlesArray) { p.update(); p.draw(); }
+     <!-- connectParticles(); -->
+      requestAnimationFrame(animateParticles);
+    }
+
+    window.addEventListener("resize", () => { sizeCanvas(); initParticles(); });
+    initParticles();
+    animateParticles();
+  </script>
+</body>
+</html>

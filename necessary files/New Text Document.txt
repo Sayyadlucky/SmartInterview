@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IntelliHire - AI-Powered Interview Portal</title>
+  <!-- Modern Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- GSAP CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <!-- Phosphor Icons CDN -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <style>
+    /* ======== Your original gradient, frosted panel, floating label styles preserved ======== */
+    :root { --c1: #09162b; --c2: #1a3463; --c3: #23293b; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #fff; margin: 0;
+      background: linear-gradient(135deg, var(--c1), var(--c2), var(--c3));
+      background-size: 400% 400%;
+      animation: gradientShift 12s ease infinite;
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    #mainHeader { transition: background 500ms ease; }
+    #mainHeader.overlay {
+      background: linear-gradient(to bottom, rgba(2,12,27,0.70), rgba(2,12,27,0));
+    }
+    .frosted {
+      backdrop-filter: blur(25px);
+      background-color: rgba(18, 27, 40, 0.62);
+      border: 1.5px solid rgba(0,191,255,0.14);
+      box-shadow: 0 12px 40px 0 rgba(38,112,255,0.14), -5px 0 25px rgba(0,191,255,0.16);
+    }
+    input:focus {
+      outline: none; border-color: #0fd9ff;
+      box-shadow: 0 0 0 3px rgba(15,217,255,0.5);
+    }
+    button, .sign-in-btn {
+      background: linear-gradient(90deg, #0fd9ff 0%, #2e57ff 100%);
+      box-shadow: 0 2px 30px 0 rgba(40,75,255,0.16);
+    }
+    button:hover, .sign-in-btn:hover {
+      background: linear-gradient(90deg, #51e2f5 0%, #284bff 100%);
+      box-shadow: 0 4px 32px 0 rgba(40, 75, 255, 0.28);
+      color: #fff;
+    }
+    .floating { position: relative; }
+    .floating input.floating-input {
+      width: 100%; padding-left: 2.5rem;
+      padding-top: 1.25rem; padding-bottom: 0.5rem;
+      border-radius: 0.5rem;
+      background: rgba(0,0,0,0.40);
+      border: 1px solid rgba(148,163,184,0.12);
+      color: #fff;
+      transition: box-shadow .18s ease, border-color .18s ease;
+    }
+    .floating label.floating-label {
+      position: absolute; left: 2.5rem; top: 50%;
+      transform: translateY(-50%);
+      font-size: 1rem; color: #a8b0c5;
+      pointer-events: none;
+      transition: all 180ms ease;
+    }
+    .floating input.floating-input:focus + label.floating-label,
+    .floating input.floating-input:not(:placeholder-shown) + label.floating-label {
+      top: 0.3rem; transform: translateY(0);
+      font-size: 0.78rem; color: #0fd9ff;
+    }
+    canvas#particles {
+      position: absolute; inset: 0; z-index: 0;
+      background: linear-gradient(135deg, var(--c1), var(--c2), var(--c3));
+      background-size: 400% 400%;
+      animation: gradientShift 12s ease infinite;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="text-white overflow-hidden relative">
+
+  <!-- HEADER -->
+  <header id="mainHeader" class="fixed top-0 left-0 w-full z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 grid grid-cols-3 items-center">
+      <div class="flex items-center gap-2">
+        <i class="ph ph-cube text-cyan-400 text-2xl"></i>
+        <span class="text-xl font-bold">IntelliHire</span>
+      </div>
+      <nav id="mainMenu" class="justify-self-center">
+        <ul class="flex gap-8 text-sm font-medium">
+          <li><a href="#" class="hover:text-cyan-400 transition">Home</a></li>
+          <li><a href="#features" class="hover:text-cyan-400 transition">Features</a></li>
+          <li><a href="#pricing" class="hover:text-cyan-400 transition">Pricing</a></li>
+          <li><a href="#contact" class="hover:text-cyan-400 transition">Contact</a></li>
+        </ul>
+      </nav>
+      <div class="justify-self-end"></div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section id="hero" class="h-screen flex flex-col justify-center items-center text-center relative z-10">
+    <h1 class="text-6xl font-bold mb-4 opacity-0">AI-Powered Interview Portal</h1>
+    <p class="text-xl text-gray-300 mb-8 opacity-0">
+      Smarter hiring with automated cheat detection, candidate ratings, and session recording — all in one intuitive dashboard.
+    </p>
+    <button id="getStartedBtn" class="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold py-3 px-8 rounded-lg shadow-lg opacity-0">
+      Get Started
+    </button>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="max-w-6xl mx-auto py-20 px-6 relative z-10">
+    <h2 class="text-4xl font-bold text-center mb-12">Why Choose IntelliHire</h2>
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div class="bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition">
+        <i class="ph ph-shield-check text-cyan-400 text-3xl mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">Smart Cheat Detection</h3>
+        <p class="text-gray-400 text-sm">AI analyses facial expressions, keystrokes, and screen activity to ensure test integrity.</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition">
+        <i class="ph ph-gauge text-cyan-400 text-3xl mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">All-in-One Dashboard</h3>
+        <p class="text-gray-400 text-sm">View candidate history, rate performances, and store detailed notes.</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition">
+        <i class="ph ph-smiley text-cyan-400 text-3xl mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">User-Friendly Experience</h3>
+        <p class="text-gray-400 text-sm">Intuitive design so interviewers and candidates stay focused on the conversation.</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg shadow hover:shadow-lg transition">
+        <i class="ph ph-video text-cyan-400 text-3xl mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">Recording Archive</h3>
+        <p class="text-gray-400 text-sm">Securely store and retrieve interview videos for training or review.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGIN -->
+  <section id="loginSection" class="hidden fixed top-0 left-0 w-full h-full flex justify-end z-50">
+    <div id="loginPanel" class="frosted w-full max-w-lg h-full p-
