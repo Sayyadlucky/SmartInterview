@@ -1,0 +1,47 @@
+<div class="flex">
+  <!-- Sidebar -->
+    <aside class="w-64 p-4 space-y-4 border-cyan-400 sidebar-card">
+        <!-- Filters -->
+        <div class="dashboard-card no-padding">
+        <div class="flex items-center gap-2 text-gray-300">
+        <i class="ph ph-magnifying-glass text-gray-400 text-lg"></i>
+        <span class="font-large">Search</span>
+        </div>
+        <div>
+        <input type="text" class="bg-transparent border-b border-gray-600 focus:outline-none mt-2 w-full"
+                placeholder=" Type to search..." [(ngModel)]="searchTerm" (input)="filterEvaluators()"/>
+        </div>
+        </div>
+        <!-- Evaluator List -->
+        <div>
+        <h3 class="text-gray-300 font-semibold mb-3">Evaluator List</h3>
+
+        <div class="space-y-3">
+            <ng-container *ngFor="let recruiter of recruiters_list">
+            <div class="dashboard-card p-3 flex flex-col cursor-pointer no-padding" (click)="openProfile(recruiter)">
+                <span class="font-medium text-white">{{ recruiter.name | titlecase }}</span>
+                <span class="text-sm text-gray-400">{{ recruiter.role | titlecase }}</span>
+            </div>
+            </ng-container>
+            <ng-container *ngIf="recruiters_list && recruiters_list.length === 0">
+                <div class="dashboard-card p-3 flex flex-col cursor-pointer no-padding">
+                    <span class="font-medium text-white">No Evaluators Found</span>
+                </div>
+            </ng-container>
+        </div>
+        </div>
+        <div class="flex flex-col gap-4">
+            <button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]" (click)="addRecruiter()">Add Recruiter</button>
+        </div>
+    </aside>
+    @if (!is_profile_clicked){
+        <div class="flex items-center justify-center h-[550px] m-3 dashboard-card">
+        <img src="static/assets/images/select-evaluator.png" alt="Profile Placeholder" class="w-24 h-24"/>
+        <br />
+        <span class="select-evaluator-text text-cyan-400 font-semibold text-lg">Select an evaluator to view profile</span>
+        </div>
+    } @else {
+        <!-- Profile Section -->
+        <app-recuiter-profile  [evaluator]="selectedEvaluator"></app-recuiter-profile>
+    }
+</div>

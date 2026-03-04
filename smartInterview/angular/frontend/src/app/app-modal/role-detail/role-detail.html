@@ -1,0 +1,40 @@
+<div class="modal-overlay" id="modal">
+    <div class="modal-card">
+        <!-- Close Button -->
+        <button class="modal-close absolute top-3 right-3 text-gray-400 hover:text-white text-xl" (click)="closeModal()">×</button>
+
+        <!-- Title -->
+        <h2 class="side-title text-2xl font-bold text-center mb-2">{{ roleDetails }}</h2>
+        <h5 class="side-title-sm text-gray-400 mb-6">
+        Current Progress for the {{ roleDetails }} Role is as follows:
+        </h5>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-4 gap-4 mt-6 text-center text-lg">
+            <div>
+            <span class="block text-cyan-400 font-bold">{{ totalCandidates}}</span>
+            <span class="text-gray-400">Total Vacancies</span>
+            </div>
+            <div>
+            <span class="block text-cyan-400 font-bold">{{ appliedCandidates }}</span>
+            <span class="text-gray-400">Applied</span>
+            </div>
+            <div>
+            <span class="block text-cyan-400 font-bold">{{ HiredCandidates }}</span>
+            <span class="text-gray-400">Hired</span>
+            </div>
+            <div>
+            <span class="block text-cyan-400 font-bold">{{ shortlistedCandidates }}</span>
+            <span class="text-gray-400">In-Progress</span>
+            </div>
+        </div>
+
+        <!-- Description -->
+         <div class="flex flex-col items-center mt-2 p-6 h-full w-full">
+            <div class="mt-6 w-full" style="max-height: 500px; overflow-y: auto;">
+                <h4 class="text-lg font-bold text-left mb-2">Description:</h4>
+                <div [innerHTML]="description"></div>
+            </div>
+        </div> 
+    </div>  
+</div>

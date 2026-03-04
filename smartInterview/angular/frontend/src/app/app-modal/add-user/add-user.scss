@@ -1,0 +1,43 @@
+.modal-overlay {inset:0; background:rgba(16,34,57,0.27); align-items:center; justify-content:center; }
+.modal-overlay.active { display:flex; animation:fadeIn 0.2s; }
+.modal-card { background:#121e2f; box-shadow:0 6px 32px 0 rgba(0,191,255,0.27); padding:2rem 2.5rem; width:550px; color:#dbedff; position:relative; font-size:1em; }
+.modal-close { position:absolute; right:18px; top:18px; font-size:1.35em; color:#48d1ff; background:none; border:none; cursor:pointer; }
+.modal-card .side-title { color:#40e7ff; font-weight:700; margin-bottom:1.15em; font-size:1.07em; }
+.modal-card .candidate-name { font-size:1.18em; font-weight:700; margin-bottom:8px; }
+.modal-card .candidate-info { font-size:0.98em; margin-bottom:10px; line-height:1.5; color:#9fc0df; }
+.modal-card .side-actions button { background:linear-gradient(90deg, #0fd9ff 0%, #2e57ff 100%); color:#090c1b; border:none; border-radius:7px; padding:6px 16px; font-weight:700; font-size:0.99em; margin-right:10px; margin-bottom:5px; cursor:pointer; box-shadow:0 2px 8px rgba(40,75,255,0.22); transition:background 0.3s ease; }
+.modal-card .side-actions button:hover { background:linear-gradient(90deg, #30e5ff 0%, #1a4fff 100%);}
+.modal-card .candidate-notes { margin-top:1.15em; padding:0.8em 1.05em; background:#172a3a; border-radius:8px; font-size:0.98em; color:#7aa6d1;}
+.modal-card .side-title-sm { color:#e9f0f1; font-weight:500; margin-bottom:1.15em; font-size:0.7em; }
+
+/* Toolbar background + border */
+:host ::ng-deep .custom-quill .ql-toolbar{
+  background-color: #f0f2f5 !important; /* Light gray */
+  border: 1px solid #374151 !important; /* Tailwind gray-700 */
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+/* Toolbar icons */
+:host ::ng-deep .custom-quill .ql-toolbar button svg {
+  stroke: #e5e7eb; /* Tailwind gray-200 */
+}
+
+/* On hover */
+:host ::ng-deep .custom-quill .ql-toolbar button:hover {
+  background-color: #374151; /* Tailwind gray-700 */
+  border-radius: 0.25rem;
+}
+
+/* Dropdowns (font, size, align, color, etc.) */
+:host ::ng-deep .custom-quill .ql-toolbar .ql-picker {
+  color: #e5e7eb;
+}
+:host ::ng-deep .custom-quill .ql-toolbar .ql-picker-options {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+}
+
+:host ::ng-deep .custom-quill .ql-container {
+  border: 1px solid #374151 !important;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
