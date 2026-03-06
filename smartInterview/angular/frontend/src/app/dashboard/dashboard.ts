@@ -663,12 +663,20 @@ private renderChart(): void {
     type: 'doughnut',
     data: {
       labels,
-      datasets: [{ data: values, backgroundColor: colors }]
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderWidth: 2,
+        borderColor: 'rgba(8, 31, 62, 0.9)',
+        hoverOffset: 3
+      }]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1,
       plugins: { legend: { display: false } },
-      cutout: '50%'
+      cutout: '62%'
     }
   });
 }

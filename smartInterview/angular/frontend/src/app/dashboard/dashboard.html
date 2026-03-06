@@ -10,7 +10,7 @@
 </div>
 
 <div class="dashboard-wrap">
-  <main class="dashboard-card">
+  <main class="dashboard-card dashboard-shell">
     <div class="dashboard-title"> Welcome, {{ loginUser }}</div>
     <div class="dashboard-utility-row">
       <div class="utility-chip">
@@ -46,28 +46,28 @@
       <div *ngIf="!loading">
 
       <!-- 🔹 Unified Grid: Summary + Middle + Sidebar -->
-      <div class="grid grid-cols-1 xl:grid-cols-4 gap-4 mb-6">
+      <div class="grid grid-cols-1 gap-4 mb-6 overview-main-grid">
         
         <!-- Left Content (3 columns wide) -->
-        <div class="xl:col-span-3 flex flex-col gap-6">
+        <div class="flex flex-col gap-6 overview-main-content">
           
           <!-- Summary Cards Row -->
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div class="dashboard-card py-1 text-center kpi-card">
               <div class="kpi-head"><i class="ph ph-users"></i><span>Total Candidates</span></div>
-              <div class="text-5xl font-bold text-cyan-400">{{ candidatesData?.length || 0 }}</div>
+              <div class="kpi-value">{{ candidatesData?.length || 0 }}</div>
             </div>
             <div class="dashboard-card py-1 text-center kpi-card">
               <div class="kpi-head"><i class="ph ph-timer"></i><span>Scheduled</span></div>
-              <div class="text-5xl font-bold text-cyan-400">{{ scheduledCandidates?.length || 0 }}</div>
+              <div class="kpi-value">{{ scheduledCandidates?.length || 0 }}</div>
             </div>
             <div class="dashboard-card py-1 text-center kpi-card">
               <div class="kpi-head"><i class="ph ph-handshake"></i><span>Hired</span></div>
-              <div class="text-5xl font-bold text-cyan-400">{{ hiredCandidates?.length || 0 }}</div>
+              <div class="kpi-value">{{ hiredCandidates?.length || 0 }}</div>
             </div>
             <div class="dashboard-card py-1 text-center kpi-card">
               <div class="kpi-head"><i class="ph ph-prohibit"></i><span>Disqualified</span></div>
-              <div class="text-5xl font-bold text-cyan-400">{{ rejectedCandidates?.length || 0 }}</div>
+              <div class="kpi-value">{{ rejectedCandidates?.length || 0 }}</div>
             </div>
           </div>
 
@@ -111,9 +111,11 @@
             </div>
 
             <!-- Source Performance -->
-            <div class="dashboard-card p-4 flex flex-col items-center">
-              <h3 class="text-lg font-semibold mb-4 self-start">Source Performance</h3>
-              <canvas #sourcePerformanceCanvas class="w-[180px] h-[180px]"></canvas>
+            <div class="dashboard-card p-4 source-performance-card">
+              <h3 class="source-performance-title">Source Performance</h3>
+              <div class="source-chart-wrap">
+                <canvas #sourcePerformanceCanvas></canvas>
+              </div>
               <div class="chart-legend">
                 @for (item of chartLegendData; track item.label) {
                   <div class="legend-item">
@@ -134,16 +136,23 @@
               <div class="role-snapshot-list">
                 @for (roleItem of roleSnapshotData; track roleItem.role) {
                   <div class="role-snapshot-card-item">
-                    <div class="role-snapshot-title">{{ roleItem.role }}</div>
-                    <div class="role-snapshot-row">
-                      <div class="role-snapshot-main">
-                        <div class="role-snapshot-meta-grid">
-                          <span><b>Vacancies:</b> {{ roleItem.vacancies }}</span>
-                          <span><b>Applied:</b> {{ roleItem.applied }}</span>
-                          <span><b>Hired:</b> {{ roleItem.hired }}</span>
-                        </div>
-                      </div>
+                    <div class="role-snapshot-top">
+                      <div class="role-snapshot-title">{{ roleItem.role }}</div>
                       <div class="role-snapshot-rate">{{ roleItem.fulfilledPercent }}% fulfilled</div>
+                    </div>
+                    <div class="role-snapshot-metrics">
+                      <div class="role-metric">
+                        <span class="role-metric-label">Vacancies</span>
+                        <span class="role-metric-value">{{ roleItem.vacancies }}</span>
+                      </div>
+                      <div class="role-metric">
+                        <span class="role-metric-label">Applied</span>
+                        <span class="role-metric-value">{{ roleItem.applied }}</span>
+                      </div>
+                      <div class="role-metric">
+                        <span class="role-metric-label">Hired</span>
+                        <span class="role-metric-value">{{ roleItem.hired }}</span>
+                      </div>
                     </div>
                   </div>
                 }
