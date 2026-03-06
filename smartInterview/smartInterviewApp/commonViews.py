@@ -100,7 +100,7 @@ def addUser(request):
                         candidate_details['notes'] = candidate.notes
                         candidate_details['date'] = candidate.date
                         candidate_details['role'] = candidate.role.role
-                        candidate_details['role-id'] = candidate.role.id
+                        candidate_details['role_id'] = candidate.role.id
                     if user_type == 'Recruiter':
                         recruiter_list = []
                         recruiter_details = {}
@@ -145,7 +145,7 @@ def addUser(request):
                         candidate_details['notes'] = candidate.notes
                         candidate_details['date'] = candidate.date
                         candidate_details['role'] = candidate.role.role
-                        candidate_details['role-id'] = candidate.role.id
+                        candidate_details['role_id'] = candidate.role.id
             else:
                     return JsonResponse({"Success":False, "Error":'Add user failed'})
             return JsonResponse({"Success":True, "Error":None, "CandidateDetails": candidate_details})

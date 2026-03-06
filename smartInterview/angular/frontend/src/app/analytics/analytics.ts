@@ -251,6 +251,13 @@ export class Analytics implements OnInit, AfterViewInit, AfterViewChecked, OnDes
       .filter((x) => x.value > 0);
   }
 
+  formatRoleWithId(role: string, roleId?: number | string | null): string {
+    const roleName = (role || '').toString().trim();
+    const id = (roleId ?? '').toString().trim();
+    if (!roleName) return id;
+    return id ? `${roleName} - ${id}` : roleName;
+  }
+
   ensureInitialized(): void {
     if (this.initialized) return;
     this.initialized = true;

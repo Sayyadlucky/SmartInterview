@@ -46,7 +46,7 @@
           />
           <div class="search-select-list" *ngIf="showRoleMenu">
             <button type="button" *ngFor="let item of filteredRoleOptions" (mousedown)="selectRoleOption(item.id, item.name)">
-              {{ item.name }}
+              {{ formatRoleWithId(item.name, item.id) }}
             </button>
             <div class="search-empty" *ngIf="!filteredRoleOptions.length">No role found</div>
           </div>
@@ -152,7 +152,7 @@
               </thead>
               <tbody>
                 <tr *ngFor="let row of roleRiskScore" class="clickable" (click)="applyRoleByName(row.role)">
-                  <td>{{ row.role }}</td>
+                  <td>{{ formatRoleWithId(row.role, row.role_id) }}</td>
                   <td>{{ row.filled }}/{{ row.target }}</td>
                   <td>{{ row.progress_pct }}%</td>
                   <td>

@@ -2,7 +2,7 @@
   <button class="close-btn" type="button" (click)="closeModal()">×</button>
 
   <div class="role-hero">
-    <h2>{{ roleDetails || 'Role Details' }}</h2>
+    <h2>{{ roleTitleWithId }}</h2>
     <p>Current hiring progress and role health snapshot.</p>
     <div class="meta-row">
       <span class="meta-chip" *ngIf="roleStatus">{{ roleStatus | titlecase }}</span>

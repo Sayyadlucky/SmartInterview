@@ -137,7 +137,7 @@
                 @for (roleItem of roleSnapshotData; track roleItem.role) {
                   <div class="role-snapshot-card-item">
                     <div class="role-snapshot-top">
-                      <div class="role-snapshot-title">{{ roleItem.role }}</div>
+                      <div class="role-snapshot-title">{{ formatRoleWithId(roleItem.role, roleItem.roleId) }}</div>
                       <div class="role-snapshot-rate">{{ roleItem.fulfilledPercent }}% fulfilled</div>
                     </div>
                     <div class="role-snapshot-metrics">
@@ -338,7 +338,7 @@
                     <td>{{ candidate.recruiter }}</td>
                     <td>
                       <span class="role-link group cursor-pointer hover:underline flex items-center" (click)="openRoldeModal(candidate.role_id)">
-                        {{ candidate.role }}
+                        {{ formatRoleWithId(candidate.role, candidate.role_id) }}
                       </span>
                     </td>
                   </tr>

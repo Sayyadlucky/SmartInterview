@@ -213,6 +213,13 @@ export class Candidates implements OnInit {
     return Math.max(8, Math.round((item.count / max) * 100));
   }
 
+  formatRoleWithId(role: string, roleId?: number | null): string {
+    const roleName = (role || '').toString().trim();
+    const id = (roleId ?? '').toString().trim();
+    if (!roleName) return id;
+    return id ? `${roleName} - ${id}` : roleName;
+  }
+
   private getApiBaseUrl(): string {
     let portNumber = '';
     if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {

@@ -100,6 +100,13 @@ export class CandidateProfile {
     return this.candidate.status.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
   }
 
+  formatRoleWithId(role: string, roleId?: number | null): string {
+    const roleName = (role || '').toString().trim();
+    const id = (roleId ?? '').toString().trim();
+    if (!roleName) return id;
+    return id ? `${roleName} - ${id}` : roleName;
+  }
+
   close(): void {
     this.dialogRef.close(null);
   }

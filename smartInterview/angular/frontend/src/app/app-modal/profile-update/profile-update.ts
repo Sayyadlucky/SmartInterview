@@ -89,6 +89,13 @@ export class ProfileUpdate implements OnInit {
     this.filteredStatuses = OVERRIDES[status] ?? DEFAULT;
   }
 
+  formatRoleWithId(role: string, roleId?: number | null): string {
+    const roleName = (role || '').toString().trim();
+    const id = (roleId ?? '').toString().trim();
+    if (!roleName) return id;
+    return id ? `${roleName} - ${id}` : roleName;
+  }
+
   changeStatus(newStatus: string) {
     // Update the candidate's status
     this.candidate.status = newStatus;

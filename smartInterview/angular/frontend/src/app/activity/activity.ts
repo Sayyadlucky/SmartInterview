@@ -278,6 +278,13 @@ export class Activity implements OnInit, AfterViewInit, AfterViewChecked, OnDest
     return Math.round((item.hired / item.count) * 100);
   }
 
+  formatRoleWithId(role: string, roleId?: number | string | null): string {
+    const roleName = (role || '').toString().trim();
+    const id = (roleId ?? '').toString().trim();
+    if (!roleName) return id;
+    return id ? `${roleName} - ${id}` : roleName;
+  }
+
   get maxDailyTotal(): number {
     const values = this.productivity.daily.map((x) => x.total);
     return Math.max(1, ...values);

@@ -324,6 +324,13 @@ clearSearch(): void {
   this.currentPage = 1;
 }
 
+formatRoleWithId(role: any, roleId?: any): string {
+  const roleName = (role || '').toString().trim();
+  const id = (roleId ?? '').toString().trim();
+  if (!roleName) return id;
+  return id ? `${roleName} - ${id}` : roleName;
+}
+
 get totalFilteredCandidatesCount(): number {
   return this.filteredCandidates?.length || 0;
 }

@@ -73,7 +73,7 @@
                   <span class="status-chip">{{ candidate.status | titlecase }}</span>
                 </td>
                 <td>{{ candidate.recruiter }}</td>
-                <td>{{ candidate.role }}</td>
+                <td>{{ formatRoleWithId(candidate.role, candidate.role_id) }}</td>
                 <td>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</td>
                 <td>
                   <div class="row-actions">

@@ -29,6 +29,13 @@ export class RoleDetail {
   roleStatus = '';
   roleDate = '';
 
+  get roleTitleWithId(): string {
+    const roleName = (this.roleDetails || '').toString().trim();
+    const id = (this.data?.role_id ?? '').toString().trim();
+    if (!roleName) return id || 'Role Details';
+    return id ? `${roleName} - ${id}` : roleName;
+  }
+
 closeModal() {
     this.dialogRef.close();
   }
