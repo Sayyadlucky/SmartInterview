@@ -1,40 +1,59 @@
-<div class="modal-overlay" id="modal">
-    <div class="modal-card">
-        <!-- Close Button -->
-        <button class="modal-close absolute top-3 right-3 text-gray-400 hover:text-white text-xl" (click)="closeModal()">×</button>
+<div class="role-dialog">
+  <button class="close-btn" type="button" (click)="closeModal()">×</button>
 
-        <!-- Title -->
-        <h2 class="side-title text-2xl font-bold text-center mb-2">{{ roleDetails }}</h2>
-        <h5 class="side-title-sm text-gray-400 mb-6">
-        Current Progress for the {{ roleDetails }} Role is as follows:
-        </h5>
+  <div class="role-hero">
+    <h2>{{ roleDetails || 'Role Details' }}</h2>
+    <p>Current hiring progress and role health snapshot.</p>
+    <div class="meta-row">
+      <span class="meta-chip" *ngIf="roleStatus">{{ roleStatus | titlecase }}</span>
+      <span class="meta-chip" *ngIf="roleDate">Created {{ roleDate | date:'MMM d, y' }}</span>
+    </div>
+  </div>
 
-        <!-- Quick Stats -->
-        <div class="grid grid-cols-4 gap-4 mt-6 text-center text-lg">
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ totalCandidates}}</span>
-            <span class="text-gray-400">Total Vacancies</span>
-            </div>
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ appliedCandidates }}</span>
-            <span class="text-gray-400">Applied</span>
-            </div>
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ HiredCandidates }}</span>
-            <span class="text-gray-400">Hired</span>
-            </div>
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ shortlistedCandidates }}</span>
-            <span class="text-gray-400">In-Progress</span>
-            </div>
-        </div>
+  <div class="state-card" *ngIf="loading">Loading role details...</div>
+  <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
 
-        <!-- Description -->
-         <div class="flex flex-col items-center mt-2 p-6 h-full w-full">
-            <div class="mt-6 w-full" style="max-height: 500px; overflow-y: auto;">
-                <h4 class="text-lg font-bold text-left mb-2">Description:</h4>
-                <div [innerHTML]="description"></div>
-            </div>
-        </div> 
-    </div>  
+  <div class="content" *ngIf="!loading && !errorMessage">
+    <div class="kpi-grid">
+      <article class="kpi-card">
+        <span>Total Vacancies</span>
+        <strong>{{ totalVacancies }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>Applied</span>
+        <strong>{{ appliedCandidates }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>Hired</span>
+        <strong>{{ hiredCandidates }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>In-Progress</span>
+        <strong>{{ shortlistedCandidates }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>Open Positions</span>
+        <strong>{{ openPositions }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>Fulfillment</span>
+        <strong>{{ fulfillmentRate }}%</strong>
+      </article>
+    </div>
+
+    <section class="progress-section">
+      <div class="progress-head">
+        <h4>Pipeline Momentum</h4>
+        <span>{{ inProgressRate }}% active progression from applicants</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="inProgressRate"></div>
+      </div>
+    </section>
+
+    <section class="description-section">
+      <h4>Role Description</h4>
+      <div class="description-body" [innerHTML]="description || 'No role description provided.'"></div>
+    </section>
+  </div>
 </div>

@@ -44,6 +44,17 @@ app-root {
   max-height: 92vh !important;
 }
 
+.role-detail-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.role-detail-dialog .mat-mdc-dialog-container {
+  max-height: 92vh !important;
+}
+
 .cdk-overlay-dark-backdrop {
   background: rgba(6, 17, 36, 0.72);
 }

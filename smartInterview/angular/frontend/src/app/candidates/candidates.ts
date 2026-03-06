@@ -193,7 +193,10 @@ export class Candidates implements OnInit {
   openRoleDetail(roleId?: number | null): void {
     if (!roleId) return;
     this.dialog.open(RoleDetail, {
-      width: '550px',
+      width: '95vw',
+      maxWidth: '920px',
+      maxHeight: '92vh',
+      panelClass: 'role-detail-dialog',
       data: { role_id: roleId }
     });
   }

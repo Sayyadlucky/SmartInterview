@@ -1,11 +1,13 @@
 import { Component, Inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';  // Import HttpClient
 import { catchError, of } from 'rxjs';
 
 @Component({
   selector: 'app-role-detail',
-  imports: [],
+  standalone: true,
+  imports: [CommonModule],
   templateUrl: './role-detail.html',
   styleUrl: './role-detail.scss'
 })
@@ -17,13 +19,15 @@ export class RoleDetail {
   ) {}
 
   loading: boolean = false;
+  errorMessage = '';
   roleDetails: any = '';
-  totalCandidates: number = 0;
+  totalVacancies: number = 0;
   appliedCandidates: number = 0;
   shortlistedCandidates: number = 0;
-  HiredCandidates: number = 0;
+  hiredCandidates: number = 0;
   description: string = '';
-  responseData: any;
+  roleStatus = '';
+  roleDate = '';
 
 closeModal() {
     this.dialogRef.close();
@@ -34,6 +38,7 @@ closeModal() {
   }
   fetchRoleDetails(role_id: any) {
     this.loading = true;
+    this.errorMessage = '';
         let port_number = ''
         if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
           port_number = '8000'
@@ -44,24 +49,45 @@ closeModal() {
             catchError(error => {
               console.error('Error fetching data', error);
               this.loading = false;
+              this.errorMessage = 'Unable to load role details.';
               return of([]); // Return empty array on error
             })
           )
-          .subscribe(response => {
-            // this.data = response;
+          .subscribe((response: any) => {
             this.loading = false;
-            this.responseData = response;
-            if (this.responseData && this.responseData?.Success && this.responseData.RoleData) {
-              const role = this.responseData.RoleData;
+            if (response && response?.Success && response.RoleData) {
+              const role = response.RoleData;
               this.roleDetails = role.name;
               this.description = role.description || '';
-              this.totalCandidates = role.applications[0];
-              this.appliedCandidates = role.applications[0];
-              this.shortlistedCandidates = role.inprogress[0];
-              this.HiredCandidates = role.hired[0];
+              this.totalVacancies = this.extractNumber(role.position);
+              this.appliedCandidates = this.extractNumber(role.applications);
+              this.shortlistedCandidates = this.extractNumber(role.inprogress);
+              this.hiredCandidates = this.extractNumber(role.hired);
+              this.roleStatus = (role.status || '').toString();
+              this.roleDate = role.date || '';
+            } else {
+              this.errorMessage = 'No role data found.';
             }
           });
   }
 
+  get openPositions(): number {
+    return Math.max(this.totalVacancies - this.hiredCandidates, 0);
+  }
+
+  get fulfillmentRate(): number {
+    if (!this.totalVacancies) return 0;
+    return Math.min(100, Math.round((this.hiredCandidates / this.totalVacancies) * 100));
+  }
+
+  get inProgressRate(): number {
+    if (!this.appliedCandidates) return 0;
+    return Math.min(100, Math.round((this.shortlistedCandidates / this.appliedCandidates) * 100));
+  }
+
+  private extractNumber(value: any): number {
+    if (Array.isArray(value)) return Number(value[0] || 0);
+    return Number(value || 0);
+  }
 
 }

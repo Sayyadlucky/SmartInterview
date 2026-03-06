@@ -5,7 +5,6 @@ import { of } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
-import { ProfileUpdate } from '../app-modal/profile-update/profile-update';
 import { Evaluators } from '../evaluators/evaluators';
 import { Candidates } from '../candidates/candidates';
 import { Activity } from '../activity/activity';
@@ -16,6 +15,7 @@ import * as XLSX from 'xlsx';
 import { AddUser } from '../app-modal/add-user/add-user';
 import { ConfirmationBox } from '../app-modal/confirmation-box/confirmation-box/confirmation-box';
 import { RoleDetail } from '../app-modal/role-detail/role-detail';
+import { CandidateProfile } from '../app-modal/candidate-profile/candidate-profile';
 
 Chart.register(...registerables);
 
@@ -192,16 +192,24 @@ export class Dashboard implements OnInit, AfterViewInit {
   }
 
   profileUpdate(candidate?: any): void {
-    const dialogRef = this.dialog.open(ProfileUpdate, {
-      disableClose: true,
-      width: '550px',
+    const dialogRef = this.dialog.open(CandidateProfile, {
+      width: '95vw',
+      maxWidth: '980px',
+      maxHeight: '92vh',
+      panelClass: 'candidate-profile-dialog',
+      autoFocus: false,
       data: { candidate }
     });
 
-     dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        // result = updated candidate data returned from dialog
-        this.updateCandidateData(result);
+     dialogRef.afterClosed().subscribe((result: any) => {
+      if (!result) return;
+
+      if (result.action === 'updated' && result.candidate) {
+        this.updateCandidateData(result.candidate);
+      }
+
+      if (result.action === 'openRole' && result.candidate?.role_id) {
+        this.openRoldeModal(result.candidate.role_id);
       }
     });
   }
@@ -212,7 +220,11 @@ export class Dashboard implements OnInit, AfterViewInit {
       (c: any) => c.id === updatedCandidate.id
     );
     if (index > -1) {
-      this.candidatesData[index] = updatedCandidate;
+      this.candidatesData[index] = {
+        ...this.candidatesData[index],
+        ...updatedCandidate,
+        status: this.normalizeStatus(updatedCandidate?.status)
+      };
       this.assign_status();
       // Render chart after data is loaded and view is initialized
       setTimeout(() => this.renderChart(), 5);
@@ -762,8 +774,10 @@ addRRole(): void {
 
 openRoldeModal(role_id: any): void {
     const dialogRef = this.dialog.open(RoleDetail, {
-      disableClose: true,
-      width: '550px',
+      width: '95vw',
+      maxWidth: '920px',
+      maxHeight: '92vh',
+      panelClass: 'role-detail-dialog',
       data: { type: 'Role', role_id }
     });
 

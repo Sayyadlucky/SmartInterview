@@ -1,8 +1,161 @@
-.modal-overlay {inset:0; background:rgba(16,34,57,0.27); align-items:center; justify-content:center; }
-.modal-overlay.active { display:flex; animation:fadeIn 0.2s; }
-.modal-card { background:#121e2f; box-shadow:0 6px 32px 0 rgba(0,191,255,0.27); padding:2rem 2.5rem; width:550px; color:#dbedff; position:relative; font-size:1em; }
-.modal-close { position:absolute; right:18px; top:18px; font-size:1.35em; color:#48d1ff; background:none; border:none; cursor:pointer; }
-.modal-card .side-title { color:#40e7ff; font-weight:400; margin-bottom:1.15em; font-size:2.07em; }
-.shadow {
-  box-shadow:0 6px 32px 0 rgba(0,191,255,0.27);
+:host {
+  display: block;
+  color: #d8eeff;
+}
+
+.role-dialog {
+  position: relative;
+  border: 1px solid rgba(137, 206, 246, 0.28);
+  border-radius: 16px;
+  background: radial-gradient(circle at 82% 12%, rgba(33, 109, 183, 0.22), transparent 38%),
+    linear-gradient(165deg, rgba(8, 31, 62, 0.96), rgba(6, 24, 50, 0.98));
+  padding: 18px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: #73deff;
+  font-size: 1.45rem;
+  cursor: pointer;
+}
+
+.role-hero h2 {
+  margin: 0;
+  color: #49ddff;
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.role-hero p {
+  margin: 6px 0 10px;
+  color: #9ebcd8;
+  font-size: 1rem;
+}
+
+.meta-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-chip {
+  border: 1px solid rgba(130, 206, 246, 0.32);
+  border-radius: 999px;
+  background: rgba(8, 40, 76, 0.6);
+  color: #b5dcf8;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+}
+
+.state-card {
+  margin-top: 12px;
+  border: 1px solid rgba(130, 188, 227, 0.24);
+  border-radius: 12px;
+  background: rgba(8, 31, 62, 0.55);
+  color: #9ec3e1;
+  text-align: center;
+  padding: 16px;
+}
+
+.state-card.error {
+  border-color: rgba(247, 133, 133, 0.35);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.22);
+}
+
+.content {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.kpi-card {
+  border: 1px solid rgba(137, 206, 246, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 31, 62, 0.64);
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.kpi-card span {
+  color: #8cb2d3;
+  font-size: 0.76rem;
+}
+
+.kpi-card strong {
+  color: #8de7ff;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.progress-section,
+.description-section {
+  border: 1px solid rgba(137, 206, 246, 0.22);
+  border-radius: 12px;
+  background: rgba(8, 31, 62, 0.64);
+  padding: 12px;
+}
+
+.progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.progress-head h4,
+.description-section h4 {
+  margin: 0;
+  color: #d9ecff;
+  font-size: 0.95rem;
+}
+
+.progress-head span {
+  color: #8cb2d3;
+  font-size: 0.74rem;
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(12, 43, 80, 0.7);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #39d3f4, #2e84db);
+}
+
+.description-body {
+  margin-top: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  color: #b9d7ef;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 780px) {
+  .role-hero h2 {
+    font-size: 1.5rem;
+    padding-right: 20px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
