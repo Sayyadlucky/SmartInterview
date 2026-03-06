@@ -1,0 +1,287 @@
+<section class="analytics-shell">
+  <div class="state-card" *ngIf="!initialized">Open Analytics tab to load data.</div>
+  <div class="state-card" *ngIf="initialized && loading">Loading analytics data...</div>
+  <div class="state-card error" *ngIf="initialized && !loading && errorMessage">{{ errorMessage }}</div>
+
+  <div class="analytics-layout" *ngIf="initialized && !loading && !errorMessage">
+    <div class="filters-bar">
+      <div class="filter-item">
+        <label>From</label>
+        <input type="date" [(ngModel)]="startDate" [max]="endDate || null" (ngModelChange)="onStartDateChange($event)" />
+      </div>
+      <div class="filter-item">
+        <label>To</label>
+        <input type="date" [(ngModel)]="endDate" [min]="startDate || null" (ngModelChange)="onEndDateChange($event)" />
+      </div>
+      <div class="filter-item">
+        <label>Recruiter</label>
+        <div class="search-select">
+          <input
+            type="text"
+            [ngModel]="recruiterQuery"
+            (ngModelChange)="onRecruiterInputChange($event)"
+            (focus)="onRecruiterInputFocus()"
+            (blur)="onRecruiterInputBlur()"
+            (keydown.enter)="selectFirstRecruiterMatch()"
+            placeholder="Search recruiter"
+          />
+          <div class="search-select-list" *ngIf="showRecruiterMenu">
+            <button type="button" *ngFor="let item of filteredRecruiterOptions" (mousedown)="selectRecruiterOption(item.id, item.name)">
+              {{ item.name }}
+            </button>
+            <div class="search-empty" *ngIf="!filteredRecruiterOptions.length">No recruiter found</div>
+          </div>
+        </div>
+      </div>
+      <div class="filter-item">
+        <label>Role</label>
+        <div class="search-select">
+          <input
+            type="text"
+            [ngModel]="roleQuery"
+            (ngModelChange)="onRoleInputChange($event)"
+            (focus)="onRoleInputFocus()"
+            (blur)="onRoleInputBlur()"
+            (keydown.enter)="selectFirstRoleMatch()"
+            placeholder="Search role"
+          />
+          <div class="search-select-list" *ngIf="showRoleMenu">
+            <button type="button" *ngFor="let item of filteredRoleOptions" (mousedown)="selectRoleOption(item.id, item.name)">
+              {{ item.name }}
+            </button>
+            <div class="search-empty" *ngIf="!filteredRoleOptions.length">No role found</div>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="clear-btn" (click)="clearFilters()">Clear</button>
+    </div>
+    <div class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</div>
+    <div class="export-row">
+      <span>Executive Snapshot</span>
+      <button type="button" class="clear-btn" (click)="exportSnapshot('csv')">CSV</button>
+      <button type="button" class="clear-btn" (click)="exportSnapshot('json')">JSON</button>
+    </div>
+
+    <div class="summary-grid">
+      <article class="summary-card">
+        <span class="label">Total Interviews</span>
+        <span class="value">{{ summary.total_interviews }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Hires</span>
+        <span class="value">{{ summary.hires }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Hire Rate</span>
+        <span class="value">{{ summary.hire_rate }}%</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Open Roles</span>
+        <span class="value">{{ summary.open_roles }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Avg Time-to-Hire</span>
+        <span class="value">{{ summary.avg_time_to_hire_days }}d</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Median Time-to-Hire</span>
+        <span class="value">{{ summary.median_time_to_hire_days }}d</span>
+      </article>
+    </div>
+
+    <div class="grid">
+      <article class="card">
+        <div class="card-head">
+          <h3>Hiring Funnel Analytics</h3>
+        </div>
+        <div class="chart-wrap">
+          <canvas #funnelCanvas *ngIf="hasFunnelData; else noFunnel"></canvas>
+          <ng-template #noFunnel><div class="empty">No funnel data</div></ng-template>
+        </div>
+        <div class="conversion-list" *ngIf="funnel.conversions.length">
+          <div class="conversion-row" *ngFor="let c of funnel.conversions">
+            <span>{{ c.from }} → {{ c.to }}</span>
+            <strong>{{ c.rate }}%</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Time-to-Hire Analytics</h3>
+          <span>Avg {{ timeToHire.avg_days }}d</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas #tthCanvas *ngIf="hasTimeToHireTrend; else noTth"></canvas>
+          <ng-template #noTth><div class="empty">No time-to-hire trend</div></ng-template>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Source Effectiveness</h3>
+        </div>
+        <div class="table-wrap" *ngIf="sourceEffectiveness.length; else noSource">
+          <table class="table">
+            <thead>
+              <tr><th>Source</th><th>Total</th><th>Hired</th><th>Conv</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of sourceEffectiveness | slice:0:8">
+                <td>{{ row.source }}</td>
+                <td>{{ row.total }}</td>
+                <td>{{ row.hired }}</td>
+                <td>{{ row.conversion }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noSource><div class="empty">No source data</div></ng-template>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Recruiter Performance</h3>
+        </div>
+        <div class="table-wrap" *ngIf="recruiterPerformance.length; else noRecruiterPerf">
+          <table class="table">
+            <thead>
+              <tr><th>Recruiter</th><th>Interviews</th><th>Hired</th><th>Conv</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of recruiterPerformance | slice:0:8">
+                <td>{{ row.name }}</td>
+                <td>{{ row.interviews }}</td>
+                <td>{{ row.hired }}</td>
+                <td>{{ row.conversion }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noRecruiterPerf><div class="empty">No recruiter performance data</div></ng-template>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Role Health</h3>
+        </div>
+        <div class="table-wrap" *ngIf="roleHealth.length; else noRoleHealth">
+          <table class="table">
+            <thead>
+              <tr><th>Role</th><th>Filled/Target</th><th>Pipeline</th><th>Risk</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of roleHealth | slice:0:8">
+                <td>{{ row.role }}</td>
+                <td>{{ row.filled }}/{{ row.target }}</td>
+                <td>{{ row.pipeline }}</td>
+                <td>{{ row.risk }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noRoleHealth><div class="empty">No role health data</div></ng-template>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Interview Quality</h3>
+          <span>{{ interviewQuality.evaluated }} evaluated</span>
+        </div>
+        <div class="quality-list" *ngIf="qualityRows.length; else noQuality">
+          <div class="quality-row" *ngFor="let row of qualityRows">
+            <span>{{ row.label }}</span>
+            <strong>{{ row.value }}</strong>
+          </div>
+        </div>
+        <ng-template #noQuality><div class="empty">No scored interviews</div></ng-template>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Drop-off Analysis</h3>
+          <span>{{ dropoffAnalysis.total_dropoffs }} total</span>
+        </div>
+        <div class="quality-list">
+          <div class="quality-row"><span>Rejected</span><strong>{{ dropoffAnalysis.rejected }}</strong></div>
+          <div class="quality-row"><span>Cancelled</span><strong>{{ dropoffAnalysis.cancelled }}</strong></div>
+          <div class="quality-row"><span>No Show</span><strong>{{ dropoffAnalysis.no_show }}</strong></div>
+          <div class="quality-row"><span>Screening Timeout</span><strong>{{ dropoffAnalysis.screening_timeout }}</strong></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Offer & Acceptance</h3>
+          <span>{{ offerAcceptance.acceptance_rate }}% accepted</span>
+        </div>
+        <div class="quality-list">
+          <div class="quality-row"><span>Offers Made</span><strong>{{ offerAcceptance.offers_made }}</strong></div>
+          <div class="quality-row"><span>Accepted</span><strong>{{ offerAcceptance.offers_accepted }}</strong></div>
+          <div class="quality-row"><span>Pending</span><strong>{{ offerAcceptance.offers_pending }}</strong></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>SLA Compliance</h3>
+          <span>{{ slaCompliance.compliance_rate }}% compliant</span>
+        </div>
+        <div class="quality-list">
+          <div class="quality-row"><span>Active Pipeline</span><strong>{{ slaCompliance.active_pipeline }}</strong></div>
+          <div class="quality-row"><span>Breached</span><strong>{{ slaCompliance.breached }}</strong></div>
+          <div class="quality-row" *ngFor="let item of slaCompliance.breakdown">
+            <span>{{ item.label }}</span><strong>{{ item.count }}</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Executive Insights</h3>
+          <span>{{ executiveInsights.length }}</span>
+        </div>
+        <div class="quality-list" *ngIf="executiveInsights.length; else noInsights">
+          <div class="quality-row" *ngFor="let item of executiveInsights">
+            <span>{{ item }}</span>
+          </div>
+        </div>
+        <ng-template #noInsights><div class="empty">No insights generated</div></ng-template>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Forecast vs Target</h3>
+          <span>Gap {{ forecastVsTarget.expected_gap_next_month }}</span>
+        </div>
+        <div class="quality-list">
+          <div class="quality-row"><span>Current Target</span><strong>{{ forecastVsTarget.current_target }}</strong></div>
+          <div class="quality-row"><span>Current Hired</span><strong>{{ forecastVsTarget.current_hired }}</strong></div>
+          <div class="quality-row"><span>Monthly Target</span><strong>{{ forecastVsTarget.monthly_target }}</strong></div>
+          <div class="quality-row" *ngFor="let lbl of forecastVsTarget.next_labels; let i = index">
+            <span>{{ lbl }}</span><strong>{{ forecastVsTarget.projected_hires[i] }}</strong>
+          </div>
+        </div>
+        <div class="empty" *ngIf="forecastVsTarget.projection_basis">{{ forecastVsTarget.projection_basis }}</div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <h3>Anomaly Flags</h3>
+          <span>{{ anomalyFlags.length }}</span>
+        </div>
+        <div class="quality-list" *ngIf="anomalyFlags.length; else noFlags">
+          <div class="quality-row" *ngFor="let f of anomalyFlags">
+            <span><b>{{ f.title }}</b><br/>{{ f.detail }}</span>
+          </div>
+        </div>
+        <ng-template #noFlags><div class="empty">No anomalies detected</div></ng-template>
+      </article>
+    </div>
+
+    <div class="phase-note">
+      Implemented phases: {{ phaseMeta.implemented.join(', ') || '1' }} | Pending: {{ phaseMeta.pending.join(', ') || '2, 3' }}
+      <span *ngIf="phaseMeta.note"> - {{ phaseMeta.note }}</span>
+    </div>
+  </div>
+</section>

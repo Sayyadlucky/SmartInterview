@@ -1,137 +1,193 @@
-<div class="flex">
-    <!-- Profile Overview -->
-    <section class="w-72 p-4">
-        <div class="dashboard-card flex flex-col items-center p-6 h-full border-cyan-400 border-2">
-        <!-- Profile Image -->
-         @if(evaluator.gender === 'female') {
-        <img src="static/assets/images/girl.png" alt="Profile"
-            class="w-20 h-20 rounded-full mb-4 border-2 border-cyan-400">
-         }@else{
-            <img src="static/assets/images/boy.png" alt="Profile"
-            class="w-20 h-20 rounded-full mb-4 border-2 border-cyan-400">
-         }
-        <!-- Name & Email -->
-        <h3 class="text-white font-semibold">{{ evaluator.name }}</h3>
-        <p class="text-sm text-cyan-300">{{ evaluator.email }}</p>
-        <p class="text-sm text-white-300">{{ evaluator.role | titlecase }}</p>
+<section class="recruiter-layout" *ngIf="evaluator">
+  <aside class="profile-summary">
+    <div class="avatar-wrap">
+      <img
+        *ngIf="evaluator.gender === 'female'; else defaultAvatar"
+        src="static/assets/images/girl.png"
+        alt="Profile"
+      />
+      <ng-template #defaultAvatar>
+        <img src="static/assets/images/boy.png" alt="Profile" />
+      </ng-template>
+    </div>
 
-        <!-- Quick Stats -->
-        <div class="grid grid-cols-3 gap-4 mt-6 text-center text-sm">
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ interview_list?.length }}</span>
-            <span class="text-gray-400">Interviews</span>
+    <h3>{{ evaluator.name }}</h3>
+    <p class="email">{{ evaluator.email }}</p>
+    <p class="role">{{ evaluator.role | titlecase }}</p>
+
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="value">{{ totalInterviews }}</span>
+        <span class="label">Interviews</span>
+      </div>
+      <div class="stat-item">
+        <span class="value">{{ hiredCount }}</span>
+        <span class="label">Hired</span>
+      </div>
+      <div class="stat-item">
+        <span class="value">{{ pendingCount }}</span>
+        <span class="label">Pending</span>
+      </div>
+    </div>
+
+    <div class="next-card">
+      <h4>Next Interview</h4>
+      <p *ngIf="nextInterviewLabel === 'No Upcoming Interview'">No Upcoming Interview</p>
+      <p *ngIf="nextInterviewLabel !== 'No Upcoming Interview'">{{ nextInterviewLabel | date: 'fullDate' }}</p>
+    </div>
+
+    <div class="about-card">
+      <h4>About Recruiter</h4>
+      <p>
+        Focused on high-quality hiring outcomes, structured evaluation workflows, and strong candidate experience
+        across interview cycles.
+      </p>
+    </div>
+  </aside>
+
+  <main class="profile-insights">
+    <div *ngIf="loading" class="state-card">Loading evaluator profile...</div>
+    <div *ngIf="!loading && errorMessage" class="state-card error">{{ errorMessage }}</div>
+
+    <div class="insights-grid" *ngIf="!loading && !errorMessage">
+      <article class="insight-card">
+        <div class="card-header">
+          <h3>Upcoming Interviews</h3>
+          <span>{{ upcomingInterviews.length }} total</span>
+        </div>
+        <ul class="upcoming-list">
+          <li *ngFor="let upcoming of upcomingInterviews | slice:0:5; trackBy: trackById">
+            <span>{{ upcoming.date | date: 'MMM d' }}</span>
+            <span>{{ upcoming.date | date: 'shortTime' }}</span>
+          </li>
+          <li *ngIf="upcomingInterviews.length === 0" class="empty-line">No upcoming interviews</li>
+          <li *ngIf="upcomingInterviews.length > 5" class="empty-line">And {{ upcomingInterviews.length - 5 }} more...</li>
+        </ul>
+      </article>
+
+      <article class="insight-card">
+        <div class="card-header">
+          <h3>{{ calendarSectionTitle }}</h3>
+          <div class="calendar-header-right">
+            <div class="calendar-switcher">
+              <button type="button" (click)="changeCalendarMonth(-1)" [disabled]="!canGoPrevCalendarMonth">‹</button>
+              <span>{{ calendarMonthName }} {{ calendarYear }}</span>
+              <button type="button" (click)="changeCalendarMonth(1)" [disabled]="!canGoNextCalendarMonth">›</button>
             </div>
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ hiredCount }}</span>
-            <span class="text-gray-400">Hired</span>
+          </div>
+        </div>
+        <div class="calendar-days-head">
+          <div *ngFor="let day of weekDays">{{ day }}</div>
+        </div>
+        <div class="calendar-grid">
+          <div
+            *ngFor="let day of calendarDays"
+            class="calendar-cell"
+            [class.active]="isAvailabilityDate(day.dateString)"
+            [class.no-interview]="isNonInterviewDate(day)"
+            [ngClass]="getCalendarDensityClass(day.dateString)"
+            [class.muted]="!day.currentMonth"
+            [attr.title]="day.currentMonth ? getCalendarCellTitle(day.dateString) : ''"
+            [attr.data-tooltip]="day.currentMonth ? getCalendarCellTitle(day.dateString) : ''"
+          >
+            {{ day.date }}
+          </div>
+        </div>
+      </article>
+
+      <article class="insight-card chart-card">
+        <div class="card-header">
+          <h3>Yearly Performance</h3>
+          <div class="year-header-right">
+            <div class="year-switcher">
+              <button type="button" (click)="changePerformanceYear(-1)" [disabled]="!canGoPrevPerformanceYear">‹</button>
+              <span>{{ selectedPerformanceYear }}</span>
+              <button type="button" (click)="changePerformanceYear(1)" [disabled]="!canGoNextPerformanceYear">›</button>
             </div>
-            <div>
-            <span class="block text-cyan-400 font-bold">{{ pendingCount }}</span>
-            <span class="text-gray-400">Pending</span>
+            <span>{{ completedRate }}% hire conversion</span>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas #performanceChartCanvas></canvas>
+          <div class="chart-empty" *ngIf="!hasPerformanceData">No interview trend data for this year yet.</div>
+        </div>
+        <div class="performance-metrics">
+          <div class="metric-tile">
+            <span class="metric-label">This Month</span>
+            <span class="metric-value">{{ thisMonthInterviewCount }}</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Peak Month</span>
+            <span class="metric-value">{{ peakMonth.label }} ({{ peakMonth.count }})</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Avg / Month</span>
+            <span class="metric-value">{{ avgMonthlyInterviews }}</span>
+          </div>
+        </div>
+        <div class="status-breakdown" *ngIf="performanceStatusBreakdownData.length">
+          <div class="status-row" *ngFor="let item of performanceStatusBreakdownData">
+            <div class="status-row-top">
+              <span>{{ item.label }}</span>
+              <span>{{ item.count }} ({{ item.percent }}%)</span>
             </div>
+            <div class="status-row-bar">
+              <span [style.width.%]="item.percent"></span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="insight-card">
+        <div class="card-header">
+          <h3>Monthly Insights</h3>
+          <div class="calendar-header-right">
+            <div class="calendar-switcher">
+              <button type="button" (click)="changeInsightsMonth(-1)" [disabled]="!canGoPrevInsightsMonth">‹</button>
+              <span>{{ insightsMonthName }} {{ insightsYear }}</span>
+              <button type="button" (click)="changeInsightsMonth(1)" [disabled]="!canGoNextInsightsMonth">›</button>
+            </div>
+          </div>
+        </div>
+        <div class="month-insights-grid">
+          <div class="insight-mini">
+            <span>Total Interviews</span>
+            <strong>{{ selectedMonthInterviews }}</strong>
+          </div>
+          <div class="insight-mini">
+            <span>Active Days</span>
+            <strong>{{ selectedMonthActiveDays }}</strong>
+          </div>
+          <div class="insight-mini">
+            <span>Avg / Active Day</span>
+            <strong>{{ selectedMonthAvgPerActiveDay }}</strong>
+          </div>
+          <div class="insight-mini">
+            <span>Scheduled</span>
+            <strong>{{ selectedMonthScheduledCount }}</strong>
+          </div>
         </div>
 
-        <!-- Availability Info -->
-        <div class="mt-10 w-full">
-            <h4 class="text-cyan-300 font-semibold mb-2">Next Interview</h4>
-            @if(next_interview === 'No Upcoming Interview') {
-                <p class="text-sm font-semibold text-gray-400">No Upcoming Interview</p>
-            }@else{ 
-                <p class="text-sm font-semibold text-gray-400">{{ next_interview  | date: 'fullDate' }}</p>
-            }
+        <div class="busiest-day-card">
+          <span>Busiest Day</span>
+          <strong>{{ selectedMonthBusiestDayLabel }}</strong>
+          <em *ngIf="selectedMonthBusiestCount > 0">{{ selectedMonthBusiestCount }} interviews</em>
+          <em *ngIf="selectedMonthBusiestCount === 0">No interviews this month</em>
         </div>
 
-        <!-- Recruiter Details Section -->
-        <div class="mt-6 w-full">
-            <div>
-            <h4 class="text-cyan-300 font-semibold mb-2">About Recruiter</h4>
-            <p class="text-gray-300 text-sm text-left">
-            Passionate recruiter with extensive experience in tech hiring, dedicated to connecting top talent with leading companies. Committed to building strong teams and fostering professional growth.
-            </p>
-            </div>
+        <div class="top-roles">
+          <h4>Top Roles This Month</h4>
+          <ul *ngIf="selectedMonthTopRoles.length; else noRoleData">
+            <li *ngFor="let item of selectedMonthTopRoles">
+              <span>{{ item.role }}</span>
+              <span>{{ item.count }}</span>
+            </li>
+          </ul>
+          <ng-template #noRoleData>
+            <p class="empty-line">No role activity for this month</p>
+          </ng-template>
         </div>
-        </div>
-    </section>
-
-    <!-- Main Content -->
-    <main class="flex-1 p-6 space-y-6">
-        <div class="grid grid-cols-2 gap-6">
-            <!-- Upcoming Interviews -->
-            <div class="dashboard-card p-4 border-cyan-400 border-2">
-                <h3 class="font-semibold mb-4">Upcoming Interviews</h3>
-                <ul class="space-y-3">
-                    <li *ngFor="let upcoming_interview of upcoming_interviews | slice:0:5; trackBy: trackById" class="flex justify-between">
-                        <span>{{ upcoming_interview.date | date: 'MMM d' }}</span>
-                        <span class="font-medium">{{ upcoming_interview.date | date: 'shortTime' }}</span>
-                    </li>
-                    <li *ngIf="(upcoming_interviews?.length || 0) > 5" class="text-gray-400">
-                        and {{ (upcoming_interviews.length || 0) - 5 }} more...
-                    </li>
-                    <li *ngIf="!upcoming_interviews || upcoming_interviews.length === 0" class="text-gray-400">No Upcoming Interviews</li>
-                </ul>
-            </div>
-
-            <!-- Current Month Interviews -->
-                <div class="dashboard-card p-4 border-cyan-400 border-2">
-                <div class="mb-3">
-                    <!-- Title -->
-                    <h3 class="font-semibold mb-2">Current Month History</h3>
-
-                <!-- Month + Year Centered -->
-                <div class="text-sm text-gray-400 text-center">
-                    {{ monthName }} {{ year }}
-                </div>
-                </div>
-                <!-- Days of Week -->
-                <div class="grid grid-cols-7 text-center text-gray-400 text-sm mb-2">
-                    <div *ngFor="let day of weekDays">{{ day }}</div>
-                </div>
-
-                <!-- Calendar Days -->
-                <div class="grid grid-cols-7 text-center gap-y-2 text-gray-200">
-                    <div *ngFor="let day of calendarDays" 
-                        [ngClass]="{
-                        'bg-cyan-600 text-white rounded-full w-8 h-8 mx-auto flex items-center justify-center': availability.includes(day.dateString),
-                        'text-gray-600': !day.currentMonth
-                        }">
-                    {{ day.date }}
-                    </div>
-                </div>
-                </div>
-            <!-- Performance KPIs -->
-            <div class="dashboard-card p-4 border-cyan-400 border-2 h-full">
-                <h3 class="font-semibold mb-4">Performance KPIs</h3>
-                <canvas id="performanceChart" class="w-full h-full"></canvas>
-            </div>
-
-            <!-- Workload Heatmap -->
-            <div class="dashboard-card p-4 border-cyan-400 border-2">
-                <h3 class="font-semibold mb-4">Monthly Workload Heatmap</h3>
-                <div class="grid grid-cols-7 gap-1">
-                    <ng-container *ngFor="let week of monthlyWorkload; let weekIdx = index">
-                        <ng-container *ngFor="let day of week; let dayIdx = index">
-                            <div
-                                class="h-6 rounded"
-                                [ngClass]="{
-                                    'bg-blue-100': day.count === 0,
-                                    'bg-blue-200': day.count > 0 && day.count <= 1,
-                                    'bg-blue-300': day.count > 1 && day.count <= 2,
-                                    'bg-blue-400': day.count > 2 && day.count <= 3,
-                                    'bg-blue-500': day.count > 3 && day.count <= 4,
-                                    'bg-blue-600': day.count > 4 && day.count <= 5,
-                                    'bg-blue-700': day.count > 5
-                                }"
-                                [title]="day.date + ': ' + day.count + ' interviews'"
-                            ></div>
-                        </ng-container>
-                    </ng-container>
-                </div>
-                <div class="h-2 bg-gradient-to-r from-blue-100 to-blue-700 mt-2 rounded"></div>
-                <div class="text-xs text-gray-400 mt-2 text-center">
-                    <span *ngFor="let label of ['0', '1', '2', '3', '4', '5+']; let i = index" class="mx-1"> {{ label }}</span>
-                    <br /><span class="mx-1">Color grade based on number of interviews.</span>
-                </div>
-            </div>
-        </div>
-    </main>
-</div>
+      </article>
+    </div>
+  </main>
+</section>

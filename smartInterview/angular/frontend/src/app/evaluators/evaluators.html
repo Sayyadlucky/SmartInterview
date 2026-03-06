@@ -1,47 +1,82 @@
-<div class="flex">
-  <!-- Sidebar -->
-    <aside class="w-64 p-4 space-y-4 border-cyan-400 sidebar-card">
-        <!-- Filters -->
-        <div class="dashboard-card no-padding">
-        <div class="flex items-center gap-2 text-gray-300">
-        <i class="ph ph-magnifying-glass text-gray-400 text-lg"></i>
-        <span class="font-large">Search</span>
-        </div>
-        <div>
-        <input type="text" class="bg-transparent border-b border-gray-600 focus:outline-none mt-2 w-full"
-                placeholder=" Type to search..." [(ngModel)]="searchTerm" (input)="filterEvaluators()"/>
-        </div>
-        </div>
-        <!-- Evaluator List -->
-        <div>
-        <h3 class="text-gray-300 font-semibold mb-3">Evaluator List</h3>
+<section class="evaluators-layout">
+  <aside class="sidebar-panel">
+    <div class="panel-title-row">
+      <div>
+        <h3>Evaluators</h3>
+        <p class="panel-subtitle">Top recruiters by interviews</p>
+      </div>
+      <button class="primary-btn" (click)="addRecruiter()">Add Recruiter</button>
+    </div>
 
-        <div class="space-y-3">
-            <ng-container *ngFor="let recruiter of recruiters_list">
-            <div class="dashboard-card p-3 flex flex-col cursor-pointer no-padding" (click)="openProfile(recruiter)">
-                <span class="font-medium text-white">{{ recruiter.name | titlecase }}</span>
-                <span class="text-sm text-gray-400">{{ recruiter.role | titlecase }}</span>
-            </div>
-            </ng-container>
-            <ng-container *ngIf="recruiters_list && recruiters_list.length === 0">
-                <div class="dashboard-card p-3 flex flex-col cursor-pointer no-padding">
-                    <span class="font-medium text-white">No Evaluators Found</span>
-                </div>
-            </ng-container>
+    <div class="stats-row">
+      <div class="stat-chip">
+        <span class="stat-label">Total</span>
+        <span class="stat-value">{{ totalEvaluators }}</span>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-label">Showing</span>
+        <span class="stat-value">{{ displayedEvaluatorsCount }}</span>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <i class="ph ph-magnifying-glass"></i>
+      <input
+        type="text"
+        placeholder="Search by name, role, email"
+        [(ngModel)]="searchTerm"
+        (input)="filterEvaluators()"
+      />
+      <button *ngIf="searchTerm" class="clear-btn" (click)="clearSearch()">Clear</button>
+    </div>
+
+    <div *ngIf="errorMessage" class="error-banner">{{ errorMessage }}</div>
+
+    <div class="list-wrap" *ngIf="!loading; else loadingState">
+      <button
+        *ngFor="let recruiter of recruitersList"
+        class="evaluator-item"
+        [class.active]="selectedEvaluator?.id === recruiter.id"
+        (click)="openProfile(recruiter)"
+      >
+        <span class="avatar">{{ getInitials(recruiter.name) }}</span>
+        <span class="evaluator-meta">
+          <span class="name">{{ recruiter.name }}</span>
+          <span class="sub">
+            {{ recruiter.role | titlecase }} • {{ recruiter.interviews_count || 0 }} interviews • {{ recruiter.email }}
+          </span>
+        </span>
+      </button>
+
+      <div class="empty-state" *ngIf="recruitersList.length === 0">
+        <h4>No evaluators found</h4>
+        <p>Try a different search keyword or add a recruiter.</p>
+      </div>
+    </div>
+
+    <ng-template #loadingState>
+      <div class="list-wrap">
+        <div class="loading-placeholder">Loading evaluators...</div>
+      </div>
+    </ng-template>
+  </aside>
+
+  <main class="profile-panel">
+    <ng-container *ngIf="hasSelectedEvaluator; else placeholderState">
+      <app-recuiter-profile [evaluator]="selectedEvaluator!"></app-recuiter-profile>
+    </ng-container>
+
+    <ng-template #placeholderState>
+      <div class="profile-placeholder">
+        <div class="placeholder-art" aria-hidden="true">
+          <span class="ring ring-outer"></span>
+          <span class="ring ring-mid"></span>
+          <span class="ring ring-inner"></span>
+          <i class="ph ph-user-focus"></i>
         </div>
-        </div>
-        <div class="flex flex-col gap-4">
-            <button class="py-1 p-2 rounded bg-cyan-600 hover:bg-cyan-500 mt-4 min-w-[150px]" (click)="addRecruiter()">Add Recruiter</button>
-        </div>
-    </aside>
-    @if (!is_profile_clicked){
-        <div class="flex items-center justify-center h-[550px] m-3 dashboard-card">
-        <img src="static/assets/images/select-evaluator.png" alt="Profile Placeholder" class="w-24 h-24"/>
-        <br />
-        <span class="select-evaluator-text text-cyan-400 font-semibold text-lg">Select an evaluator to view profile</span>
-        </div>
-    } @else {
-        <!-- Profile Section -->
-        <app-recuiter-profile  [evaluator]="selectedEvaluator"></app-recuiter-profile>
-    }
-</div>
+        <h3>Select an evaluator</h3>
+        <p>Pick an evaluator from the left panel to view profile insights and interview analytics.</p>
+      </div>
+    </ng-template>
+  </main>
+</section>

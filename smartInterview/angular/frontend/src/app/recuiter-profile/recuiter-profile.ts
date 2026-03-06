@@ -1,9 +1,34 @@
-import { Component, AfterViewInit, OnInit, ViewChild, ElementRef, SimpleChanges, Input } from '@angular/core';
-import { HttpClient } from '@angular/common/http';  // Import HttpClient
-import { catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { AfterViewChecked, Component, ElementRef, Input, OnChanges, OnDestroy, SimpleChanges, ViewChild } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { Chart, registerables } from 'chart.js';
+import { catchError, of } from 'rxjs';
+
+Chart.register(...registerables);
+
+interface Evaluator {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  gender?: string;
+  user_id?: number;
+}
+
+interface InterviewItem {
+  id: number;
+  candidate: string;
+  status: string;
+  score?: number | null;
+  role?: string;
+  date: string;
+}
+
+interface InterviewProfileResponse {
+  Success: boolean;
+  Error?: string | null;
+  Interviews?: InterviewItem[];
+}
 
 @Component({
   selector: 'app-recuiter-profile',
@@ -11,306 +36,551 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
   templateUrl: './recuiter-profile.html',
   styleUrl: './recuiter-profile.scss'
 })
-export class RecuiterProfile {
-  data: any;
-  hiredCount: number | undefined;
-  pendingCount: number | undefined;
+export class RecuiterProfile implements OnChanges, OnDestroy, AfterViewChecked {
+  @Input() evaluator!: Evaluator;
+  @ViewChild('performanceChartCanvas') performanceChartCanvas?: ElementRef<HTMLCanvasElement>;
 
-  constructor(private http: HttpClient, private dialog: MatDialog) {}
+  loading = false;
+  errorMessage = '';
+  interviews: InterviewItem[] = [];
 
-  
-  @Input() evaluator: any;
-  
-  loading: boolean = false;
+  hiredCount = 0;
+  pendingCount = 0;
+  completedRate = 0;
+  upcomingInterviews: InterviewItem[] = [];
+  nextInterviewLabel = 'No Upcoming Interview';
+  availabilityDates: string[] = [];
+  availabilityDateSet = new Set<string>();
+  calendarInterviewCountMap: Record<string, number> = {};
+  performanceStatusBreakdownData: Array<{ label: string; count: number; percent: number }> = [];
+  selectedMonthInterviews = 0;
+  selectedMonthActiveDays = 0;
+  selectedMonthScheduledCount = 0;
+  selectedMonthBusiestDayLabel = '-';
+  selectedMonthBusiestCount = 0;
+  selectedMonthTopRoles: Array<{ role: string; count: number }> = [];
+
+  calendarMonthName = '';
+  calendarYear = 0;
+  selectedCalendarYear = new Date().getFullYear();
+  selectedCalendarMonth = new Date().getMonth();
+  selectedInsightsYear = new Date().getFullYear();
+  selectedInsightsMonth = new Date().getMonth();
+  private readonly baseCalendarYear = new Date().getFullYear();
+  private readonly baseCalendarMonth = new Date().getMonth();
+  private minCalendarMonthIndex = this.baseCalendarYear * 12 + this.baseCalendarMonth - 1;
   weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  monthlyWorkload: { date: string, count: number }[][] = [];
-  calendarDays: any[] = [];
-  monthName = '';
-  year = 0;
-  recruiters_list: any[] = [];
-  interview_list: any;
-  next_interview: any;
-  upcoming_interviews: any[] = [];
-  workload: number[] = [0, 2, 4, 6, 8, 10, 12];
+  monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  calendarDays: Array<{ date: string; dateString: string; currentMonth: boolean }> = [];
+  monthlyInterviewCounts: number[] = Array(12).fill(0);
+  selectedPerformanceYear = new Date().getFullYear();
+  minPerformanceYear = new Date().getFullYear();
+  maxPerformanceYear = new Date().getFullYear();
 
-  // Example availability data (map evaluator's availability)
-  availability: string[] = [];
+  private performanceChart?: Chart;
+  private chartRenderPending = false;
 
-  ngOnInit(): void {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      this.generateCalendar(year, month);
-      setTimeout(() => {
-        this.getRecruiterProfile();
-      }, 0);
+  constructor(private http: HttpClient) {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['evaluator'] && this.evaluator?.email) {
+      this.loadRecruiterProfile();
     }
-
-  getRecruiterProfile() {
-    this.loading = true;
-    let port_number = ''
-        if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
-        }
-        const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
-         const formData = new URLSearchParams();
-        formData.append('recruiter', this.evaluator.email);
-
-        fetch(`${apiBaseUrl}/get-evaluator-profile/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: formData.toString()
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data && data.Success) {
-            this.interview_list = data.Interviews || [];
-            if (this.interview_list && this.interview_list.length > 0) {
-              const today = new Date();
-              const currentMonth = today.getMonth();
-              const currentYear = today.getFullYear();
-
-              this.availability = this.interview_list
-                .map((interview: any) => {
-                  const interviewDate = new Date(interview.date);
-                  if (
-                    interviewDate.getMonth() === currentMonth &&
-                    interviewDate.getFullYear() === currentYear
-                  ) {
-                    return interviewDate.toISOString().split('T')[0]; // yyyy-mm-dd
-                  }
-                  return null;
-                })
-                .filter((date: string | null) => date !== null) as string[];
-            }
-            this.updateInterviewCounts();
-            this.loading = false;
-            this.next_interview = this.getNextInterview(this.interview_list);
-            this.renderPerformanceChart();
-            this.generateMonthlyWorkload();
-          }else{
-            alert('Error fetching profile data. Please try again.');
-          }
-        })
-        .catch(error => {
-          alert('Error fetching profile data. Please try again.');
-        });
   }
 
-  generateCalendar(year: number, month: number) {
-    this.year = year;
-    this.monthName = new Date(year, month).toLocaleString('default', { month: 'long' });
+  ngOnDestroy(): void {
+    this.destroyChart();
+  }
+
+  ngAfterViewChecked(): void {
+    if (!this.chartRenderPending || this.loading) return;
+    this.renderPerformanceChart();
+    this.chartRenderPending = false;
+  }
+
+  trackById(_index: number, item: InterviewItem): number {
+    return item.id;
+  }
+
+  get totalInterviews(): number {
+    return this.interviews.length;
+  }
+
+  get hasPerformanceData(): boolean {
+    return this.monthlyInterviewCounts.some((count) => count > 0);
+  }
+
+  get thisMonthInterviewCount(): number {
+    const index = new Date().getMonth();
+    return this.monthlyInterviewCounts[index] || 0;
+  }
+
+  get avgMonthlyInterviews(): number {
+    const total = this.monthlyInterviewCounts.reduce((sum, value) => sum + value, 0);
+    return Math.round((total / 12) * 10) / 10;
+  }
+
+  get selectedMonthAvgPerActiveDay(): number {
+    if (!this.selectedMonthActiveDays) return 0;
+    return Math.round((this.selectedMonthInterviews / this.selectedMonthActiveDays) * 10) / 10;
+  }
+
+  get peakMonth(): { label: string; count: number } {
+    const maxCount = Math.max(...this.monthlyInterviewCounts);
+    const monthIndex = this.monthlyInterviewCounts.findIndex((count) => count === maxCount);
+    return {
+      label: monthIndex >= 0 ? this.monthLabels[monthIndex] : this.monthLabels[0],
+      count: maxCount > 0 ? maxCount : 0
+    };
+  }
+
+  get canGoPrevPerformanceYear(): boolean {
+    return this.selectedPerformanceYear > this.minPerformanceYear;
+  }
+
+  get canGoNextPerformanceYear(): boolean {
+    return this.selectedPerformanceYear < this.maxPerformanceYear;
+  }
+
+  private buildPerformanceStatusBreakdown(source: InterviewItem[]): Array<{ label: string; count: number; percent: number }> {
+    const statusBuckets: Record<string, number> = {
+      Scheduled: 0,
+      'Assessment Pending': 0,
+      Shortlisted: 0,
+      Hired: 0,
+      Rejected: 0,
+      Cancelled: 0
+    };
+
+    source.forEach((item) => {
+      const status = this.normalizeStatus(item.status);
+      if (status === 'scheduled') statusBuckets['Scheduled'] += 1;
+      else if (status === 'assessment pending') statusBuckets['Assessment Pending'] += 1;
+      else if (status === 'shortlisted') statusBuckets['Shortlisted'] += 1;
+      else if (status === 'hired' || status === 'completed') statusBuckets['Hired'] += 1;
+      else if (status === 'rejected') statusBuckets['Rejected'] += 1;
+      else if (status === 'cancelled') statusBuckets['Cancelled'] += 1;
+    });
+
+    return Object.entries(statusBuckets)
+      .map(([label, count]) => ({
+        label,
+        count,
+        percent: source.length ? Math.round((count / source.length) * 100) : 0
+      }))
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }
+
+  changePerformanceYear(step: number): void {
+    const nextYear = this.selectedPerformanceYear + step;
+    if (nextYear < this.minPerformanceYear || nextYear > this.maxPerformanceYear) return;
+    this.selectedPerformanceYear = nextYear;
+    this.rebuildPerformanceYearState();
+    this.chartRenderPending = true;
+  }
+
+  isAvailabilityDate(dateString: string): boolean {
+    return !!dateString && this.availabilityDateSet.has(dateString);
+  }
+
+  getInterviewCountByDate(dateString: string): number {
+    return this.calendarInterviewCountMap[dateString] || 0;
+  }
+
+  getCalendarDensityClass(dateString: string): string {
+    const count = this.getInterviewCountByDate(dateString);
+    if (count >= 5) return 'density-5';
+    if (count >= 4) return 'density-4';
+    if (count >= 3) return 'density-3';
+    if (count >= 2) return 'density-2';
+    if (count >= 1) return 'density-1';
+    return '';
+  }
+
+  getCalendarCellTitle(dateString: string): string {
+    if (!dateString) return '';
+    const count = this.getInterviewCountByDate(dateString);
+    return count ? `${count} interview${count > 1 ? 's' : ''}` : 'No interviews';
+  }
+
+  isNonInterviewDate(day: { date: string; dateString: string; currentMonth: boolean }): boolean {
+    return !!day.currentMonth && !!day.dateString && !this.isAvailabilityDate(day.dateString);
+  }
+
+  get calendarMonthOffset(): number {
+    return (
+      this.selectedCalendarYear * 12 +
+      this.selectedCalendarMonth -
+      (this.baseCalendarYear * 12 + this.baseCalendarMonth)
+    );
+  }
+
+  get insightsMonthOffset(): number {
+    return (
+      this.selectedInsightsYear * 12 +
+      this.selectedInsightsMonth -
+      (this.baseCalendarYear * 12 + this.baseCalendarMonth)
+    );
+  }
+
+  get insightsMonthName(): string {
+    return new Date(this.selectedInsightsYear, this.selectedInsightsMonth, 1).toLocaleString('default', { month: 'long' });
+  }
+
+  get insightsYear(): number {
+    return this.selectedInsightsYear;
+  }
+
+  get calendarSectionTitle(): string {
+    if (this.calendarMonthOffset < -1) return 'Past Activity';
+    if (this.calendarMonthOffset === -1) return 'Previous Month Activity';
+    if (this.calendarMonthOffset === 1) return 'Next Month Activity';
+    return 'Current Month Activity';
+  }
+
+  get canGoPrevCalendarMonth(): boolean {
+    const selectedMonthIndex = this.selectedCalendarYear * 12 + this.selectedCalendarMonth;
+    return selectedMonthIndex > this.minCalendarMonthIndex;
+  }
+
+  get canGoNextCalendarMonth(): boolean {
+    return this.calendarMonthOffset < 1;
+  }
+
+  get canGoPrevInsightsMonth(): boolean {
+    const selectedMonthIndex = this.selectedInsightsYear * 12 + this.selectedInsightsMonth;
+    return selectedMonthIndex > this.minCalendarMonthIndex;
+  }
+
+  get canGoNextInsightsMonth(): boolean {
+    return this.insightsMonthOffset < 1;
+  }
+
+  changeCalendarMonth(step: number): void {
+    if ((step < 0 && !this.canGoPrevCalendarMonth) || (step > 0 && !this.canGoNextCalendarMonth)) {
+      return;
+    }
+    const monthIndex = this.selectedCalendarYear * 12 + this.selectedCalendarMonth + step;
+    this.selectedCalendarYear = Math.floor(monthIndex / 12);
+    this.selectedCalendarMonth = ((monthIndex % 12) + 12) % 12;
+    this.rebuildCalendarState();
+  }
+
+  changeInsightsMonth(step: number): void {
+    if ((step < 0 && !this.canGoPrevInsightsMonth) || (step > 0 && !this.canGoNextInsightsMonth)) {
+      return;
+    }
+    const monthIndex = this.selectedInsightsYear * 12 + this.selectedInsightsMonth + step;
+    this.selectedInsightsYear = Math.floor(monthIndex / 12);
+    this.selectedInsightsMonth = ((monthIndex % 12) + 12) % 12;
+    this.rebuildInsightsState();
+  }
+
+  private getApiBaseUrl(): string {
+    let portNumber = '';
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+      portNumber = '8000';
+    }
+    return `${window.location.protocol}//${window.location.hostname}:${portNumber}`;
+  }
+
+  private normalizeStatus(value: string): string {
+    return (value || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/assesment/g, 'assessment');
+  }
+
+  private destroyChart(): void {
+    if (this.performanceChart) {
+      this.performanceChart.destroy();
+      this.performanceChart = undefined;
+    }
+  }
+
+  private parseDate(value: string): Date {
+    return new Date(value);
+  }
+
+  private getValidDate(value: string): Date | null {
+    const parsed = this.parseDate(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  loadRecruiterProfile(): void {
+    if (!this.evaluator?.email && !this.evaluator?.id) return;
+
+    this.loading = true;
+    this.errorMessage = '';
+    const apiBaseUrl = this.getApiBaseUrl();
+    const body = new URLSearchParams();
+    if (this.evaluator.email) body.append('recruiter', this.evaluator.email);
+    if (this.evaluator.id) body.append('recruiter_id', String(this.evaluator.id));
+
+    this.http
+      .post<InterviewProfileResponse>(`${apiBaseUrl}/get-evaluator-profile/`, body.toString(), {
+        headers: new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' })
+      })
+      .pipe(
+        catchError((error) => {
+          console.error('Error fetching recruiter profile', error);
+          this.loading = false;
+          this.errorMessage = 'Failed to load evaluator profile.';
+          return of({ Success: false, Interviews: [] } as InterviewProfileResponse);
+        })
+      )
+      .subscribe((response) => {
+        try {
+          if (!response?.Success) {
+            this.interviews = [];
+            this.loading = false;
+            this.errorMessage = response?.Error || 'Failed to load evaluator profile.';
+            this.rebuildDerivedState();
+            this.destroyChart();
+            return;
+          }
+
+          const raw = Array.isArray(response.Interviews) ? response.Interviews : [];
+          this.interviews = raw.slice().sort((a, b) => {
+            const dateA = this.getValidDate(a.date)?.getTime() || 0;
+            const dateB = this.getValidDate(b.date)?.getTime() || 0;
+            return dateB - dateA;
+          });
+
+          this.rebuildDerivedState();
+          this.loading = false;
+          this.chartRenderPending = true;
+        } catch (err) {
+          console.error('Error processing evaluator profile payload', err);
+          this.interviews = [];
+          this.loading = false;
+          this.errorMessage = 'Profile data format error.';
+          this.rebuildDerivedState();
+          this.destroyChart();
+          this.chartRenderPending = false;
+        }
+      });
+  }
+
+  private rebuildDerivedState(): void {
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+
+    this.hiredCount = this.interviews.filter((i) => {
+      const status = this.normalizeStatus(i.status);
+      return status === 'hired' || status === 'completed';
+    }).length;
+
+    this.pendingCount = this.interviews.filter((i) => this.normalizeStatus(i.status) !== 'rejected').length;
+    this.completedRate = this.totalInterviews ? Math.round((this.hiredCount / this.totalInterviews) * 100) : 0;
+
+    const upcoming = this.interviews
+      .filter((i) => {
+        if (this.normalizeStatus(i.status) !== 'scheduled') return false;
+        const d = this.getValidDate(i.date);
+        return !!d && d.getTime() >= now.getTime();
+      })
+      .sort((a, b) => {
+        const dateA = this.getValidDate(a.date)?.getTime() || 0;
+        const dateB = this.getValidDate(b.date)?.getTime() || 0;
+        return dateA - dateB;
+      });
+    this.upcomingInterviews = upcoming;
+    this.nextInterviewLabel = upcoming.length ? upcoming[0].date : 'No Upcoming Interview';
+
+    const interviewYears = this.interviews
+      .map((i) => this.getValidDate(i.date)?.getFullYear())
+      .filter((year): year is number => typeof year === 'number');
+    this.minPerformanceYear = interviewYears.length ? Math.min(thisYear, Math.min(...interviewYears)) : thisYear;
+    this.maxPerformanceYear = interviewYears.length ? Math.max(thisYear, Math.max(...interviewYears)) : thisYear;
+    this.selectedPerformanceYear = thisYear;
+    this.rebuildPerformanceYearState();
+
+    const validInterviewDates = this.interviews
+      .map((i) => this.getValidDate(i.date))
+      .filter((date): date is Date => !!date);
+    if (validInterviewDates.length) {
+      const firstInterviewDate = validInterviewDates.reduce((min, date) => (date < min ? date : min), validInterviewDates[0]);
+      this.minCalendarMonthIndex = firstInterviewDate.getFullYear() * 12 + firstInterviewDate.getMonth();
+    } else {
+      this.minCalendarMonthIndex = this.baseCalendarYear * 12 + this.baseCalendarMonth - 1;
+    }
+
+    this.selectedCalendarYear = thisYear;
+    this.selectedCalendarMonth = thisMonth;
+    this.selectedInsightsYear = thisYear;
+    this.selectedInsightsMonth = thisMonth;
+    this.rebuildCalendarState();
+    this.rebuildInsightsState();
+  }
+
+  private rebuildCalendarState(): void {
+    const monthInterviews = this.interviews.filter((i) => {
+      const d = this.getValidDate(i.date);
+      if (!d) return false;
+      return d.getMonth() === this.selectedCalendarMonth && d.getFullYear() === this.selectedCalendarYear;
+    });
+    const dateMap: Record<string, number> = {};
+
+    monthInterviews.forEach((i) => {
+      const date = this.getValidDate(i.date);
+      if (!date) return;
+      const key = date.toISOString().split('T')[0];
+      dateMap[key] = (dateMap[key] || 0) + 1;
+    });
+
+    this.calendarInterviewCountMap = dateMap;
+    this.availabilityDates = Object.keys(dateMap);
+    this.availabilityDateSet = new Set(this.availabilityDates);
+
+    this.generateCalendar(this.selectedCalendarYear, this.selectedCalendarMonth);
+  }
+
+  private rebuildInsightsState(): void {
+    const monthInterviews = this.interviews.filter((i) => {
+      const d = this.getValidDate(i.date);
+      if (!d) return false;
+      return d.getMonth() === this.selectedInsightsMonth && d.getFullYear() === this.selectedInsightsYear;
+    });
+    const dateMap: Record<string, number> = {};
+    const roleMap: Record<string, number> = {};
+    let scheduledCount = 0;
+
+    monthInterviews.forEach((i) => {
+      const date = this.getValidDate(i.date);
+      if (!date) return;
+      const key = date.toISOString().split('T')[0];
+      dateMap[key] = (dateMap[key] || 0) + 1;
+
+      if (this.normalizeStatus(i.status) === 'scheduled') {
+        scheduledCount += 1;
+      }
+
+      const roleName = (i.role || 'Unassigned').toString().trim() || 'Unassigned';
+      roleMap[roleName] = (roleMap[roleName] || 0) + 1;
+    });
+
+    this.selectedMonthInterviews = monthInterviews.length;
+    this.selectedMonthActiveDays = Object.keys(dateMap).length;
+    this.selectedMonthScheduledCount = scheduledCount;
+
+    const busiest = Object.entries(dateMap).sort((a, b) => b[1] - a[1])[0];
+    if (busiest) {
+      this.selectedMonthBusiestCount = busiest[1];
+      this.selectedMonthBusiestDayLabel = new Date(`${busiest[0]}T00:00:00`).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric'
+      });
+    } else {
+      this.selectedMonthBusiestCount = 0;
+      this.selectedMonthBusiestDayLabel = '-';
+    }
+
+    this.selectedMonthTopRoles = Object.entries(roleMap)
+      .map(([role, count]) => ({ role, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  }
+
+  private rebuildPerformanceYearState(): void {
+    this.monthlyInterviewCounts = Array(12).fill(0);
+    let yearlyTotal = 0;
+    let yearlyHired = 0;
+    const yearlyInterviews: InterviewItem[] = [];
+
+    this.interviews.forEach((interview) => {
+      const d = this.getValidDate(interview.date);
+      if (!d) return;
+      if (d.getFullYear() === this.selectedPerformanceYear) {
+        this.monthlyInterviewCounts[d.getMonth()] += 1;
+        yearlyTotal += 1;
+        yearlyInterviews.push(interview);
+        const status = this.normalizeStatus(interview.status);
+        if (status === 'hired' || status === 'completed') {
+          yearlyHired += 1;
+        }
+      }
+    });
+
+    this.completedRate = yearlyTotal ? Math.round((yearlyHired / yearlyTotal) * 100) : 0;
+    this.performanceStatusBreakdownData = this.buildPerformanceStatusBreakdown(yearlyInterviews);
+  }
+
+  private generateCalendar(year: number, month: number): void {
+    this.calendarYear = year;
+    this.calendarMonthName = new Date(year, month).toLocaleString('default', { month: 'long' });
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
+    const days: Array<{ date: string; dateString: string; currentMonth: boolean }> = [];
 
-    const days: any[] = [];
-
-    // Padding before first day
     for (let i = 0; i < firstDay.getDay(); i++) {
-      days.push({ date: '', currentMonth: false });
+      days.push({ date: '', dateString: '', currentMonth: false });
     }
 
-    // Actual days
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const dateObj = new Date(year, month, d);
       const dateString = [
         dateObj.getFullYear(),
         String(dateObj.getMonth() + 1).padStart(2, '0'),
         String(dateObj.getDate()).padStart(2, '0')
-      ].join('-'); // yyyy-mm-dd (local)
-
-      days.push({
-        date: d,
-        dateString,
-        currentMonth: true
-      });
+      ].join('-');
+      days.push({ date: String(d), dateString, currentMonth: true });
     }
 
     this.calendarDays = days;
   }
 
-  updateInterviewCounts() {
-    this.hiredCount = this.interview_list?.filter((interview: { status: string; }) => interview.status === 'hired').length;
-    this.pendingCount = this.interview_list?.filter((interview: { status: string; }) => interview.status != 'rejected').length;
-  }
+  private renderPerformanceChart(): void {
+    const canvas = this.performanceChartCanvas?.nativeElement;
+    if (!canvas) return;
 
-  
-  getNextInterview(interviews: any[]) {
-    const today = new Date();
+    this.destroyChart();
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // filter only future "scheduled" interviews
-    const upcoming = interviews
-      .filter(item => 
-        item.status === "scheduled" && new Date(item.date) >= today
-      )
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    if (upcoming?.length > 0) {
-      this.upcoming_interviews = upcoming;
-      return upcoming[0].date; // next nearest interview
-    } else {
-      this.upcoming_interviews = [];
-      return "No Upcoming Interview";
-    }
-  }
-  // Add this method to fix the error
-  trackById(index: number, item: any): any {
-      return item.id;
-  }
-
-  renderPerformanceChart(): void {
-    // if (!this.interview_list || !Array.isArray(this.interview_list)) return;
-
-    // Track number of interviews per month for the current year
-    const currentYear = new Date().getFullYear();
-    const monthCounts = Array(12).fill(0);
-
-    this.interview_list.forEach((interview: any) => {
-      const interviewDate = new Date(interview.date);
-      if (interviewDate.getFullYear() === currentYear) {
-        monthCounts[interviewDate.getMonth()] += 1;
-      }
-    });
-
-    const labels = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    const data = monthCounts;
-
-    // Wait for Chart.js to be loaded before drawing the chart
-    const ensureChartJsLoaded = (callback: () => void) => {
-      if ((window as any).Chart) {
-        callback();
-      } else {
-        const existingScript = document.querySelector('script[src="https://cdn.jsdelivr.net/npm/chart.js"]');
-        if (!existingScript) {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-          script.onload = () => callback();
-          document.body.appendChild(script);
-        } else {
-          existingScript.addEventListener('load', () => callback());
-        }
-      }
-    };
-
-    // Wait for the canvas to be available in the DOM
-    const waitForCanvas = (callback: () => void) => {
-      const canvas = document.getElementById('performanceChart') as HTMLCanvasElement;
-      if (!canvas) {
-        setTimeout(() => waitForCanvas(callback), 100);
-      } else {
-        callback();
-      }
-    };
-
-    waitForCanvas(() => {
-      ensureChartJsLoaded(() => {
-        const canvas = document.getElementById('performanceChart') as HTMLCanvasElement;
-        canvas.height = 200; // Set a fixed height
-        if (!canvas) return;
-
-        // Remove previous chart if exists
-        if ((window as any).performanceChartInstance) {
-          (window as any).performanceChartInstance.destroy();
-        }
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        (window as any).performanceChartInstance = new (window as any).Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              label: `No of Interviews`,
-              data,
-              borderColor: '#2196f3',
-              backgroundColor: 'rgba(33,150,243,0.1)',
-              fill: true,
-              tension: 0.3
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: false }
-            },
-            scales: {
-              x: {
-                type: 'category',
-                labels: labels,
-                ticks: {
-                  autoSkip: false
-                }
-              },
-              y: {
-                beginAtZero: true,
-                min: 0,
-                max: (() => {
-                  const maxVal = Math.max(...data);
-                  // Always at least 10, otherwise go slightly above max (rounded up)
-                  return Math.max(10, Math.ceil(maxVal + 1));
-                })(),
-                ticks: {
-                  stepSize: (() => {
-                    const avg = data.reduce((a, b) => a + b, 0) / (data.length || 1);
-                    return avg < 10 ? 1 : 2;
-                  })(),
-                  callback: function(value: number) {
-                    return value % 2 === 0 ? value : '';
-                  },
-                  autoSkip: false // ensure all ticks are shown
-                }
-              }
-            }
+    this.performanceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: this.monthLabels,
+        datasets: [
+          {
+            label: 'Interviews',
+            data: this.monthlyInterviewCounts,
+            borderColor: '#38c7ff',
+            backgroundColor: 'rgba(56, 199, 255, 0.16)',
+            fill: true,
+            tension: 0.32,
+            pointRadius: 2.8,
+            pointBackgroundColor: '#8de7ff'
           }
-        });
-      });
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { color: '#8fb4d8' },
+            grid: { color: 'rgba(111, 170, 214, 0.12)' }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: '#8fb4d8',
+              stepSize: 1
+            },
+            grid: { color: 'rgba(111, 170, 214, 0.12)' }
+          }
+        }
+      }
     });
   }
-
-  generateMonthlyWorkload(): void {
-    if (!this.interview_list || !Array.isArray(this.interview_list)) {
-      this.monthlyWorkload = [];
-      return;
-    }
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-
-    // Get all days in current month
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const workload: { date: string, count: number }[] = [];
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateObj = new Date(year, month, d);
-      const dateString = [
-        dateObj.getFullYear(),
-        String(dateObj.getMonth() + 1).padStart(2, '0'),
-        String(dateObj.getDate()).padStart(2, '0')
-      ].join('-'); // yyyy-mm-dd
-      const count = this.interview_list.filter((interview: any) => {
-        const interviewDate = new Date(interview.date);
-        return interviewDate.getFullYear() === year &&
-               interviewDate.getMonth() === month &&
-               interviewDate.getDate() === d;
-      }).length;
-      workload.push({ date: dateString, count });
-    }
-    // Optionally, split into weeks for display
-    const weeks: { date: string, count: number }[][] = [];
-    let week: { date: string, count: number }[] = [];
-    for (let i = 0; i < workload.length; i++) {
-      week.push(workload[i]);
-      if (week.length === 7 || i === workload.length - 1) {
-        weeks.push(week);
-        week = [];
-      }
-    }
-    this.monthlyWorkload = weeks;
-  }
-
 }

@@ -1,0 +1,105 @@
+<div class="profile-dialog-shell">
+  <button class="close-btn" (click)="close()">×</button>
+
+  <div class="hero">
+    <div class="hero-main">
+      <div class="avatar">{{ initials }}</div>
+      <div class="hero-text">
+        <h2>{{ candidate.name }}</h2>
+        <p>{{ candidate.email }}</p>
+        <p class="subline">{{ resumeProfile.phone }} | {{ resumeProfile.location }}</p>
+        <span class="status-badge">{{ formattedStatus }}</span>
+      </div>
+    </div>
+
+    <div class="actions-block">
+      <div class="actions-head">
+        <h3>Quick Actions</h3>
+        <span *ngIf="loading">Updating...</span>
+      </div>
+
+      <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+      <div class="action-grid" *ngIf="statusActions.length; else noActions">
+        <button type="button" *ngFor="let item of statusActions" (click)="changeStatus(item.key)" [disabled]="loading">
+          {{ item.label }}
+        </button>
+      </div>
+
+      <ng-template #noActions>
+        <div class="no-actions">No status transitions available for current stage.</div>
+      </ng-template>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <article>
+      <span>Role</span>
+      <strong>{{ candidate.role }}</strong>
+    </article>
+    <article>
+      <span>Recruiter</span>
+      <strong>{{ candidate.recruiter }}</strong>
+    </article>
+    <article>
+      <span>Interview Date</span>
+      <strong>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</strong>
+    </article>
+    <article>
+      <span>Score</span>
+      <strong>{{ candidate.score ?? 'N/A' }}</strong>
+    </article>
+  </div>
+
+  <div class="resume-mock">
+    <section class="resume-section">
+      <h4>Career Objective</h4>
+      <p>{{ resumeProfile.objective }}</p>
+    </section>
+
+    <section class="resume-section">
+      <h4>Professional Summary</h4>
+      <ul>
+        <li *ngFor="let point of professionalSummary">{{ point }}</li>
+      </ul>
+    </section>
+
+    <section class="resume-section">
+      <h4>Work History</h4>
+      <div class="timeline">
+        <article class="job" *ngFor="let item of workHistory">
+          <span class="duration">{{ item.duration }}</span>
+          <strong>{{ item.title }}</strong>
+          <p class="company">{{ item.company }}</p>
+          <p>{{ item.details }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="resume-grid">
+      <article class="resume-section">
+        <h4>Technical Expertise</h4>
+        <ul>
+          <li><b>Languages:</b> {{ technicalExpertise.languages }}</li>
+          <li><b>OS:</b> {{ technicalExpertise.os }}</li>
+          <li><b>Database:</b> {{ technicalExpertise.database }}</li>
+          <li><b>Framework:</b> {{ technicalExpertise.framework }}</li>
+          <li><b>Web:</b> {{ technicalExpertise.web }}</li>
+          <li><b>Tools:</b> {{ technicalExpertise.tools }}</li>
+        </ul>
+      </article>
+      <article class="resume-section">
+        <h4>Education</h4>
+        <ul>
+          <li *ngFor="let item of education">{{ item }}</li>
+        </ul>
+      </article>
+    </section>
+  </div>
+
+  <div class="footer-actions">
+    <button class="ghost" type="button" (click)="openRole()">View Role</button>
+    <button class="ghost" type="button" (click)="close()">Cancel</button>
+    <button class="primary" type="button" (click)="saveAndClose()">Done</button>
+  </div>
+</div>

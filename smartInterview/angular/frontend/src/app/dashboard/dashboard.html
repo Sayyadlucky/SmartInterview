@@ -34,10 +34,10 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="overview"><i class="ph ph-chart-bar"></i> Overview</button>
       <button class="tab-btn" data-tab="evaluators"><i class="ph ph-identification-badge"></i> Evaluators</button>
-      <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-user"></i> Candidates <span class="soon-tag">Soon</span></button>
-      <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-paper-plane-right"></i> Invite <span class="soon-tag">Soon</span></button>
-      <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-activity"></i> Activity <span class="soon-tag">Soon</span></button>
-      <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-graph"></i> Analytics <span class="soon-tag">Soon</span></button>
+      <button class="tab-btn" data-tab="candidates"><i class="ph ph-user"></i> Candidates</button>
+      <!-- <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-paper-plane-right"></i> Invite <span class="soon-tag">Soon</span></button> -->
+      <button class="tab-btn" data-tab="activity"><i class="ph ph-activity"></i> Activity</button>
+      <button class="tab-btn" data-tab="analytics"><i class="ph ph-graph"></i> Analytics</button>
     </div>
 
     <!-- ================= OVERVIEW TAB ================= -->
@@ -204,10 +204,71 @@
         </div>
       </div>
 
+      <div class="insight-grid">
+        <div class="dashboard-card insight-panel">
+          <div class="insight-head">
+            <h3>Monthly Trend Cards</h3>
+            <span>Current month vs previous month</span>
+          </div>
+          <div class="monthly-trend-grid">
+            @for (card of monthlyTrendCards; track card.key) {
+              <div class="trend-card">
+                <div class="trend-card-top">
+                  <div class="trend-label">
+                    <i [class]="card.icon"></i>
+                    <span>{{ card.label }}</span>
+                  </div>
+                  <span class="trend-delta" [class.up]="card.direction === 'up'" [class.down]="card.direction === 'down'" [class.flat]="card.direction === 'flat'">
+                    {{ card.deltaText }}
+                  </span>
+                </div>
+                <div class="trend-main">{{ formatTrendValue(card) }}</div>
+                <div class="trend-sub">Prev: {{ formatPreviousTrendValue(card) }}</div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="dashboard-card insight-panel">
+          <div class="insight-head">
+            <h3>Needs Attention</h3>
+            <span>Auto-detected follow-ups</span>
+          </div>
+          <div class="attention-filter-chip" *ngIf="attentionFilter">
+            <span>Filtered by alert</span>
+            <button type="button" (click)="clearNeedsAttentionFilter()">Clear</button>
+          </div>
+          <div class="attention-list">
+            @for (item of needsAttentionItems; track item.key) {
+              <div class="attention-item" [class.active]="isAttentionFilterActive(item.key)" (click)="applyNeedsAttentionFilter(item.key)">
+                <div class="attention-main">
+                  <div class="attention-title">
+                    <i [class]="item.icon"></i>
+                    <span>{{ item.title }}</span>
+                  </div>
+                  <p>{{ item.helperText }}</p>
+                  <div class="attention-preview" *ngIf="item.candidates.length">
+                    @for (candidate of item.candidates; track candidate.id) {
+                      <button class="attention-candidate-btn" type="button" (click)="profileUpdate(candidate); $event.stopPropagation()">
+                        {{ candidate.name }}
+                      </button>
+                    }
+                  </div>
+                  <div class="attention-preview" *ngIf="!item.candidates.length">No candidates currently</div>
+                </div>
+                <div class="attention-actions">
+                  <button class="attention-view-btn" type="button" (click)="applyNeedsAttentionFilter(item.key); $event.stopPropagation()">View</button>
+                  <div class="attention-count">{{ item.count }}</div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
 
       
         <!-- Layout (Sidebar + Candidate Table) -->
-        <div class="w-full min-h-[100%] flex flex-col lg:flex-row candidate-board">
+        <div class="w-full min-h-[100%] flex flex-col lg:flex-row candidate-board" id="candidatePipelineSection">
           <!-- Sidebar -->
           <div class="w-full lg:w-[25%] h-full text-align-left filters-panel">
             <div class="status-row">
@@ -244,7 +305,7 @@
           <div class="w-full lg:w-[75%] h-full table-panel">
             <div class="table-head">
               <h3>Candidate Pipeline</h3>
-              <span>{{ filteredCandidates?.length || 0 }} shown</span>
+              <span>{{ filteredCandidates.length || 0 }} shown</span>
             </div>
             <div class="min-h-[70vh] flex flex-col">
               <table class="w-full candidate-table">
@@ -273,7 +334,7 @@
                     </td>
                   </tr>
                   }
-                  @if (filteredCandidates?.length === 0) {
+                  @if (filteredCandidates.length === 0) {
                   <tr>
                     <td colspan="4" class="text-center py-6">
                       <div class="empty-state">
@@ -309,6 +370,21 @@
     <!-- ================= EVALUATORS TAB ================= -->
     <div class="tab-content" id="evaluators">
       <app-evaluators></app-evaluators>
+    </div>
+
+    <!-- ================= CANDIDATES TAB ================= -->
+    <div class="tab-content" id="candidates">
+      <app-candidates></app-candidates>
+    </div>
+
+    <!-- ================= ACTIVITY TAB ================= -->
+    <div class="tab-content" id="activity">
+      <app-activity></app-activity>
+    </div>
+
+    <!-- ================= ANALYTICS TAB ================= -->
+    <div class="tab-content" id="analytics">
+      <app-analytics></app-analytics>
     </div>
   </main>
 </div>

@@ -1,0 +1,485 @@
+<section class="activity-shell">
+  <div class="state-card" *ngIf="loading">Loading activity data...</div>
+  <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+
+  <div class="activity-layout" *ngIf="!loading && !errorMessage">
+    <div class="filters-bar">
+      <div class="filter-item">
+        <label>From</label>
+        <input type="date" [(ngModel)]="startDate" [max]="endDate || null" (ngModelChange)="onStartDateChange($event)" />
+      </div>
+      <div class="filter-item">
+        <label>To</label>
+        <input type="date" [(ngModel)]="endDate" [min]="startDate || null" (ngModelChange)="onEndDateChange($event)" />
+      </div>
+      <div class="filter-item">
+        <label>Recruiter</label>
+        <div class="search-select">
+          <input
+            type="text"
+            [ngModel]="recruiterQuery"
+            (ngModelChange)="onRecruiterInputChange($event)"
+            (focus)="onRecruiterInputFocus()"
+            (blur)="onRecruiterInputBlur()"
+            (keydown.enter)="selectFirstRecruiterMatch()"
+            placeholder="Search recruiter"
+          />
+          <div class="search-select-list" *ngIf="showRecruiterMenu">
+            <button type="button" *ngFor="let item of filteredRecruiterOptions" (mousedown)="selectRecruiterOption(item.id, item.name)">
+              {{ item.name }}
+            </button>
+            <div class="search-empty" *ngIf="!filteredRecruiterOptions.length">No recruiter found</div>
+          </div>
+        </div>
+      </div>
+      <div class="filter-item">
+        <label>Role</label>
+        <div class="search-select">
+          <input
+            type="text"
+            [ngModel]="roleQuery"
+            (ngModelChange)="onRoleInputChange($event)"
+            (focus)="onRoleInputFocus()"
+            (blur)="onRoleInputBlur()"
+            (keydown.enter)="selectFirstRoleMatch()"
+            placeholder="Search role"
+          />
+          <div class="search-select-list" *ngIf="showRoleMenu">
+            <button type="button" *ngFor="let item of filteredRoleOptions" (mousedown)="selectRoleOption(item.id, item.name)">
+              {{ item.name }}
+            </button>
+            <div class="search-empty" *ngIf="!filteredRoleOptions.length">No role found</div>
+          </div>
+        </div>
+      </div>
+      <div class="filter-item">
+        <label>Status</label>
+        <select [(ngModel)]="selectedStatus" (change)="onFiltersChanged()">
+          <option *ngFor="let item of statusOptions" [value]="item.value">{{ item.label }}</option>
+        </select>
+      </div>
+      <button type="button" class="clear-filter-btn" (click)="clearFilters()">Clear</button>
+    </div>
+    <div class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</div>
+    <div class="export-row">
+      <span>Export Snapshot</span>
+      <button type="button" class="export-btn" (click)="exportSnapshot('csv')">CSV</button>
+      <button type="button" class="export-btn" (click)="exportSnapshot('json')">JSON</button>
+    </div>
+
+    <div class="summary-grid">
+      <article class="summary-card">
+        <span class="label">Total Interviews</span>
+        <span class="value">{{ summary.total_interviews }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Upcoming</span>
+        <span class="value">{{ summary.upcoming }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Hire Rate</span>
+        <span class="value">{{ summary.hire_rate }}%</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Active Recruiters</span>
+        <span class="value">{{ summary.active_recruiters }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Open Roles</span>
+        <span class="value">{{ summary.open_roles }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Last 30 Days</span>
+        <span class="value">{{ summary.last_30_days }}</span>
+      </article>
+    </div>
+    <div class="summary-empty" *ngIf="!hasAnyActivityData">
+      No activity data available for selected filters. Try broadening date range or clearing filters.
+    </div>
+
+    <div class="content-grid">
+      <div class="main-zone">
+      <div class="top-grid">
+        <article class="main-card top-trend">
+          <div class="card-head">
+            <h3>{{ trend.title }}</h3>
+            <span *ngIf="!hasTrendData">No trend data</span>
+          </div>
+          <div class="trend-wrap">
+            <canvas #trendCanvas *ngIf="hasTrendData; else noTrendData"></canvas>
+            <ng-template #noTrendData>
+              <div class="empty-inline">No data present for selected filter range.</div>
+            </ng-template>
+          </div>
+        </article>
+
+        <article class="main-card top-status">
+          <div class="card-head">
+            <h3>Status Distribution</h3>
+            <span>{{ summary.total_interviews }} total</span>
+          </div>
+          <div class="status-grid">
+            <div class="status-chart-wrap" *ngIf="hasStatusData; else noStatusData">
+              <canvas #statusCanvas></canvas>
+            </div>
+            <div class="status-legend" *ngIf="hasStatusData">
+              <div class="legend-row" *ngFor="let item of statusSplit">
+                <span class="dot" [style.background]="item.color"></span>
+                <span class="label">{{ item.label }}</span>
+                <span class="value">{{ item.value }}</span>
+              </div>
+            </div>
+            <ng-template #noStatusData>
+              <div class="empty-inline">No status data present for selected filters.</div>
+            </ng-template>
+          </div>
+        </article>
+
+        <article class="main-card top-risk">
+          <div class="card-head">
+            <h3>Open Role Risk Score</h3>
+            <span>{{ roleRiskScore.length }} roles</span>
+          </div>
+          <div class="role-table-wrap" *ngIf="roleRiskScore.length; else noRoleRisk">
+            <table class="role-table">
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Filled/Target</th>
+                  <th>Progress</th>
+                  <th>Risk</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of roleRiskScore" class="clickable" (click)="applyRoleByName(row.role)">
+                  <td>{{ row.role }}</td>
+                  <td>{{ row.filled }}/{{ row.target }}</td>
+                  <td>{{ row.progress_pct }}%</td>
+                  <td>
+                    <span class="pill" [ngClass]="severityClass(row.severity)">{{ row.risk_score }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noRoleRisk>
+            <div class="empty-inline">No open role risk data.</div>
+          </ng-template>
+        </article>
+
+        <article class="main-card top-insights">
+          <div class="card-head">
+            <h3>Insights</h3>
+            <span>{{ insights.length }}</span>
+          </div>
+          <ul class="insight-list" *ngIf="insights.length; else noInsights">
+            <li *ngFor="let line of insights | slice:0:6">{{ line }}</li>
+          </ul>
+          <ng-template #noInsights>
+            <div class="empty-inline">No insights available.</div>
+          </ng-template>
+        </article>
+
+        <article class="main-card top-target">
+          <div class="card-head">
+            <h3>Target vs Actual</h3>
+            <span>{{ targetVsActual.progress_pct }}% achieved</span>
+          </div>
+          <div class="summary-inline">
+            <span>Target: <strong>{{ targetVsActual.target_total }}</strong></span>
+            <span>Actual: <strong>{{ targetVsActual.actual_total }}</strong></span>
+            <span>Gap: <strong>{{ targetVsActual.gap }}</strong></span>
+          </div>
+          <div class="mini-bars" *ngIf="targetVsActual.labels.length; else noTargetActual">
+            <div class="mini-row clickable" *ngFor="let label of targetVsActual.labels; let i = index" (click)="applyMonthByKey(targetVsActual.keys[i])">
+              <span class="label">{{ label }}</span>
+              <div class="stack-bars">
+                <span class="target" [style.width.%]="targetVsActual.target_series[i] ? 100 : 0"></span>
+                <span class="actual" [style.width.%]="targetVsActual.target_series[i] ? (targetVsActual.actual_series[i] / targetVsActual.target_series[i]) * 100 : 0"></span>
+              </div>
+              <span class="value">{{ targetVsActual.actual_series[i] }}/{{ targetVsActual.target_series[i] }}</span>
+            </div>
+          </div>
+          <ng-template #noTargetActual>
+            <div class="empty-inline">No target vs actual data.</div>
+          </ng-template>
+        </article>
+      </div>
+
+      <article class="main-card recruiter-workload-card">
+        <div class="card-head">
+          <h3>Recruiter Workload</h3>
+          <span>Top 8 ({{ recruiterBreakdown.length }} total)</span>
+        </div>
+        <div class="workload-list" *ngIf="recruiterBreakdown.length; else noRecruiters">
+          <div class="workload-row clickable" *ngFor="let item of recruiterBreakdown | slice:0:8" (click)="applyRecruiterByName(item.name)">
+            <div class="row-top">
+              <span>{{ item.name }}</span>
+              <span>{{ item.count }}</span>
+            </div>
+            <div class="bar"><span [style.width.%]="recruiterBar(item)"></span></div>
+          </div>
+        </div>
+        <ng-template #noRecruiters>
+          <div class="empty-inline">No recruiter activity</div>
+        </ng-template>
+      </article>
+
+      <article class="main-card role-throughput-card">
+        <div class="card-head">
+          <h3>Role Throughput</h3>
+          <span>{{ roleBreakdown.length }} roles</span>
+        </div>
+        <div class="role-table-wrap" *ngIf="roleBreakdown.length; else noRoles">
+          <table class="role-table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Total</th>
+                <th>Hired</th>
+                <th>Conversion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let role of roleBreakdown | slice:0:8" class="clickable" (click)="applyRoleByName(role.role)">
+                <td>{{ role.role }}</td>
+                <td>{{ role.count }}</td>
+                <td>{{ role.hired }}</td>
+                <td>{{ roleHirePercent(role) }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noRoles>
+          <div class="empty-inline">No role activity</div>
+        </ng-template>
+      </article>
+
+      <article class="main-card stage-movement-card">
+        <div class="card-head">
+          <h3>Stage Movement</h3>
+          <span>Current vs previous period</span>
+        </div>
+        <div class="role-table-wrap" *ngIf="stageMovement.length; else noStageMovement">
+          <table class="role-table">
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>Current</th>
+                <th>Previous</th>
+                <th>Delta</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of stageMovement" class="clickable" (click)="onStageMovementClick(row.stage)">
+                <td>{{ row.stage }}</td>
+                <td>{{ row.current }}</td>
+                <td>{{ row.previous }}</td>
+                <td class="delta" [ngClass]="stageDeltaClass(row.delta)">
+                  {{ row.delta > 0 ? '+' : '' }}{{ row.delta }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noStageMovement>
+          <div class="empty-inline">No stage movement data.</div>
+        </ng-template>
+      </article>
+
+      <article class="main-card daily-productivity-card">
+        <div class="card-head">
+          <h3>Daily Productivity</h3>
+          <span>Last 14 days</span>
+        </div>
+        <div class="weekly-inline">
+          <span>This week: <strong>{{ productivity.current_week_total }}</strong></span>
+          <span>Prev week: <strong>{{ productivity.previous_week_total }}</strong></span>
+          <span class="delta" [ngClass]="stageDeltaClass(weeklyDelta())">
+            {{ weeklyDelta() > 0 ? '+' : '' }}{{ weeklyDelta() }}
+          </span>
+        </div>
+        <div class="mini-bars" *ngIf="productivity.daily.length; else noProductivity">
+          <div class="mini-row clickable" *ngFor="let day of productivity.daily" (click)="applySingleDay(day.key)">
+            <span class="label">{{ day.label }}</span>
+            <div class="bar"><span [style.width.%]="dailyBarWidth(day.total)"></span></div>
+            <span class="value">{{ day.total }}</span>
+          </div>
+        </div>
+        <ng-template #noProductivity>
+          <div class="empty-inline">No productivity data.</div>
+        </ng-template>
+      </article>
+
+      <article class="main-card outcome-quality-card">
+        <div class="card-head">
+          <h3>Outcome Quality</h3>
+          <span>{{ outcomeQuality.evaluated }} evaluated</span>
+        </div>
+        <div class="summary-inline">
+          <span>Hired: <strong>{{ outcomeQuality.hired }}</strong></span>
+          <span>Shortlisted: <strong>{{ outcomeQuality.shortlisted }}</strong></span>
+          <span>Rejected: <strong>{{ outcomeQuality.rejected }}</strong></span>
+        </div>
+        <div class="workload-list" *ngIf="scoreBandRows.length; else noQuality">
+          <div class="workload-row" *ngFor="let row of scoreBandRows">
+            <div class="row-top">
+              <span>{{ row.label }}</span>
+              <span>{{ row.value }}</span>
+            </div>
+            <div class="bar"><span [style.width.%]="outcomeQuality.scored_count ? (row.value / outcomeQuality.scored_count) * 100 : 0"></span></div>
+          </div>
+        </div>
+        <ng-template #noQuality>
+          <div class="empty-inline">No scored interviews available.</div>
+        </ng-template>
+      </article>
+
+      <article class="main-card upcoming-load-card">
+        <div class="card-head">
+          <h3>Upcoming Load Heat</h3>
+          <span>{{ upcomingLoadHeat.total_scheduled }} scheduled (next 7 days)</span>
+        </div>
+        <div class="heat-table" *ngIf="upcomingLoadHeat.days.length && upcomingLoadHeat.slots.length; else noHeat">
+          <div class="heat-head">
+            <span></span>
+            <span *ngFor="let slot of upcomingLoadHeat.slots">{{ slot }}</span>
+          </div>
+          <div class="heat-row" *ngFor="let day of upcomingLoadHeat.days">
+            <span class="day">{{ day.label }}</span>
+            <span
+              class="cell clickable"
+              *ngFor="let slot of upcomingLoadHeat.slots"
+              [ngClass]="heatCellClass(day.cells[slot] || 0)"
+              (click)="applySingleDay(day.key)"
+              [title]="slot + ': ' + (day.cells[slot] || 0)"
+            >
+              {{ day.cells[slot] || 0 }}
+            </span>
+          </div>
+        </div>
+        <ng-template #noHeat>
+          <div class="empty-inline">No upcoming scheduled load.</div>
+        </ng-template>
+      </article>
+
+      <div class="row5-col2">
+        <article class="main-card recruiter-response-card">
+          <div class="card-head">
+            <h3>Recruiter Response Time</h3>
+            <span>{{ responseTime.samples }} samples</span>
+          </div>
+          <div class="summary-inline">
+            <span>Avg: <strong>{{ responseTime.avg_hours }}h</strong></span>
+            <span>Median: <strong>{{ responseTime.median_hours }}h</strong></span>
+          </div>
+          <div class="workload-list" *ngIf="responseTime.by_recruiter.length; else noResponseTime">
+            <div class="workload-row clickable" *ngFor="let item of responseTime.by_recruiter | slice:0:6" (click)="applyRecruiterByName(item.name)">
+              <div class="row-top">
+                <span>{{ item.name }}</span>
+                <span>{{ item.avg_hours }}h</span>
+              </div>
+              <div class="meta-line">{{ item.count }} interviews</div>
+            </div>
+          </div>
+          <ng-template #noResponseTime>
+            <div class="empty-inline">No response-time data in selected filters.</div>
+          </ng-template>
+        </article>
+
+        <article class="main-card recycled-card">
+          <div class="card-head">
+            <h3>Re-opened / Recycled</h3>
+            <span>{{ recycledSummary.total_recycled }} recycled</span>
+          </div>
+          <div class="summary-inline">
+            <span>Re-opened: <strong>{{ recycledSummary.reopened }}</strong></span>
+          </div>
+          <ul class="timeline" *ngIf="recycledSummary.list.length; else noRecycled">
+            <li *ngFor="let item of recycledSummary.list" class="clickable" (click)="onRecycledClick(item.roles[0])">
+              <div class="title">{{ item.candidate }}</div>
+              <div class="meta">{{ item.interviews }} interviews • {{ item.latest_status }}</div>
+              <div class="date">{{ item.roles.join(', ') }}</div>
+            </li>
+          </ul>
+          <ng-template #noRecycled>
+            <div class="empty-inline">No recycled candidates in this range.</div>
+          </ng-template>
+        </article>
+      </div>
+
+      <article class="main-card dropoff-card">
+        <div class="card-head">
+          <h3>Drop-off Reasons</h3>
+          <span>{{ dropoffReasons.length }}</span>
+        </div>
+        <ul class="dropoff-list" *ngIf="dropoffReasons.length; else noDropoff">
+          <li *ngFor="let item of dropoffReasons" class="clickable" (click)="onDropoffReasonClick(item.reason)">
+            <span>{{ item.reason }}</span>
+            <strong>{{ item.count }}</strong>
+          </li>
+        </ul>
+        <ng-template #noDropoff>
+          <div class="empty-inline">No drop-offs in selected range.</div>
+        </ng-template>
+      </article>
+      </div>
+
+      <aside class="side-col">
+        <article class="side-card">
+          <div class="card-head">
+            <h3>SLA Alerts</h3>
+            <span>{{ slaAlerts.length }} active</span>
+          </div>
+          <div class="alert-list" *ngIf="slaAlerts.length; else noAlerts">
+            <div class="alert-row clickable" *ngFor="let alert of slaAlerts" (click)="onSlaAlertClick(alert.type)">
+              <span class="pill" [ngClass]="alert.severity">{{ alert.severity | titlecase }}</span>
+              <div class="alert-content">
+                <strong>{{ alert.title }}</strong>
+                <small>{{ alert.description }}</small>
+              </div>
+              <span class="alert-count">{{ alert.count }}</span>
+            </div>
+          </div>
+          <ng-template #noAlerts>
+            <div class="empty-inline">No SLA alerts in selected range.</div>
+          </ng-template>
+        </article>
+
+        <article class="side-card">
+          <div class="card-head">
+            <h3>Recent Activity</h3>
+            <span>{{ recentActivity.length }}</span>
+          </div>
+          <ul class="timeline" *ngIf="recentActivity.length; else noActivity">
+            <li *ngFor="let item of recentActivity | slice:0:10">
+              <div class="title">{{ item.title }}</div>
+              <div class="meta">{{ item.meta }}</div>
+              <div class="date">{{ item.date | date: 'MMM d, y, h:mm a' }}</div>
+            </li>
+          </ul>
+          <ng-template #noActivity>
+            <div class="empty-inline">No recent updates</div>
+          </ng-template>
+        </article>
+
+        <article class="side-card">
+          <div class="card-head">
+            <h3>Upcoming Interviews</h3>
+            <span>{{ upcomingList.length }}</span>
+          </div>
+          <ul class="upcoming" *ngIf="upcomingList.length; else noUpcoming">
+            <li *ngFor="let item of upcomingList | slice:0:8">
+              <strong>{{ item.candidate }}</strong>
+              <small>{{ item.role }}</small>
+              <span>{{ item.date | date: 'MMM d, h:mm a' }}</span>
+            </li>
+          </ul>
+          <ng-template #noUpcoming>
+            <div class="empty-inline">No upcoming interviews</div>
+          </ng-template>
+        </article>
+      </aside>
+    </div>
+  </div>
+</section>

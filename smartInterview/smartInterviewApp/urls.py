@@ -19,6 +19,9 @@ urlpatterns = [
     path('evaluator-search/', commonViews.evaluatorSearch, name='get-evaluator-profile'),
     path('get-hr-list/', commonViews.getHrList, name='get-hr-list'),
     path('get-role-list/', commonViews.getRoleList, name='get-role-list'),
+    path('candidates-tab-data/', commonViews.candidatesTabData, name='candidates-tab-data'),
+    path('activity-tab-data/', commonViews.activityTabData, name='activity-tab-data'),
+    path('analytics-tab-data/', commonViews.analyticsTabData, name='analytics-tab-data'),
     path('get-role-data/<int:id>', commonViews.getRoleData, name='get-role-data'),
     path('get-vacancy-recruiters/<int:id>/', commonViews.getVacancyReruiters, name='get-vacancy-recruiters/'),
 ]

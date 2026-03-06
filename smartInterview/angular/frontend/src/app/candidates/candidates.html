@@ -1,0 +1,156 @@
+<section class="candidates-tab-shell">
+  <div class="state-card" *ngIf="loading">Loading candidates data...</div>
+  <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+
+  <div class="candidates-layout" *ngIf="!loading && !errorMessage">
+    <div class="summary-grid">
+      <article class="summary-card">
+        <span class="label">Total</span>
+        <span class="value">{{ summary.total }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Scheduled</span>
+        <span class="value">{{ summary.scheduled }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Hired</span>
+        <span class="value">{{ summary.hired }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Rejected</span>
+        <span class="value">{{ summary.rejected }}</span>
+      </article>
+    </div>
+
+    <div class="main-grid">
+      <article class="main-panel">
+        <div class="panel-head">
+          <h3>Candidates Pipeline</h3>
+          <span>{{ filteredCandidates.length }} shown</span>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" [(ngModel)]="searchTerm" (input)="currentPage = 1" placeholder="Search candidate, email, role, recruiter" />
+            <button *ngIf="searchTerm" (click)="clearSearch()">Clear</button>
+          </div>
+        </div>
+
+        <div class="status-pills">
+          <button
+            *ngFor="let item of statusFilters"
+            type="button"
+            class="status-pill"
+            [class.active]="statusFilter === item.key"
+            (click)="setStatusFilter(item.key)"
+          >
+            {{ item.label }} ({{ getStatusCount(item.key) }})
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="candidate-table" *ngIf="pagedCandidates.length; else emptyState">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Status</th>
+                <th>Recruiter</th>
+                <th>Role</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let candidate of pagedCandidates; trackBy: trackCandidate">
+                <td>
+                  <div class="name-cell">
+                    <button type="button" class="name-link" (click)="openCandidateProfile(candidate)">{{ candidate.name }}</button>
+                    <small>{{ candidate.email }}</small>
+                  </div>
+                </td>
+                <td>
+                  <span class="status-chip">{{ candidate.status | titlecase }}</span>
+                </td>
+                <td>{{ candidate.recruiter }}</td>
+                <td>{{ candidate.role }}</td>
+                <td>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" (click)="openCandidateProfile(candidate)">View</button>
+                    <button type="button" [disabled]="!candidate.role_id" (click)="openRoleDetail(candidate.role_id)">Role</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <ng-template #emptyState>
+            <div class="empty-state">No candidates found for selected filters.</div>
+          </ng-template>
+        </div>
+
+        <div class="pager" *ngIf="filteredCandidates.length > pageSize">
+          <button type="button" (click)="prevPage()" [disabled]="currentPage === 1">Previous</button>
+          <span>Page {{ currentPage }} of {{ totalPages }}</span>
+          <button type="button" (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
+        </div>
+      </article>
+
+      <aside class="side-panel">
+        <article class="side-card">
+          <div class="panel-head">
+            <h3>Upcoming Interviews</h3>
+            <span>{{ upcoming.length }}</span>
+          </div>
+          <ul class="mini-list" *ngIf="upcoming.length; else noUpcoming">
+            <li *ngFor="let item of upcoming | slice:0:6">
+              <div>
+                <strong>{{ item.candidate }}</strong>
+                <small>{{ item.role }} • {{ item.recruiter }}</small>
+              </div>
+              <span>{{ item.date | date: 'MMM d, h:mm a' }}</span>
+            </li>
+          </ul>
+          <ng-template #noUpcoming>
+            <div class="empty-inline">No upcoming interviews</div>
+          </ng-template>
+        </article>
+
+        <article class="side-card">
+          <div class="panel-head">
+            <h3>Top Roles</h3>
+            <span>{{ roleBreakdown.length }}</span>
+          </div>
+          <div class="role-bars" *ngIf="roleBreakdown.length; else noRoleData">
+            <div class="role-row" *ngFor="let role of roleBreakdown | slice:0:6">
+              <div class="role-top">
+                <span>{{ role.role }}</span>
+                <span>{{ role.count }}</span>
+              </div>
+              <div class="bar"><span [style.width.%]="roleBarWidth(role)"></span></div>
+            </div>
+          </div>
+          <ng-template #noRoleData>
+            <div class="empty-inline">No role distribution data</div>
+          </ng-template>
+        </article>
+
+        <article class="side-card">
+          <div class="panel-head">
+            <h3>Top Recruiters</h3>
+            <span>{{ recruiterBreakdown.length }}</span>
+          </div>
+          <ul class="mini-list compact" *ngIf="recruiterBreakdown.length; else noRecruiterData">
+            <li *ngFor="let item of recruiterBreakdown | slice:0:6">
+              <strong>{{ item.name }}</strong>
+              <span>{{ item.count }}</span>
+            </li>
+          </ul>
+          <ng-template #noRecruiterData>
+            <div class="empty-inline">No recruiter data</div>
+          </ng-template>
+        </article>
+      </aside>
+    </div>
+  </div>
+</section>

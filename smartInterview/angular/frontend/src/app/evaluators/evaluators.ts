@@ -1,13 +1,29 @@
-import { Component, AfterViewInit, OnInit, ViewChild, ElementRef, SimpleChanges, Input } from '@angular/core';
-import { HttpClient } from '@angular/common/http';  // Import HttpClient
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { CommonModule } from '@angular/common';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { RecuiterProfile } from "../recuiter-profile/recuiter-profile";
+import { MatDialog } from '@angular/material/dialog';
+import { RecuiterProfile } from '../recuiter-profile/recuiter-profile';
 import { AddUser } from '../app-modal/add-user/add-user';
-import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+
+interface Recruiter {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string;
+  gender?: string;
+  interviews_count?: number;
+}
+
+interface RecruiterResponse {
+  Success: boolean;
+  Error?: string | null;
+  RecruiterData?: Recruiter[];
+  Data?: { RecruiterData?: Recruiter[] };
+}
 
 @Component({
   selector: 'app-evaluators',
@@ -15,113 +31,171 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './evaluators.html',
   styleUrls: ['./evaluators.scss']
 })
-export class Evaluators {
+export class Evaluators implements OnInit, OnDestroy {
+  loading = false;
+  errorMessage = '';
+  recruitersList: Recruiter[] = [];
+  allRecruiters: Recruiter[] = [];
+  selectedEvaluator: Recruiter | null = null;
+  searchTerm = '';
+  private searchTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private http: HttpClient, private dialog: MatDialog) {}  // Inject HttpClient and MatDialog
-  data: any;
-  loading: boolean = false;
-  weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  calendarDays: any[] = [];
-  monthName = '';
-  year = 0;
-  recruiters_list: any[] = [];
-  home_recruiters_list: any[] = [];
-  is_profile_clicked: boolean = false;
-  selectedEvaluator: any;
-  searchTerm: string = '';
-  
-  // Example availability data (map evaluator's availability)
-  availability: string[] = ['2025-09-10', '2025-09-18'];
+  constructor(private http: HttpClient, private dialog: MatDialog) {}
 
   ngOnInit(): void {
-    this.getEvaluator();
+    this.loadEvaluators();
   }
 
-  
+  ngOnDestroy(): void {
+    if (this.searchTimeoutId) {
+      clearTimeout(this.searchTimeoutId);
+    }
+  }
 
-  getEvaluator(){
+  get hasSelectedEvaluator(): boolean {
+    return !!this.selectedEvaluator;
+  }
+
+  get totalEvaluators(): number {
+    return this.allRecruiters.length;
+  }
+
+  get displayedEvaluatorsCount(): number {
+    return this.recruitersList.length;
+  }
+
+  private getApiBaseUrl(): string {
+    let portNumber = '';
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+      portNumber = '8000';
+    }
+    return `${window.location.protocol}//${window.location.hostname}:${portNumber}`;
+  }
+
+  private parseRecruiterData(response: RecruiterResponse | any): Recruiter[] {
+    return response?.RecruiterData || response?.Data?.RecruiterData || [];
+  }
+
+  private syncSelectedEvaluatorReference(): void {
+    if (!this.selectedEvaluator) return;
+    const updated = this.allRecruiters.find((r) => r.id === this.selectedEvaluator?.id);
+    if (updated) {
+      this.selectedEvaluator = updated;
+    }
+  }
+
+  loadEvaluators(): void {
     this.loading = true;
-    let port_number = ''
-        if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
-        }
-        const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
-        this.http.get(apiBaseUrl + '/get-evaluator/?') // Replace with your API URL
-          .pipe(
-            catchError(error => {
-              console.error('Error fetching data', error);
-              this.loading = false;
-              return of([]); // Return empty array on error
-            })
-          )
-          .subscribe(response => {
-            this.data = response;
-            this.loading = false;
-            if(this.data?.RecruiterData){
-             this.recruiters_list = this.data.RecruiterData;
-             this.home_recruiters_list = this.data.RecruiterData;
-            }
-          });
+    this.errorMessage = '';
+    const apiBaseUrl = this.getApiBaseUrl();
+
+    this.http.get<RecruiterResponse>(`${apiBaseUrl}/get-evaluator/`)
+      .pipe(
+        catchError((error) => {
+          console.error('Error fetching evaluators', error);
+          this.loading = false;
+          this.errorMessage = 'Failed to load evaluators. Please try again.';
+          return of({ Success: false, RecruiterData: [] } as RecruiterResponse);
+        })
+      )
+      .subscribe((response) => {
+        const list = this.parseRecruiterData(response);
+        this.allRecruiters = list;
+        this.recruitersList = list;
+        this.syncSelectedEvaluatorReference();
+        this.loading = false;
+      });
   }
 
-  openProfile(recruiter: any) {
-    this.is_profile_clicked = false;
-    setTimeout(() => {
-      this.is_profile_clicked = true;
-      this.selectedEvaluator = recruiter;
-    }, 0);
+  openProfile(recruiter: Recruiter): void {
+    this.selectedEvaluator = recruiter;
   }
 
-  addRecruiter() {
+  addRecruiter(): void {
     const dialogRef = this.dialog.open(AddUser, {
-          width: '550px',
-          data: { type: 'Recruiter' }
-        });
-    
-        dialogRef.afterClosed().subscribe(result => {
-        if (result) {
-          this.recruiters_list.push(result);
-        }
-        });
+      width: '550px',
+      data: { type: 'Recruiter' }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        const recruiter = result as Recruiter;
+        this.allRecruiters = [recruiter, ...this.allRecruiters];
+        this.applyLocalFilter();
+      }
+    });
   }
-  filterEvaluators() {
-    if (!this.searchTerm) {
-     this.recruiters_list = this.home_recruiters_list; // If search term is empty, fetch all evaluators
+
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.applyLocalFilter();
+  }
+
+  filterEvaluators(): void {
+    this.errorMessage = '';
+    this.applyLocalFilter();
+
+    const term = this.searchTerm.trim();
+    if (!term.length) {
+      if (this.searchTimeoutId) {
+        clearTimeout(this.searchTimeoutId);
+      }
       return;
     }
-    if(this.searchTerm.length > 3){
-      clearTimeout((this as any)._searchTimeout);
-      (this as any)._searchTimeout = setTimeout(() => {
-        this.getfilteredEvaluators();
-      }, 500); // 500ms after user stops typing
-    }
-  }
-  getfilteredEvaluators() {
-    let port_number = ''
-        if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
-        }
-        const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
-         const formData = new URLSearchParams();
-        formData.append('name', this.searchTerm);
 
-        fetch(`${apiBaseUrl}/evaluator-search/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: formData.toString()
+    if (this.searchTimeoutId) {
+      clearTimeout(this.searchTimeoutId);
+    }
+    this.searchTimeoutId = setTimeout(() => this.searchEvaluatorsRemote(term), 300);
+  }
+
+  private applyLocalFilter(): void {
+    const term = this.searchTerm.trim().toLowerCase();
+    if (!term) {
+      this.recruitersList = this.allRecruiters;
+      return;
+    }
+
+    this.recruitersList = this.allRecruiters.filter((r) =>
+      [r.name, r.email, r.role, r.phone]
+        .map((v) => (v || '').toString().toLowerCase())
+        .some((v) => v.includes(term))
+    );
+  }
+
+  private searchEvaluatorsRemote(term: string): void {
+    const apiBaseUrl = this.getApiBaseUrl();
+    const body = new URLSearchParams();
+    body.set('name', term);
+
+    this.loading = true;
+    this.http
+      .post<RecruiterResponse>(`${apiBaseUrl}/evaluator-search/`, body.toString(), {
+        headers: new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' })
+      })
+      .pipe(
+        catchError((error) => {
+          console.error('Error searching evaluators', error);
+          this.loading = false;
+          this.errorMessage = 'Search failed. Showing local results only.';
+          return of({ Success: false, RecruiterData: [] } as RecruiterResponse);
         })
-        .then(response => response.json())
-        .then(data => {
-          if (data && data.Success) {
-            this.recruiters_list = data.RecruiterData || [];
-          }else{
-            alert('Error fetching profile data. Please try again.');
-          }
-        })
-        .catch(error => {
-          alert('Error fetching profile data. Please try again.');
-        });
+      )
+      .subscribe((response) => {
+        const remoteList = this.parseRecruiterData(response);
+        if (response?.Success) {
+          this.recruitersList = remoteList;
+        } else if (!this.errorMessage) {
+          this.errorMessage = response?.Error || 'Search failed.';
+        }
+        this.loading = false;
+      });
+  }
+
+  getInitials(name: string): string {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'NA';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
 }
