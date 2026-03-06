@@ -106,6 +106,63 @@ export class RecuiterProfile implements OnChanges, OnDestroy, AfterViewChecked {
     return this.interviews.length;
   }
 
+  get activePipelineCount(): number {
+    return this.interviews.filter((i) => {
+      const status = this.normalizeStatus(i.status);
+      return ['scheduled', 'assessment pending', 'shortlisted', 'auto screening scheduled'].includes(status);
+    }).length;
+  }
+
+  get lastActiveDate(): Date | null {
+    const firstValid = this.interviews
+      .map((i) => this.getValidDate(i.date))
+      .find((d): d is Date => !!d);
+    return firstValid || null;
+  }
+
+  get currentMonthInterviews(): number {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    return this.interviews.filter((i) => {
+      const d = this.getValidDate(i.date);
+      return !!d && d.getMonth() === month && d.getFullYear() === year;
+    }).length;
+  }
+
+  get previousMonthInterviews(): number {
+    const now = new Date();
+    const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const month = previous.getMonth();
+    const year = previous.getFullYear();
+    return this.interviews.filter((i) => {
+      const d = this.getValidDate(i.date);
+      return !!d && d.getMonth() === month && d.getFullYear() === year;
+    }).length;
+  }
+
+  get monthOverMonthDelta(): number {
+    return this.currentMonthInterviews - this.previousMonthInterviews;
+  }
+
+  get monthOverMonthDeltaPercent(): number {
+    if (!this.previousMonthInterviews) return this.currentMonthInterviews ? 100 : 0;
+    return Math.round((this.monthOverMonthDelta / this.previousMonthInterviews) * 100);
+  }
+
+  get monthOverMonthLabel(): string {
+    const delta = this.monthOverMonthDelta;
+    const percent = this.monthOverMonthDeltaPercent;
+    if (delta === 0) return 'No change vs last month';
+    return `${delta > 0 ? '+' : ''}${delta} (${delta > 0 ? '+' : ''}${percent}%) vs last month`;
+  }
+
+  get monthOverMonthClass(): string {
+    if (this.monthOverMonthDelta > 0) return 'trend-up';
+    if (this.monthOverMonthDelta < 0) return 'trend-down';
+    return 'trend-flat';
+  }
+
   get hasPerformanceData(): boolean {
     return this.monthlyInterviewCounts.some((count) => count > 0);
   }
@@ -256,6 +313,11 @@ export class RecuiterProfile implements OnChanges, OnDestroy, AfterViewChecked {
 
   get canGoNextInsightsMonth(): boolean {
     return this.insightsMonthOffset < 1;
+  }
+
+  roleBarWidth(count: number): number {
+    const max = this.selectedMonthTopRoles[0]?.count || 1;
+    return Math.max(10, Math.round((count / max) * 100));
   }
 
   changeCalendarMonth(step: number): void {
