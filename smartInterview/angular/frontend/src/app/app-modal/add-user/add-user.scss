@@ -1,43 +1,384 @@
-.modal-overlay {inset:0; background:rgba(16,34,57,0.27); align-items:center; justify-content:center; }
-.modal-overlay.active { display:flex; animation:fadeIn 0.2s; }
-.modal-card { background:#121e2f; box-shadow:0 6px 32px 0 rgba(0,191,255,0.27); padding:2rem 2.5rem; width:550px; color:#dbedff; position:relative; font-size:1em; }
-.modal-close { position:absolute; right:18px; top:18px; font-size:1.35em; color:#48d1ff; background:none; border:none; cursor:pointer; }
-.modal-card .side-title { color:#40e7ff; font-weight:700; margin-bottom:1.15em; font-size:1.07em; }
-.modal-card .candidate-name { font-size:1.18em; font-weight:700; margin-bottom:8px; }
-.modal-card .candidate-info { font-size:0.98em; margin-bottom:10px; line-height:1.5; color:#9fc0df; }
-.modal-card .side-actions button { background:linear-gradient(90deg, #0fd9ff 0%, #2e57ff 100%); color:#090c1b; border:none; border-radius:7px; padding:6px 16px; font-weight:700; font-size:0.99em; margin-right:10px; margin-bottom:5px; cursor:pointer; box-shadow:0 2px 8px rgba(40,75,255,0.22); transition:background 0.3s ease; }
-.modal-card .side-actions button:hover { background:linear-gradient(90deg, #30e5ff 0%, #1a4fff 100%);}
-.modal-card .candidate-notes { margin-top:1.15em; padding:0.8em 1.05em; background:#172a3a; border-radius:8px; font-size:0.98em; color:#7aa6d1;}
-.modal-card .side-title-sm { color:#e9f0f1; font-weight:500; margin-bottom:1.15em; font-size:0.7em; }
-
-/* Toolbar background + border */
-:host ::ng-deep .custom-quill .ql-toolbar{
-  background-color: #f0f2f5 !important; /* Light gray */
-  border: 1px solid #374151 !important; /* Tailwind gray-700 */
-  border-radius: 0.5rem 0.5rem 0 0;
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 15% 12%, rgba(34, 196, 255, 0.16), transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(97, 138, 255, 0.14), transparent 42%),
+    rgba(6, 16, 34, 0.7);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  padding: 18px;
 }
 
-/* Toolbar icons */
+.modal-card {
+  width: min(720px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  border: 1px solid rgba(120, 190, 234, 0.28);
+  border-radius: 18px;
+  padding: 20px 20px 16px;
+  background: linear-gradient(165deg, rgba(10, 30, 58, 0.96), rgba(7, 21, 44, 0.96));
+  box-shadow: 0 16px 60px rgba(2, 12, 28, 0.55);
+  color: #dbedff;
+  position: relative;
+}
+
+.modal-card--role {
+  width: min(760px, 100%);
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  border: 0;
+  background: transparent;
+  color: #6ad5ff;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-head h2 {
+  margin: 0;
+  color: #7ee7ff;
+  font-size: 1.22rem;
+  font-weight: 700;
+}
+
+.modal-head p {
+  margin: 6px 0 0;
+  color: #92b8d8;
+  font-size: 0.84rem;
+}
+
+.form-alert {
+  margin-top: 12px;
+  border: 1px solid rgba(255, 117, 145, 0.45);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.34);
+  color: #ffd3de;
+  font-size: 0.8rem;
+  padding: 8px 10px;
+}
+
+.dialog-form {
+  margin-top: 14px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 12px;
+}
+
+.form-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  color: #b8d8f3;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.input-shell {
+  height: 42px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid rgba(127, 198, 240, 0.28);
+  border-radius: 11px;
+  background: rgba(12, 39, 72, 0.58);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-shell:focus-within {
+  border-color: rgba(102, 228, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(67, 199, 255, 0.12);
+}
+
+.input-shell i {
+  color: #7fb3d8;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.input-shell input,
+.input-shell select {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e4f3ff;
+  font-size: 0.84rem;
+  padding: 0 10px 0 0;
+}
+
+.input-shell input::placeholder {
+  color: #81a9cc;
+}
+
+.editor-wrap {
+  border: 1px solid rgba(127, 198, 240, 0.28);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(10, 34, 62, 0.7);
+}
+
+.role-preview {
+  margin-bottom: 12px;
+  border: 1px solid rgba(120, 190, 234, 0.24);
+  border-radius: 12px;
+  background: rgba(10, 36, 67, 0.54);
+  padding: 10px 12px;
+}
+
+.role-preview-title {
+  color: #dff3ff;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.role-preview-meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.role-preview-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(126, 198, 242, 0.24);
+  border-radius: 999px;
+  background: rgba(11, 42, 78, 0.55);
+  color: #9ec4e2;
+  font-size: 0.72rem;
+  padding: 3px 9px;
+}
+
+.field-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -2px;
+  margin-bottom: 2px;
+  color: #87aed0;
+  font-size: 0.7rem;
+}
+
+.vacancy-stepper {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.step-btn {
+  height: 42px;
+  border: 1px solid rgba(127, 198, 240, 0.28);
+  border-radius: 11px;
+  background: rgba(12, 39, 72, 0.58);
+  color: #bde5ff;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.step-btn:hover {
+  border-color: rgba(102, 228, 255, 0.55);
+}
+
+.multi-select-wrap {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.multi-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  border: 1px solid rgba(127, 198, 240, 0.28);
+  border-radius: 12px;
+  background: rgba(8, 28, 51, 0.98);
+  box-shadow: 0 14px 28px rgba(4, 15, 34, 0.46);
+  max-height: 210px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.multi-option {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #cce7ff;
+  text-align: left;
+  font-size: 0.8rem;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.multi-option:hover {
+  background: rgba(34, 116, 180, 0.34);
+}
+
+.multi-empty {
+  color: #8aaece;
+  font-size: 0.76rem;
+  text-align: center;
+  padding: 10px;
+}
+
+.selected-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(126, 198, 242, 0.3);
+  border-radius: 999px;
+  background: rgba(10, 44, 80, 0.62);
+  color: #cde8ff;
+  font-size: 0.74rem;
+  padding: 3px 8px;
+}
+
+.chip button {
+  border: 0;
+  background: transparent;
+  color: #9fd2f6;
+  font-size: 0.92rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.modal-actions {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(123, 188, 232, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-ghost {
+  background: rgba(12, 41, 75, 0.5);
+  border-color: rgba(127, 198, 240, 0.25);
+  color: #b9d8f2;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #14d8ff, #2d6dff);
+  color: #061020;
+}
+
+.btn:hover {
+  filter: brightness(1.06);
+}
+
+/* Quill Theme */
+:host ::ng-deep .custom-quill {
+  display: block;
+  width: 100%;
+}
+
+:host ::ng-deep .custom-quill .ql-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  background: rgba(11, 36, 66, 0.94) !important;
+  width: 100%;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(123, 188, 232, 0.2) !important;
+  padding: 8px 10px !important;
+}
+
 :host ::ng-deep .custom-quill .ql-toolbar button svg {
-  stroke: #e5e7eb; /* Tailwind gray-200 */
+  stroke: #cde8ff;
 }
 
-/* On hover */
 :host ::ng-deep .custom-quill .ql-toolbar button:hover {
-  background-color: #374151; /* Tailwind gray-700 */
-  border-radius: 0.25rem;
+  background-color: rgba(58, 130, 188, 0.34);
+  border-radius: 4px;
 }
 
-/* Dropdowns (font, size, align, color, etc.) */
 :host ::ng-deep .custom-quill .ql-toolbar .ql-picker {
-  color: #e5e7eb;
+  color: #cde8ff;
 }
+
 :host ::ng-deep .custom-quill .ql-toolbar .ql-picker-options {
-  background-color: #1f2937;
-  border: 1px solid #374151;
+  background-color: #102b4c;
+  border: 1px solid rgba(123, 188, 232, 0.28);
 }
 
 :host ::ng-deep .custom-quill .ql-container {
-  border: 1px solid #374151 !important;
-  border-radius: 0 0 0.5rem 0.5rem;
+  border: 0 !important;
+  width: 100%;
+  min-height: 170px;
+  background: rgba(10, 34, 62, 0.7);
+  color: #dff2ff;
+}
+
+:host ::ng-deep .custom-quill .ql-editor {
+  min-height: 170px;
+  color: #dff2ff;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+:host ::ng-deep .custom-quill .ql-editor.ql-blank::before {
+  color: #7fa7ca;
+  font-style: normal;
+}
+
+@media (max-width: 760px) {
+  .modal-card {
+    padding: 16px 14px 14px;
+    border-radius: 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }

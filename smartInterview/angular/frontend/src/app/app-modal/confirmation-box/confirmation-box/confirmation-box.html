@@ -1,17 +1,18 @@
-<div class="modal-overlay" id="modal">
-    <div class="modal-card">
-    <button class="modal-close" id="modalClose" (click)="closeDialog()">&times;</button>
-    <h4 class="side-title">Confirmation Box</h4>
-    <div class="candidate-name" id="modalName">{{ message }}</div>
-    <div class="modal-actions flex justify-between pt-2 gap-4">
-        <button (click)="confirmYes()"
-            class="w-[45%] flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
-            <i class="ph ph-check"></i> Confirm
-        </button>
-        <button (click)="confirmNo()"
-            class="w-[45%] flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
-            <i class="ph ph-x"></i> Cancel
-        </button>
+<div class="confirm-shell">
+  <button class="close-btn" type="button" (click)="closeDialog()">×</button>
+
+  <div class="head">
+    <div class="icon-wrap">
+      <i class="ph ph-warning-circle"></i>
     </div>
+    <div class="copy">
+      <h3>{{ title }}</h3>
+      <p>{{ message }}</p>
     </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn btn-ghost" (click)="confirmNo()">{{ cancelText }}</button>
+    <button type="button" class="btn btn-primary" (click)="confirmYes()">{{ confirmText }}</button>
+  </div>
 </div>

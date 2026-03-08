@@ -34,11 +34,15 @@ export class AddUser {
   vacancies: string = '';
   recruiter_list: any[] = [];
   recruiter: string = '';
+  recruiterSearchQuery = '';
+  selectedRoleRecruiterIds: string[] = [];
+  showRoleRecruiterMenu = false;
   role_list: any[] = [];
   gender: string = '';
 
   newCandidate: any = {};
   userType: any;
+  readonly roleDescriptionLimit = 1200;
 
   ngOnInit() {
     this.userType = this.data.type;
@@ -181,6 +185,13 @@ export class AddUser {
               this.newCandidate.score = data.CandidateDetails.score;
               this.newCandidate.notes = data.CandidateDetails.notes;
             }
+            window.dispatchEvent(new CustomEvent('global-data-refresh', {
+              detail: {
+                entity: this.userType === 'Recruiter' ? 'recruiter' : 'candidate',
+                action: 'add',
+                updatedAt: new Date().toISOString(),
+              }
+            }));
             this.dialogRef.close(this.newCandidate);
           } else{
             this.errorMessage = data.Error || 'Error adding candidate. Please try again.';
@@ -193,6 +204,10 @@ export class AddUser {
   addRole() {
     if (!this.name || !this.descriptionControl.value || !this.vacancies) {
       this.errorMessage = 'All fields are required.';
+      return;
+    }
+    if (!this.selectedRoleRecruiterIds.length) {
+      this.errorMessage = 'Please select at least one recruiter.';
       return;
     }
     this.description = this.descriptionControl.value;
@@ -213,7 +228,7 @@ export class AddUser {
         formData.append('name', this.name);
         formData.append('vacancies', this.vacancies);
         formData.append('status', 'active');
-        formData.append('recruiter', this.recruiter);
+        this.selectedRoleRecruiterIds.forEach((id) => formData.append('recruiter', id));
 
         fetch(addUrl, {
           method: 'POST',
@@ -232,6 +247,14 @@ export class AddUser {
             this.NewRole.vacancies = data.Data.RoleDetails.vacancies;
             this.NewRole.date = data.Data.RoleDetails.date;
             this.NewRole.status = data.Data.RoleDetails.status;
+            window.dispatchEvent(new CustomEvent('global-data-refresh', {
+              detail: {
+                entity: 'role',
+                action: 'add',
+                roleId: this.NewRole.id,
+                updatedAt: new Date().toISOString(),
+              }
+            }));
             this.dialogRef.close(this.NewRole);
           } else{
             this.errorMessage = data.Error || 'Error adding role. Please try again.';
@@ -241,5 +264,74 @@ export class AddUser {
           this.errorMessage = error.Message || 'Error adding role. Please try again.';
         });
   }
-}
 
+  get descriptionPlainTextLength(): number {
+    const raw = (this.descriptionControl.value || '').toString();
+    const plain = raw.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    return plain.length;
+  }
+
+  get selectedRecruiterName(): string {
+    if (!this.selectedRoleRecruiterIds.length) return 'Not assigned';
+    const names = this.recruiter_list
+      .filter((r: any) => this.selectedRoleRecruiterIds.includes(String(r.id)))
+      .map((r: any) => r.name);
+    if (names.length <= 2) return names.join(', ');
+    return `${names[0]}, ${names[1]} +${names.length - 2}`;
+  }
+
+  get rolePreviewTitle(): string {
+    const value = (this.name || '').trim();
+    return value || 'Role title preview';
+  }
+
+  incrementVacancies(): void {
+    const current = Number(this.vacancies || 0);
+    const next = Math.max(0, current) + 1;
+    this.vacancies = String(next);
+  }
+
+  decrementVacancies(): void {
+    const current = Number(this.vacancies || 0);
+    const next = Math.max(1, current - 1);
+    this.vacancies = String(next);
+  }
+
+  get filteredRoleRecruiters(): any[] {
+    const search = (this.recruiterSearchQuery || '').trim().toLowerCase();
+    return (this.recruiter_list || []).filter((r: any) => {
+      const id = String(r.id);
+      if (this.selectedRoleRecruiterIds.includes(id)) return false;
+      if (!search) return true;
+      return (r.name || '').toString().toLowerCase().includes(search);
+    }).slice(0, 50);
+  }
+
+  openRoleRecruiterMenu(): void {
+    this.showRoleRecruiterMenu = true;
+  }
+
+  closeRoleRecruiterMenu(): void {
+    setTimeout(() => {
+      this.showRoleRecruiterMenu = false;
+    }, 120);
+  }
+
+  addRoleRecruiter(id: any): void {
+    const value = String(id);
+    if (!value || this.selectedRoleRecruiterIds.includes(value)) return;
+    this.selectedRoleRecruiterIds = [...this.selectedRoleRecruiterIds, value];
+    this.recruiterSearchQuery = '';
+    this.showRoleRecruiterMenu = true;
+  }
+
+  removeRoleRecruiter(id: any): void {
+    const value = String(id);
+    this.selectedRoleRecruiterIds = this.selectedRoleRecruiterIds.filter((x) => x !== value);
+  }
+
+  getRoleRecruiterName(id: any): string {
+    const selected = this.recruiter_list.find((r: any) => String(r.id) === String(id));
+    return selected?.name || `Recruiter ${id}`;
+  }
+}

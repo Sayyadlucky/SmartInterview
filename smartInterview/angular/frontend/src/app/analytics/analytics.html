@@ -278,10 +278,5 @@
         <ng-template #noFlags><div class="empty">No anomalies detected</div></ng-template>
       </article>
     </div>
-
-    <div class="phase-note">
-      Implemented phases: {{ phaseMeta.implemented.join(', ') || '1' }} | Pending: {{ phaseMeta.pending.join(', ') || '2, 3' }}
-      <span *ngIf="phaseMeta.note"> - {{ phaseMeta.note }}</span>
-    </div>
   </div>
 </section>

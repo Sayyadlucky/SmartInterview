@@ -1,201 +1,248 @@
-<div class="modal-overlay" id="modal" *ngIf="isAddUser">
-  <div class="modal-card">
-    <!-- Close Button -->
-    <button class="modal-close absolute top-3 right-3 text-gray-400 hover:text-white text-xl" (click)="closeModal()">×</button>
-    
-    <!-- Title -->
-    <h2 class="side-title text-2xl font-bold mb-2">Add {{ userType }}</h2>
-    <h5 class="side-title-sm text-gray-400 mb-6">
-      Add the following details, Rest we will get directly from user.
-    </h5>
-    <!-- Error Message -->
-    <div *ngIf="errorMessage" class="text-red-500 mb-4 text-sm">
-      {{ errorMessage }}
+<div class="modal-overlay" *ngIf="isAddUser">
+  <div class="modal-card modal-card--candidate">
+    <button class="modal-close" type="button" (click)="closeModal()">×</button>
+
+    <div class="modal-head">
+      <h2>Add {{ userType }}</h2>
+      <p>Add candidate details and assign role/recruiter in one step.</p>
     </div>
-    <!-- Form -->
-    <form name="addUserForm" class="space-y-5">
 
-      <!-- Name -->
-      <div>
-        <label for="name" class="block text-sm font-medium mb-1">Name</label>
-        <div class="relative">
-          <i class="ph ph-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input type="text" id="name" name="name" [(ngModel)]="name" required
-            pattern=".*\s+.*"
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500" 
-            placeholder="Enter full name" />
+    <div *ngIf="errorMessage" class="form-alert">{{ errorMessage }}</div>
+
+    <form name="addUserForm" class="dialog-form">
+      <section class="form-grid">
+        <div class="field">
+          <label for="name">Full Name</label>
+          <div class="input-shell">
+            <i class="ph ph-user"></i>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              [(ngModel)]="name"
+              required
+              pattern=".*\s+.*"
+              placeholder="e.g. Ankush Pawar"
+            />
+          </div>
         </div>
-      </div>
 
-      <!-- Email -->
-      <div>
-        <label for="email" class="block text-sm font-medium mb-1">Email</label>
-        <div class="relative">
-          <i class="ph  ph-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input type="email" id="email" name="email" [(ngModel)]="email" required
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500" 
-            placeholder="Enter email address" />
+        <div class="field">
+          <label for="email">Email</label>
+          <div class="input-shell">
+            <i class="ph ph-envelope"></i>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              [(ngModel)]="email"
+              required
+              placeholder="e.g. user@company.com"
+            />
+          </div>
         </div>
-      </div>
 
-      <!-- Role -->
-      <div *ngIf="userType !== 'Recruiter'">
-        <label for="role" class="block text-sm font-medium mb-1">Role</label>
-        <div class="relative">
-            <i class="ph ph-briefcase absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <select id="role" name="role"
-                [(ngModel)]="role"
-                required
-                (change)="getRecruiters($event)"
-                class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-
-          <option value="" disabled>Select Role</option>
-          <option *ngFor="let r of role_list" [value]="r.id">{{ r.name }} - {{ r.id }}</option>
-        </select>
-
+        <div class="field" *ngIf="userType !== 'Recruiter'">
+          <label for="role">Role</label>
+          <div class="input-shell">
+            <i class="ph ph-briefcase"></i>
+            <select
+              id="role"
+              name="role"
+              [(ngModel)]="role"
+              required
+              (change)="getRecruiters($event)"
+            >
+              <option value="" disabled>Select Role</option>
+              <option *ngFor="let r of role_list" [value]="r.id">{{ r.name }} - {{ r.id }}</option>
+            </select>
+          </div>
         </div>
-      </div>
 
-      <!-- Gender -->
-      <div >
-        <label for="gender" class="block text-sm font-medium mb-1">Gender</label>
-        <div class="relative">
-            <i 
+        <div class="field" *ngIf="userType !== 'Recruiter'">
+          <label for="recruiter">Recruiter</label>
+          <div class="input-shell">
+            <i class="ph ph-user-list"></i>
+            <select id="recruiter" name="recruiter" [(ngModel)]="recruiter" required>
+              <option value="" disabled>Select Recruiter</option>
+              <option *ngFor="let r of recruiter_list" [value]="r.id">{{ r.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="gender">Gender</label>
+          <div class="input-shell">
+            <i
               [ngClass]="{
-              'ph ph-regular ph-gender-male': gender === 'male',
-              'ph ph-gender-female': gender === 'female',
-              'ph ph-gender-nonbinary': gender === 'other',
-              'ph ph-user': gender === ''
+                'ph ph-gender-male': gender === 'male',
+                'ph ph-gender-female': gender === 'female',
+                'ph ph-gender-nonbinary': gender === 'other',
+                'ph ph-user': gender === ''
               }"
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <select id="gender" name="gender" [(ngModel)]="gender" required
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-            <option value="" disabled>Select Gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
+            ></i>
+            <select id="gender" name="gender" [(ngModel)]="gender" required>
+              <option value="" disabled>Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
         </div>
-      </div>
 
-      <!-- recruiter -->
-      <div *ngIf="userType !== 'Recruiter'">
-        <label for="recruiter" class="block text-sm font-medium mb-1">Recruiter</label>
-        <div class="relative">
-            <i class="ph ph-briefcase absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <select id="recruiter" name="recruiter" [(ngModel)]="recruiter" required 
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-            <option value="" disabled>Select Recruiter</option>
-            <option *ngFor="let r of recruiter_list" [value]="r.id">{{ r.name }}</option>
-          </select>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <div class="input-shell">
+            <i class="ph ph-phone"></i>
+            <input
+              id="phone"
+              name="phone"
+              type="number"
+              [(ngModel)]="phone"
+              required
+              placeholder="Enter mobile number"
+            />
+          </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Phone -->
-      <div>
-        <label for="phone" class="block text-sm font-medium mb-1">Phone</label>
-        <div class="relative">
-          <i class="ph ph-phone absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input type="number" id="phone" name="phone" min="10" [(ngModel)]="phone" required
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500" 
-            placeholder="Enter phone number" />
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="modal-actions pt-2">
-        <button (click)="addCandidate()"
-          class="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
-          <i class="ph ph-plus"></i> Add {{userType}}
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="addCandidate()">
+          <i class="ph ph-plus"></i>
+          Add {{ userType }}
         </button>
       </div>
     </form>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal" *ngIf="!isAddUser">
-  <div class="modal-card">
-    <!-- Close Button -->
-    <button class="modal-close absolute top-3 right-3 text-gray-400 hover:text-white text-xl" (click)="closeModal()">×</button>
-    
-    <!-- Title -->
-    <h2 class="side-title text-2xl font-bold mb-2">Add {{ userType }}</h2>
-    <h5 class="side-title-sm text-gray-400 mb-6">
-      Please fill in the details to add Role.
-    </h5>
-    <!-- Error Message -->
-    <div *ngIf="errorMessage" class="text-red-500 mb-4 text-sm">
-      {{ errorMessage }}
-    </div>
-    <!-- Form -->
-    <form name="addUserForm" class="space-y-5">
+<div class="modal-overlay" *ngIf="!isAddUser">
+  <div class="modal-card modal-card--role">
+    <button class="modal-close" type="button" (click)="closeModal()">×</button>
 
-      <!-- Role Title -->
-      <div>
-        <label for="name" class="block text-sm font-medium mb-1">Role Tile</label>
-        <div class="relative">
-          <i class="ph ph-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input type="text" id="name" name="name" [(ngModel)]="name" required
-            pattern=".*\s+.*"
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500" 
-            placeholder="Enter Role Title" />
+    <div class="modal-head">
+      <h2>Add {{ userType }}</h2>
+      <p>Define role details and assign owner recruiter.</p>
+    </div>
+
+    <div *ngIf="errorMessage" class="form-alert">{{ errorMessage }}</div>
+
+    <form name="addRoleForm" class="dialog-form">
+      <div class="role-preview">
+        <div class="role-preview-title">{{ rolePreviewTitle }}</div>
+        <div class="role-preview-meta">
+          <span><i class="ph ph-user-list"></i> {{ selectedRecruiterName }}</span>
+          <span><i class="ph ph-hash"></i> {{ vacancies || '0' }} openings</span>
+          <span><i class="ph ph-text-t"></i> {{ descriptionPlainTextLength }} chars</span>
         </div>
       </div>
 
-      <!-- Description (Rich Text Editor) -->
-      <div>
-        <label for="description" class="block text-sm font-medium mb-1">Description</label>
-        <div class="relative flex items-start">
-          <div class="flex-1 w-full">
-        <quill-editor
-          id="description"
-          name="description"
-          class="custom-quill"
-          [formControl]="descriptionControl"
-          style="height: 150px;"
-          [modules]="{
-            toolbar: [
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-          [{ 'color': [] }, { 'background': [] }],
-          [{ 'font': [] }],
-          [{ 'align': [] }],
-          ['clean']
-            ]
-          }"
-        ></quill-editor>
+      <section class="form-grid form-grid--single">
+        <div class="field">
+          <label for="name">Role Title</label>
+          <div class="input-shell">
+            <i class="ph ph-briefcase"></i>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              [(ngModel)]="name"
+              required
+              placeholder="e.g. Python Fullstack Developer"
+            />
           </div>
         </div>
-      </div>
 
-      <!-- No of Vacancies -->
-      <div>
-        <label for="vacancies" class="block text-sm font-medium mb-1">No of Vacancies</label>
-        <div class="relative">
-            <i class="ph ph-briefcase absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <input type="text" id="vacancies" name="vacancies" [(ngModel)]="vacancies" required
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500" 
-            placeholder="Enter No of Vacancies" />
+        <div class="field">
+          <label for="description">Description</label>
+          <div class="field-hint">
+            <span>Keep this focused on responsibilities and must-have skills.</span>
+            <span>{{ descriptionPlainTextLength }}/{{ roleDescriptionLimit }}</span>
+          </div>
+          <div class="editor-wrap">
+            <quill-editor
+              id="description"
+              name="description"
+              class="custom-quill"
+              [formControl]="descriptionControl"
+              style="height: 170px;"
+              [modules]="{
+                toolbar: [
+                  ['bold', 'italic', 'underline', 'strike'],
+                  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                  [{ 'color': [] }, { 'background': [] }],
+                  [{ 'font': [] }],
+                  [{ 'align': [] }],
+                  ['clean']
+                ]
+              }"
+            ></quill-editor>
+          </div>
         </div>
-      </div>
-      <!-- Recruiter -->
-      <div>
-        <label for="recruiter" class="block text-sm font-medium mb-1">Recruiter</label>
-        <div class="relative">
-          <i class="ph ph-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-          <select id="recruiter" name="recruiter" [(ngModel)]="recruiter" required
-            class="pl-10 pr-4 py-2 w-full border border-gray-600 rounded-lg bg-[#121826] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-            <option value="" disabled>Select Recruiter</option>
-            <option *ngFor="let recruiter of recruiter_list" [value]="recruiter.id">{{ recruiter.name }}</option>
-          </select>
-        </div>
-      </div>
 
-      <!-- Actions -->
-      <div class="modal-actions pt-2">
-        <button (click)="addRole()"
-          class="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
-          <i class="ph ph-plus"></i> Add {{userType}}
+        <div class="field">
+          <label for="vacancies">No. of Vacancies</label>
+          <div class="vacancy-stepper">
+            <button type="button" class="step-btn" (click)="decrementVacancies()">−</button>
+            <div class="input-shell">
+            <i class="ph ph-hash"></i>
+            <input
+              id="vacancies"
+              name="vacancies"
+              type="text"
+              [(ngModel)]="vacancies"
+              required
+              placeholder="e.g. 3"
+            />
+            </div>
+            <button type="button" class="step-btn" (click)="incrementVacancies()">+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="recruiter">Recruiter</label>
+          <div class="multi-select-wrap">
+            <div class="input-shell">
+              <i class="ph ph-magnifying-glass"></i>
+              <input
+                id="recruiter"
+                name="recruiterSearch"
+                type="text"
+                [(ngModel)]="recruiterSearchQuery"
+                placeholder="Search recruiter and click to add"
+                (focus)="openRoleRecruiterMenu()"
+                (blur)="closeRoleRecruiterMenu()"
+              />
+            </div>
+
+            <div class="multi-select-menu" *ngIf="showRoleRecruiterMenu">
+              <button
+                type="button"
+                class="multi-option"
+                *ngFor="let recruiter of filteredRoleRecruiters"
+                (mousedown)="addRoleRecruiter(recruiter.id)"
+              >
+                {{ recruiter.name }}
+              </button>
+              <div class="multi-empty" *ngIf="!filteredRoleRecruiters.length">No recruiter found</div>
+            </div>
+
+            <div class="selected-chips" *ngIf="selectedRoleRecruiterIds.length">
+              <span class="chip" *ngFor="let recruiterId of selectedRoleRecruiterIds">
+                {{ getRoleRecruiterName(recruiterId) }}
+                <button type="button" (click)="removeRoleRecruiter(recruiterId)">×</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="addRole()">
+          <i class="ph ph-plus"></i>
+          Add {{ userType }}
         </button>
       </div>
     </form>

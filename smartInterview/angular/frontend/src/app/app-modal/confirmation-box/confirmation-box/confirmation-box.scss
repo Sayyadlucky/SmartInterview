@@ -1,5 +1,101 @@
-.modal-overlay {inset:0; background:rgba(16,34,57,0.27); align-items:center; justify-content:center; }
-.modal-overlay.active { display:flex; animation:fadeIn 0.2s; }
-.modal-card { background:#121e2f; box-shadow:0 6px 32px 0 rgba(0,191,255,0.27); padding:2rem 2.5rem; height: 200px; color:#dbedff; position:relative; font-size:1em; }
-.modal-close { position:absolute; right:18px; top:18px; font-size:1.35em; color:#48d1ff; background:none; border:none; cursor:pointer; }
-.modal-card .side-title { color:#40e7ff; font-weight:700; margin-bottom:1.15em; font-size:1.07em; }
+.confirm-shell {
+  position: relative;
+  width: min(520px, 92vw);
+  border: 1px solid rgba(121, 191, 233, 0.3);
+  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(10, 31, 60, 0.98), rgba(7, 21, 44, 0.98));
+  box-shadow: 0 18px 52px rgba(3, 12, 28, 0.55);
+  padding: 18px 18px 14px;
+  color: #dff3ff;
+}
+
+.close-btn {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  border: 0;
+  background: transparent;
+  color: #7ed6ff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 163, 77, 0.35);
+  background: rgba(119, 76, 15, 0.35);
+  color: #ffc17a;
+  font-size: 1.25rem;
+}
+
+.copy h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #eaf7ff;
+}
+
+.copy p {
+  margin: 5px 0 0;
+  color: #9abfdc;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btn-ghost {
+  border-color: rgba(123, 190, 232, 0.32);
+  background: rgba(12, 41, 75, 0.52);
+  color: #bcdaf4;
+}
+
+.btn-primary {
+  border-color: rgba(80, 202, 246, 0.38);
+  background: linear-gradient(90deg, #12d8ff, #2d6dff);
+  color: #071325;
+}
+
+.btn:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 640px) {
+  .confirm-shell {
+    width: 94vw;
+    padding: 16px 14px 12px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}

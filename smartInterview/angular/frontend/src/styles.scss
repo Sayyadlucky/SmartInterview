@@ -55,6 +55,18 @@ app-root {
   max-height: 92vh !important;
 }
 
+.confirm-dialog .mat-mdc-dialog-container {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.confirm-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
 .cdk-overlay-dark-backdrop {
   background: rgba(6, 17, 36, 0.72);
 }

@@ -818,3 +818,14 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
     grid-template-columns: 1fr;
   }
 }
+
+:host ::ng-deep .confirm-dialog .mat-mdc-dialog-surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+:host ::ng-deep .confirm-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+}

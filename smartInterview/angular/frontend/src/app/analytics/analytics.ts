@@ -209,11 +209,16 @@ export class Analytics implements OnInit, AfterViewInit, AfterViewChecked, OnDes
     const e = event as CustomEvent;
     if (e?.detail?.tab === 'analytics') this.ensureInitialized();
   };
+  private readonly statusUpdateListener = () => {
+    if (this.initialized) this.loadAnalyticsData();
+  };
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
     window.addEventListener('dashboard-tab-change', this.tabListener as EventListener);
+    window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     const isActiveOnInit = !!document.querySelector('#analytics.tab-content.active');
     if (isActiveOnInit) this.ensureInitialized();
   }
@@ -233,6 +238,8 @@ export class Analytics implements OnInit, AfterViewInit, AfterViewChecked, OnDes
 
   ngOnDestroy(): void {
     window.removeEventListener('dashboard-tab-change', this.tabListener as EventListener);
+    window.removeEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.removeEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     if (this.filterTimeoutId) clearTimeout(this.filterTimeoutId);
     this.destroyCharts();
   }

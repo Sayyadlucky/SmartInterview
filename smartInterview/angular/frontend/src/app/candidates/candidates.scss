@@ -87,6 +87,8 @@
 
 .toolbar {
   margin-bottom: 10px;
+  display: grid;
+  gap: 8px;
 }
 
 .search-box {
@@ -121,6 +123,37 @@
   padding: 2px 8px;
 }
 
+.toolbar-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+  gap: 8px;
+}
+
+.toolbar-row select {
+  border: 1px solid rgba(126, 198, 242, 0.3);
+  border-radius: 10px;
+  background: rgba(9, 42, 78, 0.45);
+  color: #dff2ff;
+  font-size: 0.8rem;
+  padding: 7px 9px;
+}
+
+.attention-toggle,
+.clear-all-btn {
+  border: 1px solid rgba(123, 194, 237, 0.28);
+  border-radius: 10px;
+  background: rgba(10, 40, 76, 0.5);
+  color: #cce9ff;
+  font-size: 0.74rem;
+  padding: 0 10px;
+}
+
+.attention-toggle.active {
+  border-color: rgba(255, 108, 134, 0.5);
+  background: rgba(180, 31, 67, 0.36);
+  color: #ffd8e1;
+}
+
 .status-pills {
   display: flex;
   flex-wrap: wrap;
@@ -147,6 +180,8 @@
   border: 1px solid rgba(120, 188, 235, 0.2);
   border-radius: 10px;
   overflow: hidden;
+  max-height: 560px;
+  overflow: auto;
 }
 
 .candidate-table {
@@ -161,6 +196,9 @@
   font-size: 0.82rem;
   padding: 9px 10px;
   border-bottom: 1px solid rgba(120, 188, 235, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .candidate-table td {
@@ -206,6 +244,49 @@
   background: rgba(9, 42, 78, 0.5);
   padding: 2px 8px;
   font-size: 0.72rem;
+}
+
+.urgency-wrap {
+  display: grid;
+  gap: 2px;
+}
+
+.urgency-chip {
+  border: 1px solid rgba(123, 194, 237, 0.22);
+  border-radius: 999px;
+  background: rgba(9, 42, 78, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 0.73rem;
+  line-height: 1;
+  width: fit-content;
+}
+
+.urgency-chip.high {
+  border-color: rgba(255, 108, 134, 0.5);
+  color: #ffd8e1;
+  background: rgba(180, 31, 67, 0.32);
+}
+
+.urgency-chip.medium {
+  border-color: rgba(255, 174, 79, 0.45);
+  color: #ffe1b9;
+  background: rgba(149, 88, 18, 0.32);
+}
+
+.urgency-chip.low {
+  border-color: rgba(109, 228, 255, 0.38);
+  color: #d8f5ff;
+  background: rgba(17, 122, 154, 0.28);
+}
+
+.urgency-wrap small {
+  color: #86afd0;
+  font-size: 0.68rem;
 }
 
 .row-actions {
@@ -281,6 +362,7 @@
   background: rgba(8, 38, 75, 0.45);
   padding: 8px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
@@ -350,10 +432,18 @@
   .main-grid {
     grid-template-columns: 1fr;
   }
+
+  .toolbar-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-row {
     grid-template-columns: 1fr;
   }
 

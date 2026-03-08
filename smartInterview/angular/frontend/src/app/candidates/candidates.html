@@ -9,16 +9,32 @@
         <span class="value">{{ summary.total }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Scheduled</span>
-        <span class="value">{{ summary.scheduled }}</span>
+        <span class="label">In Pipeline</span>
+        <span class="value">{{ summary.scheduled + summary.shortlisted }}</span>
       </article>
       <article class="summary-card">
         <span class="label">Hired</span>
         <span class="value">{{ summary.hired }}</span>
       </article>
       <article class="summary-card">
+        <span class="label">Shortlisted</span>
+        <span class="value">{{ shortlistedCount }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Needs Action</span>
+        <span class="value">{{ overdueCount }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Added (7d)</span>
+        <span class="value">{{ thisWeekCandidates }}</span>
+      </article>
+      <article class="summary-card">
         <span class="label">Rejected</span>
         <span class="value">{{ summary.rejected }}</span>
+      </article>
+      <article class="summary-card">
+        <span class="label">Pipeline Coverage</span>
+        <span class="value">{{ pipelineCoverage }}%</span>
       </article>
     </div>
 
@@ -32,8 +48,28 @@
         <div class="toolbar">
           <div class="search-box">
             <i class="ph ph-magnifying-glass"></i>
-            <input type="text" [(ngModel)]="searchTerm" (input)="currentPage = 1" placeholder="Search candidate, email, role, recruiter" />
+            <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" placeholder="Search candidate, email, role, recruiter" />
             <button *ngIf="searchTerm" (click)="clearSearch()">Clear</button>
+          </div>
+          <div class="toolbar-row">
+            <select [(ngModel)]="recruiterFilter" (change)="onFiltersChanged()">
+              <option value="all">All Recruiters</option>
+              <option *ngFor="let recruiter of recruiterOptions" [value]="recruiter">{{ recruiter }}</option>
+            </select>
+            <select [(ngModel)]="roleFilter" (change)="onFiltersChanged()">
+              <option value="all">All Roles</option>
+              <option *ngFor="let role of roleOptions" [value]="role.id">{{ role.name }} - {{ role.id }}</option>
+            </select>
+            <select [(ngModel)]="sortBy" (change)="onFiltersChanged()">
+              <option value="recent">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="urgency">Highest Urgency</option>
+              <option value="name">Name A-Z</option>
+            </select>
+            <button type="button" class="attention-toggle" [class.active]="attentionOnly" (click)="toggleAttentionOnly()">
+              Needs Attention
+            </button>
+            <button type="button" class="clear-all-btn" (click)="clearAllFilters()">Reset</button>
           </div>
         </div>
 
@@ -57,6 +93,7 @@
                 <th>Status</th>
                 <th>Recruiter</th>
                 <th>Role</th>
+                <th>Urgency</th>
                 <th>Date</th>
                 <th>Actions</th>
               </tr>
@@ -74,6 +111,12 @@
                 </td>
                 <td>{{ candidate.recruiter }}</td>
                 <td>{{ formatRoleWithId(candidate.role, candidate.role_id) }}</td>
+                <td>
+                  <div class="urgency-wrap">
+                    <span class="urgency-chip" [ngClass]="urgencyClass(candidate)">{{ urgencyLabel(candidate) }}</span>
+                    <small>{{ ageLabel(candidate) }}</small>
+                  </div>
+                </td>
                 <td>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</td>
                 <td>
                   <div class="row-actions">
@@ -97,6 +140,25 @@
       </article>
 
       <aside class="side-panel">
+        <article class="side-card">
+          <div class="panel-head">
+            <h3>Needs Attention</h3>
+            <span>{{ attentionCandidates.length }}</span>
+          </div>
+          <ul class="mini-list" *ngIf="attentionCandidates.length; else noAttention">
+            <li *ngFor="let item of attentionCandidates">
+              <div>
+                <strong>{{ item.name }}</strong>
+                <small>{{ formatRoleWithId(item.role, item.role_id) }} • {{ item.recruiter }}</small>
+              </div>
+              <span class="urgency-chip" [ngClass]="urgencyClass(item)">{{ urgencyLabel(item) }}</span>
+            </li>
+          </ul>
+          <ng-template #noAttention>
+            <div class="empty-inline">No urgent candidates right now</div>
+          </ng-template>
+        </article>
+
         <article class="side-card">
           <div class="panel-head">
             <h3>Upcoming Interviews</h3>

@@ -5,6 +5,7 @@ from django.core import serializers
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 
 from .forms import LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
@@ -107,7 +108,16 @@ def updateCandidateStatus(request):
             return JsonResponse({"Success": False, "Error": f"Invalid status '{status}'"})
         candidate = Interview.objects.get(id=candidate_id)
         candidate.status = status
-        candidate.save()
-        return JsonResponse({"Success":True, "Error":None})
+        candidate.date = timezone.now()
+        candidate.save(update_fields=['status', 'date'])
+        return JsonResponse({
+            "Success": True,
+            "Error": None,
+            "Data": {
+                "candidate_id": candidate.id,
+                "status": candidate.status,
+                "date": candidate.date.isoformat() if candidate.date else ''
+            }
+        })
     except Exception as e:
         return JsonResponse({"Success":False, "Error":str(e)})

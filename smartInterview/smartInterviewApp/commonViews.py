@@ -175,9 +175,12 @@ def addRole(request):
             description = request.POST.get('description', '')
             vacancies = request.POST.get('vacancies', '')
             status = request.POST.get('status', '')
-            recruiter = request.POST.get('recruiter', '')
+            recruiter_ids = request.POST.getlist('recruiter')
+            if not recruiter_ids:
+                single_recruiter = request.POST.get('recruiter', '')
+                if single_recruiter:
+                    recruiter_ids = [single_recruiter]
             user = User.objects.get(username=request.user.username)
-            recruiter_obj = User.objects.get(id=recruiter)
             if user.profile.role == 'admin':
                 obj = Vacancies(
                         role= name,
@@ -187,7 +190,10 @@ def addRole(request):
                         admin= user,
                 )
                 obj.save()
-                obj.recruiter.add(recruiter_obj)
+                valid_recruiters = User.objects.filter(id__in=recruiter_ids, profile__role='recruiter')
+                if not valid_recruiters.exists():
+                    return JsonResponse({"Success": False, "Error": "Please select at least one valid recruiter.", "Data": ""})
+                obj.recruiter.add(*valid_recruiters)
         return JsonResponse({
             "Success": True,
             "Error": None,

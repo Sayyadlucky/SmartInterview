@@ -228,10 +228,13 @@ export class Activity implements OnInit, AfterViewInit, AfterViewChecked, OnDest
   private statusChart?: Chart;
   private chartRenderPending = false;
   private filterTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private readonly statusUpdateListener = () => this.loadActivityData();
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
+    window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.loadActivityData();
   }
 
@@ -249,6 +252,8 @@ export class Activity implements OnInit, AfterViewInit, AfterViewChecked, OnDest
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.removeEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.destroyCharts();
     if (this.filterTimeoutId) clearTimeout(this.filterTimeoutId);
   }

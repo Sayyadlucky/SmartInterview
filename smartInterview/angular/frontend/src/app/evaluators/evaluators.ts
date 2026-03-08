@@ -39,14 +39,19 @@ export class Evaluators implements OnInit, OnDestroy {
   selectedEvaluator: Recruiter | null = null;
   searchTerm = '';
   private searchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private readonly statusUpdateListener = () => this.loadEvaluators();
 
   constructor(private http: HttpClient, private dialog: MatDialog) {}
 
   ngOnInit(): void {
+    window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.loadEvaluators();
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.removeEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     if (this.searchTimeoutId) {
       clearTimeout(this.searchTimeoutId);
     }

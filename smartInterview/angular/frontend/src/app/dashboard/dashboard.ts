@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, OnInit, ViewChild, ElementRef, SimpleChanges } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, OnInit, ViewChild, ElementRef, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';  // Import HttpClient
 import { catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -50,7 +50,7 @@ type AttentionFilterKey = 'overdue-feedback' | 'unscheduled-shortlisted' | 'pend
   styleUrls: ['./dashboard.scss'],
   imports: [CommonModule, MatDialogModule, Evaluators, Candidates, Activity, Analytics, FormsModule],
 })
-export class Dashboard implements OnInit, AfterViewInit {
+export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   data: any;
   loading = false;
   candidatesData: any;
@@ -77,6 +77,10 @@ export class Dashboard implements OnInit, AfterViewInit {
   @ViewChild('sourcePerformanceCanvas', { static: false }) sourceCanvas!: ElementRef<HTMLCanvasElement>;
   private sourceChart!: Chart;
   rolesData: any;
+  private readonly statusUpdateListener = () => {
+    this.fetchData();
+    this.fetchRoleCatalog();
+  };
 
   constructor(private http: HttpClient, private dialog: MatDialog) {}  // Inject HttpClient and MatDialog
 
@@ -130,9 +134,16 @@ export class Dashboard implements OnInit, AfterViewInit {
     this.assessmentCompletedCandidates = [];
   }
   ngOnInit(): void {
+    window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.fetchData();
     this.fetchRoleCatalog();
     this.showPagination = (this.candidatesData?.length || 0) > this.pageSize;
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.removeEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
   }
 
   private getApiBaseUrl(): string {
@@ -159,13 +170,10 @@ export class Dashboard implements OnInit, AfterViewInit {
         this.data = response;
         this.loading = false;
         if(this.data?.Data){
-          this.candidatesData = this.data.Data.candidate_data;
-          this.candidatesData = this.candidatesData.map((c: any) => {
-            const normalized = this.normalizeStatus(c?.status);
-            if (normalized === 'assessment pending') return { ...c, status: 'assessment pending' };
-            if (normalized === 'auto screening scheduled') return { ...c, status: 'auto screening scheduled' };
-            return c;
-          });
+          this.candidatesData = (this.data.Data.candidate_data || []).map((c: any) => ({
+            ...c,
+            status: this.normalizeStatus(c?.status)
+          }));
           this.loginUser = this.data.Data.login_user.name;
           this.lastUpdatedAt = new Date();
           this.assign_status();
@@ -215,20 +223,9 @@ export class Dashboard implements OnInit, AfterViewInit {
   }
 
   updateCandidateData(updatedCandidate: any) {
-    // Replace the candidate in the local array with the updated one
-    const index = this.candidatesData.findIndex(
-      (c: any) => c.id === updatedCandidate.id
-    );
-    if (index > -1) {
-      this.candidatesData[index] = {
-        ...this.candidatesData[index],
-        ...updatedCandidate,
-        status: this.normalizeStatus(updatedCandidate?.status)
-      };
-      this.assign_status();
-      // Render chart after data is loaded and view is initialized
-      setTimeout(() => this.renderChart(), 5);
-    }
+    // Full refresh keeps all dashboard sections in sync (cards, lists, charts, role snapshot).
+    this.fetchData();
+    this.fetchRoleCatalog();
   }
 
   assign_status(){
@@ -238,7 +235,10 @@ export class Dashboard implements OnInit, AfterViewInit {
   this.completedCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'completed');
   this.cancelledCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'cancelled');
   this.shortlistedCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'shortlisted');
-  this.hiredCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'completed');
+  this.hiredCandidates = list.filter((c: any) => {
+    const s = this.normalizeStatus(c?.status);
+    return s === 'completed' || s === 'hired';
+  });
   this.assessmentPendingCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'assessment pending');
   this.autoScreeningScheduledCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'auto screening scheduled');
   this.rejectedCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'rejected');
@@ -691,8 +691,16 @@ private renderChart(): void {
 openConfirmation(message: string = 'Are you sure you want to export Candidate data?'): void {
    const dialogRef = this.dialog.open(ConfirmationBox, {
       disableClose: true,
-      width: '750px',
-      data: { message }
+      width: '520px',
+      maxWidth: '92vw',
+      autoFocus: false,
+      panelClass: 'confirm-dialog',
+      data: {
+        title: 'Export Candidates',
+        message,
+        confirmText: 'Export',
+        cancelText: 'Cancel'
+      }
     });
 
      dialogRef.afterClosed().subscribe(result => {

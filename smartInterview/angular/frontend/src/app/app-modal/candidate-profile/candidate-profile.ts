@@ -123,29 +123,47 @@ export class CandidateProfile {
     formData.append('candidateId', String(this.candidate.id));
     formData.append('newStatus', next);
 
-    this.http.post<{ Success: boolean; Error?: string }>(`${apiBaseUrl}/update-candidate-status/`, formData)
+    this.http.post<{ Success: boolean; Error?: string; Data?: { status?: string; date?: string } }>(`${apiBaseUrl}/update-candidate-status/`, formData)
       .pipe(
         catchError((error) => {
           console.error('Error updating candidate status', error);
           this.loading = false;
           this.errorMessage = 'Unable to update status. Please try again.';
-          return of({ Success: false, Error: 'Request failed' });
+          return of({ Success: false, Error: 'Request failed', Data: {} });
         })
       )
-      .subscribe((response) => {
+      .subscribe((response: any) => {
         if (!response?.Success) {
           this.errorMessage = response?.Error || 'Unable to update status.';
           this.loading = false;
           return;
         }
 
-        this.candidate.status = next;
+        this.candidate.status = response?.Data?.status || next;
+        if (response?.Data?.date) {
+          this.candidate.date = response.Data.date;
+        }
         this.statusActions = this.getStatusActions(this.candidate.status);
         this.loading = false;
+        window.dispatchEvent(new CustomEvent('candidate-status-updated', {
+          detail: {
+            candidateId: this.candidate.id,
+            status: this.candidate.status,
+            updatedAt: new Date().toISOString(),
+          }
+        }));
       });
   }
 
   saveAndClose(): void {
+    window.dispatchEvent(new CustomEvent('global-data-refresh', {
+      detail: {
+        entity: 'candidate',
+        action: 'save',
+        candidateId: this.candidate.id,
+        updatedAt: new Date().toISOString(),
+      }
+    }));
     this.dialogRef.close({ action: 'updated', candidate: this.candidate });
   }
 

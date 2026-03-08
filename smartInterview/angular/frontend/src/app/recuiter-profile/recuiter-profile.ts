@@ -1,4 +1,4 @@
-import { AfterViewChecked, Component, ElementRef, Input, OnChanges, OnDestroy, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Chart, registerables } from 'chart.js';
@@ -36,7 +36,7 @@ interface InterviewProfileResponse {
   templateUrl: './recuiter-profile.html',
   styleUrl: './recuiter-profile.scss'
 })
-export class RecuiterProfile implements OnChanges, OnDestroy, AfterViewChecked {
+export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() evaluator!: Evaluator;
   @ViewChild('performanceChartCanvas') performanceChartCanvas?: ElementRef<HTMLCanvasElement>;
 
@@ -79,6 +79,7 @@ export class RecuiterProfile implements OnChanges, OnDestroy, AfterViewChecked {
 
   private performanceChart?: Chart;
   private chartRenderPending = false;
+  private readonly statusUpdateListener = () => this.loadRecruiterProfile();
 
   constructor(private http: HttpClient) {}
 
@@ -88,7 +89,14 @@ export class RecuiterProfile implements OnChanges, OnDestroy, AfterViewChecked {
     }
   }
 
+  ngOnInit(): void {
+    window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
+  }
+
   ngOnDestroy(): void {
+    window.removeEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
+    window.removeEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.destroyChart();
   }
 

@@ -120,6 +120,20 @@ export class ProfileUpdate implements OnInit {
         .then(response => response.json())
         .then(data => {
           if (data && data.Success) {
+          if (data?.Data?.date) {
+            this.candidate.date = data.Data.date;
+          }
+          if (data?.Data?.status) {
+            this.candidate.status = data.Data.status;
+          }
+          window.dispatchEvent(new CustomEvent('global-data-refresh', {
+            detail: {
+              entity: 'candidate',
+              action: 'status_update',
+              candidateId: this.candidate?.id,
+              updatedAt: new Date().toISOString(),
+            }
+          }));
           this.closeDialog();
           }
         })
