@@ -5,279 +5,346 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Homepage</title>
-  <!--local files-->
-    <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}">
-    <script src="{% static 'smartInterview/js/script.js' %}" defer></script>
-  <!-- Modern Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- GSAP CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-  <!-- Phosphor Icons CDN -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
-</head>
-<body class="text-white relative">
-  <!-- HEADER -->
-  <header id="mainHeader" class="fixed top-0 left-0 w-full z-40">
-    <div class="max-w-7xl mx-auto px-6 py-4 grid grid-cols-3 items-center">
-      <div class="flex items-center gap-2">
-        <i class="ph ph-cube text-cyan-400 text-2xl"></i>
-        <span class="text-xl font-bold">BrandName</span>
-      </div>
+  <title>SmartInterview | AI Hiring Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260309j">
 
-      <nav id="mainMenu" class="justify-self-center">
-        <ul class="flex gap-8 text-sm font-medium">
-          <li><a href="#hero" class="hover:text-cyan-400 transition">Home</a></li>
-          <li><a href="#features" class="hover:text-cyan-400 transition">Features</a></li>
-          <li><a href="#pricing" class="hover:text-cyan-400 transition">Pricing</a></li>
-          <li><a href="#contact" class="hover:text-cyan-400 transition">Contact</a></li>
-        </ul>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="{% static 'smartInterview/js/script.js' %}?v=20260309f" defer></script>
+</head>
+<body>
+  <div id="preloader" aria-hidden="true">
+    <div class="loader-mark">
+      <i class="ph ph-cube-focus"></i>
+      <span>SMARTINTERVIEW</span>
+    </div>
+    <div class="loader-bar"><span></span></div>
+  </div>
+  <div id="scene3d" aria-hidden="true"></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <div class="spotlight"></div>
+  <div class="light-beam beam-a"></div>
+  <div class="light-beam beam-b"></div>
+  <div class="atmo haze-1"></div>
+  <div class="atmo haze-2"></div>
+  <div class="noise-layer"></div>
+
+  <header id="mainHeader">
+    <div class="header-shell">
+      <a href="#hero" class="brand">
+        <i class="ph ph-cube-focus"></i>
+        <span>SmartInterview</span>
+      </a>
+
+      <nav id="mainMenu" aria-label="Primary navigation">
+        <a href="#hero">Home</a>
+        <a href="#features">Features</a>
+        <a href="#new-features">New</a>
+        <a href="#platform">Platform</a>
+        <a href="#contact">Contact</a>
       </nav>
 
-      <div class="justify-self-end">
-        <!-- small sign-in button to open login panel (keeps original theme) -->
-        <button id="openLoginBtn" class="sign-in-btn text-sm py-2 px-4 rounded-lg">Sign In</button>
+      <div class="header-actions">
+        <button id="mobileMenuBtn" class="menu-toggle" aria-label="Open menu">
+          <i class="ph ph-list"></i>
+        </button>
+        <button id="openLoginBtn" class="btn btn-ghost">Sign In</button>
       </div>
     </div>
   </header>
-  <!-- HERO -->
-  <section id="hero" class="h-screen flex flex-col justify-center items-center text-center relative z-10">
-    <h1 class="text-6xl font-bold mb-4 opacity-0">Conduct AI-Powered Online Interviews Effortlessly</h1>
-    <p class="text-xl text-gray-300 mb-8 opacity-0">Monitor candidate behavior, detect cheating, and review interviews with ease.</p>
-    <button id="getStartedBtn" class="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold py-3 px-8 rounded-lg shadow-lg opacity-0">
-      Sign Up
+
+  <aside id="mobileDrawer" class="mobile-drawer" aria-hidden="true">
+    <button id="closeMobileMenu" class="drawer-close" aria-label="Close menu">
+      <i class="ph ph-x"></i>
     </button>
-  </section>
+    <nav class="drawer-nav" aria-label="Mobile navigation">
+      <a href="#hero">Home</a>
+      <a href="#features">Features</a>
+      <a href="#new-features">New</a>
+      <a href="#platform">Platform</a>
+      <a href="#contact">Contact</a>
+      <button id="drawerSignInBtn" class="btn btn-primary">Sign In</button>
+    </nav>
+  </aside>
+  <div id="mobileDrawerBackdrop" class="mobile-drawer-backdrop"></div>
 
-  <!-- LOGIN -->
-  <section id="loginSection" class="hidden fixed top-0 left-0 w-full h-full flex justify-end z-50">
+  <main>
+    <section id="hero" class="hero">
+      <div class="hero-orbits" aria-hidden="true">
+        <span class="orbit orbit-a"></span>
+        <span class="orbit orbit-b"></span>
+        <span class="orbit orbit-c"></span>
+      </div>
+
+      <div class="hero-content">
+        <h1 class="wordmark">SMARTINTERVIEW</h1>
+        <h2>Conduct AI-Powered Online Interviews Effortlessly</h2>
+        <p class="subtitle">
+          SmartInterview and SmartVideo unify candidate operations, live proctoring, voice verification,
+          transcript intelligence, and executive analytics into one hiring command center.
+        </p>
+
+        <div class="hero-cta">
+          <button id="getStartedBtn" class="btn btn-primary">Explore Platform</button>
+          <a href="#new-features" class="btn btn-outline">Newly Added Features</a>
+        </div>
+      </div>
+
+      <article class="hero-stats glass-card tilt-card">
+        <header>
+          <p>Live Platform Pulse</p>
+          <span class="live-dot"></span>
+        </header>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <label>Auto Screening</label>
+            <strong class="counter" data-target="88">0</strong>
+          </div>
+          <div class="stat-box">
+            <label>SLA Compliance</label>
+            <strong class="counter" data-target="94">0</strong>
+          </div>
+          <div class="stat-box">
+            <label>Voice Integrity</label>
+            <strong class="counter" data-target="97">0</strong>
+          </div>
+          <div class="stat-box">
+            <label>Hiring Velocity</label>
+            <strong class="counter" data-target="73">0</strong>
+          </div>
+        </div>
+      </article>
+
+      <a href="#features" class="scroll-indicator" aria-label="Scroll to features">
+        <span>Scroll</span>
+        <i class="ph ph-arrow-down"></i>
+      </a>
+    </section>
+
+    <section id="ai-visuals" class="section visuals">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <h2>From Candidate Signals To Hiring Decisions</h2>
+      </div>
+      <div class="visuals-layout">
+        <div class="visuals-copy glass-card reveal-up">
+          <h3>SmartInterview + SmartVideo Experience</h3>
+          <p>
+            This platform view reflects your real stack: role pipeline operations, evaluator workflows, live video
+            interviews, voice verification, transcript intelligence, and actionable analytics for faster hiring.
+          </p>
+          <ul>
+            <li>AI-assisted screening with interview readiness signals</li>
+            <li>Realtime interview intelligence with transcript and integrity checks</li>
+            <li>Leadership-ready analytics for SLA, velocity, and conversion tracking</li>
+          </ul>
+        </div>
+
+        <div class="visuals-gallery">
+          <article class="robot-shot shot-a tilt-card reveal-up" data-parallax-speed="0.18">
+            <img src="https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="AI interview assistant and candidate intelligence interface">
+          </article>
+          <article class="robot-shot shot-b tilt-card reveal-up" data-parallax-speed="0.24">
+            <img src="https://images.pexels.com/photos/8386422/pexels-photo-8386422.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Futuristic operator dashboard with AI analytics">
+          </article>
+          <article class="robot-shot shot-c tilt-card reveal-up" data-parallax-speed="0.3">
+            <img src="https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Robotic AI visualization for hiring automation">
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>SmartInterview Core</p>
+        <h2>Operational Hiring Engine</h2>
+      </div>
+
+      <div class="cards-grid">
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-kanban"></i>
+          <h3>Pipeline Command Center</h3>
+          <p>Track every stage from auto screening and assessment to shortlist, hire, rejection, and cancellation.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-users-three"></i>
+          <h3>Evaluator Intelligence</h3>
+          <p>Manage evaluators, open profiles, search remotely, and sync recruiter activity across tabs.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-briefcase"></i>
+          <h3>Role Snapshot</h3>
+          <p>Monitor vacancies, applied candidates, hired ratio, and role fulfillment progress in real time.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-chart-pie-slice"></i>
+          <h3>Executive Analytics</h3>
+          <p>Funnel conversion, time-to-hire, source effectiveness, drop-off analysis, SLA and forecast tracking.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-activity"></i>
+          <h3>Activity Intelligence</h3>
+          <p>Role risk, stage movement, daily productivity, target-vs-actual, recruiter workload, recycled candidates.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-file-arrow-down"></i>
+          <h3>Snapshot Exports</h3>
+          <p>Export candidate datasets (XLSX) and analytics/activity snapshots (CSV, JSON) for leadership reporting.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="new-features" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>What’s New</p>
+        <h2>Newly Added Features</h2>
+      </div>
+
+      <div class="timeline">
+        <article class="timeline-item glass-card reveal-up">
+          <span class="badge">NEW</span>
+          <h3>Needs Attention Engine</h3>
+          <p>Automatically flags overdue feedback, unscheduled shortlisted candidates, and pending offer decisions.</p>
+        </article>
+        <article class="timeline-item glass-card reveal-up">
+          <span class="badge">NEW</span>
+          <h3>Monthly Trend Cards</h3>
+          <p>Side-by-side current month vs previous month trends for applicants, interviews, shortlist rate, and hire rate.</p>
+        </article>
+        <article class="timeline-item glass-card reveal-up">
+          <span class="badge">NEW</span>
+          <h3>Risk + Forecast Layer</h3>
+          <p>Open role risk scoring, anomaly flags, and forecast-vs-target tracking for proactive hiring intervention.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="platform" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>Integrated Ecosystem</p>
+        <h2>SmartInterview + SmartVideo</h2>
+      </div>
+
+      <div class="flow-viz glass-card reveal-up">
+        <svg viewBox="0 0 1000 220" role="img" aria-label="Hiring workflow visualization">
+          <defs>
+            <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#5ed6ff"></stop>
+              <stop offset="100%" stop-color="#5f7dff"></stop>
+            </linearGradient>
+          </defs>
+          <path class="flow-path main" d="M 40 112 C 130 10, 260 220, 360 112 S 590 10, 680 112 S 870 220, 960 112"></path>
+          <path class="flow-path alt" d="M 40 112 C 150 210, 270 210, 360 112 S 560 230, 680 112 S 860 -12, 960 112"></path>
+          <g class="flow-point" transform="translate(40 112)">
+            <circle class="pulse" r="8"></circle>
+            <circle r="8"></circle>
+            <text y="-34">Sourcing</text>
+          </g>
+          <g class="flow-point" transform="translate(360 112)">
+            <circle class="pulse" r="8"></circle>
+            <circle r="8"></circle>
+            <text y="-34">Interview</text>
+          </g>
+          <g class="flow-point" transform="translate(680 112)">
+            <circle class="pulse" r="8"></circle>
+            <circle r="8"></circle>
+            <text y="-34">Intelligence</text>
+          </g>
+          <g class="flow-point" transform="translate(960 112)">
+            <circle class="pulse" r="8"></circle>
+            <circle r="8"></circle>
+            <text y="-34">Decision</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="platform-grid">
+        <article class="platform-card glass-card tilt-card reveal-up">
+          <h3><i class="ph ph-gauge"></i> SmartInterview</h3>
+          <ul>
+            <li>Candidate operations and evaluator workflows</li>
+            <li>Role, vacancy, and pipeline management</li>
+            <li>Activity and analytics intelligence dashboards</li>
+            <li>Actionable alerts and one-click filters</li>
+          </ul>
+        </article>
+        <article class="platform-card glass-card tilt-card reveal-up">
+          <h3><i class="ph ph-video-camera"></i> SmartVideo</h3>
+          <ul>
+            <li>Realtime WebRTC interviews with signaling</li>
+            <li>Voice enrollment and anti-impersonation verification</li>
+            <li>Live transcription, translation, and behavior events</li>
+            <li>AI interview copilot and session intelligence reports</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="contact" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="contact-connect glass-card reveal-up">
+        <h2 class="connect-title">Let's <span>connect.</span></h2>
+        <form class="connect-form" autocomplete="on">
+          <div class="connect-row">
+            <input type="text" name="name" placeholder="Name" aria-label="Name">
+            <input type="email" name="email" placeholder="E-mail" aria-label="E-mail">
+          </div>
+          <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
+          <textarea name="message" rows="6" placeholder="Message..." aria-label="Message"></textarea>
+
+          <div class="connect-actions">
+            <button type="button" class="btn-connect">Let's talk</button>
+            <button type="button" id="contactSignInBtn" class="btn btn-ghost">Open Sign In</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <section id="loginSection" class="hidden">
     <form method="post" id="loginForm">
-        {% csrf_token %}
-    <div id="loginPanel" class="frosted w-full max-w-lg h-full p-12 pt-24 flex flex-col justify-start relative z-50">
-      <!-- Close button -->
-      <button id="closeLogin" aria-label="Close Login Panel">
-        <i class="ph ph-x text-2xl text-gray-300 hover:text-white"></i>
-      </button>
-      <h2 class="text-3xl font-bold mb-8">Welcome Back!</h2>
-        <p style="color:red;" id="errorMsg"></p>
-      <!-- Email Field (floating label) -->
-      <div class="floating mb-5">
-        <i class="ph ph-envelope icon-left text-lg"></i>
-        {{ form.username }}
-<!--        <input type="email" id="email" class="floating-input peer" placeholder=" " autocomplete="email" />-->
-        <label for="email" class="floating-label">Email address/ Username</label>
-      </div>
+      {% csrf_token %}
+      <div id="loginPanel" class="glass-card">
+        <button id="closeLogin" aria-label="Close Login Panel">
+          <i class="ph ph-x"></i>
+        </button>
 
-      <!-- Password Field (floating label) -->
-      <div class="floating mb-5">
-        <i class="ph ph-lock icon-left text-lg"></i>
-         {{ form.password }}
-<!--        <input type="password" id="password" class="floating-input peer" placeholder=" " autocomplete="current-password" />-->
-        <label for="password" class="floating-label">Enter your password</label>
-      </div>
+        <h2>Welcome Back</h2>
+        <p class="panel-subtitle">Sign in to continue to SmartInterview dashboard.</p>
+        <p id="errorMsg"></p>
 
-      <a href="#" class="mb-6 text-cyan-400 hover:underline text-sm block">Forgot Password?</a>
-      <button type="submit" id="signInBtn" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/30 text-white font-semibold py-3 rounded-lg transition sign-in-btn">
-        Sign In
-      </button>
-    </div>
+        <div class="floating">
+          <i class="ph ph-user icon-left"></i>
+          {{ form.username|add_class:"floating-input" }}
+          <label class="floating-label">Email address / Username</label>
+        </div>
+
+        <div class="floating">
+          <i class="ph ph-lock icon-left"></i>
+          {{ form.password|add_class:"floating-input" }}
+          <label class="floating-label">Password</label>
+        </div>
+
+        <a href="#" class="forgot">Forgot Password?</a>
+        <button type="submit" id="signInBtn" class="btn btn-primary full">Sign In</button>
+      </div>
     </form>
   </section>
 
-<!-- FEATURES (icons fixed and aligned on same line) -->
-<section id="features" class="py-16 relative z-10 px-6 max-w-7xl mx-auto">
-  <h2 class="text-4xl font-bold mb-12 text-center">Key Features</h2>
-  <div class="grid md:grid-cols-3 gap-12">
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <div class="flex items-center mb-4">
-        <i class="ph ph-shield-check text-4xl text-cyan-400 mr-3"></i>
-        <h3 class="text-xl font-bold">AI Powered Cheating Detection</h3>
-      </div>
-      <p class="text-gray-300">Smart AI analyzes interviews and detects anomalies by monitoring facial expressions, keystrokes, and screen activity to detect suspicious behavior during interviews.</p>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <div class="flex items-center mb-4">
-        <i class="ph ph-layout text-4xl text-cyan-400 mr-3"></i>
-        <h3 class="text-xl font-bold">Candidate Dashboard</h3>
-      </div>
-      <p class="text-gray-300">View all interviewed candidates, provide ratings, and track performance in one convenient dashboard.</p>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <div class="flex items-center mb-4">
-        <i class="ph ph-video-camera text-4xl text-cyan-400 mr-3"></i>
-        <h3 class="text-xl font-bold">Session Recordings</h3>
-      </div>
-      <p class="text-gray-300">All interviews are securely recorded and stored for future review or audit purposes.</p>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <div class="flex items-center mb-4">
-        <i class="ph ph-user-circle text-4xl text-cyan-400 mr-3"></i>
-        <h3 class="text-xl font-bold">User-Friendly Design</h3>
-      </div>
-      <p class="text-gray-300">Our portal is intuitive, simple to navigate, and requires no technical expertise.</p>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <div class="flex items-center mb-4">
-        <i class="ph ph-lock-key text-4xl text-cyan-400 mr-3"></i>
-        <h3 class="text-xl font-bold">Secure Data Storage</h3>
-      </div>
-      <p class="text-gray-300">All sensitive information is encrypted and securely stored to ensure privacy and compliance.</p>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <div class="flex items-center mb-4">
-        <i class="ph ph-lightning text-4xl text-cyan-400 mr-3"></i>
-        <h3 class="text-xl font-bold">Real-Time Analytics</h3>
-      </div>
-      <p class="text-gray-300">Instant insights and analytics help make faster, data-driven decisions during recruitment processes.</p>
-    </div>
-
-  </div>
-</section>
-
-<!-- PRICING SECTION -->
-<section id="pricing" class="py-16 bg-gradient-to-b from-gray-900 via-gray-950 to-gray-900 text-white">
-  <div class="max-w-7xl mx-auto px-6 text-center">
-    <h2 class="text-4xl font-bold mb-4">Pricing Plans</h2>
-    <p class="text-gray-400 mb-12">Choose a plan that fits your needs. Simple, transparent pricing.</p>
-
-    <div class="grid md:grid-cols-3 gap-8">
-      <!-- BASIC PLAN -->
-      <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-8 border border-cyan-500/20 hover:scale-105 transform transition hover:border-cyan-400 shadow-lg hover:shadow-cyan-500/30">
-        <h3 class="text-xl font-semibold mb-4">Basic</h3>
-        <p class="text-3xl font-bold mb-6">$9<span class="text-lg font-normal">/mo</span></p>
-        <ul class="mb-6 space-y-2 text-gray-300">
-          <li>✔ Feature 1</li>
-          <li>✔ Feature 2</li>
-          <li>✔ Feature 3</li>
-        </ul>
-        <button class="w-full py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold transition">Get Started</button>
-      </div>
-
-      <!-- STANDARD PLAN -->
-      <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-8 border-2 border-cyan-500/20 hover:scale-105 transform transition hover:border-cyan-400 shadow-lg hover:shadow-cyan-500/30">
-        <h3 class="text-xl font-semibold mb-4">Standard</h3>
-        <p class="text-3xl font-bold mb-6">$19<span class="text-lg font-normal">/mo</span></p>
-        <ul class="mb-6 space-y-2 text-gray-300">
-          <li>✔ Feature 1</li>
-          <li>✔ Feature 2</li>
-          <li>✔ Feature 3</li>
-          <li>✔ Feature 4</li>
-        </ul>
-        <button class="w-full py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold transition">Get Started</button>
-      </div>
-
-      <!-- PREMIUM PLAN -->
-      <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-8 border border-cyan-500/20 hover:scale-105 transform transition hover:border-cyan-400 shadow-lg hover:shadow-cyan-500/30">
-        <h3 class="text-xl font-semibold mb-4">Premium</h3>
-        <p class="text-3xl font-bold mb-6">$29<span class="text-lg font-normal">/mo</span></p>
-        <ul class="mb-6 space-y-2 text-gray-300">
-          <li>✔ Feature 1</li>
-          <li>✔ Feature 2</li>
-          <li>✔ Feature 3</li>
-          <li>✔ Feature 4</li>
-        </ul>
-        <button class="w-full py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-semibold transition">Get Started</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- TESTIMONIALS SECTION -->
-<section id="testimonials" class="py-16 px-6 max-w-7xl mx-auto relative z-10">
-  <h2 class="text-4xl font-bold mb-12 text-center">What Our Users Say</h2>
-
-  <div class="grid md:grid-cols-3 gap-8">
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <p class="text-gray-300 mb-4">"This platform made our hiring process so much faster and more reliable. The AI insights are amazing!"</p>
-      <div class="flex items-center gap-3">
-        <i class="ph ph-user-circle text-cyan-400 text-3xl"></i>
-        <div>
-          <h4 class="font-bold text-white">Jane Doe</h4>
-          <p class="text-gray-400 text-sm">HR Manager</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <p class="text-gray-300 mb-4">"The candidate dashboard is intuitive and really helps us track performance easily."</p>
-      <div class="flex items-center gap-3">
-        <i class="ph ph-user-circle text-cyan-400 text-3xl"></i>
-        <div>
-          <h4 class="font-bold text-white">John Smith</h4>
-          <p class="text-gray-400 text-sm">Recruiter</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-[#0f1f38] p-8 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition">
-      <p class="text-gray-300 mb-4">"Secure recordings and real-time analytics save us countless hours every month."</p>
-      <div class="flex items-center gap-3">
-        <i class="ph ph-user-circle text-cyan-400 text-3xl"></i>
-        <div>
-          <h4 class="font-bold text-white">Alice Brown</h4>
-          <p class="text-gray-400 text-sm">Team Lead</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- CONTACT US SECTION -->
-<section id="contact" class="py-32 px-6 max-w-2xl mx-auto frosted rounded-xl shadow-lg shadow-cyan-500/30 text-center">
-  <div class="mb-8">
-    <div class="w-16 h-16 mx-auto mb-4 rounded-full border border-cyan-400 flex items-center justify-center">
-      <!-- Placeholder for Logo / Icon -->
-      <!-- <img src="https://via.placeholder.com/40" alt="Logo" class="w-10 h-10"> -->
-	  <i class="ph ph-cube text-cyan-400 text-2xl"></i>
-    </div>
-    <h2 class="text-4xl font-bold mb-2 text-white">Contact Us</h2>
-  </div>
-
-  <div class="space-y-4 text-gray-300">
-    <p class="flex items-center justify-center gap-3">
-      <i class="ph ph-map-pin text-xl text-cyan-400"></i>
-      123 Anywhere St., Any City, ST 12345
-    </p>
-    <p class="flex items-center justify-center gap-3">
-      <i class="ph ph-phone text-xl text-cyan-400"></i>
-      +123-456-7890
-    </p>
-    <p class="flex items-center justify-center gap-3">
-      <i class="ph ph-envelope text-xl text-cyan-400"></i>
-      hello@reallygreatsite.com
-    </p>
-  </div>
-</section>
-
-
-<!-- FOOTER / COPYRIGHT -->
-<footer class="py-6 mt-12 border-t border-cyan-500/20 text-center text-gray-400 relative z-10">
-  <p class="text-sm">
-    &copy; <span id="currentYear"></span> BrandName. All rights reserved.
-  </p>
-  <div class="flex justify-center gap-4 mt-2">
-    <a href="#" class="hover:text-cyan-400 transition">
-      <i class="ph ph-twitter text-lg"></i>
-    </a>
-    <a href="#" class="hover:text-cyan-400 transition">
-      <i class="ph ph-linkedin-logo text-lg"></i>
-    </a>
-    <a href="#" class="hover:text-cyan-400 transition">
-      <i class="ph ph-github-logo text-lg"></i>
-    </a>
-  </div>
-</footer>
-
- <!-- Particles -->
-  <canvas id="particles"></canvas>
+  <footer>
+    <p>&copy; <span id="currentYear"></span> SmartInterview. All rights reserved.</p>
+  </footer>
 </body>
 </html>
