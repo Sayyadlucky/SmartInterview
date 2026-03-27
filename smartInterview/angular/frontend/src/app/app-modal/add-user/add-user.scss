@@ -89,6 +89,29 @@
   font-weight: 600;
 }
 
+.field-inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #8ed0f6;
+  font-size: 0.72rem;
+  min-height: 14px;
+}
+
+.lookup-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(137, 223, 255, 0.25);
+  border-top-color: #57d8ff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: lookupSpin 0.8s linear infinite;
+}
+
+@keyframes lookupSpin {
+  to { transform: rotate(360deg); }
+}
+
 .input-shell {
   height: 42px;
   display: grid;

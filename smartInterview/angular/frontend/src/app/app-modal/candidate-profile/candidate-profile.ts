@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -14,6 +14,81 @@ interface CandidateData {
   status: string;
   score?: number | null;
   date: string;
+  phone?: string;
+  profile_picture?: string;
+  public_resume_downloads?: number;
+}
+
+interface ResumeSection {
+  section_key: string;
+  title: string;
+  section_type: string;
+  display_order: number;
+  content: {
+    text?: string;
+    items?: Array<string | Record<string, unknown>>;
+  };
+  raw_text: string;
+}
+
+interface ResumeData {
+  available: boolean;
+  status: string;
+  error_message: string;
+  headline: string;
+  summary: string;
+  candidate_type: string;
+  contact: {
+    email?: string;
+    phone?: string;
+    location?: string;
+  };
+  skills: string[];
+  sections: ResumeSection[];
+  file_url?: string;
+  processed_at?: string;
+  source_file?: string;
+  parser_provider?: string;
+  parser_version?: string;
+  raw_text_preview?: string;
+  ai_configured?: boolean;
+  ai_attempted?: boolean;
+  ai_model?: string;
+  ai_error?: string;
+  ai_raw_preview?: string;
+  fallback_used?: boolean;
+  fallback_provider?: string;
+}
+
+interface CandidateProfileResponse {
+  Success: boolean;
+  Error?: string | null;
+  Data?: {
+    candidate?: CandidateData;
+    verification?: VerificationData;
+    insights?: InsightData;
+    resume?: ResumeData;
+  };
+}
+
+interface VerificationData {
+  phone_verified: boolean;
+  email_verified: boolean;
+  identity_verified: boolean;
+  phone_verified_at?: string;
+  email_verified_at?: string;
+  identity_verified_at?: string;
+  identity_status?: string;
+}
+
+interface InsightData {
+  status: string;
+  loading: boolean;
+  available: boolean;
+  executive_summary?: string;
+  resume_score?: number | null;
+  current_skills_impact_score?: number | null;
+  current_skills_impact_summary?: string;
 }
 
 @Component({
@@ -23,62 +98,52 @@ interface CandidateData {
   templateUrl: './candidate-profile.html',
   styleUrl: './candidate-profile.scss'
 })
-export class CandidateProfile {
+export class CandidateProfile implements OnInit {
   candidate: CandidateData;
   loading = false;
+  resumeLoading = false;
+  reprocessingResume = false;
   errorMessage = '';
   statusActions: Array<{ key: string; label: string }> = [];
-  readonly resumeProfile = {
-    name: 'ALTAMASH HASAN',
-    email: 'hasanaltamash1993@gmail.com',
-    phone: '+91-9307348633',
-    location: 'Pune, Maharashtra 411041',
-    objective: 'A motivated individual with indepth knowledge of Python, Django and development tools, seeking a position in a growth-oriented company where I can contribute to business outcomes while continuously growing technical skills.'
+  verification: VerificationData = {
+    phone_verified: false,
+    email_verified: false,
+    identity_verified: false,
+    phone_verified_at: '',
+    email_verified_at: '',
+    identity_verified_at: '',
+    identity_status: 'not_started',
   };
-  readonly professionalSummary: string[] = [
-    'Around 6 years of professional experience in Python, Django, Flask, HTML, CSS, JQuery, JSON and MySQL.',
-    'Worked on frontend technologies including HTML, CSS, Bootstrap, JavaScript and Angular.',
-    'Quick at identifying errors and debugging code with clear root-cause analysis.',
-    'Worked on Agile methodology and CI/CD pipelines.',
-    'Developed REST APIs using Django REST Framework.',
-    'Good understanding of OOP, Python modules, generators and decorators.',
-    'Hands-on experience in coding, unit testing and code standardization.',
-    'Used GIT for version control and collaborative development.',
-    'Strong analytical/problem-solving mindset with proactive ownership.',
-    'Experienced in team collaboration and on-time delivery.'
-  ];
-  readonly workHistory: Array<{ duration: string; title: string; company: string; details: string }> = [
-    {
-      duration: 'Feb 2023 - Current',
-      title: 'Software Engineer',
-      company: 'IRIS Software Private LTD - Pune (Remote), Client: Bank Of Montreal',
-      details: 'Role: Fullstack Developer. Environment: Python, Django, Django REST Framework, MySQL, Angular. Worked on API-based solutions, Angular module development, platform monitoring, performance tuning, testing/debugging and cross-functional delivery.'
-    },
-    {
-      duration: 'Aug 2019 - Aug 2022',
-      title: 'Software Developer',
-      company: 'Bajaj Finance LTD - Pune',
-      details: 'Role: Python Developer. Environment: Python, Django, MySQL. Modernized legacy code, shipped desktop/mobile web applications, supported production releases and collaborated in lean development cycles.'
-    },
-    {
-      duration: 'Jan 2016 - Apr 2017',
-      title: 'Associate Software Engineer',
-      company: 'Accenture Solutions PVT LTD - Pune',
-      details: 'Role: Associate Software Developer. Environment: Automation Anywhere. Developed internal automation tools, debugged platform issues and documented technical workflows.'
-    }
-  ];
-  readonly technicalExpertise = {
-    languages: 'Python 3.x, Angular, C, C++, .NET, Java',
-    os: 'Windows, Linux',
-    database: 'MySQL, SQL',
-    framework: 'Django, Flask',
-    web: 'HTML5, CSS, Bootstrap, JavaScript, REST API, Angular',
-    tools: 'PyCharm, VS Code, Postman, Thonny'
+  insights: InsightData = {
+    status: 'not_started',
+    loading: false,
+    available: false,
+    executive_summary: '',
+    resume_score: null,
+    current_skills_impact_score: null,
+    current_skills_impact_summary: '',
   };
-  readonly education: string[] = [
-    'MBA - Pune University, Pune',
-    'Bachelor of Science (Computer Science) - SRTM University, Nanded'
-  ];
+  resumeData: ResumeData = {
+    available: false,
+    status: 'missing',
+    error_message: '',
+    headline: '',
+    summary: '',
+    candidate_type: '',
+    contact: {},
+    skills: [],
+    sections: [],
+    parser_provider: '',
+    parser_version: '',
+    raw_text_preview: '',
+    ai_configured: false,
+    ai_attempted: false,
+    ai_model: '',
+    ai_error: '',
+    ai_raw_preview: '',
+    fallback_used: false,
+    fallback_provider: '',
+  };
 
   constructor(
     private http: HttpClient,
@@ -87,6 +152,10 @@ export class CandidateProfile {
   ) {
     this.candidate = { ...data.candidate };
     this.statusActions = this.getStatusActions(this.candidate.status);
+  }
+
+  ngOnInit(): void {
+    this.loadCandidateProfile();
   }
 
   get initials(): string {
@@ -98,6 +167,77 @@ export class CandidateProfile {
 
   get formattedStatus(): string {
     return this.candidate.status.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  }
+
+  get resumeSubline(): string {
+    const phone = this.resumeData.contact?.phone || this.candidate.phone || 'Phone unavailable';
+    const location = this.resumeData.contact?.location || 'Location unavailable';
+    return `${phone} | ${location}`;
+  }
+
+  get headline(): string {
+    return this.resumeData.headline || 'Resume profile';
+  }
+
+  get resumeStatusLabel(): string {
+    const status = this.resumeData.status || 'missing';
+    return status.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  }
+
+  get resumeStatusClass(): string {
+    const status = this.resumeData.status || 'missing';
+    if (status === 'completed') return 'resume-pill resume-pill--success';
+    if (status === 'failed') return 'resume-pill resume-pill--error';
+    return 'resume-pill';
+  }
+
+  get verificationItems(): Array<{ label: string; verified: boolean; date?: string }> {
+    return [
+      {
+        label: 'Phone',
+        verified: !!this.verification.phone_verified,
+        date: this.verification.phone_verified_at,
+      },
+      {
+        label: 'Email',
+        verified: !!this.verification.email_verified,
+        date: this.verification.email_verified_at,
+      },
+      {
+        label: 'Aadhaar',
+        verified: !!this.verification.identity_verified,
+        date: this.verification.identity_verified_at,
+      },
+    ];
+  }
+
+  get summarySection(): string {
+    return this.resumeData.summary || this.getSectionText('summary') || this.getSectionText('objective');
+  }
+
+  get readinessInsightScore(): string {
+    return this.insights.resume_score != null ? `${this.insights.resume_score}` : '--';
+  }
+
+  get skillsImpactScore(): string {
+    return this.insights.current_skills_impact_score != null ? `${this.insights.current_skills_impact_score}` : '--';
+  }
+
+  get readinessInsightSummary(): string {
+    return this.insights.executive_summary || 'AI readiness insight will appear here once the candidate snapshot is generated.';
+  }
+
+  get skillsImpactSummary(): string {
+    return this.insights.current_skills_impact_summary || 'Skill impact insight will appear here once the AI snapshot is generated.';
+  }
+
+  get skillList(): string[] {
+    if (this.resumeData.skills?.length) return this.resumeData.skills;
+    return this.getStringItems('skills');
+  }
+
+  get displaySections(): ResumeSection[] {
+    return (this.resumeData.sections || []).filter((section) => !['summary', 'objective', 'skills'].includes(section.section_key));
   }
 
   formatRoleWithId(role: string, roleId?: number | null): string {
@@ -113,6 +253,36 @@ export class CandidateProfile {
 
   openRole(): void {
     this.dialogRef.close({ action: 'openRole', candidate: this.candidate });
+  }
+
+  openOriginalResume(): void {
+    if (!this.resumeData.file_url) {
+      return;
+    }
+    window.open(this.resumeData.file_url, '_blank', 'noopener');
+  }
+
+  reprocessResume(): void {
+    this.reprocessingResume = true;
+    this.resumeData = { ...this.resumeData, error_message: '' };
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http.post<{ Success: boolean; Error?: string | null }>(`${apiBaseUrl}/candidate-profile-data/${this.candidate.id}/reprocess/`, {})
+      .pipe(
+        catchError((error) => {
+          console.error('Error reprocessing resume', error);
+          this.reprocessingResume = false;
+          this.resumeData = { ...this.resumeData, error_message: 'Unable to reprocess resume right now.' };
+          return of({ Success: false, Error: 'Request failed' });
+        })
+      )
+      .subscribe((response) => {
+        this.reprocessingResume = false;
+        if (!response?.Success) {
+          this.resumeData = { ...this.resumeData, error_message: response?.Error || 'Unable to reprocess resume right now.' };
+          return;
+        }
+        this.loadCandidateProfile();
+      });
   }
 
   changeStatus(next: string): void {
@@ -160,11 +330,96 @@ export class CandidateProfile {
       detail: {
         entity: 'candidate',
         action: 'save',
-        candidateId: this.candidate.id,
+        candidateId: this.candidate?.id,
         updatedAt: new Date().toISOString(),
       }
     }));
     this.dialogRef.close({ action: 'updated', candidate: this.candidate });
+  }
+
+  getSectionText(sectionKey: string): string {
+    const section = (this.resumeData.sections || []).find((item) => item.section_key === sectionKey);
+    return section?.content?.text || section?.raw_text || '';
+  }
+
+  getStringItems(sectionKey: string): string[] {
+    const section = (this.resumeData.sections || []).find((item) => item.section_key === sectionKey);
+    const items = section?.content?.items || [];
+    return items.filter((item): item is string => typeof item === 'string' && !!item.trim());
+  }
+
+  isObjectSection(section: ResumeSection): boolean {
+    return this.getObjectItems(section).length > 0;
+  }
+
+  getObjectItems(section: ResumeSection): Array<Record<string, unknown>> {
+    const items = section?.content?.items || [];
+    return items
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
+  }
+
+  getTextItems(section: ResumeSection): string[] {
+    const items = section?.content?.items || [];
+    return items.filter((item): item is string => typeof item === 'string' && !!item.trim());
+  }
+
+  getObjectPrimary(item: Record<string, unknown>): string {
+    const preferred = ['title', 'degree', 'label', 'value'];
+    for (const key of preferred) {
+      const value = item[key];
+      if (typeof value === 'string' && value.trim()) return value;
+    }
+    const first = Object.values(item).find((value) => typeof value === 'string' && value.trim());
+    return typeof first === 'string' ? first : 'Entry';
+  }
+
+  getObjectSecondary(item: Record<string, unknown>): string[] {
+    const rows: string[] = [];
+    Object.entries(item).forEach(([key, value]) => {
+      if (key === 'title') return;
+      if (Array.isArray(value) && value.length) {
+        rows.push(`${this.labelize(key)}: ${value.join(', ')}`);
+        return;
+      }
+      if (typeof value === 'string' && value.trim()) {
+        rows.push(`${this.labelize(key)}: ${value}`);
+      }
+    });
+    return rows;
+  }
+
+  private loadCandidateProfile(): void {
+    this.resumeLoading = true;
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http.get<CandidateProfileResponse>(`${apiBaseUrl}/candidate-profile-data/${this.candidate.id}/`)
+      .pipe(
+        catchError((error) => {
+          console.error('Error loading candidate profile', error);
+          this.resumeLoading = false;
+          this.resumeData = { ...this.resumeData, error_message: 'Unable to load parsed resume data.' };
+          return of({ Success: false, Error: 'Request failed', Data: {} } as CandidateProfileResponse);
+        })
+      )
+      .subscribe((response) => {
+        this.resumeLoading = false;
+        if (!response?.Success) {
+          this.resumeData = { ...this.resumeData, error_message: response?.Error || 'Unable to load parsed resume data.' };
+          return;
+        }
+        if (response.Data?.candidate) {
+          this.candidate = { ...this.candidate, ...response.Data.candidate };
+          this.statusActions = this.getStatusActions(this.candidate.status);
+        }
+        if (response.Data?.verification) {
+          this.verification = { ...this.verification, ...response.Data.verification };
+        }
+        if (response.Data?.insights) {
+          this.insights = { ...this.insights, ...response.Data.insights };
+        }
+        if (response.Data?.resume) {
+          this.resumeData = response.Data.resume;
+        }
+      });
   }
 
   private normalizeStatus(value: string): string {
@@ -223,5 +478,9 @@ export class CandidateProfile {
       portNumber = '8000';
     }
     return `${window.location.protocol}//${window.location.hostname}:${portNumber}`;
+  }
+
+  private labelize(key: string): string {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
   }
 }

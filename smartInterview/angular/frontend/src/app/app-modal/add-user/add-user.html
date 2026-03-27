@@ -12,18 +12,22 @@
     <form name="addUserForm" class="dialog-form">
       <section class="form-grid">
         <div class="field">
-          <label for="name">Full Name</label>
+          <label for="phone">Mobile Number</label>
           <div class="input-shell">
-            <i class="ph ph-user"></i>
+            <i class="ph ph-phone"></i>
             <input
-              id="name"
-              name="name"
-              type="text"
-              [(ngModel)]="name"
+              id="phone"
+              name="phone"
+              type="tel"
+              [(ngModel)]="phone"
+              (ngModelChange)="onPhoneInput($event)"
               required
-              pattern=".*\s+.*"
-              placeholder="e.g. Ankush Pawar"
+              placeholder="Enter mobile number"
             />
+          </div>
+          <div class="field-inline-status" *ngIf="isPhoneLookupLoading || phoneLookupMessage">
+            <span class="lookup-spinner" *ngIf="isPhoneLookupLoading"></span>
+            <span>{{ isPhoneLookupLoading ? 'Checking existing profile...' : phoneLookupMessage }}</span>
           </div>
         </div>
 
@@ -38,6 +42,22 @@
               [(ngModel)]="email"
               required
               placeholder="e.g. user@company.com"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="name">Full Name</label>
+          <div class="input-shell">
+            <i class="ph ph-user"></i>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              [(ngModel)]="name"
+              required
+              pattern=".*\s+.*"
+              placeholder="e.g. Ankush Pawar"
             />
           </div>
         </div>
@@ -90,20 +110,6 @@
           </div>
         </div>
 
-        <div class="field">
-          <label for="phone">Phone</label>
-          <div class="input-shell">
-            <i class="ph ph-phone"></i>
-            <input
-              id="phone"
-              name="phone"
-              type="number"
-              [(ngModel)]="phone"
-              required
-              placeholder="Enter mobile number"
-            />
-          </div>
-        </div>
       </section>
 
       <div class="modal-actions">

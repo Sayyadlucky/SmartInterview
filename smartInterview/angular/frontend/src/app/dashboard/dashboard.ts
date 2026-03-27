@@ -16,6 +16,7 @@ import { AddUser } from '../app-modal/add-user/add-user';
 import { ConfirmationBox } from '../app-modal/confirmation-box/confirmation-box/confirmation-box';
 import { RoleDetail } from '../app-modal/role-detail/role-detail';
 import { CandidateProfile } from '../app-modal/candidate-profile/candidate-profile';
+import { NotificationConsole } from '../notifications/components/notification-console/notification-console';
 
 Chart.register(...registerables);
 
@@ -48,7 +49,7 @@ type AttentionFilterKey = 'overdue-feedback' | 'unscheduled-shortlisted' | 'pend
   standalone: true,
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
-  imports: [CommonModule, MatDialogModule, Evaluators, Candidates, Activity, Analytics, FormsModule],
+  imports: [CommonModule, MatDialogModule, Evaluators, Candidates, Activity, Analytics, FormsModule, NotificationConsole],
 })
 export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   data: any;
@@ -73,6 +74,14 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   attentionFilter: AttentionFilterKey | null = null;
   lastUpdatedAt: Date = new Date();
   roleCatalog: any[] = [];
+  recruiterApplications: any[] = [];
+  recruiterApplicationsCount = 0;
+  applicationFeedLoaded = false;
+  applicationToastOpen = false;
+  applicationToastMessage = '';
+  private applicationIdsSeen = new Set<number>();
+  private applicationPollTimer: ReturnType<typeof setInterval> | null = null;
+  private applicationToastTimer: ReturnType<typeof setTimeout> | null = null;
 
   @ViewChild('sourcePerformanceCanvas', { static: false }) sourceCanvas!: ElementRef<HTMLCanvasElement>;
   private sourceChart!: Chart;
@@ -138,12 +147,22 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.fetchData();
     this.fetchRoleCatalog();
+    this.fetchRecruiterApplicationFeed(true);
+    this.applicationPollTimer = window.setInterval(() => this.fetchRecruiterApplicationFeed(false), 20000);
     this.showPagination = (this.candidatesData?.length || 0) > this.pageSize;
   }
 
   ngOnDestroy(): void {
     window.removeEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
     window.removeEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
+    if (this.applicationPollTimer) {
+      clearInterval(this.applicationPollTimer);
+      this.applicationPollTimer = null;
+    }
+    if (this.applicationToastTimer) {
+      clearTimeout(this.applicationToastTimer);
+      this.applicationToastTimer = null;
+    }
   }
 
   private getApiBaseUrl(): string {
@@ -197,6 +216,66 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
           this.roleCatalog = response.RoleData;
         }
       });
+  }
+
+  fetchRecruiterApplicationFeed(initialLoad = false): void {
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http.get<any>(`${apiBaseUrl}/recruiter-application-feed/`)
+      .pipe(
+        catchError(error => {
+          console.error('Error fetching recruiter application feed', error);
+          return of(null);
+        })
+      )
+      .subscribe(response => {
+        if (!response?.Success || !response?.Data) {
+          return;
+        }
+
+        const applications = response.Data.applications || [];
+        const nextIds = new Set<number>(applications.map((item: any) => Number(item.id)).filter((id: number) => Number.isFinite(id)));
+        const newItems = initialLoad || !this.applicationFeedLoaded
+          ? []
+          : applications.filter((item: any) => !this.applicationIdsSeen.has(Number(item.id)));
+
+        this.recruiterApplications = applications;
+        this.recruiterApplicationsCount = Number(response.Data.count || applications.length || 0);
+        this.applicationIdsSeen = nextIds;
+        this.applicationFeedLoaded = true;
+
+        if (newItems.length) {
+          const first = newItems[0];
+          const moreCount = newItems.length - 1;
+          this.showApplicationToast(
+            moreCount > 0
+              ? `${first.candidate_name} applied for ${first.vacancy_role}. ${moreCount} more application(s) just arrived.`
+              : `${first.candidate_name} applied for ${first.vacancy_role}.`
+          );
+        }
+      });
+  }
+
+  showApplicationToast(message: string): void {
+    this.applicationToastMessage = message;
+    this.applicationToastOpen = true;
+    if (this.applicationToastTimer) {
+      clearTimeout(this.applicationToastTimer);
+    }
+    this.applicationToastTimer = window.setTimeout(() => {
+      this.applicationToastOpen = false;
+    }, 5000);
+  }
+
+  dismissApplicationToast(): void {
+    this.applicationToastOpen = false;
+    if (this.applicationToastTimer) {
+      clearTimeout(this.applicationToastTimer);
+      this.applicationToastTimer = null;
+    }
+  }
+
+  scrollToApplications(): void {
+    document.getElementById('recruiterApplicationPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   profileUpdate(candidate?: any): void {

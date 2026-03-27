@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { CommonModule } from '@angular/common';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { RecuiterProfile } from '../recuiter-profile/recuiter-profile';
 import { AddUser } from '../app-modal/add-user/add-user';
 import { FormsModule } from '@angular/forms';
@@ -27,7 +27,7 @@ interface RecruiterResponse {
 
 @Component({
   selector: 'app-evaluators',
-  imports: [CommonModule, RecuiterProfile, FormsModule],
+  imports: [CommonModule, RecuiterProfile, FormsModule, MatDialogModule],
   templateUrl: './evaluators.html',
   styleUrls: ['./evaluators.scss']
 })

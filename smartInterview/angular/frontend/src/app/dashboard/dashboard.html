@@ -21,6 +21,10 @@
         <i class="ph ph-briefcase"></i>
         <span>Open Roles: {{ openRolesCount }}</span>
       </div>
+      <button class="utility-chip utility-chip-button" type="button" (click)="scrollToApplications()">
+        <i class="ph ph-bell-ringing"></i>
+        <span>Pending Applications: {{ recruiterApplicationsCount }}</span>
+      </button>
       <div class="utility-search">
         <i class="ph ph-magnifying-glass"></i>
         <input
@@ -31,6 +35,7 @@
         <button *ngIf="searchQuery" class="clear-search-btn" (click)="clearSearch()">Clear</button>
       </div>
     </div>
+    <app-notification-console></app-notification-console>
     <div class="tabs">
       <button class="tab-btn active" data-tab="overview"><i class="ph ph-chart-bar"></i> Overview</button>
       <button class="tab-btn" data-tab="evaluators"><i class="ph ph-identification-badge"></i> Evaluators</button>
@@ -166,6 +171,37 @@
 
         <!-- Right Sidebar Actions (spans full height of both rows) -->
         <div class="action-panel">
+          <div class="dashboard-card application-inbox-card" id="recruiterApplicationPanel">
+            <div class="application-inbox-head">
+              <div>
+                <div class="action-group-title">Application Inbox</div>
+                <div class="application-inbox-subtitle">Candidate initiated job requests awaiting recruiter review</div>
+              </div>
+              <span class="application-count-pill">{{ recruiterApplicationsCount }}</span>
+            </div>
+            <div class="application-inbox-list" *ngIf="recruiterApplications.length; else noApplicationsYet">
+              @for (application of recruiterApplications; track application.id) {
+                <div class="application-inbox-item">
+                  <div class="application-inbox-top">
+                    <strong>{{ application.candidate_name }}</strong>
+                    <span class="application-status">{{ application.status_label }}</span>
+                  </div>
+                  <div class="application-inbox-role">{{ application.vacancy_role }}</div>
+                  <div class="application-inbox-meta">
+                    {{ application.candidate_email }} · {{ application.candidate_phone || 'Phone pending' }}
+                  </div>
+                  <div class="application-inbox-meta">
+                    Applied {{ application.applied_at | date:'MMM d, y, h:mm a' }}
+                  </div>
+                </div>
+              }
+            </div>
+            <ng-template #noApplicationsYet>
+              <div class="application-empty-state">
+                No pending candidate applications yet. New `Apply Now` requests will appear here automatically.
+              </div>
+            </ng-template>
+          </div>
           <div class="action-group-title">Primary Actions</div>
           <div class="dashboard-card quick-action quick-action--candidate">
             <button class="quick-action-btn" (click)="addUser()">
@@ -396,4 +432,15 @@
       <app-analytics></app-analytics>
     </div>
   </main>
+</div>
+
+<div class="application-toast" *ngIf="applicationToastOpen">
+  <div class="application-toast__copy">
+    <strong>New candidate application</strong>
+    <span>{{ applicationToastMessage }}</span>
+  </div>
+  <div class="application-toast__actions">
+    <button type="button" (click)="scrollToApplications()">Review</button>
+    <button type="button" (click)="dismissApplicationToast()">Dismiss</button>
+  </div>
 </div>

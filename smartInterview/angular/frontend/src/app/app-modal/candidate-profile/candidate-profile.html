@@ -3,12 +3,19 @@
 
   <div class="hero">
     <div class="hero-main">
-      <div class="avatar">{{ initials }}</div>
+      <div class="avatar" [class.avatar--image]="candidate.profile_picture">
+        <img *ngIf="candidate.profile_picture" [src]="candidate.profile_picture" [alt]="candidate.name">
+        <span *ngIf="!candidate.profile_picture">{{ initials }}</span>
+      </div>
       <div class="hero-text">
         <h2>{{ candidate.name }}</h2>
         <p>{{ candidate.email }}</p>
-        <p class="subline">{{ resumeProfile.phone }} | {{ resumeProfile.location }}</p>
-        <span class="status-badge">{{ formattedStatus }}</span>
+        <p class="subline">{{ resumeSubline }}</p>
+        <p class="headline" *ngIf="headline">{{ headline }}</p>
+        <div class="pill-row">
+          <span class="status-badge">{{ formattedStatus }}</span>
+          <span [class]="resumeStatusClass">{{ resumeStatusLabel }}</span>
+        </div>
       </div>
     </div>
 
@@ -20,15 +27,16 @@
 
       <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
 
-      <div class="action-grid" *ngIf="statusActions.length; else noActions">
+      <div class="action-grid">
+        <button type="button" (click)="openOriginalResume()" [disabled]="!resumeData.file_url">
+          View Original Resume
+        </button>
         <button type="button" *ngFor="let item of statusActions" (click)="changeStatus(item.key)" [disabled]="loading">
           {{ item.label }}
         </button>
       </div>
 
-      <ng-template #noActions>
-        <div class="no-actions">No status transitions available for current stage.</div>
-      </ng-template>
+      <div class="no-actions" *ngIf="!statusActions.length && !resumeData.file_url">No status transitions available for current stage.</div>
     </div>
   </div>
 
@@ -49,55 +57,106 @@
       <span>Score</span>
       <strong>{{ candidate.score ?? 'N/A' }}</strong>
     </article>
+    <article>
+      <span>Resume Type</span>
+      <strong>{{ resumeData.candidate_type || 'Unknown' }}</strong>
+    </article>
+    <article>
+      <span>Resume Engagement</span>
+      <strong>{{ candidate.public_resume_downloads ?? 0 }} downloads</strong>
+    </article>
   </div>
 
+  <section class="verification-strip">
+    <div class="verification-strip__head">
+      <h4>Profile Verification</h4>
+      <span>Candidate identity and contact checks</span>
+    </div>
+    <div class="verification-list">
+      <article class="verification-card" *ngFor="let item of verificationItems">
+        <div>
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.verified ? 'Verified' : 'Pending' }}</span>
+        </div>
+        <span class="verification-state" [class.verification-state--done]="item.verified" [class.verification-state--todo]="!item.verified">
+          {{ item.verified ? 'Done' : 'Pending' }}
+        </span>
+      </article>
+    </div>
+  </section>
+
+  <section class="insight-strip">
+    <div class="insight-strip__head">
+      <h4>AI Signals</h4>
+      <span>{{ insights.loading ? 'Updating in background' : 'Recruiter-facing insight view' }}</span>
+    </div>
+    <div class="insight-grid">
+      <article class="insight-card">
+        <div class="insight-card__top">
+          <strong>Recruiter Readiness Signal</strong>
+          <span class="insight-score">{{ readinessInsightScore }}</span>
+        </div>
+        <p>{{ readinessInsightSummary }}</p>
+      </article>
+      <article class="insight-card">
+        <div class="insight-card__top">
+          <strong>Current Skills Impact</strong>
+          <span class="insight-score">{{ skillsImpactScore }}</span>
+        </div>
+        <p>{{ skillsImpactSummary }}</p>
+      </article>
+    </div>
+  </section>
+
   <div class="resume-mock">
-    <section class="resume-section">
-      <h4>Career Objective</h4>
-      <p>{{ resumeProfile.objective }}</p>
-    </section>
+    <div class="resume-state" *ngIf="resumeLoading">Processing resume profile...</div>
+    <div class="resume-state resume-state--error" *ngIf="!resumeLoading && resumeData.error_message">{{ resumeData.error_message }}</div>
+    <div class="resume-state" *ngIf="!resumeLoading && !resumeData.available && !resumeData.error_message">
+      Resume uploaded, but structured profile data is not ready yet.
+    </div>
 
-    <section class="resume-section">
-      <h4>Professional Summary</h4>
-      <ul>
-        <li *ngFor="let point of professionalSummary">{{ point }}</li>
-      </ul>
-    </section>
+    <ng-container *ngIf="!resumeLoading && resumeData.available">
+      <section class="resume-section" *ngIf="summarySection">
+        <h4>Professional Summary</h4>
+        <p>{{ summarySection }}</p>
+      </section>
 
-    <section class="resume-section">
-      <h4>Work History</h4>
-      <div class="timeline">
-        <article class="job" *ngFor="let item of workHistory">
-          <span class="duration">{{ item.duration }}</span>
-          <strong>{{ item.title }}</strong>
-          <p class="company">{{ item.company }}</p>
-          <p>{{ item.details }}</p>
-        </article>
-      </div>
-    </section>
+      <section class="resume-section" *ngIf="skillList.length">
+        <h4>Skills</h4>
+        <div class="box-list">
+          <div class="box-item" *ngFor="let skill of skillList">{{ skill }}</div>
+        </div>
+      </section>
 
-    <section class="resume-grid">
-      <article class="resume-section">
-        <h4>Technical Expertise</h4>
-        <ul>
-          <li><b>Languages:</b> {{ technicalExpertise.languages }}</li>
-          <li><b>OS:</b> {{ technicalExpertise.os }}</li>
-          <li><b>Database:</b> {{ technicalExpertise.database }}</li>
-          <li><b>Framework:</b> {{ technicalExpertise.framework }}</li>
-          <li><b>Web:</b> {{ technicalExpertise.web }}</li>
-          <li><b>Tools:</b> {{ technicalExpertise.tools }}</li>
-        </ul>
-      </article>
-      <article class="resume-section">
-        <h4>Education</h4>
-        <ul>
-          <li *ngFor="let item of education">{{ item }}</li>
-        </ul>
-      </article>
-    </section>
+      <section class="resume-section" *ngFor="let section of displaySections">
+        <h4>{{ section.title }}</h4>
+
+        <div class="timeline" *ngIf="isObjectSection(section); else plainSection">
+          <article class="job" *ngFor="let item of getObjectItems(section)">
+            <strong>{{ getObjectPrimary(item) }}</strong>
+            <div class="box-list box-list--dense" *ngIf="getObjectSecondary(item).length">
+              <div class="box-item box-item--detail" *ngFor="let detail of getObjectSecondary(item)">{{ detail }}</div>
+            </div>
+          </article>
+        </div>
+
+        <ng-template #plainSection>
+          <div class="box-list" *ngIf="getTextItems(section).length; else paragraphSection">
+            <div class="box-item" *ngFor="let item of getTextItems(section)">{{ item }}</div>
+          </div>
+        </ng-template>
+
+        <ng-template #paragraphSection>
+          <p>{{ section.content.text || section.raw_text || 'No details available.' }}</p>
+        </ng-template>
+      </section>
+    </ng-container>
   </div>
 
   <div class="footer-actions">
+    <button class="ghost" type="button" (click)="reprocessResume()" [disabled]="reprocessingResume || resumeLoading">
+      {{ reprocessingResume ? 'Reprocessing...' : 'Reprocess Resume' }}
+    </button>
     <button class="ghost" type="button" (click)="openRole()">View Role</button>
     <button class="ghost" type="button" (click)="close()">Cancel</button>
     <button class="primary" type="button" (click)="saveAndClose()">Done</button>

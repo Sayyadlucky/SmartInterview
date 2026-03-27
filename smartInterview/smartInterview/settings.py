@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+from sympy import true
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'smartInterviewApp',
     'angular',
 ]
@@ -62,6 +66,8 @@ STATICFILES_DIRS = [
     BASE_DIR / "angular/static/frontend/browser",
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 WSGI_APPLICATION = 'smartInterview.wsgi.application'
 
@@ -116,3 +122,99 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.getenv('DRF_THROTTLE_ANON_RATE', '120/minute'),
+        'user': os.getenv('DRF_THROTTLE_USER_RATE', '300/minute'),
+        'otp_request': os.getenv('OTP_REQUEST_THROTTLE_RATE', '10/minute'),
+        'otp_verify': os.getenv('OTP_VERIFY_THROTTLE_RATE', '20/minute'),
+        'otp_resend': os.getenv('OTP_RESEND_THROTTLE_RATE', '5/minute'),
+    },
+}
+
+NOTIFICATION_PROVIDER_MODE = os.getenv('NOTIFICATION_PROVIDER_MODE', 'real').strip().lower()
+MSG91_MOCK_MODE = env_bool('MSG91_MOCK_MODE', default=False)
+META_WHATSAPP_MOCK_MODE = env_bool('META_WHATSAPP_MOCK_MODE', default=False)
+EXOTEL_MOCK_MODE = env_bool('EXOTEL_MOCK_MODE', default=False)
+
+MSG91_AUTH_KEY = os.getenv('MSG91_AUTH_KEY', '')
+MSG91_SENDER_ID = os.getenv('MSG91_SENDER_ID', '')
+MSG91_ROUTE = os.getenv('MSG91_ROUTE', '4')
+MSG91_OTP_TEMPLATE_ID = os.getenv('MSG91_OTP_TEMPLATE_ID', '')
+MSG91_OTP_LENGTH = int(os.getenv('MSG91_OTP_LENGTH', '6'))
+MSG91_OTP_EXPIRY_SECONDS = int(os.getenv('MSG91_OTP_EXPIRY_SECONDS', '300'))
+MSG91_OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv('MSG91_OTP_RESEND_COOLDOWN_SECONDS', '60'))
+MSG91_OTP_MAX_VERIFY_ATTEMPTS = int(os.getenv('MSG91_OTP_MAX_VERIFY_ATTEMPTS', '5'))
+MSG91_WEBHOOK_TOKEN = os.getenv('MSG91_WEBHOOK_TOKEN', '')
+MSG91_WEBHOOK_SECRET = os.getenv('MSG91_WEBHOOK_SECRET', '')
+
+META_WHATSAPP_TOKEN = os.getenv('META_WHATSAPP_TOKEN', '')
+META_WHATSAPP_PHONE_NUMBER_ID = os.getenv('META_WHATSAPP_PHONE_NUMBER_ID', '')
+META_WHATSAPP_VERIFY_TOKEN = os.getenv('META_WHATSAPP_VERIFY_TOKEN', '')
+META_WHATSAPP_API_VERSION = os.getenv('META_WHATSAPP_API_VERSION', 'v21.0')
+META_WHATSAPP_APP_SECRET = os.getenv('META_WHATSAPP_APP_SECRET', '')
+DEFAULT_WHATSAPP_LANGUAGE_CODE = os.getenv('DEFAULT_WHATSAPP_LANGUAGE_CODE', 'en')
+CANDIDATE_SIGNUP_WHATSAPP_TEMPLATE = os.getenv('CANDIDATE_SIGNUP_WHATSAPP_TEMPLATE', 'candidate_signup_invite')
+CANDIDATE_EXISTING_WHATSAPP_TEMPLATE = os.getenv('CANDIDATE_EXISTING_WHATSAPP_TEMPLATE', 'candidate_interview_created')
+PHONE_VERIFICATION_WHATSAPP_TEMPLATE = os.getenv('PHONE_VERIFICATION_WHATSAPP_TEMPLATE', 'verify_phone_otp')
+
+EXOTEL_SID = os.getenv('EXOTEL_SID', '')
+EXOTEL_TOKEN = os.getenv('EXOTEL_TOKEN', '')
+EXOTEL_CALLER_ID = os.getenv('EXOTEL_CALLER_ID', '')
+EXOTEL_FLOW_ID = os.getenv('EXOTEL_FLOW_ID', '')
+EXOTEL_SUBDOMAIN = os.getenv('EXOTEL_SUBDOMAIN', 'api.exotel.com')
+EXOTEL_WEBHOOK_TOKEN = os.getenv('EXOTEL_WEBHOOK_TOKEN', '')
+EXOTEL_WEBHOOK_SECRET = os.getenv('EXOTEL_WEBHOOK_SECRET', '')
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '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')
+OPENAI_RESUME_MODEL = os.getenv('OPENAI_RESUME_MODEL', 'gpt-4.1-mini')
+
+NOTIFICATION_RETRY_LIMIT = int(os.getenv('NOTIFICATION_RETRY_LIMIT', '2'))
+NOTIFICATION_RETRY_BACKOFF_SECONDS = int(os.getenv('NOTIFICATION_RETRY_BACKOFF_SECONDS', '10'))
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@smartinterview.local')
+EMAIL_OTP_EXPIRY_SECONDS = int(os.getenv('EMAIL_OTP_EXPIRY_SECONDS', str(MSG91_OTP_EXPIRY_SECONDS)))
+EMAIL_OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv('EMAIL_OTP_RESEND_COOLDOWN_SECONDS', str(MSG91_OTP_RESEND_COOLDOWN_SECONDS)))
+EMAIL_OTP_MAX_VERIFY_ATTEMPTS = int(os.getenv('EMAIL_OTP_MAX_VERIFY_ATTEMPTS', str(MSG91_OTP_MAX_VERIFY_ATTEMPTS)))
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'structured': {
+            'format': '%(asctime)s %(levelname)s %(name)s %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'structured',
+        },
+    },
+    'loggers': {
+        'smartInterview.notifications': {
+            'handlers': ['console'],
+            'level': os.getenv('NOTIFICATION_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}

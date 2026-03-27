@@ -51,6 +51,11 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
   padding: 8px 12px;
 }
 
+.utility-chip-button {
+  cursor: pointer;
+  appearance: none;
+}
+
 .utility-search {
   display: flex;
   align-items: center;
@@ -77,6 +82,131 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
   color: #bceeff;
   font-size: 0.74rem;
   padding: 3px 10px;
+  cursor: pointer;
+}
+
+.application-inbox-card {
+  margin-bottom: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.application-inbox-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.application-inbox-subtitle {
+  color: #92b7d7;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.application-count-pill {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(64, 231, 255, 0.14);
+  border: 1px solid rgba(64, 231, 255, 0.28);
+  color: #baf4ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.application-inbox-list {
+  display: grid;
+  gap: 10px;
+}
+
+.application-inbox-item {
+  border: 1px solid rgba(137, 206, 246, 0.14);
+  border-radius: 12px;
+  background: rgba(5, 25, 51, 0.58);
+  padding: 11px 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.application-inbox-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.application-inbox-top strong {
+  color: #f0f9ff;
+  font-size: 0.86rem;
+}
+
+.application-status {
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  color: #d9f8ff;
+  background: rgba(64, 231, 255, 0.12);
+  border: 1px solid rgba(64, 231, 255, 0.2);
+}
+
+.application-inbox-role {
+  color: #8de7ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.application-inbox-meta,
+.application-empty-state {
+  color: #98bad7;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.application-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 60;
+  width: min(420px, calc(100vw - 28px));
+  border: 1px solid rgba(64, 231, 255, 0.22);
+  border-radius: 16px;
+  background: rgba(4, 18, 39, 0.94);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  padding: 14px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.application-toast__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.application-toast__copy strong {
+  color: #f0fbff;
+  font-size: 0.88rem;
+}
+
+.application-toast__copy span {
+  color: #b8dfff;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.application-toast__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.application-toast__actions button {
+  border: 1px solid rgba(137, 235, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(11, 54, 95, 0.7);
+  color: #d6f6ff;
+  font-size: 0.74rem;
+  padding: 6px 11px;
   cursor: pointer;
 }
 

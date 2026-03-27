@@ -43,6 +43,10 @@ export class AddUser {
   newCandidate: any = {};
   userType: any;
   readonly roleDescriptionLimit = 1200;
+  isPhoneLookupLoading = false;
+  phoneLookupMessage = '';
+  private phoneLookupTimeout: any = null;
+  private readonly phoneLookupMinDigits = 7;
 
   ngOnInit() {
     this.userType = this.data.type;
@@ -54,12 +58,82 @@ export class AddUser {
       this.getRoleList();
     }
   }
-  getRoleList() {
-    let port_number = ''
-        if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
+
+  ngOnDestroy(): void {
+    if (this.phoneLookupTimeout) {
+      clearTimeout(this.phoneLookupTimeout);
+      this.phoneLookupTimeout = null;
+    }
+  }
+
+  private getApiBaseUrl(): string {
+    let port_number = '';
+    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+      port_number = '8000';
+    }
+    return `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+  }
+
+  private normalizePhone(value: string): string {
+    return (value || '').replace(/\D/g, '');
+  }
+
+  onPhoneInput(value: string): void {
+    this.phone = value;
+    this.phoneLookupMessage = '';
+    this.errorMessage = '';
+
+    if (this.phoneLookupTimeout) {
+      clearTimeout(this.phoneLookupTimeout);
+      this.phoneLookupTimeout = null;
+    }
+
+    const normalized = this.normalizePhone(value);
+    if (normalized.length < this.phoneLookupMinDigits) {
+      this.isPhoneLookupLoading = false;
+      return;
+    }
+
+    this.isPhoneLookupLoading = true;
+    this.phoneLookupTimeout = setTimeout(() => {
+      this.lookupUserByPhone(normalized);
+    }, 450);
+  }
+
+  private lookupUserByPhone(phone: string): void {
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http
+      .get(`${apiBaseUrl}/lookup-user-by-phone/`, { params: { phone } })
+      .pipe(
+        catchError((error) => {
+          console.error('Error looking up user by phone', error);
+          this.isPhoneLookupLoading = false;
+          this.phoneLookupMessage = '';
+          return of(null);
+        })
+      )
+      .subscribe((response: any) => {
+        this.isPhoneLookupLoading = false;
+        if (!response?.Success || !response?.Data) {
+          this.phoneLookupMessage = '';
+          return;
         }
-        const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+
+        if (!response.Data.found || !response.Data.user) {
+          this.phoneLookupMessage = '';
+          return;
+        }
+
+        const user = response.Data.user;
+        this.name = user.name || '';
+        this.email = user.email || '';
+        this.gender = user.gender || '';
+        this.phoneLookupMessage = 'Existing profile found. Details auto-filled.';
+      });
+  }
+
+  getRoleList() {
+        const apiBaseUrl = this.getApiBaseUrl();
         this.http.get(apiBaseUrl + '/get-role-list/') 
           .pipe(
             catchError(error => {
@@ -77,11 +151,7 @@ export class AddUser {
 
   getRecruiters(recruiterId: any) {
     const selectedValue = (recruiterId.target as HTMLSelectElement).value;
-    let port_number = ''
-        if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
-        }
-        const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+        const apiBaseUrl = this.getApiBaseUrl();
         this.http.get(apiBaseUrl + '/get-vacancy-recruiters/'+selectedValue) 
           .pipe(
             catchError(error => {
@@ -98,11 +168,7 @@ export class AddUser {
   }
 
   getHrList() {
-    let port_number = ''
-        if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
-        }
-        const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+        const apiBaseUrl = this.getApiBaseUrl();
         this.http.get(apiBaseUrl + '/get-hr-list/') 
           .pipe(
             catchError(error => {
@@ -141,11 +207,7 @@ export class AddUser {
       return;
     }
     this.errorMessage = '';
-    let port_number = ''
-    if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-      port_number = '8000'
-    }
-     const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+     const apiBaseUrl = this.getApiBaseUrl();
       const addUrl = `${apiBaseUrl}/add-user/`;
 
         const formData = new URLSearchParams();
@@ -184,6 +246,9 @@ export class AddUser {
               this.newCandidate.recruiter = data.CandidateDetails.recruiter;
               this.newCandidate.score = data.CandidateDetails.score;
               this.newCandidate.notes = data.CandidateDetails.notes;
+              this.newCandidate.notification = data.Notification || null;
+              this.newCandidate.signupRequired = !!data.SignupRequired;
+              this.newCandidate.candidateExists = !!data.CandidateExists;
             }
             window.dispatchEvent(new CustomEvent('global-data-refresh', {
               detail: {
@@ -216,11 +281,7 @@ export class AddUser {
       return;
     }
     this.errorMessage = '';
-    let port_number = ''
-    if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-      port_number = '8000'
-    }
-     const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+     const apiBaseUrl = this.getApiBaseUrl();
       const addUrl = `${apiBaseUrl}/add-role/`;
 
         const formData = new URLSearchParams();
