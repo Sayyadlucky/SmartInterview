@@ -10,7 +10,7 @@ from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
-from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview
+from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
 from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT
@@ -311,3 +311,79 @@ class CandidateOnboardingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'invalid or has expired')
         self.assertContains(response, 'First Name')
+
+
+@override_settings(MEDIA_ROOT=tempfile.gettempdir())
+class PublicJobsPortalTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin-jobs', password='pass1234', email='admin.jobs@example.com')
+        self.admin.first_name = 'Admin'
+        self.admin.last_name = 'Jobs'
+        self.admin.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.admin, role='admin', phone='919999999991', gender='other')
+
+        self.recruiter = User.objects.create_user(username='recruiter-jobs', password='pass1234', email='recruiter.jobs@example.com')
+        self.recruiter.first_name = 'Riya'
+        self.recruiter.last_name = 'Singh'
+        self.recruiter.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.recruiter, role='recruiter', phone='919999999992', gender='female', hr=self.admin)
+
+        self.candidate = User.objects.create_user(username='candidate-jobs', password='pass1234', email='candidate.jobs@example.com')
+        self.candidate.first_name = 'Test'
+        self.candidate.last_name = 'Candidate'
+        self.candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.candidate, role='candidate', phone='919999999993', gender='male', hr=self.admin)
+
+        self.vacancy = Vacancies.objects.create(
+            role='Backend Python Developer',
+            description='Build Django APIs\nWork with recruiters\nImprove hiring workflows',
+            position='3',
+            status='active',
+            admin=self.admin,
+        )
+        self.vacancy.recruiter.add(self.recruiter)
+
+    def test_jobs_portal_is_public_and_shows_login_cta_for_apply(self):
+        response = self.client.get(reverse('jobs-portal'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Backend Python Developer')
+        self.assertContains(response, 'Login to Apply')
+
+    def test_candidate_login_honors_next_for_jobs_portal(self):
+        response = self.client.post(reverse('candidate-login'), data={
+            'username': self.candidate.email,
+            'password': 'pass1234',
+            'next': reverse('jobs-portal'),
+        })
+
+        self.assertRedirects(response, reverse('jobs-portal'))
+
+    def test_jobs_portal_shows_candidate_application_state(self):
+        CandidateVacancyApplication.objects.create(
+            candidate=self.candidate,
+            vacancy=self.vacancy,
+            status=CandidateVacancyApplication.Status.PENDING_REVIEW,
+        )
+        self.client.login(username='candidate-jobs', password='pass1234')
+
+        response = self.client.get(reverse('jobs-portal'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Pending Review')
+        self.assertContains(response, 'Withdraw')
+
+    def test_candidate_can_save_vacancy_and_see_saved_section(self):
+        self.client.login(username='candidate-jobs', password='pass1234')
+
+        save_response = self.client.post(reverse('candidate-save-vacancy'), data={'vacancy_id': self.vacancy.id})
+
+        self.assertEqual(save_response.status_code, 200)
+        self.assertTrue(save_response.json()['Success'])
+        self.assertTrue(CandidateSavedVacancy.objects.filter(candidate=self.candidate, vacancy=self.vacancy).exists())
+
+        page_response = self.client.get(reverse('jobs-portal'))
+
+        self.assertEqual(page_response.status_code, 200)
+        self.assertContains(page_response, 'Saved Postings')
+        self.assertContains(page_response, 'Remove Saved')

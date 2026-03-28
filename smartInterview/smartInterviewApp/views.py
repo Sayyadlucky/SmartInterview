@@ -32,7 +32,16 @@ def normalize_interview_status(value: str) -> str:
     return status_map.get(raw, raw.replace(' ', '_'))
 
 
+def _is_jobs_subdomain(request) -> bool:
+    host = (request.get_host() or '').split(':', 1)[0].lower()
+    return host.startswith('jobs.')
+
+
 def home(request):
+    if _is_jobs_subdomain(request):
+        from .commonViews import build_public_jobs_context
+        return render(request, 'smartInterview/jobs_portal.html', build_public_jobs_context(request))
+
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
         if form.is_valid():

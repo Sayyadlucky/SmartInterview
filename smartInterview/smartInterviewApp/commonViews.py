@@ -1,4 +1,5 @@
 import base64
+import html
 import io
 import mimetypes
 import os
@@ -9,6 +10,7 @@ import secrets
 import signal
 import subprocess
 import tempfile
+from urllib.parse import quote
 from collections import defaultdict
 from datetime import timedelta, datetime, time
 from statistics import median
@@ -22,6 +24,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .forms import LoginForm, CandidateSignupForm, CandidateLoginForm, CandidateProfileUpdateForm
 from django.shortcuts import render, redirect, get_object_or_404
@@ -38,7 +41,7 @@ from smartInterviewApp.identity_verification import CandidateIdentityVerificatio
 from smartInterviewApp.insights import CandidateInsightService
 from smartInterviewApp.otp.services import request_email_otp, request_otp, verify_email_otp, verify_otp
 from smartInterviewApp.resume_processing import ResumeProcessingService
-from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateVacancyApplication
+from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication
 
 
 SIGNUP_TOKEN_SALT = 'candidate-signup'
@@ -109,6 +112,217 @@ def build_candidate_username(email: str, phone: str) -> str:
 
 def tokenize_text(value: str) -> set[str]:
     return {token for token in re.findall(r'[a-z0-9]+', (value or '').lower()) if len(token) > 1}
+
+
+def clean_job_text(value: str, *, limit: int | None = None) -> str:
+    text = html.unescape(str(value or ''))
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    if limit and len(text) > limit:
+        return f"{text[:limit].rstrip()}..."
+    return text
+
+
+def clean_job_description(value: str, *, limit: int | None = None) -> str:
+    return clean_job_text(value, limit=limit)
+
+
+def split_job_description_points(value: str, *, limit: int = 4) -> list[str]:
+    raw_text = html.unescape(str(value or '')).replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+    raw_text = raw_text.replace('\r', '\n')
+    parts = [
+        clean_job_text(piece)
+        for piece in re.split(r'[\n;]+', raw_text)
+    ]
+    points: list[str] = []
+    for part in parts:
+        if len(part) < 3:
+            continue
+        if part in points:
+            continue
+        points.append(part)
+        if len(points) >= limit:
+            break
+    if points:
+        return points
+    excerpt = clean_job_description(value, limit=180)
+    return [excerpt] if excerpt else []
+
+
+def normalize_posted_since_filter(value: str) -> str:
+    allowed = {'1', '3', '7', '15', '30'}
+    normalized = (value or '').strip()
+    return normalized if normalized in allowed else ''
+
+
+def vacancy_recruiter_names(vacancy: Vacancies) -> list[str]:
+    return [
+        f"{member.first_name} {member.last_name}".strip().title() or member.username
+        for member in vacancy.recruiter.all()
+    ]
+
+
+def build_vacancy_card_payload(
+    vacancy: Vacancies,
+    *,
+    application: CandidateVacancyApplication | None = None,
+    is_saved: bool = False,
+) -> dict[str, object]:
+    recruiter_names = vacancy_recruiter_names(vacancy)
+    clean_description = clean_job_description(vacancy.description)
+    application_status = application.status if application else ''
+    posted_at = vacancy.date or timezone.now()
+    return {
+        'id': vacancy.id,
+        'role': clean_job_text(vacancy.role),
+        'position': clean_job_text(vacancy.position),
+        'status': vacancy.status,
+        'status_label': vacancy.status.replace('_', ' ').title(),
+        'date': posted_at,
+        'date_iso': posted_at.strftime('%Y-%m-%d'),
+        'date_display': posted_at.strftime('%b %d, %Y'),
+        'description': clean_description,
+        'description_preview': clean_job_description(vacancy.description, limit=220),
+        'highlights': split_job_description_points(vacancy.description),
+        'recruiters': recruiter_names[:3],
+        'recruiter_name': recruiter_names[0] if recruiter_names else '',
+        'admin_name': (
+            f"{vacancy.admin.first_name} {vacancy.admin.last_name}".strip().title() or vacancy.admin.username
+            if vacancy.admin else ''
+        ),
+        'application_status': application_status,
+        'application_label': application_status.replace('_', ' ').title() if application_status else 'Apply Now',
+        'has_applied': application_status in {
+            CandidateVacancyApplication.Status.PENDING_REVIEW,
+            CandidateVacancyApplication.Status.APPROVED,
+        },
+        'can_cancel_application': application_status in {
+            CandidateVacancyApplication.Status.PENDING_REVIEW,
+            CandidateVacancyApplication.Status.APPROVED,
+        },
+        'is_hidden_for_candidate': application_status == CandidateVacancyApplication.Status.NOT_INTERESTED,
+        'is_saved': is_saved,
+    }
+
+
+def build_public_jobs_context(request) -> dict[str, object]:
+    q = (request.GET.get('q') or '').strip()
+    recruiter_filter = (request.GET.get('recruiter') or '').strip()
+    posted_since = normalize_posted_since_filter(request.GET.get('posted'))
+    sort = (request.GET.get('sort') or 'recent').strip().lower()
+    if sort not in {'recent', 'oldest', 'role'}:
+        sort = 'recent'
+
+    jobs_qs = (
+        Vacancies.objects
+        .select_related('admin')
+        .prefetch_related('recruiter')
+        .exclude(status__in=['closed', 'canceled', 'hired'])
+        .order_by('-date', '-id')
+    )
+
+    if posted_since:
+        jobs_qs = jobs_qs.filter(date__gte=timezone.now() - timedelta(days=int(posted_since)))
+
+    if q:
+        jobs_qs = jobs_qs.filter(
+            Q(role__icontains=q)
+            | Q(description__icontains=q)
+            | Q(position__icontains=q)
+            | Q(recruiter__first_name__icontains=q)
+            | Q(recruiter__last_name__icontains=q)
+            | Q(admin__first_name__icontains=q)
+            | Q(admin__last_name__icontains=q)
+        ).distinct()
+
+    if recruiter_filter:
+        jobs_qs = jobs_qs.filter(
+            Q(recruiter__username__iexact=recruiter_filter)
+            | Q(recruiter__first_name__iexact=recruiter_filter)
+            | Q(recruiter__last_name__iexact=recruiter_filter)
+        ).distinct()
+
+    application_lookup: dict[int, CandidateVacancyApplication] = {}
+    saved_vacancy_ids: set[int] = set()
+    profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+    is_candidate = bool(profile and profile.role == 'candidate')
+    if is_candidate:
+        application_lookup = {
+            application.vacancy_id: application
+            for application in CandidateVacancyApplication.objects.filter(candidate=request.user)
+        }
+        saved_vacancy_ids = set(
+            CandidateSavedVacancy.objects.filter(candidate=request.user).values_list('vacancy_id', flat=True)
+        )
+
+    job_cards = [
+        build_vacancy_card_payload(
+            vacancy,
+            application=application_lookup.get(vacancy.id),
+            is_saved=vacancy.id in saved_vacancy_ids,
+        )
+        for vacancy in jobs_qs
+    ]
+    if is_candidate:
+        job_cards = [card for card in job_cards if not card['is_hidden_for_candidate']]
+
+    saved_job_cards: list[dict[str, object]] = []
+    if is_candidate and saved_vacancy_ids:
+        saved_vacancies_qs = (
+            Vacancies.objects
+            .select_related('admin')
+            .prefetch_related('recruiter')
+            .filter(id__in=saved_vacancy_ids)
+            .exclude(status__in=['closed', 'canceled', 'hired'])
+            .order_by('-date', '-id')
+        )
+        saved_job_cards = [
+            build_vacancy_card_payload(
+                vacancy,
+                application=application_lookup.get(vacancy.id),
+                is_saved=True,
+            )
+            for vacancy in saved_vacancies_qs
+            if vacancy.id not in {
+                vacancy_id
+                for vacancy_id, application in application_lookup.items()
+                if application.status == CandidateVacancyApplication.Status.NOT_INTERESTED
+            }
+        ]
+
+    if sort == 'oldest':
+        job_cards.sort(key=lambda item: (item['date'], item['id']))
+    elif sort == 'role':
+        job_cards.sort(key=lambda item: (str(item['role']).lower(), -item['id']))
+    else:
+        job_cards.sort(key=lambda item: (item['date'], item['id']), reverse=True)
+
+    recruiter_choices = sorted({
+        recruiter.username: f"{recruiter.first_name} {recruiter.last_name}".strip().title() or recruiter.username
+        for vacancy in Vacancies.objects.exclude(status__in=['closed', 'canceled', 'hired']).prefetch_related('recruiter')
+        for recruiter in vacancy.recruiter.all()
+    }.items(), key=lambda item: item[1].lower())
+
+    login_url = reverse('candidate-login')
+    if request.get_full_path():
+        login_url = f"{login_url}?next={quote(request.get_full_path(), safe='/?:=&')}"
+
+    return {
+        'job_cards': job_cards,
+        'job_count': len(job_cards),
+        'saved_job_cards': saved_job_cards,
+        'saved_job_count': len(saved_job_cards),
+        'filters': {
+            'q': q,
+            'recruiter': recruiter_filter,
+            'posted': posted_since,
+            'sort': sort,
+        },
+        'recruiter_choices': [{'value': value, 'label': label} for value, label in recruiter_choices],
+        'is_candidate_user': is_candidate,
+        'is_authenticated': request.user.is_authenticated,
+        'candidate_login_url': login_url,
+    }
 
 
 def is_identity_verified(record: CandidateIdentityVerification | None) -> bool:
@@ -208,6 +422,74 @@ def extract_resume_section_text(section: dict) -> str:
     return '\n'.join(lines).strip()
 
 
+def normalize_public_section_item(item):
+    if isinstance(item, str):
+        text = item.strip()
+        if not text:
+            return ''
+        return {
+            'title': '',
+            'degree': '',
+            'label': '',
+            'value': text,
+            'company': '',
+            'institution': '',
+            'issuer': '',
+            'location': '',
+            'role': '',
+            'description': text,
+            'duration': '',
+            'duration_text': '',
+            'start_date': '',
+            'end_date': '',
+            'employment_type': '',
+            'is_current': False,
+            'tech_stack': [],
+            'details': [],
+            'notes': [],
+        }
+    if not isinstance(item, dict):
+        return ''
+
+    details = item.get('details') or item.get('bullets') or []
+    if not isinstance(details, list):
+        details = [details] if details else []
+    notes = item.get('notes') or []
+    if not isinstance(notes, list):
+        notes = [notes] if notes else []
+
+    start_date = str(item.get('start_date') or '').strip()
+    end_date = str(item.get('end_date') or '').strip()
+    duration = str(item.get('duration') or item.get('duration_text') or '').strip()
+    if not duration and start_date and end_date:
+        duration = f'{start_date} - {end_date}'
+    elif not duration:
+        duration = start_date or end_date
+
+    normalized = {
+        'title': str(item.get('title') or '').strip(),
+        'degree': str(item.get('degree') or '').strip(),
+        'label': str(item.get('label') or '').strip(),
+        'value': str(item.get('value') or '').strip(),
+        'company': str(item.get('company') or '').strip(),
+        'institution': str(item.get('institution') or '').strip(),
+        'issuer': str(item.get('issuer') or '').strip(),
+        'location': str(item.get('location') or '').strip(),
+        'role': str(item.get('role') or '').strip(),
+        'description': str(item.get('description') or '').strip(),
+        'duration': duration,
+        'duration_text': str(item.get('duration_text') or '').strip(),
+        'start_date': start_date,
+        'end_date': end_date,
+        'employment_type': str(item.get('employment_type') or '').strip(),
+        'is_current': bool(item.get('is_current')),
+        'tech_stack': [str(value).strip() for value in (item.get('tech_stack') or []) if str(value).strip()],
+        'details': [str(value).strip() for value in details if str(value).strip()],
+        'notes': [str(value).strip() for value in notes if str(value).strip()],
+    }
+    return normalized
+
+
 def build_public_resume_context(request, candidate: User) -> dict:
     profile = getattr(candidate, 'profile', None)
     latest_resume = (
@@ -233,11 +515,17 @@ def build_public_resume_context(request, candidate: User) -> dict:
     sections = []
     for section in resume_data.get('sections') or []:
         section_text = extract_resume_section_text(section)
+        raw_items = ((section.get('content') or {}).get('items') or [])
+        normalized_items = []
+        for item in raw_items:
+            normalized_item = normalize_public_section_item(item)
+            if normalized_item:
+                normalized_items.append(normalized_item)
         sections.append({
             'title': section.get('title') or 'Section',
             'section_key': section.get('section_key') or '',
             'text': section_text,
-            'items': ((section.get('content') or {}).get('items') or []),
+            'items': normalized_items,
         })
 
     experience_section = next((section for section in sections if (section.get('section_key') or '').lower() in {'experience', 'work_history'}), None)
@@ -1219,10 +1507,14 @@ def candidateSignup(request):
 
 
 def candidateLogin(request):
+    next_url = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if next_url and not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        next_url = ''
+
     if request.user.is_authenticated:
         role = getattr(getattr(request.user, 'profile', None), 'role', '')
         if role == 'candidate':
-            return redirect('candidate-dashboard')
+            return redirect(next_url or 'candidate-dashboard')
         return redirect('/dashboard')
 
     if request.method == 'POST':
@@ -1239,11 +1531,11 @@ def candidateLogin(request):
                 form.add_error(None, 'This portal is available for candidate accounts only.')
             else:
                 login(request, user)
-                return redirect('candidate-dashboard')
+                return redirect(next_url or 'candidate-dashboard')
     else:
         form = CandidateLoginForm()
 
-    return render(request, 'smartInterview/candidate_login.html', {'form': form})
+    return render(request, 'smartInterview/candidate_login.html', {'form': form, 'next': next_url})
 
 
 @login_required(login_url='candidate-login')
@@ -1341,6 +1633,10 @@ def publicCandidateResume(request, short_code: str):
     context['export_mode'] = ''
     context['print_mode'] = request.GET.get('print') == '1'
     return render(request, 'smartInterview/public_candidate_resume.html', context)
+
+
+def publicJobsPortal(request):
+    return render(request, 'smartInterview/jobs_portal.html', build_public_jobs_context(request))
 
 
 def publicCandidateResumeWord(request, short_code: str):
@@ -1543,6 +1839,62 @@ def cancelVacancyApplication(request):
     })
 
 
+@csrf_exempt
+@login_required(login_url='candidate-login')
+def saveVacancy(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': {}})
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'candidate':
+        return JsonResponse({'Success': False, 'Error': 'Candidate access required.', 'Data': {}})
+
+    vacancy_id = (request.POST.get('vacancy_id') or '').strip()
+    if not vacancy_id.isdigit():
+        return JsonResponse({'Success': False, 'Error': 'A valid vacancy is required.', 'Data': {}})
+
+    vacancy = get_object_or_404(Vacancies, id=int(vacancy_id))
+    saved_posting, created = CandidateSavedVacancy.objects.get_or_create(candidate=request.user, vacancy=vacancy)
+
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'created': created,
+            'saved': True,
+            'message': 'Posting saved. You can revisit it from your saved section.',
+            'vacancy_id': vacancy.id,
+        }
+    })
+
+
+@csrf_exempt
+@login_required(login_url='candidate-login')
+def unsaveVacancy(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': {}})
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'candidate':
+        return JsonResponse({'Success': False, 'Error': 'Candidate access required.', 'Data': {}})
+
+    vacancy_id = (request.POST.get('vacancy_id') or '').strip()
+    if not vacancy_id.isdigit():
+        return JsonResponse({'Success': False, 'Error': 'A valid vacancy is required.', 'Data': {}})
+
+    CandidateSavedVacancy.objects.filter(candidate=request.user, vacancy_id=int(vacancy_id)).delete()
+
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'saved': False,
+            'message': 'Posting removed from saved jobs.',
+            'vacancy_id': int(vacancy_id),
+        }
+    })
+
+
 @login_required
 def recruiterApplicationFeed(request):
     profile = getattr(request.user, 'profile', None)
@@ -1683,10 +2035,16 @@ def build_candidate_dashboard_context(
             career_objective = ((section.get('content') or {}).get('text') or section.get('raw_text') or '').strip()
         if section.get('section_key') in {'summary', 'objective', 'skills'}:
             continue
+        raw_items = (section.get('content') or {}).get('items') or []
+        normalized_items = []
+        for item in raw_items:
+            normalized_item = normalize_public_section_item(item)
+            if normalized_item:
+                normalized_items.append(normalized_item)
         resume_sections.append({
             'title': section.get('title') or 'Section',
             'text': (section.get('content') or {}).get('text') or section.get('raw_text') or '',
-            'items': (section.get('content') or {}).get('items') or [],
+            'items': normalized_items,
         })
 
     current_recruiter = next((item['recruiter'] for item in timeline if item.get('recruiter')), 'Not assigned')
@@ -2129,6 +2487,38 @@ def reprocessCandidateResume(request, interview_id: int):
         })
     except Exception as e:
         return JsonResponse({'Success': False, 'Error': str(e), 'Data': None}, status=500)
+
+
+@csrf_exempt
+@login_required(login_url='candidate-login')
+def refreshCandidateResumeDetails(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+    if not _candidate_only(request):
+        return JsonResponse({'Success': False, 'Error': 'Unauthorized', 'Data': None}, status=403)
+
+    try:
+        profile = request.user.profile
+        if not profile.resume:
+            return JsonResponse({'Success': False, 'Error': 'Upload a resume before refreshing resume details.', 'Data': None}, status=400)
+
+        latest_interview = get_latest_candidate_interview(request.user)
+        resume = ResumeProcessingService().process_profile_resume(request.user, profile, interview=latest_interview)
+        CandidateInsightService().mark_stale(request.user)
+        resume_data = ResumeProcessingService().serialize_resume(resume)
+
+        return JsonResponse({
+            'Success': True,
+            'Error': None,
+            'Data': {
+                'resume': resume_data,
+                'analytics': {
+                    'resume_status': resume_data.get('status', 'missing'),
+                },
+            }
+        })
+    except Exception as exc:
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
 
 def generate_username(name: str) -> str:
     parts = name.split(" ")

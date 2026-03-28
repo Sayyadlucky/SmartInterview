@@ -444,6 +444,31 @@ class CandidateVacancyApplication(models.Model):
         return f"{self.candidate.username} -> {self.vacancy.role} ({self.status})"
 
 
+class CandidateSavedVacancy(models.Model):
+    candidate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='saved_vacancies',
+        limit_choices_to={'profile__role': 'candidate'},
+    )
+    vacancy = models.ForeignKey(
+        Vacancies,
+        on_delete=models.CASCADE,
+        related_name='saved_by_candidates',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['candidate', 'vacancy'], name='unique_candidate_saved_vacancy'),
+        ]
+
+    def __str__(self):
+        return f"{self.candidate.username} saved {self.vacancy.role}"
+
+
 class CandidatePublicResume(models.Model):
     candidate = models.OneToOneField(
         User,
