@@ -2,19 +2,32 @@
   <aside class="sidebar-panel">
     <div class="panel-title-row">
       <div>
-        <h3>Evaluators</h3>
-        <p class="panel-subtitle">Top recruiters by interviews</p>
+        <h3><i class="ph" [class.ph-identification-badge]="mode === 'recruiter'" [class.ph-user-list]="mode !== 'recruiter'"></i>{{ panelTitle }}</h3>
+        <p class="panel-subtitle">{{ panelSubtitle }}</p>
       </div>
-      <button class="primary-btn" (click)="addRecruiter()">Add Recruiter</button>
+      <button class="primary-btn" (click)="addEvaluator()"><i class="ph ph-plus"></i>{{ addButtonLabel }}</button>
     </div>
 
-    <div class="stats-row">
+    <div class="recruiter-insight-grid" *ngIf="mode === 'recruiter'">
+      <article class="insight-card" *ngFor="let card of recruiterSummaryCards">
+        <div class="insight-icon">
+          <i class="ph" [ngClass]="card.icon"></i>
+        </div>
+        <div class="insight-copy">
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.helper }}</small>
+        </div>
+      </article>
+    </div>
+
+    <div class="stats-row" [class.compact-stats]="mode === 'recruiter'">
       <div class="stat-chip">
-        <span class="stat-label">Total</span>
+        <span class="stat-label"><i class="ph ph-stack"></i> Total</span>
         <span class="stat-value">{{ totalEvaluators }}</span>
       </div>
       <div class="stat-chip">
-        <span class="stat-label">Showing</span>
+        <span class="stat-label"><i class="ph ph-eye"></i> Showing</span>
         <span class="stat-value">{{ displayedEvaluatorsCount }}</span>
       </div>
     </div>
@@ -23,7 +36,7 @@
       <i class="ph ph-magnifying-glass"></i>
       <input
         type="text"
-        placeholder="Search by name, role, email"
+        [placeholder]="mode === 'recruiter' ? 'Search by name, role, email' : 'Search by name, HR, role, email'"
         [(ngModel)]="searchTerm"
         (input)="filterEvaluators()"
       />
@@ -31,6 +44,14 @@
     </div>
 
     <div *ngIf="errorMessage" class="error-banner">{{ errorMessage }}</div>
+
+    <div class="list-section-head">
+      <div>
+        <h4><i class="ph" [class.ph-identification-card]="mode === 'recruiter'" [class.ph-users-three]="mode !== 'recruiter'"></i>{{ mode === 'recruiter' ? 'Recruiter Directory' : 'Evaluator Directory' }}</h4>
+        <p>{{ mode === 'recruiter' ? 'Select a recruiter to review ownership, linked evaluators, and activity.' : 'Select an evaluator to review interview activity and recruiter mapping.' }}</p>
+      </div>
+      <span class="directory-count">{{ displayedEvaluatorsCount }}</span>
+    </div>
 
     <div class="list-wrap" *ngIf="!loading; else loadingState">
       <button
@@ -43,27 +64,50 @@
         <span class="evaluator-meta">
           <span class="name">{{ recruiter.name }}</span>
           <span class="sub">
-            {{ recruiter.role | titlecase }} • {{ recruiter.interviews_count || 0 }} interviews • {{ recruiter.email }}
+            {{ getSecondaryMeta(recruiter) }}
+          </span>
+          <span class="sub" *ngIf="mode !== 'recruiter' && recruiter.hr_name">
+            Linked HR: {{ recruiter.hr_name }}
+          </span>
+          <span class="sub" *ngIf="mode === 'recruiter'">
+            {{ recruiter.email }}
           </span>
         </span>
       </button>
 
       <div class="empty-state" *ngIf="recruitersList.length === 0">
-        <h4>No evaluators found</h4>
-        <p>Try a different search keyword or add a recruiter.</p>
+        <h4>{{ emptyStateTitle }}</h4>
+        <p>{{ emptyStateText }}</p>
       </div>
     </div>
 
     <ng-template #loadingState>
       <div class="list-wrap">
-        <div class="loading-placeholder">Loading evaluators...</div>
+        <div class="loading-placeholder"><i class="ph ph-spinner-gap"></i> Loading evaluators...</div>
       </div>
     </ng-template>
   </aside>
 
   <main class="profile-panel">
     <ng-container *ngIf="hasSelectedEvaluator; else placeholderState">
-      <app-recuiter-profile [evaluator]="selectedEvaluator!"></app-recuiter-profile>
+      <div class="profile-workspace-head" *ngIf="mode === 'recruiter'">
+        <div>
+          <span class="workspace-kicker"><i class="ph ph-user-circle"></i>Recruiter Workspace</span>
+          <h3>{{ selectedEvaluator?.name }}</h3>
+          <p>Review recruiter ownership, connected evaluators, and candidate handling from a single panel.</p>
+        </div>
+        <div class="workspace-badges">
+          <span class="workspace-pill">
+            <i class="ph ph-users-three"></i>
+            {{ selectedEvaluator?.candidates_count || 0 }} candidates
+          </span>
+          <span class="workspace-pill">
+            <i class="ph ph-user-list"></i>
+            {{ selectedEvaluator?.interviewers_count || 0 }} evaluators
+          </span>
+        </div>
+      </div>
+      <app-recuiter-profile [evaluator]="selectedEvaluator!" [mode]="mode"></app-recuiter-profile>
     </ng-container>
 
     <ng-template #placeholderState>
@@ -74,8 +118,10 @@
           <span class="ring ring-inner"></span>
           <i class="ph ph-user-focus"></i>
         </div>
-        <h3>Select an evaluator</h3>
-        <p>Pick an evaluator from the left panel to view profile insights and interview analytics.</p>
+        <h3><i class="ph ph-cursor-click"></i>Select a {{ mode === 'recruiter' ? 'recruiter' : 'evaluator' }}</h3>
+        <p>
+          Pick a {{ mode === 'recruiter' ? 'recruiter' : 'interviewer' }} from the left panel to view profile insights and interview analytics.
+        </p>
       </div>
     </ng-template>
   </main>

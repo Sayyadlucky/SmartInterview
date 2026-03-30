@@ -1251,7 +1251,7 @@ footer {
   }
 
   .wordmark {
-    letter-spacing: 0.02em;
+    letter-spacing: -1em;
   }
 
   .hero h2 {
@@ -1328,4 +1328,149 @@ footer {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+.shortlistii-wordmark,
+.shortlistii-logo {
+  display: inline-flex;
+  align-items: flex-end;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.shortlistii-wordmark {
+  gap: 0.015em;
+}
+
+.shortlistii-logo {
+  gap: 0.015em;
+}
+
+.logo-text {
+  font-family: serif;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  color: #eaf1fb;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.shortlistii-wordmark .logo-text {
+  font-size: clamp(3.2rem, 8vw, 6.6rem);
+}
+
+.shortlistii-logo .logo-text {
+  font-size: 1.95rem;
+}
+
+.logo-dot {
+  font-size: 0.45em;
+  position: relative;
+  top: -0.08em;
+  color: #5aa9ff;
+
+  margin: 0;          /* remove all spacing */
+  padding: 0;         /* ensure no hidden spacing */
+}
+
+.logo-ii {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.025em;
+  margin-left: -0.015em;
+  line-height: 1;
+}
+
+.shortlistii-logo .logo-ii {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.025em;
+  margin-left: .4em;
+  margin-bottom: 0.3em;
+  line-height: 1;
+}
+
+.shortlistii-wordmark .logo-ii {
+  transform: scale(0.85);
+  transform-origin: top center;
+}
+
+.shortlistii-logo .logo-ii {
+  transform: scale(1.85);
+  transform-origin: bottom center;
+}
+
+.person {
+  position: relative;
+  width: 0.36em;
+  height: 0.84em;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.person .head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0.27em;
+  height: 0.27em;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #8fd0ff 0%, #5aa9ff 100%);
+  box-shadow: 0 0 12px rgba(90, 169, 255, 0.18);
+}
+
+.person .body {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0.24em;
+  height: 0.53em;
+  transform: translateX(-50%);
+  border-radius: 0.12em 0.12em 0.10em 0.10em;
+  background: #eef4ff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+
+.person .tie {
+  position: absolute;
+  top: 0.30em;
+  left: 50%;
+  width: 0.08em;
+  height: 0.30em;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #9dd5ff 0%, #5aa9ff 100%);
+  clip-path: polygon(50% 0%, 100% 18%, 72% 100%, 28% 100%, 0% 18%);
+}
+
+.com-vertical {
+  display: flex;
+  flex-direction: column-reverse;  /* 🔥 KEY FIX */
+  align-items: center;
+
+  font-size: 0.20em;
+  height: 0.6em;
+
+
+  color: rgba(230, 237, 247, 0.55);
+
+  margin-bottom: 1.2em;
+  margin-left: -1.2em;
+}
+
+.com-vertical span {
+  display: block;
+  line-height: 0.82;
+  transform: rotate(270deg);
+}
+
+.shortlistii-wordmark .com-vertical {
+  transform: translateY(-0.01em);
+}
+
+.shortlistii-logo .com-vertical {
+  height: 0.72em;
+  font-size: 0.34em;
+  margin-bottom: 0.01em;
 }

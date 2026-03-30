@@ -50,6 +50,10 @@
       <strong>{{ candidate.recruiter }}</strong>
     </article>
     <article>
+      <span>Evaluator</span>
+      <strong>{{ candidate.interviewer || 'Bot Managed' }}</strong>
+    </article>
+    <article>
       <span>Interview Date</span>
       <strong>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</strong>
     </article>
@@ -128,26 +132,26 @@
         </div>
       </section>
 
-      <section class="resume-section" *ngFor="let section of displaySections">
-        <h4>{{ section.title }}</h4>
+      <section class="resume-section" *ngFor="let sectionView of displaySectionViews; trackBy: trackSection">
+        <h4>{{ sectionView.section.title }}</h4>
 
-        <div class="timeline" *ngIf="isObjectSection(section); else plainSection">
-          <article class="job" *ngFor="let item of getObjectItems(section)">
-            <strong>{{ getObjectPrimary(item) }}</strong>
-            <div class="box-list box-list--dense" *ngIf="getObjectSecondary(item).length">
-              <div class="box-item box-item--detail" *ngFor="let detail of getObjectSecondary(item)">{{ detail }}</div>
+        <div class="timeline" *ngIf="sectionView.objectItems.length; else plainSection">
+          <article class="job" *ngFor="let item of sectionView.objectItems; trackBy: trackObjectItem">
+            <strong>{{ item.primary }}</strong>
+            <div class="box-list box-list--dense" *ngIf="item.secondary.length">
+              <div class="box-item box-item--detail" *ngFor="let detail of item.secondary; trackBy: trackString">{{ detail }}</div>
             </div>
           </article>
         </div>
 
         <ng-template #plainSection>
-          <div class="box-list" *ngIf="getTextItems(section).length; else paragraphSection">
-            <div class="box-item" *ngFor="let item of getTextItems(section)">{{ item }}</div>
+          <div class="box-list" *ngIf="sectionView.textItems.length; else paragraphSection">
+            <div class="box-item" *ngFor="let item of sectionView.textItems; trackBy: trackString">{{ item }}</div>
           </div>
         </ng-template>
 
         <ng-template #paragraphSection>
-          <p>{{ section.content.text || section.raw_text || 'No details available.' }}</p>
+          <p>{{ sectionView.paragraphText }}</p>
         </ng-template>
       </section>
     </ng-container>

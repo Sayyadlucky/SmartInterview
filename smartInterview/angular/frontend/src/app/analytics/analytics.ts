@@ -200,8 +200,29 @@ export class Analytics implements OnInit, AfterViewInit, AfterViewChecked, OnDes
   endDate = '';
   dateRangeError = '';
 
-  @ViewChild('funnelCanvas', { static: false }) funnelCanvas?: ElementRef<HTMLCanvasElement>;
-  @ViewChild('tthCanvas', { static: false }) tthCanvas?: ElementRef<HTMLCanvasElement>;
+  funnelCanvas?: ElementRef<HTMLCanvasElement>;
+  tthCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('funnelCanvas', { static: false })
+  set funnelCanvasRef(value: ElementRef<HTMLCanvasElement> | undefined) {
+    this.funnelCanvas = value;
+    if (value && this.initialized && !this.loading) {
+      requestAnimationFrame(() => {
+        const rendered = this.renderCharts();
+        this.chartRenderPending = !rendered;
+      });
+    }
+  }
+
+  @ViewChild('tthCanvas', { static: false })
+  set tthCanvasRef(value: ElementRef<HTMLCanvasElement> | undefined) {
+    this.tthCanvas = value;
+    if (value && this.initialized && !this.loading) {
+      requestAnimationFrame(() => {
+        const rendered = this.renderCharts();
+        this.chartRenderPending = !rendered;
+      });
+    }
+  }
   private funnelChart?: Chart;
   private tthChart?: Chart;
   private filterTimeoutId: ReturnType<typeof setTimeout> | null = null;

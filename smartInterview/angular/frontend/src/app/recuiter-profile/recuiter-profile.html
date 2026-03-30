@@ -1,30 +1,80 @@
 <section class="recruiter-shell" *ngIf="evaluator">
-  <div *ngIf="loading" class="state-card">Loading evaluator profile...</div>
+  <div *ngIf="loading" class="state-card"><i class="ph ph-spinner-gap"></i>Loading evaluator profile...</div>
   <div *ngIf="!loading && errorMessage" class="state-card error">{{ errorMessage }}</div>
 
   <div class="profile-canvas" *ngIf="!loading && !errorMessage">
     <section class="hero-panel">
-      <div class="hero-profile">
-        <div class="avatar-wrap">
-          <img
-            *ngIf="evaluator.gender === 'female'; else defaultAvatar"
-            src="static/assets/images/girl.png"
-            alt="Profile"
-          />
-          <ng-template #defaultAvatar>
-            <img src="static/assets/images/boy.png" alt="Profile" />
-          </ng-template>
+      <div class="hero-top-row">
+        <div class="hero-profile">
+          <div class="avatar-wrap">
+            <img
+              *ngIf="evaluator.gender === 'female'; else defaultAvatar"
+              src="static/assets/images/girl.png"
+              alt="Profile"
+            />
+            <ng-template #defaultAvatar>
+              <img src="static/assets/images/boy.png" alt="Profile" />
+            </ng-template>
+          </div>
+          <div class="identity">
+            <h2>{{ evaluator.name }}</h2>
+            <p>{{ evaluator.email }}</p>
+            <div class="identity-meta">
+              <span class="meta-pill">{{ evaluator.role | titlecase }}</span>
+              <span class="meta-pill" *ngIf="mode === 'evaluator' && evaluator.recruiter_name">Recruiter {{ evaluator.recruiter_name }}</span>
+              <span class="meta-pill" *ngIf="evaluator.phone">{{ evaluator.phone }}</span>
+              <span class="meta-pill" *ngIf="lastActiveDate">Last active {{ lastActiveDate | date:'MMM d, y, h:mm a' }}</span>
+              <span class="meta-pill" *ngIf="!lastActiveDate">No activity yet</span>
+            </div>
+          </div>
         </div>
-        <div class="identity">
-          <h2>{{ evaluator.name }}</h2>
-          <p>{{ evaluator.email }}</p>
-          <div class="identity-meta">
-            <span class="meta-pill">{{ evaluator.role | titlecase }}</span>
-            <span class="meta-pill" *ngIf="lastActiveDate">Last active {{ lastActiveDate | date:'MMM d, y, h:mm a' }}</span>
-            <span class="meta-pill" *ngIf="!lastActiveDate">No activity yet</span>
+
+        <div class="hero-actions" *ngIf="canEditProfile">
+          <button class="edit-profile-btn" type="button" *ngIf="!isEditingProfile" (click)="openEditProfile()"><i class="ph ph-pencil-simple"></i>Edit Details</button>
+          <div class="edit-actions" *ngIf="isEditingProfile">
+            <button class="ghost-btn" type="button" (click)="cancelEditProfile()" [disabled]="savingProfile"><i class="ph ph-x"></i>Cancel</button>
+            <button class="edit-profile-btn" type="button" (click)="saveRecruiterProfile()" [disabled]="savingProfile">
+              <i class="ph" [class.ph-spinner-gap]="savingProfile" [class.ph-floppy-disk]="!savingProfile"></i>{{ savingProfile ? 'Saving...' : 'Save Changes' }}
+            </button>
           </div>
         </div>
       </div>
+
+      <div class="edit-panel" *ngIf="isEditingProfile">
+        <div class="edit-grid">
+          <label class="field-block">
+            <span>Full Name</span>
+            <input type="text" [(ngModel)]="editableRecruiter.name" placeholder="Full name" />
+          </label>
+          <label class="field-block">
+            <span>Email Address</span>
+            <input type="email" [(ngModel)]="editableRecruiter.email" placeholder="Email address" />
+          </label>
+          <label class="field-block">
+            <span>Phone Number</span>
+            <input type="text" [(ngModel)]="editableRecruiter.phone" placeholder="Phone number" />
+          </label>
+          <label class="field-block">
+            <span>Gender</span>
+            <select [(ngModel)]="editableRecruiter.gender">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="field-block" *ngIf="mode === 'evaluator'">
+            <span>Recruiter Assignment</span>
+            <select [(ngModel)]="editableRecruiter.assignedRecruiterId" [disabled]="!canEditRecruiterAssignment">
+              <option value="">Not assigned</option>
+              <option *ngFor="let recruiter of recruiterOptions" [value]="recruiter.id">{{ recruiter.name }}</option>
+            </select>
+            <small *ngIf="!canEditRecruiterAssignment">No recruiter options available in your current scope.</small>
+          </label>
+        </div>
+      </div>
+
+      <div class="edit-status error" *ngIf="saveErrorMessage">{{ saveErrorMessage }}</div>
+      <div class="edit-status success" *ngIf="saveSuccessMessage">{{ saveSuccessMessage }}</div>
 
       <div class="hero-trend" [ngClass]="monthOverMonthClass">
         <span class="trend-label">Interview Momentum</span>
@@ -33,19 +83,19 @@
 
       <div class="kpi-row">
         <article class="kpi-card">
-          <span>Assigned Interviews</span>
+          <span><i class="ph ph-chats-teardrop"></i>Assigned Interviews</span>
           <strong>{{ totalInterviews }}</strong>
         </article>
         <article class="kpi-card">
-          <span>Active Pipeline</span>
+          <span><i class="ph ph-path"></i>Active Pipeline</span>
           <strong>{{ activePipelineCount }}</strong>
         </article>
         <article class="kpi-card">
-          <span>Hires</span>
+          <span><i class="ph ph-handshake"></i>Hires</span>
           <strong>{{ hiredCount }}</strong>
         </article>
         <article class="kpi-card">
-          <span>Conversion</span>
+          <span><i class="ph ph-percent"></i>Conversion</span>
           <strong>{{ completedRate }}%</strong>
         </article>
       </div>
@@ -55,7 +105,7 @@
       <div class="left-stack">
         <article class="card timeline-card">
           <div class="card-header">
-            <h3>Upcoming Interviews</h3>
+            <h3><i class="ph ph-calendar-check"></i>Upcoming Interviews</h3>
             <span>{{ upcomingInterviews.length }} total</span>
           </div>
           <ul class="timeline-list" *ngIf="upcomingInterviews.length; else noUpcoming">
@@ -66,7 +116,11 @@
               </div>
               <div class="timeline-main">
                 <strong>{{ upcoming.candidate }}</strong>
-                <small>{{ upcoming.role || 'Unassigned' }} • {{ upcoming.status | titlecase }}</small>
+                <small>
+                  {{ upcoming.role || 'Unassigned' }} • {{ upcoming.status | titlecase }}
+                  <ng-container *ngIf="mode === 'recruiter' && upcoming.interviewer"> • Evaluator {{ upcoming.interviewer }}</ng-container>
+                  <ng-container *ngIf="mode !== 'recruiter' && upcoming.recruiter"> • Recruiter {{ upcoming.recruiter }}</ng-container>
+                </small>
               </div>
             </li>
           </ul>
@@ -77,7 +131,7 @@
 
         <article class="card role-workload-card">
           <div class="card-header">
-            <h3>Role Workload</h3>
+            <h3><i class="ph ph-briefcase"></i>Role Workload</h3>
             <span>{{ insightsMonthName }} {{ insightsYear }}</span>
           </div>
           <div class="role-bars" *ngIf="selectedMonthTopRoles.length; else noRoleData">
@@ -100,7 +154,7 @@
       <div class="right-stack">
         <article class="card">
           <div class="card-header">
-            <h3>{{ calendarSectionTitle }}</h3>
+            <h3><i class="ph ph-calendar-blank"></i>{{ calendarSectionTitle }}</h3>
             <div class="calendar-switcher">
               <button type="button" (click)="changeCalendarMonth(-1)" [disabled]="!canGoPrevCalendarMonth">‹</button>
               <span>{{ calendarMonthName }} {{ calendarYear }}</span>
@@ -128,7 +182,7 @@
 
         <article class="card chart-card">
           <div class="card-header">
-            <h3>Yearly Performance</h3>
+            <h3><i class="ph ph-chart-line-up"></i>Yearly Performance</h3>
             <div class="year-header-right">
               <div class="year-switcher">
                 <button type="button" (click)="changePerformanceYear(-1)" [disabled]="!canGoPrevPerformanceYear">‹</button>
@@ -170,7 +224,7 @@
 
         <article class="card">
           <div class="card-header">
-            <h3>Monthly Insights</h3>
+            <h3><i class="ph ph-lightbulb"></i>Monthly Insights</h3>
             <div class="calendar-switcher">
               <button type="button" (click)="changeInsightsMonth(-1)" [disabled]="!canGoPrevInsightsMonth">‹</button>
               <span>{{ insightsMonthName }} {{ insightsYear }}</span>

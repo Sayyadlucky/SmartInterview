@@ -1,52 +1,93 @@
 <div class="navbar">
-  <i class="ph ph-cube text-cyan-400 text-2xl"></i>
+  <div class="navbar-brand shortlistii-logo shortlistii-navbar" aria-label="shortlistii.com">
+    <span class="logo-text">shortlist</span>
+    <span class="logo-ii" aria-hidden="true">
+      <span class="person">
+        <span class="head"></span>
+        <span class="body"></span>
+        <span class="tie"></span>
+      </span>
+      <span class="person">
+        <span class="head"></span>
+        <span class="body"></span>
+        <span class="tie"></span>
+      </span>
+    </span>
+  </div>
+  <button
+    type="button"
+    class="mobile-nav-toggle"
+    [attr.aria-expanded]="mobileNavOpen"
+    aria-label="Toggle navigation menu"
+    (click)="toggleMobileNav()">
+    <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen"></i>
+  </button>
   <div class="navbar-right">
-    <a href="#" class="active"><i class="ph ph-gauge"></i> Dashboard</a>
-    <a href="#"><i class="ph ph-briefcase"></i> Jobs</a>
-    <a href="#"><i class="ph ph-users"></i> Candidates</a>
-    <a href="#"><i class="ph ph-user-plus"></i> Talent</a>
+    <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"><i class="ph ph-gauge"></i> Dashboard</a>
+    <a routerLink="/dashboard/jobs" routerLinkActive="active"><i class="ph ph-briefcase"></i> Job Postings</a>
+    <a href="#" (click)="$event.preventDefault()"><i class="ph ph-users"></i> Candidates</a>
+    <a href="#" (click)="$event.preventDefault()"><i class="ph ph-user-plus"></i> Talent</a>
     <a href="logout/"><i class="ph ph-sign-out"></i> Logout</a>
   </div>
 </div>
+<div class="mobile-nav-panel" [class.is-open]="mobileNavOpen">
+  <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMobileNav()"><i class="ph ph-gauge"></i> Dashboard</a>
+  <a routerLink="/dashboard/jobs" routerLinkActive="active" (click)="closeMobileNav()"><i class="ph ph-briefcase"></i> Job Postings</a>
+  <a href="#" (click)="$event.preventDefault(); closeMobileNav()"><i class="ph ph-users"></i> Candidates</a>
+  <a href="#" (click)="$event.preventDefault(); closeMobileNav()"><i class="ph ph-user-plus"></i> Talent</a>
+  <a href="logout/" (click)="closeMobileNav()"><i class="ph ph-sign-out"></i> Logout</a>
+</div>
+<button
+  type="button"
+  class="mobile-nav-backdrop"
+  [class.is-open]="mobileNavOpen"
+  aria-label="Close navigation menu"
+  (click)="closeMobileNav()"></button>
 
 <div class="dashboard-wrap">
   <main class="dashboard-card dashboard-shell">
-    <div class="dashboard-title"> Welcome, {{ loginUser }}</div>
-    <div class="dashboard-utility-row">
-      <div class="utility-chip">
-        <i class="ph ph-clock-countdown"></i>
-        <span>Updated: {{ formattedLastUpdated }}</span>
+    <div class="dashboard-hero">
+      <div class="dashboard-hero-main">
+        <div class="dashboard-title"> Welcome, {{ loginUser }}</div>
+        <div class="dashboard-utility-row">
+          <div class="utility-chip">
+            <i class="ph ph-clock-countdown"></i>
+            <span>Updated: {{ formattedLastUpdated }}</span>
+          </div>
+          <button type="button" class="utility-chip utility-chip-button" *ngIf="companyProfile" (click)="openCompanyDetailsModal()">
+            <i class="ph ph-buildings"></i>
+            <span>{{ companyDisplayName }}</span>
+          </button>
+          <div class="utility-chip">
+            <i class="ph ph-briefcase"></i>
+            <span>Open Roles: {{ openRolesCount }}</span>
+          </div>
+        </div>
       </div>
-      <div class="utility-chip">
-        <i class="ph ph-briefcase"></i>
-        <span>Open Roles: {{ openRolesCount }}</span>
-      </div>
-      <button class="utility-chip utility-chip-button" type="button" (click)="scrollToApplications()">
-        <i class="ph ph-bell-ringing"></i>
-        <span>Pending Applications: {{ recruiterApplicationsCount }}</span>
+      <button type="button" class="company-identity-card" *ngIf="companyProfile" (click)="openCompanyDetailsModal()">
+        <div class="company-identity-badge" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
+        <img *ngIf="companyProfile.logo_url" class="company-identity-logo" [src]="companyProfile.logo_url" [alt]="companyDisplayName + ' logo'">
+        <div class="company-identity-copy">
+          <span class="company-identity-label">Company Profile</span>
+          <strong>{{ companyDisplayName }}</strong>
+          <small>{{ companyMetaLine }}</small>
+        </div>
+        <i class="ph ph-buildings company-identity-icon"></i>
       </button>
-      <div class="utility-search">
-        <i class="ph ph-magnifying-glass"></i>
-        <input
-          type="text"
-          [(ngModel)]="searchQuery"
-          placeholder="Search candidate, recruiter, role, status"
-        />
-        <button *ngIf="searchQuery" class="clear-search-btn" (click)="clearSearch()">Clear</button>
-      </div>
     </div>
-    <app-notification-console></app-notification-console>
+    <!-- <app-notification-console></app-notification-console> -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="overview"><i class="ph ph-chart-bar"></i> Overview</button>
-      <button class="tab-btn" data-tab="evaluators"><i class="ph ph-identification-badge"></i> Evaluators</button>
-      <button class="tab-btn" data-tab="candidates"><i class="ph ph-user"></i> Candidates</button>
+      <button class="tab-btn" [class.active]="activeTab === 'overview'" type="button" (click)="setActiveTab('overview')"><i class="ph ph-chart-bar"></i> Overview</button>
+      <button class="tab-btn" [class.active]="activeTab === 'recruiters'" type="button" (click)="setActiveTab('recruiters')" [style.display]="loginUserRole === 'admin' ? '' : 'none'"><i class="ph ph-briefcase"></i> Recruiters</button>
+      <button class="tab-btn" [class.active]="activeTab === 'evaluators'" type="button" (click)="setActiveTab('evaluators')"><i class="ph ph-identification-badge"></i> Evaluators</button>
+      <button class="tab-btn" [class.active]="activeTab === 'candidates'" type="button" (click)="setActiveTab('candidates')"><i class="ph ph-user"></i> Candidates</button>
       <!-- <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-paper-plane-right"></i> Invite <span class="soon-tag">Soon</span></button> -->
-      <button class="tab-btn" data-tab="activity"><i class="ph ph-activity"></i> Activity</button>
-      <button class="tab-btn" data-tab="analytics"><i class="ph ph-graph"></i> Analytics</button>
+      <button class="tab-btn" [class.active]="activeTab === 'activity'" type="button" (click)="setActiveTab('activity')"><i class="ph ph-activity"></i> Activity</button>
+      <button class="tab-btn" [class.active]="activeTab === 'analytics'" type="button" (click)="setActiveTab('analytics')"><i class="ph ph-graph"></i> Analytics</button>
     </div>
 
     <!-- ================= OVERVIEW TAB ================= -->
-    <div class="tab-content active" id="overview">
+    <div class="tab-content active" id="overview" *ngIf="activeTab === 'overview'">
       <div *ngIf="loading" class="loading-indicator">Loading data...</div>
       <div *ngIf="!loading">
 
@@ -57,7 +98,7 @@
         <div class="flex flex-col gap-6 overview-main-content">
           
           <!-- Summary Cards Row -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 overview-kpi-grid">
             <div class="dashboard-card py-1 text-center kpi-card">
               <div class="kpi-head"><i class="ph ph-users"></i><span>Total Candidates</span></div>
               <div class="kpi-value">{{ candidatesData?.length || 0 }}</div>
@@ -81,35 +122,38 @@
             
             <!-- Pipeline -->
             <div class="dashboard-card p-4">
-              <h3 class="text-lg font-semibold mb-4">Pipeline</h3>
+              <h3 class="section-title text-lg font-semibold mb-4">
+                <i class="ph ph-git-branch"></i>
+                <span>Pipeline</span>
+              </h3>
               <ul class="space-y-2">
                 <li class="pipeline-item bg-[#8b5cf6]" (click)="setStatusFilter('auto screening scheduled')">
                   <span class="pipeline-label"><i class="ph ph-robot"></i> Auto Screening Scheduled</span>
-                  <span class="font-bold">{{ autoScreeningScheduledCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('auto screening scheduled') }}</span>
                 </li>
                 <li class="pipeline-item bg-[#f59e0b]" (click)="setStatusFilter('assessment pending')">
                   <span class="pipeline-label"><i class="ph ph-clipboard-text"></i> Assessment Pending</span>
-                  <span class="font-bold">{{ assessmentPendingCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('assessment pending') }}</span>
                 </li>
                 <li class="pipeline-item bg-[#22d3ee]" (click)="setStatusFilter('scheduled')">
                   <span class="pipeline-label"><i class="ph ph-spinner-gap"></i> In Progress</span>
-                  <span class="font-bold">{{ scheduledCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('scheduled') }}</span>
                 </li>
                 <li class="pipeline-item bg-[#3b82f6]" (click)="setStatusFilter('shortlisted')">
                   <span class="pipeline-label"><i class="ph ph-check-circle"></i> Shortlisted</span>
-                  <span class="font-bold">{{ shortlistedCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('shortlisted') }}</span>
                 </li>
                 <li class="pipeline-item bg-[#10b981]" (click)="setStatusFilter('completed')">
                   <span class="pipeline-label"><i class="ph ph-handshake"></i> Hired</span>
-                  <span class="font-bold">{{ hiredCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('completed') }}</span>
                 </li>
                 <li class="pipeline-item bg-[#ef4444]" (click)="setStatusFilter('rejected')">
                   <span class="pipeline-label"><i class="ph ph-x-circle"></i> Disqualified</span>
-                  <span class="font-bold">{{ rejectedCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('rejected') }}</span>
                 </li>
                 <li class="pipeline-item bg-[#9ca3af]" (click)="setStatusFilter('cancelled')">
                   <span class="pipeline-label"><i class="ph ph-clock-counter-clockwise"></i> Cancelled</span>
-                  <span class="font-bold">{{ cancelledCandidates?.length || 0 }}</span>
+                  <span class="font-bold">{{ getPipelineCount('cancelled') }}</span>
                 </li>
 
               </ul>
@@ -117,7 +161,10 @@
 
             <!-- Source Performance -->
             <div class="dashboard-card p-4 source-performance-card">
-              <h3 class="source-performance-title">Source Performance</h3>
+              <h3 class="source-performance-title section-title">
+                <i class="ph ph-chart-donut"></i>
+                <span>Source Performance</span>
+              </h3>
               <div class="source-chart-wrap">
                 <canvas #sourcePerformanceCanvas></canvas>
               </div>
@@ -134,15 +181,29 @@
 
             <!-- Role Snapshot -->
             <div class="dashboard-card p-4 role-snapshot-card">
-              <h3 class="text-lg font-semibold mb-4">Role Snapshot</h3>
+              <h3 class="section-title text-lg font-semibold mb-4">
+                <i class="ph ph-briefcase-metal"></i>
+                <span>Role Snapshot</span>
+              </h3>
 
               <div *ngIf="!roleSnapshotData.length" class="py-2 text-sm text-gray-400">No role data available</div>
 
               <div class="role-snapshot-list">
                 @for (roleItem of roleSnapshotData; track roleItem.role) {
-                  <div class="role-snapshot-card-item">
+                  <button
+                    type="button"
+                    class="role-snapshot-card-item"
+                    [class.is-clickable]="!!roleItem.roleId"
+                    [disabled]="!roleItem.roleId"
+                    (click)="openRoldeModal(roleItem.roleId)">
                     <div class="role-snapshot-top">
-                      <div class="role-snapshot-title">{{ formatRoleWithId(roleItem.role, roleItem.roleId) }}</div>
+                      <div class="role-snapshot-title-group">
+                        <div class="role-snapshot-title">{{ formatRoleWithId(roleItem.role, roleItem.roleId) }}</div>
+                        <div class="role-snapshot-link" *ngIf="roleItem.roleId">
+                          <span>View details</span>
+                          <i class="ph ph-arrow-up-right"></i>
+                        </div>
+                      </div>
                       <div class="role-snapshot-rate">{{ roleItem.fulfilledPercent }}% fulfilled</div>
                     </div>
                     <div class="role-snapshot-metrics">
@@ -159,7 +220,7 @@
                         <span class="role-metric-value">{{ roleItem.hired }}</span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 }
               </div>
               <div *ngIf="hiddenRolesCount > 0" class="role-snapshot-more">
@@ -171,79 +232,51 @@
 
         <!-- Right Sidebar Actions (spans full height of both rows) -->
         <div class="action-panel">
-          <div class="dashboard-card application-inbox-card" id="recruiterApplicationPanel">
-            <div class="application-inbox-head">
-              <div>
-                <div class="action-group-title">Application Inbox</div>
-                <div class="application-inbox-subtitle">Candidate initiated job requests awaiting recruiter review</div>
-              </div>
-              <span class="application-count-pill">{{ recruiterApplicationsCount }}</span>
-            </div>
-            <div class="application-inbox-list" *ngIf="recruiterApplications.length; else noApplicationsYet">
-              @for (application of recruiterApplications; track application.id) {
-                <div class="application-inbox-item">
-                  <div class="application-inbox-top">
-                    <strong>{{ application.candidate_name }}</strong>
-                    <span class="application-status">{{ application.status_label }}</span>
-                  </div>
-                  <div class="application-inbox-role">{{ application.vacancy_role }}</div>
-                  <div class="application-inbox-meta">
-                    {{ application.candidate_email }} · {{ application.candidate_phone || 'Phone pending' }}
-                  </div>
-                  <div class="application-inbox-meta">
-                    Applied {{ application.applied_at | date:'MMM d, y, h:mm a' }}
-                  </div>
-                </div>
-              }
-            </div>
-            <ng-template #noApplicationsYet>
-              <div class="application-empty-state">
-                No pending candidate applications yet. New `Apply Now` requests will appear here automatically.
-              </div>
-            </ng-template>
+          <div class="action-group-title">
+            <i class="ph ph-lightning"></i>
+            <span>Workflow Actions</span>
           </div>
-          <div class="action-group-title">Primary Actions</div>
-          <div class="dashboard-card quick-action quick-action--candidate">
-            <button class="quick-action-btn" (click)="addUser()">
-              <i class="ph ph-user-plus"></i>
-              <span>Add Candidate</span>
+          <div class="dashboard-card quick-action quick-action--action2">
+            <button class="quick-action-btn" (click)="openPendingRequestsModal()">
+              <i class="ph ph-hourglass-medium"></i>
+              <span>Pending Requests</span>
+              <strong class="quick-action-count">{{ recruiterApplicationsCount }}</strong>
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--role">
             <button class="quick-action-btn" (click)="addRRole()">
               <i class="ph ph-briefcase"></i>
-              <span>Add Role</span>
+              <span>Post Job</span>
+            </button>
+          </div>
+          <div class="dashboard-card quick-action quick-action--candidate">
+            <button class="quick-action-btn" (click)="addUser()">
+              <i class="ph ph-user-check"></i>
+              <span>Assign Candidate</span>
+            </button>
+          </div>
+          <div class="dashboard-card quick-action quick-action--schedule">
+            <button class="quick-action-btn" (click)="openWorkflowAction('schedule')">
+              <i class="ph ph-calendar-check"></i>
+              <span>Schedule Interview</span>
+            </button>
+          </div>
+          <div class="dashboard-card quick-action quick-action--action3">
+            <button class="quick-action-btn" (click)="openWorkflowAction('bulk-assign')">
+              <i class="ph ph-users-three"></i>
+              <span>Bulk Assign Evaluator</span>
+            </button>
+          </div>
+          <div class="dashboard-card quick-action quick-action--action4">
+            <button class="quick-action-btn" (click)="openWorkflowAction('evaluation-reviews')">
+              <i class="ph ph-clipboard-text"></i>
+              <span>Evaluation Reviews</span>
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--export">
             <button class="quick-action-btn" (click)="openConfirmation()">
               <i class="ph ph-download-simple"></i>
-              <span>Export Data</span>
-            </button>
-          </div>
-          <div class="action-group-title secondary">Secondary Actions</div>
-          <div class="dashboard-card quick-action quick-action--invite">
-            <button class="quick-action-btn">
-              <i class="ph ph-paper-plane-tilt"></i>
-              <span>Invite</span>
-            </button>
-          </div>
-          <div class="dashboard-card quick-action quick-action--action2">
-            <button class="quick-action-btn">
-              <i class="ph ph-lightning"></i>
-              <span>Action 2</span>
-            </button>
-          </div>
-          <div class="dashboard-card quick-action quick-action--action3">
-            <button class="quick-action-btn">
-              <i class="ph ph-sparkle"></i>
-              <span>Action 3</span>
-            </button>
-          </div>
-          <div class="dashboard-card quick-action quick-action--action4">
-            <button class="quick-action-btn">
-              <i class="ph ph-shooting-star"></i>
-              <span>Action 4</span>
+              <span>Export Candidate Data</span>
             </button>
           </div>
         </div>
@@ -252,21 +285,27 @@
       <div class="insight-grid">
         <div class="dashboard-card insight-panel">
           <div class="insight-head">
-            <h3>Monthly Trend Cards</h3>
-            <span>Current month vs previous month</span>
+            <h3 class="section-title">
+              <i class="ph ph-chart-line-up"></i>
+              <span>Monthly Trend Cards</span>
+            </h3>
+            <span>Current month compared with the previous month</span>
           </div>
-          <div class="monthly-trend-grid">
-            @for (card of monthlyTrendCards; track card.key) {
-              <div class="trend-card">
-                <div class="trend-card-top">
-                  <div class="trend-label">
-                    <i [class]="card.icon"></i>
-                    <span>{{ card.label }}</span>
-                  </div>
-                  <span class="trend-delta" [class.up]="card.direction === 'up'" [class.down]="card.direction === 'down'" [class.flat]="card.direction === 'flat'">
-                    {{ card.deltaText }}
-                  </span>
-                </div>
+                <div class="monthly-trend-grid">
+                  @for (card of monthlyTrendCards; track card.key) {
+                    <div class="trend-card">
+                      <div class="trend-card-top">
+                        <div class="trend-label">
+                          <i [class]="card.icon"></i>
+                          <div class="trend-label-copy">
+                            <span>{{ card.label }}</span>
+                            <small>{{ card.helper }}</small>
+                          </div>
+                        </div>
+                        <span class="trend-delta" [class.up]="card.direction === 'up'" [class.down]="card.direction === 'down'" [class.flat]="card.direction === 'flat'">
+                          {{ card.deltaText }}
+                        </span>
+                      </div>
                 <div class="trend-main">{{ formatTrendValue(card) }}</div>
                 <div class="trend-sub">Prev: {{ formatPreviousTrendValue(card) }}</div>
               </div>
@@ -276,7 +315,10 @@
 
         <div class="dashboard-card insight-panel">
           <div class="insight-head">
-            <h3>Needs Attention</h3>
+            <h3 class="section-title">
+              <i class="ph ph-warning-diamond"></i>
+              <span>Needs Attention</span>
+            </h3>
             <span>Auto-detected follow-ups</span>
           </div>
           <div class="attention-filter-chip" *ngIf="attentionFilter">
@@ -349,8 +391,25 @@
           <!-- Candidate Table -->
           <div class="w-full lg:w-[75%] h-full table-panel">
             <div class="table-head">
-              <h3>Candidate Pipeline</h3>
-              <span>{{ filteredCandidates.length || 0 }} shown</span>
+              <div class="table-head-copy">
+                <h3 class="section-title">
+                  <i class="ph ph-table"></i>
+                  <span>Candidate Details</span>
+                </h3>
+                <p>Review candidate progress, assigned evaluators, and role mapping in one place.</p>
+              </div>
+              <div class="table-head-actions">
+                <div class="utility-search pipeline-table-search">
+                  <i class="ph ph-magnifying-glass"></i>
+                  <input
+                    type="text"
+                    [(ngModel)]="searchQuery"
+                    placeholder="Search candidates, recruiters, evaluators, or roles"
+                  />
+                  <button *ngIf="searchQuery" class="clear-search-btn" (click)="clearSearch()">Clear</button>
+                </div>
+                <span class="table-count-pill">{{ totalFilteredCandidatesCount }} shown</span>
+              </div>
             </div>
             <div class="min-h-[70vh] flex flex-col">
               <table class="w-full candidate-table">
@@ -358,6 +417,7 @@
                   <tr>
                     <th>Candidate</th>
                     <th>Status</th>
+                    <th>Recruiter</th>
                     <th>Evaluator</th>
                     <th>Role</th>
                   </tr>
@@ -372,6 +432,7 @@
                     </td>
                     <td>{{ candidate.status | titlecase }}</td>
                     <td>{{ candidate.recruiter }}</td>
+                    <td>{{ getEvaluatorDisplayName(candidate) }}</td>
                     <td>
                       <span class="role-link group cursor-pointer hover:underline flex items-center" (click)="openRoldeModal(candidate.role_id)">
                         {{ formatRoleWithId(candidate.role, candidate.role_id) }}
@@ -381,13 +442,13 @@
                   }
                   @if (filteredCandidates.length === 0) {
                   <tr>
-                    <td colspan="4" class="text-center py-6">
+                    <td colspan="5" class="text-center py-6">
                       <div class="empty-state">
                         <img src="static/assets/images/dataError.png" alt="No Candidates Found"
                           class="opacity-80 w-[40%] h-auto mx-auto" />
                         <h4>No candidates match your filters</h4>
                         <p>Try changing the status or search query, or add a new candidate.</p>
-                        <button class="empty-state-btn" (click)="addUser()">Add Candidate</button>
+                        <button class="empty-state-btn" (click)="addUser()">Assign Candidate</button>
                       </div>
                     </td>
                   </tr>
@@ -412,26 +473,291 @@
       </div>
     </div>
 
+    <!-- ================= RECRUITERS TAB ================= -->
+    <div class="tab-content active" id="recruiters" *ngIf="activeTab === 'recruiters' && loginUserRole === 'admin'">
+      <app-recruiters></app-recruiters>
+    </div>
+
     <!-- ================= EVALUATORS TAB ================= -->
-    <div class="tab-content" id="evaluators">
-      <app-evaluators></app-evaluators>
+    <div class="tab-content active" id="evaluators" *ngIf="activeTab === 'evaluators'">
+      <app-evaluators mode="evaluator"></app-evaluators>
     </div>
 
     <!-- ================= CANDIDATES TAB ================= -->
-    <div class="tab-content" id="candidates">
+    <div class="tab-content active" id="candidates" *ngIf="activeTab === 'candidates'">
       <app-candidates></app-candidates>
     </div>
 
     <!-- ================= ACTIVITY TAB ================= -->
-    <div class="tab-content" id="activity">
+    <div class="tab-content active" id="activity" *ngIf="activeTab === 'activity'">
       <app-activity></app-activity>
     </div>
 
     <!-- ================= ANALYTICS TAB ================= -->
-    <div class="tab-content" id="analytics">
+    <div class="tab-content active" id="analytics" *ngIf="activeTab === 'analytics'">
       <app-analytics></app-analytics>
     </div>
   </main>
+</div>
+
+<div class="company-modal-overlay" *ngIf="companyDetailsModalOpen && companyProfile" (click)="closeCompanyDetailsModal()">
+  <div class="company-modal-card" role="dialog" aria-modal="true" aria-labelledby="companyDetailsTitle" (click)="$event.stopPropagation()">
+    <button type="button" class="company-modal-close" (click)="closeCompanyDetailsModal()" aria-label="Close company details">×</button>
+    <div class="company-modal-head">
+      <div class="company-modal-brand">
+        <div class="company-modal-logo-shell" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
+        <img *ngIf="companyProfile.logo_url" class="company-modal-logo" [src]="companyProfile.logo_url" [alt]="companyDisplayName + ' logo'">
+        <div class="company-modal-title-block">
+          <span class="company-modal-kicker">Company Intelligence</span>
+          <h2 id="companyDetailsTitle">{{ companyDisplayName }}</h2>
+          <p>{{ companyMetaLine }}</p>
+        </div>
+      </div>
+      <div class="company-modal-actions">
+        <button type="button" class="company-edit-button" *ngIf="canEditCompanyProfile" (click)="toggleCompanyEditMode()">
+          <i class="ph" [class.ph-pencil-simple]="!companyEditMode" [class.ph-x]="companyEditMode"></i>
+          {{ companyEditMode ? 'Cancel Edit' : 'Edit Profile' }}
+        </button>
+        <a *ngIf="isMeaningfulCompanyValue(companyProfile.website)" [href]="companyProfile.website" target="_blank" rel="noopener">
+          <i class="ph ph-arrow-square-out"></i> Visit Website
+        </a>
+      </div>
+    </div>
+
+    <form class="company-edit-form" *ngIf="companyEditMode; else companyProfileReadView" (ngSubmit)="saveCompanyProfile()">
+      <div class="company-form-grid">
+        <label class="company-form-field company-form-field--wide">
+          <span>Legal Name</span>
+          <input [(ngModel)]="companyForm.legal_name" name="legal_name" />
+        </label>
+        <label class="company-form-field">
+          <span>Display Name</span>
+          <input [(ngModel)]="companyForm.display_name" name="display_name" />
+        </label>
+        <label class="company-form-field">
+          <span>Industry</span>
+          <input [(ngModel)]="companyForm.industry" name="industry" />
+        </label>
+        <label class="company-form-field company-form-field--wide">
+          <span>Description</span>
+          <textarea [(ngModel)]="companyForm.description" name="description" rows="4"></textarea>
+        </label>
+        <label class="company-form-field">
+          <span>Company Type</span>
+          <select [(ngModel)]="companyForm.company_type" name="company_type">
+            <option value="">Select</option>
+            <option value="private">Private Limited</option>
+            <option value="public">Public Company</option>
+            <option value="llp">LLP</option>
+            <option value="partnership">Partnership</option>
+            <option value="sole_proprietorship">Sole Proprietorship</option>
+            <option value="non_profit">Non Profit</option>
+            <option value="government">Government</option>
+            <option value="agency">Agency / Consultancy</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="company-form-field">
+          <span>Stage</span>
+          <select [(ngModel)]="companyForm.company_stage" name="company_stage">
+            <option value="">Select</option>
+            <option value="bootstrapped">Bootstrapped</option>
+            <option value="seed">Seed</option>
+            <option value="series_a">Series A</option>
+            <option value="series_b">Series B</option>
+            <option value="series_c">Series C+</option>
+            <option value="growth">Growth</option>
+            <option value="enterprise">Enterprise</option>
+            <option value="public_market">Public Market</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label class="company-form-field">
+          <span>Company Size</span>
+          <select [(ngModel)]="companyForm.company_size" name="company_size">
+            <option value="">Select</option>
+            <option value="1_10">1-10</option>
+            <option value="11_50">11-50</option>
+            <option value="51_200">51-200</option>
+            <option value="201_500">201-500</option>
+            <option value="501_1000">501-1,000</option>
+            <option value="1001_5000">1,001-5,000</option>
+            <option value="5001_10000">5,001-10,000</option>
+            <option value="10000_plus">10,000+</option>
+          </select>
+        </label>
+        <label class="company-form-field">
+          <span>Employees</span>
+          <input [(ngModel)]="companyForm.employee_count" name="employee_count" type="number" />
+        </label>
+        <label class="company-form-field">
+          <span>Founded Year</span>
+          <input [(ngModel)]="companyForm.founded_year" name="founded_year" type="number" />
+        </label>
+        <label class="company-form-field company-form-field--wide">
+          <span>Website</span>
+          <input [(ngModel)]="companyForm.website" name="website" type="url" />
+        </label>
+        <label class="company-form-field">
+          <span>Careers Page</span>
+          <input [(ngModel)]="companyForm.careers_page" name="careers_page" type="url" />
+        </label>
+        <label class="company-form-field">
+          <span>LinkedIn</span>
+          <input [(ngModel)]="companyForm.linkedin_url" name="linkedin_url" type="url" />
+        </label>
+        <label class="company-form-field">
+          <span>Twitter</span>
+          <input [(ngModel)]="companyForm.twitter_url" name="twitter_url" type="url" />
+        </label>
+        <label class="company-form-field">
+          <span>Contact Email</span>
+          <input [(ngModel)]="companyForm.contact_email" name="contact_email" type="email" />
+        </label>
+        <label class="company-form-field">
+          <span>Contact Phone</span>
+          <input [(ngModel)]="companyForm.contact_phone" name="contact_phone" />
+        </label>
+        <label class="company-form-field">
+          <span>Alternate Phone</span>
+          <input [(ngModel)]="companyForm.alternate_phone" name="alternate_phone" />
+        </label>
+        <label class="company-form-field company-form-field--wide">
+          <span>Address Line 1</span>
+          <input [(ngModel)]="companyForm.address_line_1" name="address_line_1" />
+        </label>
+        <label class="company-form-field company-form-field--wide">
+          <span>Address Line 2</span>
+          <input [(ngModel)]="companyForm.address_line_2" name="address_line_2" />
+        </label>
+        <label class="company-form-field">
+          <span>City</span>
+          <input [(ngModel)]="companyForm.city" name="city" />
+        </label>
+        <label class="company-form-field">
+          <span>State</span>
+          <input [(ngModel)]="companyForm.state" name="state" />
+        </label>
+        <label class="company-form-field">
+          <span>Postal Code</span>
+          <input [(ngModel)]="companyForm.postal_code" name="postal_code" />
+        </label>
+        <label class="company-form-field">
+          <span>Country</span>
+          <input [(ngModel)]="companyForm.country" name="country" />
+        </label>
+        <label class="company-form-field">
+          <span>Headquarters</span>
+          <input [(ngModel)]="companyForm.headquarters" name="headquarters" />
+        </label>
+        <label class="company-form-field">
+          <span>Currency</span>
+          <input [(ngModel)]="companyForm.currency_code" name="currency_code" />
+        </label>
+        <label class="company-form-field">
+          <span>Timezone</span>
+          <input [(ngModel)]="companyForm.timezone" name="timezone" />
+        </label>
+        <label class="company-form-field">
+          <span>Registration No.</span>
+          <input [(ngModel)]="companyForm.registration_number" name="registration_number" />
+        </label>
+        <label class="company-form-field">
+          <span>Tax Identifier</span>
+          <input [(ngModel)]="companyForm.tax_identifier" name="tax_identifier" />
+        </label>
+        <label class="company-form-field company-form-field--wide company-form-field--file">
+          <span>Logo Upload</span>
+          <input type="file" accept="image/*" (change)="onCompanyLogoSelected($event)" />
+          <small *ngIf="selectedCompanyLogoName">{{ selectedCompanyLogoName }}</small>
+        </label>
+      </div>
+      <div class="company-form-actions">
+        <button type="button" class="company-form-secondary" (click)="toggleCompanyEditMode()">Cancel</button>
+        <button type="submit" class="company-form-primary" [disabled]="companySaving">
+          {{ companySaving ? 'Saving...' : 'Save Company Details' }}
+        </button>
+      </div>
+    </form>
+
+    <ng-template #companyProfileReadView>
+    <div class="company-modal-grid">
+      <section class="company-panel company-panel--summary">
+        <span class="company-panel-title">Overview</span>
+        <p class="company-panel-copy">{{ companyProfile.description }}</p>
+        <div class="company-pill-row">
+          <span class="company-pill" *ngFor="let item of companyOverviewItems">
+            <strong>{{ item.label }}</strong>
+            <span>{{ item.value }}</span>
+          </span>
+        </div>
+      </section>
+
+      <section class="company-panel">
+        <span class="company-panel-title">Location</span>
+        <div class="company-detail-list">
+          <div class="company-detail-item" *ngIf="isMeaningfulCompanyValue(companyLocationLine)">
+            <i class="ph ph-map-pin-line"></i>
+            <div>
+              <span>Registered Address</span>
+              <strong>{{ companyLocationLine }}</strong>
+            </div>
+          </div>
+          <div class="company-detail-item" *ngIf="isMeaningfulCompanyValue(companyProfile.headquarters)">
+            <i class="ph ph-buildings"></i>
+            <div>
+              <span>Headquarters</span>
+              <strong>{{ companyProfile.headquarters }}</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="company-panel">
+        <span class="company-panel-title">Contact & Compliance</span>
+        <div class="company-detail-list" *ngIf="hasCompanyContacts; else contactFallback">
+          <div class="company-detail-item" *ngFor="let item of companyContacts">
+            <i [class]="item.icon"></i>
+            <div>
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+        </div>
+        <ng-template #contactFallback>
+          <div class="company-empty-state">
+            <i class="ph ph-info"></i>
+            <div>
+              <strong>Direct contact details are not currently available.</strong>
+              <span>
+                Refer to the company website
+                <a *ngIf="isMeaningfulCompanyValue(companyProfile.website)" [href]="companyProfile.website" target="_blank" rel="noopener">
+                  for official contact and compliance information
+                </a>
+                <ng-container *ngIf="!isMeaningfulCompanyValue(companyProfile.website)">
+                  for official contact and compliance information
+                </ng-container>.
+              </span>
+            </div>
+          </div>
+        </ng-template>
+      </section>
+
+      <section class="company-panel">
+        <span class="company-panel-title">Digital Presence</span>
+        <div class="company-link-grid">
+          <a class="company-link-card" *ngFor="let item of companyLinks" [href]="item.value" target="_blank" rel="noopener">
+            <i [class]="item.icon"></i>
+            <div>
+              <span>{{ item.label }}</span>
+              <strong>{{ formatCompanyLinkValue(item.value) }}</strong>
+            </div>
+          </a>
+        </div>
+      </section>
+    </div>
+    </ng-template>
+  </div>
 </div>
 
 <div class="application-toast" *ngIf="applicationToastOpen">
@@ -440,7 +766,80 @@
     <span>{{ applicationToastMessage }}</span>
   </div>
   <div class="application-toast__actions">
-    <button type="button" (click)="scrollToApplications()">Review</button>
+    <button type="button" (click)="openPendingRequestsModal()">Review</button>
     <button type="button" (click)="dismissApplicationToast()">Dismiss</button>
+  </div>
+</div>
+
+<div class="pending-requests-modal" *ngIf="pendingRequestsModalOpen" (click)="closePendingRequestsModal()">
+  <div class="pending-requests-dialog" (click)="$event.stopPropagation()">
+    <div class="pending-requests-head">
+      <div>
+        <h3>Pending Requests</h3>
+        <p>Candidate-initiated job requests awaiting recruiter review before they enter the hiring workflow.</p>
+      </div>
+      <div class="pending-requests-head-actions">
+        <button type="button" class="pending-requests-close" (click)="closePendingRequestsModal()">Close</button>
+      </div>
+    </div>
+
+    <div class="utility-search pending-requests-search">
+      <i class="ph ph-magnifying-glass"></i>
+      <input
+        type="text"
+        [(ngModel)]="pendingRequestsSearch"
+        placeholder="Search candidate, email, phone, or job title"
+      />
+      <button *ngIf="pendingRequestsSearch" class="clear-search-btn" (click)="pendingRequestsSearch = ''">Clear</button>
+    </div>
+
+    <div class="pending-requests-list" *ngIf="filteredRecruiterApplications.length; else noPendingRequests">
+      @for (application of filteredRecruiterApplications; track application.id) {
+        <div class="application-inbox-item pending-request-item" [class.is-removing]="application.removing">
+          <div class="pending-request-main">
+            <span class="pending-request-avatar">{{ getCandidateInitials(application.candidate_name) }}</span>
+            <div class="pending-request-copy">
+              <div class="application-inbox-top">
+                <button type="button" class="pending-request-name" (click)="openCandidatePublicProfile(application)">
+                  {{ application.candidate_name }}
+                </button>
+                <span class="application-status">{{ application.status_label || 'New' }}</span>
+              </div>
+              <div class="application-inbox-role">{{ application.vacancy_role }}</div>
+              <div class="application-inbox-meta">
+                {{ application.candidate_email || 'No email' }} · {{ application.candidate_phone || 'Phone pending' }}
+              </div>
+              <div class="application-inbox-meta">
+                Applied {{ application.applied_at | date:'MMM d, y, h:mm a' }}
+              </div>
+            </div>
+          </div>
+          <div class="pending-request-actions">
+            <button
+              type="button"
+              class="pending-request-btn approve"
+              [disabled]="application.actionLoading"
+              (click)="reviewPendingRequest(application, 'accept')"
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              class="pending-request-btn reject"
+              [disabled]="application.actionLoading"
+              (click)="reviewPendingRequest(application, 'reject')"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <ng-template #noPendingRequests>
+      <div class="application-empty-state">
+        No pending requests match the current list.
+      </div>
+    </ng-template>
   </div>
 </div>

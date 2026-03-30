@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
+    CompanyProfile,
     UserProfile,
     Interview,
     Notification,
@@ -31,6 +32,13 @@ admin.site.register(User, UserAdmin)
 # Register other models
 admin.site.register(Interview)
 admin.site.register(Vacancies)
+
+
+@admin.register(CompanyProfile)
+class CompanyProfileAdmin(admin.ModelAdmin):
+    list_display = ('legal_name', 'display_name', 'admin', 'website', 'logo_url', 'industry', 'city', 'country', 'is_active')
+    list_filter = ('is_active', 'company_type', 'company_stage', 'company_size', 'industry', 'country')
+    search_fields = ('legal_name', 'display_name', 'website', 'logo_url', 'company_code', 'industry', 'city', 'admin__username', 'admin__email')
 
 
 @admin.register(OtpRequest)

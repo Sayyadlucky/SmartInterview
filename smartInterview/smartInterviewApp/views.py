@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -6,11 +8,19 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.db import transaction
 
 from .forms import LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .models import Interview
+from .models import CompanyProfile, Interview
+from .commonViews import (
+    get_accessible_interviews,
+    get_accessible_interviewer_profiles,
+    send_existing_candidate_sms,
+)
+from .services.company_enrichment import ensure_company_profile_for_user
 
 
 def normalize_interview_status(value: str) -> str:
@@ -32,6 +42,15 @@ def normalize_interview_status(value: str) -> str:
     return status_map.get(raw, raw.replace(' ', '_'))
 
 
+def resolve_login_identifier(identifier: str) -> str:
+    value = (identifier or '').strip()
+    if '@' in value:
+        matched_user = User.objects.filter(email__iexact=value).first()
+        if matched_user:
+            return matched_user.username
+    return value
+
+
 def _is_jobs_subdomain(request) -> bool:
     host = (request.get_host() or '').split(':', 1)[0].lower()
     return host.startswith('jobs.')
@@ -43,7 +62,9 @@ def home(request):
         return render(request, 'smartInterview/jobs_portal.html', build_public_jobs_context(request))
 
     if request.method == 'POST':
-        form = LoginForm(request, data=request.POST)
+        post_data = request.POST.copy()
+        post_data['username'] = resolve_login_identifier(post_data.get('username', ''))
+        form = LoginForm(request, data=post_data)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
@@ -56,12 +77,12 @@ def home(request):
 
 @login_required(login_url='home')
 def dashboard(request):
-    print(request.user.is_authenticated)
+    ensure_company_profile_for_user(request.user)
     return render(request, 'smartInterview/dashboard.html')
 
 @csrf_exempt
 def ajax_login(request):
-    username = request.POST.get('username')
+    username = resolve_login_identifier(request.POST.get('username'))
     password = request.POST.get('password')
 
     user = authenticate(request, username=username, password=password)
@@ -80,31 +101,204 @@ class MyLogoutView(View):
 def dashboardData(request):
     try:
         admin = get_object_or_404(User, username=request.user.username)
-        candidates_data = Interview.objects.filter(hr=admin)
+        candidates_data = get_accessible_interviews(admin)
         candidate_list = []
         for candidate in candidates_data:
             candidate_details = {}
             candidate_details['id'] = candidate.id
             candidate_details['name'] = (candidate.candidate.first_name + " " + candidate.candidate.last_name).title()
             candidate_details['email'] = candidate.candidate.email
-            candidate_details['recruiter'] = (candidate.recruiter.first_name + " " + candidate.recruiter.last_name).title()
+            candidate_details['phone'] = getattr(getattr(candidate.candidate, 'profile', None), 'phone', '') or ''
+            candidate_details['candidate_id'] = candidate.candidate_id
+            candidate_details['recruiter'] = (candidate.recruiter.first_name + " " + candidate.recruiter.last_name).title() if candidate.recruiter else ''
+            candidate_details['recruiter_id'] = candidate.recruiter_id
+            candidate_details['interviewer'] = (candidate.interviewer.first_name + " " + candidate.interviewer.last_name).title() if candidate.interviewer else ''
+            candidate_details['interviewer_id'] = candidate.interviewer_id
+            candidate_details['interview_type'] = getattr(candidate, 'interview_type', 'manual')
             candidate_details['status'] = normalize_interview_status(candidate.status)
             candidate_details['score'] = candidate.score
             candidate_details['recording_url'] = candidate.recording_url
             candidate_details['notes'] = candidate.notes
             candidate_details['date'] = candidate.date
-            candidate_details['role'] = candidate.role.role
-            candidate_details['role_id'] = candidate.role.id
+            candidate_details['role'] = candidate.role.role if candidate.role else ''
+            candidate_details['role_id'] = candidate.role.id if candidate.role else None
 
             candidate_list.append(candidate_details)
         # login_user = serializers.serialize("json", [admin])
-        login_user = {'name': (admin.first_name).title() + " " + (admin.last_name).title()}
-        data = {'login_user':login_user, 'candidate_data': candidate_list }
+        company_profile = getattr(admin, 'company_profile', None)
+        login_user = {
+            'name': (admin.first_name).title() + " " + (admin.last_name).title(),
+            'role': getattr(getattr(admin, 'profile', None), 'role', ''),
+        }
+        company_data = None
+        if company_profile:
+            resolved_logo_url = company_profile.logo_url
+            if getattr(company_profile, 'logo', None):
+                try:
+                    resolved_logo_url = request.build_absolute_uri(company_profile.logo.url)
+                except Exception:
+                    resolved_logo_url = company_profile.logo_url
+            company_data = {
+                'legal_name': company_profile.legal_name,
+                'display_name': company_profile.display_name,
+                'description': company_profile.description,
+                'industry': company_profile.industry,
+                'sub_industry': company_profile.sub_industry,
+                'company_type': company_profile.company_type,
+                'company_stage': company_profile.company_stage,
+                'company_size': company_profile.company_size,
+                'employee_count': company_profile.employee_count,
+                'founded_year': company_profile.founded_year,
+                'website': company_profile.website,
+                'careers_page': company_profile.careers_page,
+                'linkedin_url': company_profile.linkedin_url,
+                'twitter_url': company_profile.twitter_url,
+                'logo_url': resolved_logo_url,
+                'contact_email': company_profile.contact_email,
+                'contact_phone': company_profile.contact_phone,
+                'alternate_phone': company_profile.alternate_phone,
+                'address_line_1': company_profile.address_line_1,
+                'address_line_2': company_profile.address_line_2,
+                'landmark': company_profile.landmark,
+                'city': company_profile.city,
+                'state': company_profile.state,
+                'postal_code': company_profile.postal_code,
+                'country': company_profile.country,
+                'headquarters': company_profile.headquarters,
+                'registration_number': company_profile.registration_number,
+                'tax_identifier': company_profile.tax_identifier,
+                'currency_code': company_profile.currency_code,
+                'timezone': company_profile.timezone,
+                'updated_at': company_profile.updated_at.isoformat() if company_profile.updated_at else '',
+            }
+        data = {'login_user':login_user, 'candidate_data': candidate_list, 'company_profile': company_data }
         data = {"Success": True, "Error": None, "Data":data}
 
         return JsonResponse(data)
     except Exception as e:
         return JsonResponse({"Success":False, "Data":"Something Went Wrong"})
+
+
+@csrf_exempt
+@login_required
+def updateCompanyProfile(request):
+    if request.method != 'POST':
+        return JsonResponse({"Success": False, "Error": "Only POST is allowed."}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'admin':
+        return JsonResponse({"Success": False, "Error": "Admin access is required."}, status=403)
+
+    company_profile = get_object_or_404(CompanyProfile, admin=request.user)
+
+    def clean_text(name: str) -> str:
+        return (request.POST.get(name) or '').strip()
+
+    def clean_optional_int(name: str):
+        raw = clean_text(name)
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    valid_company_types = set(CompanyProfile.CompanyType.values)
+    valid_company_stages = set(CompanyProfile.CompanyStage.values)
+    valid_company_sizes = set(CompanyProfile.CompanySize.values)
+
+    company_profile.legal_name = clean_text('legal_name') or company_profile.legal_name or 'TBD'
+    company_profile.display_name = clean_text('display_name') or company_profile.display_name or company_profile.legal_name
+    company_profile.description = clean_text('description')
+    company_profile.industry = clean_text('industry')
+    company_profile.sub_industry = clean_text('sub_industry')
+
+    company_type = clean_text('company_type')
+    company_stage = clean_text('company_stage')
+    company_size = clean_text('company_size')
+    if company_type in valid_company_types:
+        company_profile.company_type = company_type
+    if company_stage in valid_company_stages:
+        company_profile.company_stage = company_stage
+    if company_size in valid_company_sizes:
+        company_profile.company_size = company_size
+
+    company_profile.employee_count = clean_optional_int('employee_count')
+    company_profile.founded_year = clean_optional_int('founded_year')
+    company_profile.website = clean_text('website')
+    company_profile.careers_page = clean_text('careers_page')
+    company_profile.linkedin_url = clean_text('linkedin_url')
+    company_profile.twitter_url = clean_text('twitter_url')
+    company_profile.contact_email = clean_text('contact_email')
+    company_profile.contact_phone = clean_text('contact_phone')
+    company_profile.alternate_phone = clean_text('alternate_phone')
+    company_profile.address_line_1 = clean_text('address_line_1')
+    company_profile.address_line_2 = clean_text('address_line_2')
+    company_profile.landmark = clean_text('landmark')
+    company_profile.city = clean_text('city')
+    company_profile.state = clean_text('state')
+    company_profile.postal_code = clean_text('postal_code')
+    company_profile.country = clean_text('country') or company_profile.country or 'India'
+    company_profile.headquarters = clean_text('headquarters')
+    company_profile.registration_number = clean_text('registration_number')
+    company_profile.tax_identifier = clean_text('tax_identifier')
+    company_profile.currency_code = clean_text('currency_code') or company_profile.currency_code or 'INR'
+    company_profile.timezone = clean_text('timezone') or company_profile.timezone or 'Asia/Kolkata'
+
+    uploaded_logo = request.FILES.get('logo')
+    if uploaded_logo:
+        company_profile.logo = uploaded_logo
+
+    company_profile.save()
+
+    if uploaded_logo and getattr(company_profile, 'logo', None):
+        company_profile.logo_url = request.build_absolute_uri(company_profile.logo.url)
+        company_profile.save(update_fields=['logo_url', 'updated_at'])
+
+    resolved_logo_url = company_profile.logo_url
+    if getattr(company_profile, 'logo', None):
+        try:
+            resolved_logo_url = request.build_absolute_uri(company_profile.logo.url)
+        except Exception:
+            resolved_logo_url = company_profile.logo_url
+
+    return JsonResponse({
+        "Success": True,
+        "Error": None,
+        "Data": {
+            'legal_name': company_profile.legal_name,
+            'display_name': company_profile.display_name,
+            'description': company_profile.description,
+            'industry': company_profile.industry,
+            'sub_industry': company_profile.sub_industry,
+            'company_type': company_profile.company_type,
+            'company_stage': company_profile.company_stage,
+            'company_size': company_profile.company_size,
+            'employee_count': company_profile.employee_count,
+            'founded_year': company_profile.founded_year,
+            'website': company_profile.website,
+            'careers_page': company_profile.careers_page,
+            'linkedin_url': company_profile.linkedin_url,
+            'twitter_url': company_profile.twitter_url,
+            'logo_url': resolved_logo_url,
+            'contact_email': company_profile.contact_email,
+            'contact_phone': company_profile.contact_phone,
+            'alternate_phone': company_profile.alternate_phone,
+            'address_line_1': company_profile.address_line_1,
+            'address_line_2': company_profile.address_line_2,
+            'landmark': company_profile.landmark,
+            'city': company_profile.city,
+            'state': company_profile.state,
+            'postal_code': company_profile.postal_code,
+            'country': company_profile.country,
+            'headquarters': company_profile.headquarters,
+            'registration_number': company_profile.registration_number,
+            'tax_identifier': company_profile.tax_identifier,
+            'currency_code': company_profile.currency_code,
+            'timezone': company_profile.timezone,
+            'updated_at': company_profile.updated_at.isoformat() if company_profile.updated_at else '',
+        }
+    })
 
 @csrf_exempt
 @login_required
@@ -130,3 +324,145 @@ def updateCandidateStatus(request):
         })
     except Exception as e:
         return JsonResponse({"Success":False, "Error":str(e)})
+
+
+@csrf_exempt
+@login_required
+def updateInterviewWorkflow(request):
+    if request.method != 'POST':
+        return JsonResponse({"Success": False, "Error": "Only POST is allowed."}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in {'admin', 'recruiter'}:
+        return JsonResponse({"Success": False, "Error": "Admin or recruiter access is required."}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({"Success": False, "Error": "Invalid request payload."}, status=400)
+
+    interview_ids = payload.get('interview_ids') or []
+    if not isinstance(interview_ids, list):
+        return JsonResponse({"Success": False, "Error": "Interview selection is invalid."}, status=400)
+
+    cleaned_ids: list[int] = []
+    for value in interview_ids:
+        try:
+            cleaned_ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+
+    if not cleaned_ids:
+        return JsonResponse({"Success": False, "Error": "Select at least one candidate."}, status=400)
+
+    accessible_qs = get_accessible_interviews(request.user).filter(id__in=cleaned_ids)
+    interviews = list(accessible_qs.select_related('interviewer'))
+    if len(interviews) != len(set(cleaned_ids)):
+        return JsonResponse({"Success": False, "Error": "One or more selected candidates are not accessible."}, status=403)
+
+    interviewer_id = payload.get('interviewer_id')
+    interview_type = str(payload.get('interview_type') or 'manual').strip().lower()
+    if interview_type not in {'manual', 'auto'}:
+        return JsonResponse({"Success": False, "Error": "Please select a valid interview type."}, status=400)
+
+    interviewer_user = None
+    if interview_type == 'manual' and interviewer_id not in (None, '', 'null'):
+        try:
+            interviewer_id = int(interviewer_id)
+        except (TypeError, ValueError):
+            return JsonResponse({"Success": False, "Error": "Please select a valid evaluator."}, status=400)
+
+        interviewer_profile = (
+            get_accessible_interviewer_profiles(request.user)
+            .select_related('user')
+            .filter(user_id=interviewer_id)
+            .first()
+        )
+        if not interviewer_profile:
+            return JsonResponse({"Success": False, "Error": "The selected evaluator is not available to this account."}, status=400)
+        interviewer_user = interviewer_profile.user
+
+    scheduled_at_raw = str(payload.get('scheduled_at') or '').strip()
+    scheduled_at = None
+    if scheduled_at_raw:
+        scheduled_at = parse_datetime(scheduled_at_raw)
+        if not scheduled_at:
+            return JsonResponse({"Success": False, "Error": "Please provide a valid interview date and time."}, status=400)
+        if timezone.is_naive(scheduled_at):
+            scheduled_at = timezone.make_aware(scheduled_at, timezone.get_current_timezone())
+
+    mode = (payload.get('mode') or '').strip().lower()
+    if mode == 'schedule' and not scheduled_at:
+        return JsonResponse({"Success": False, "Error": "Interview schedule time is required."}, status=400)
+    if mode == 'bulk-assign' and not interviewer_user:
+        return JsonResponse({"Success": False, "Error": "Please select an evaluator."}, status=400)
+    if mode == 'schedule' and interview_type == 'manual' and not interviewer_user:
+        return JsonResponse({"Success": False, "Error": "Please select an evaluator for a manual interview."}, status=400)
+
+    updated_items = []
+    notifications = []
+    with transaction.atomic():
+        for interview in interviews:
+            update_fields: list[str] = []
+
+            if mode == 'schedule' and interview.interview_type != interview_type:
+                interview.interview_type = interview_type
+                update_fields.append('interview_type')
+
+            if interview_type == 'auto':
+                if interview.interviewer_id is not None:
+                    interview.interviewer = None
+                    update_fields.append('interviewer')
+            elif interviewer_user and interview.interviewer_id != interviewer_user.id:
+                interview.interviewer = interviewer_user
+                update_fields.append('interviewer')
+
+            if scheduled_at:
+                interview.date = scheduled_at
+                if mode == 'schedule':
+                    interview.status = 'scheduled'
+                    update_fields.append('status')
+                elif interview.status != 'scheduled':
+                    interview.status = 'scheduled'
+                    update_fields.append('status')
+                update_fields.append('date')
+
+            if update_fields:
+                interview.save(update_fields=list(dict.fromkeys(update_fields)))
+
+            updated_items.append({
+                "id": interview.id,
+                "interviewer_id": interview.interviewer_id,
+                "interviewer": (
+                    f"{interview.interviewer.first_name} {interview.interviewer.last_name}".strip().title()
+                    if interview.interviewer else ''
+                ),
+                "interview_type": getattr(interview, 'interview_type', 'manual'),
+                "status": normalize_interview_status(interview.status),
+                "date": interview.date.isoformat() if interview.date else '',
+            })
+
+            if mode == 'schedule':
+                try:
+                    notifications.append({
+                        "interview_id": interview.id,
+                        "result": send_existing_candidate_sms(interview.candidate, interview),
+                    })
+                except Exception as exc:
+                    notifications.append({
+                        "interview_id": interview.id,
+                        "result": {
+                            "sent": False,
+                            "reason": str(exc),
+                        },
+                    })
+
+    return JsonResponse({
+        "Success": True,
+        "Error": None,
+        "Data": {
+            "updated_count": len(updated_items),
+            "items": updated_items,
+            "notifications": notifications,
+        }
+    })

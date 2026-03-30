@@ -3,8 +3,8 @@
     <button class="modal-close" type="button" (click)="closeModal()">×</button>
 
     <div class="modal-head">
-      <h2>Add {{ userType }}</h2>
-      <p>Add candidate details and assign role/recruiter in one step.</p>
+      <h2>{{ userType === 'Candidate' ? 'Assign Candidate' : 'Add ' + userType }}</h2>
+      <p>{{ userType === 'Candidate' ? 'Assign candidate details and link the profile to the correct hiring owner.' : 'Add details and link the record to the correct hiring owner.' }}</p>
     </div>
 
     <div *ngIf="errorMessage" class="form-alert">{{ errorMessage }}</div>
@@ -62,29 +62,60 @@
           </div>
         </div>
 
-        <div class="field" *ngIf="userType !== 'Recruiter'">
-          <label for="role">Role</label>
+        <div class="field" *ngIf="userType === 'Recruiter'">
+          <label for="password">Password</label>
           <div class="input-shell">
-            <i class="ph ph-briefcase"></i>
-            <select
-              id="role"
-              name="role"
-              [(ngModel)]="role"
+            <i class="ph ph-lock-key"></i>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              [(ngModel)]="password"
               required
-              (change)="getRecruiters($event)"
-            >
-              <option value="" disabled>Select Role</option>
-              <option *ngFor="let r of role_list" [value]="r.id">{{ r.name }} - {{ r.id }}</option>
-            </select>
+              minlength="8"
+              placeholder="Minimum 8 characters"
+            />
           </div>
         </div>
 
-        <div class="field" *ngIf="userType !== 'Recruiter'">
-          <label for="recruiter">Recruiter</label>
+        <div class="field" *ngIf="userType === 'Candidate'">
+          <label for="role">Role</label>
+          <div class="multi-select-wrap">
+            <div class="input-shell">
+              <i class="ph ph-briefcase"></i>
+              <input
+                id="role"
+                name="roleQuery"
+                type="text"
+                [ngModel]="roleQuery"
+                (ngModelChange)="onCandidateRoleInputChange($event)"
+                (focus)="onCandidateRoleInputFocus()"
+                (blur)="onCandidateRoleInputBlur()"
+                required
+                placeholder="Search role title or id"
+                autocomplete="off"
+              />
+            </div>
+            <div class="multi-select-menu" *ngIf="showCandidateRoleMenu && ((roleQuery || '').trim().length >= 3)">
+              <button
+                type="button"
+                class="multi-option"
+                *ngFor="let r of filteredCandidateRoles"
+                (mousedown)="selectCandidateRole(r.id, r.name)"
+              >
+                {{ r.name }} - {{ r.id }}
+              </button>
+              <div class="multi-empty" *ngIf="!filteredCandidateRoles.length">No role found</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field" *ngIf="userType === 'Candidate' || userType === 'Interviewer'">
+          <label for="recruiter">{{ userType === 'Interviewer' ? 'Recruiter / HR' : 'Recruiter' }}</label>
           <div class="input-shell">
             <i class="ph ph-user-list"></i>
             <select id="recruiter" name="recruiter" [(ngModel)]="recruiter" required>
-              <option value="" disabled>Select Recruiter</option>
+              <option value="" disabled>{{ userType === 'Interviewer' ? 'Select Recruiter / HR' : 'Select Recruiter' }}</option>
               <option *ngFor="let r of recruiter_list" [value]="r.id">{{ r.name }}</option>
             </select>
           </div>
@@ -93,14 +124,7 @@
         <div class="field">
           <label for="gender">Gender</label>
           <div class="input-shell">
-            <i
-              [ngClass]="{
-                'ph ph-gender-male': gender === 'male',
-                'ph ph-gender-female': gender === 'female',
-                'ph ph-gender-nonbinary': gender === 'other',
-                'ph ph-user': gender === ''
-              }"
-            ></i>
+            <i [class]="getGenderIconClass()"></i>
             <select id="gender" name="gender" [(ngModel)]="gender" required>
               <option value="" disabled>Select Gender</option>
               <option value="male">Male</option>
@@ -115,8 +139,8 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
         <button type="button" class="btn btn-primary" (click)="addCandidate()">
-          <i class="ph ph-plus"></i>
-          Add {{ userType }}
+          <i class="ph ph-user-check"></i>
+          {{ userType === 'Candidate' ? 'Assign Candidate' : 'Add ' + userType }}
         </button>
       </div>
     </form>
@@ -128,18 +152,22 @@
     <button class="modal-close" type="button" (click)="closeModal()">×</button>
 
     <div class="modal-head">
-      <h2>Add {{ userType }}</h2>
-      <p>Define role details and assign owner recruiter.</p>
+      <h2>Post Job</h2>
+      <p>Define the job details and assign the owning recruiter.</p>
     </div>
 
     <div *ngIf="errorMessage" class="form-alert">{{ errorMessage }}</div>
 
     <form name="addRoleForm" class="dialog-form">
-      <div class="role-preview">
+        <div class="role-preview">
         <div class="role-preview-title">{{ rolePreviewTitle }}</div>
         <div class="role-preview-meta">
           <span><i class="ph ph-user-list"></i> {{ selectedRecruiterName }}</span>
           <span><i class="ph ph-hash"></i> {{ vacancies || '0' }} openings</span>
+          <span><i class="ph ph-briefcase"></i> {{ jobType || 'Job type pending' }}</span>
+          <span><i class="ph ph-map-pin"></i> {{ location || 'Location pending' }}</span>
+          <span><i class="ph ph-currency-circle-dollar"></i> {{ salaryRange || 'Salary range pending' }}</span>
+          <span><i class="ph ph-briefcase-metal"></i> {{ experienceRequired || 'Experience pending' }}</span>
           <span><i class="ph ph-text-t"></i> {{ descriptionPlainTextLength }} chars</span>
         </div>
       </div>
@@ -207,6 +235,69 @@
         </div>
 
         <div class="field">
+          <label for="jobType">Job Type</label>
+          <div class="input-shell">
+            <i class="ph ph-briefcase"></i>
+            <select
+              id="jobType"
+              name="jobType"
+              [(ngModel)]="jobType"
+              required
+            >
+              <option value="">Select job type</option>
+              <option value="full_time">Full Time</option>
+              <option value="part_time">Part Time</option>
+              <option value="intern">Intern</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="location">Location</label>
+          <div class="input-shell">
+            <i class="ph ph-map-pin"></i>
+            <input
+              id="location"
+              name="location"
+              type="text"
+              [(ngModel)]="location"
+              required
+              placeholder="e.g. Noida Sector 62 / Remote"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="salaryRange">Salary Range</label>
+          <div class="input-shell">
+            <i class="ph ph-currency-circle-dollar"></i>
+            <input
+              id="salaryRange"
+              name="salaryRange"
+              type="text"
+              [(ngModel)]="salaryRange"
+              required
+              placeholder="e.g. 8 LPA - 12 LPA"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="experienceRequired">Experience Required</label>
+          <div class="input-shell">
+            <i class="ph ph-briefcase-metal"></i>
+            <input
+              id="experienceRequired"
+              name="experienceRequired"
+              type="text"
+              [(ngModel)]="experienceRequired"
+              required
+              placeholder="e.g. 2-5 years"
+            />
+          </div>
+        </div>
+
+        <div class="field">
           <label for="recruiter">Recruiter</label>
           <div class="multi-select-wrap">
             <div class="input-shell">
@@ -216,13 +307,13 @@
                 name="recruiterSearch"
                 type="text"
                 [(ngModel)]="recruiterSearchQuery"
-                placeholder="Search recruiter and click to add"
+                placeholder="Type at least 3 characters to search recruiter"
                 (focus)="openRoleRecruiterMenu()"
                 (blur)="closeRoleRecruiterMenu()"
               />
             </div>
 
-            <div class="multi-select-menu" *ngIf="showRoleRecruiterMenu">
+            <div class="multi-select-menu" *ngIf="showRoleRecruiterMenu && ((recruiterSearchQuery || '').trim().length >= 3)">
               <button
                 type="button"
                 class="multi-option"
@@ -248,7 +339,7 @@
         <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
         <button type="button" class="btn btn-primary" (click)="addRole()">
           <i class="ph ph-plus"></i>
-          Add {{ userType }}
+          Post Job
         </button>
       </div>
     </form>

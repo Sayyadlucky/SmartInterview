@@ -28,16 +28,23 @@ export class AddUser {
   name: string = '';
   email: string = '';
   phone: string = '';
+  password: string = '';
   role: string = '';
   errorMessage: string = '';
   description: string = '';
   vacancies: string = '';
+  jobType: string = '';
+  location: string = '';
+  salaryRange: string = '';
+  experienceRequired: string = '';
   recruiter_list: any[] = [];
   recruiter: string = '';
   recruiterSearchQuery = '';
   selectedRoleRecruiterIds: string[] = [];
   showRoleRecruiterMenu = false;
   role_list: any[] = [];
+  roleQuery = '';
+  showCandidateRoleMenu = false;
   gender: string = '';
 
   newCandidate: any = {};
@@ -56,6 +63,9 @@ export class AddUser {
     }
     if(this.userType === 'Candidate'){
       this.getRoleList();
+    }
+    if(this.userType === 'Interviewer'){
+      this.getHrList();
     }
   }
 
@@ -76,6 +86,13 @@ export class AddUser {
 
   private normalizePhone(value: string): string {
     return (value || '').replace(/\D/g, '');
+  }
+
+  getGenderIconClass(): string {
+    if (this.gender === 'male') return 'ph ph-gender-male';
+    if (this.gender === 'female') return 'ph ph-gender-female';
+    if (this.gender === 'other') return 'ph ph-gender-nonbinary';
+    return 'ph ph-user';
   }
 
   onPhoneInput(value: string): void {
@@ -145,12 +162,20 @@ export class AddUser {
             this.data = response;
             if(this.data?.RoleData){
               this.role_list = this.data.RoleData;
+              this.syncCandidateRoleLabel();
             }
           });
   }
 
   getRecruiters(recruiterId: any) {
-    const selectedValue = (recruiterId.target as HTMLSelectElement).value;
+    const selectedValue = typeof recruiterId === 'string'
+      ? recruiterId
+      : (recruiterId.target as HTMLSelectElement).value;
+    if (!selectedValue) {
+      this.recruiter_list = [];
+      this.recruiter = '';
+      return;
+    }
         const apiBaseUrl = this.getApiBaseUrl();
         this.http.get(apiBaseUrl + '/get-vacancy-recruiters/'+selectedValue) 
           .pipe(
@@ -165,6 +190,50 @@ export class AddUser {
               this.recruiter_list = this.data.RecruiterData;
             }
           });
+  }
+
+  get filteredCandidateRoles(): any[] {
+    const search = (this.roleQuery || '').trim().toLowerCase();
+    if (search.length < 3) {
+      return [];
+    }
+    return (this.role_list || []).filter((r: any) => {
+      const label = `${r.name || ''} ${r.id || ''}`.toLowerCase();
+      return label.includes(search);
+    }).slice(0, 50);
+  }
+
+  onCandidateRoleInputFocus(): void {
+    this.showCandidateRoleMenu = true;
+  }
+
+  onCandidateRoleInputChange(value: string): void {
+    this.roleQuery = value;
+    this.showCandidateRoleMenu = true;
+    if (!value.trim()) {
+      this.role = '';
+      this.recruiter_list = [];
+      this.recruiter = '';
+    }
+  }
+
+  onCandidateRoleInputBlur(): void {
+    setTimeout(() => {
+      this.showCandidateRoleMenu = false;
+      this.syncCandidateRoleLabel();
+    }, 120);
+  }
+
+  selectCandidateRole(roleId: any, roleName: string): void {
+    this.role = String(roleId);
+    this.roleQuery = `${roleName} - ${roleId}`;
+    this.showCandidateRoleMenu = false;
+    this.getRecruiters(this.role);
+  }
+
+  private syncCandidateRoleLabel(): void {
+    const selected = (this.role_list || []).find((r: any) => String(r.id) === String(this.role));
+    this.roleQuery = selected ? `${selected.name} - ${selected.id}` : '';
   }
 
   getHrList() {
@@ -192,8 +261,20 @@ export class AddUser {
       this.errorMessage = 'All fields are required.';
       return;
     }
-    if(this.userType !== 'Recruiter' && !this.role){
+    if (this.userType === 'Recruiter' && !this.password) {
+      this.errorMessage = 'Password is required for recruiter login.';
+      return;
+    }
+    if (this.userType === 'Recruiter' && this.password.length < 8) {
+      this.errorMessage = 'Recruiter password must be at least 8 characters.';
+      return;
+    }
+    if(this.userType === 'Candidate' && !this.role){
       this.errorMessage = 'All fields are required.';
+      return;
+    }
+    if(this.userType === 'Interviewer' && !this.recruiter){
+      this.errorMessage = 'Please select a recruiter for this evaluator.';
       return;
     }
     // Name must contain at least one space between words
@@ -214,6 +295,7 @@ export class AddUser {
         formData.append('email', this.email);
         formData.append('name', this.name);
         formData.append('phone', this.phone);
+        formData.append('password', this.password);
         formData.append('role', this.userType);
         formData.append('profile', this.role);
         formData.append('gender', this.gender);
@@ -229,7 +311,7 @@ export class AddUser {
         .then(response => response.json())
         .then(data => {
           if (data && data.Success) {
-            if(this.userType === 'Recruiter'){
+            if(this.userType === 'Recruiter' || this.userType === 'Interviewer'){
               this.newCandidate.id = data.RecruiterData.id;
               this.newCandidate.name = data.RecruiterData.name;
               this.newCandidate.email = data.RecruiterData.email;
@@ -252,7 +334,7 @@ export class AddUser {
             }
             window.dispatchEvent(new CustomEvent('global-data-refresh', {
               detail: {
-                entity: this.userType === 'Recruiter' ? 'recruiter' : 'candidate',
+                entity: this.userType === 'Recruiter' ? 'recruiter' : this.userType === 'Interviewer' ? 'interviewer' : 'candidate',
                 action: 'add',
                 updatedAt: new Date().toISOString(),
               }
@@ -267,7 +349,7 @@ export class AddUser {
         });
   }
   addRole() {
-    if (!this.name || !this.descriptionControl.value || !this.vacancies) {
+    if (!this.name || !this.descriptionControl.value || !this.vacancies || !this.jobType || !this.location || !this.salaryRange || !this.experienceRequired) {
       this.errorMessage = 'All fields are required.';
       return;
     }
@@ -288,6 +370,10 @@ export class AddUser {
         formData.append('description', this.description);
         formData.append('name', this.name);
         formData.append('vacancies', this.vacancies);
+        formData.append('job_type', this.jobType);
+        formData.append('location', this.location);
+        formData.append('salary_range', this.salaryRange);
+        formData.append('experience_required', this.experienceRequired);
         formData.append('status', 'active');
         this.selectedRoleRecruiterIds.forEach((id) => formData.append('recruiter', id));
 
@@ -306,6 +392,10 @@ export class AddUser {
             this.NewRole.name = data.Data.RoleDetails.name;
             this.NewRole.description = data.Data.RoleDetails.description;
             this.NewRole.vacancies = data.Data.RoleDetails.vacancies;
+            this.NewRole.job_type = data.Data.RoleDetails.job_type;
+            this.NewRole.location = data.Data.RoleDetails.location;
+            this.NewRole.salary_range = data.Data.RoleDetails.salary_range;
+            this.NewRole.experience_required = data.Data.RoleDetails.experience_required;
             this.NewRole.date = data.Data.RoleDetails.date;
             this.NewRole.status = data.Data.RoleDetails.status;
             window.dispatchEvent(new CustomEvent('global-data-refresh', {
@@ -360,10 +450,12 @@ export class AddUser {
 
   get filteredRoleRecruiters(): any[] {
     const search = (this.recruiterSearchQuery || '').trim().toLowerCase();
+    if (search.length < 3) {
+      return [];
+    }
     return (this.recruiter_list || []).filter((r: any) => {
       const id = String(r.id);
       if (this.selectedRoleRecruiterIds.includes(id)) return false;
-      if (!search) return true;
       return (r.name || '').toString().toLowerCase().includes(search);
     }).slice(0, 50);
   }

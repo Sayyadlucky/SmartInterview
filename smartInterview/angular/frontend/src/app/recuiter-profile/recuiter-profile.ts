@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Chart, registerables } from 'chart.js';
 import { catchError, of } from 'rxjs';
+import { FormsModule } from '@angular/forms';
 
 Chart.register(...registerables);
 
@@ -12,7 +13,17 @@ interface Evaluator {
   email: string;
   role: string;
   gender?: string;
+  phone?: string;
+  company_url?: string;
   user_id?: number;
+  profile_id?: number;
+  recruiter_id?: number;
+  recruiter_name?: string;
+}
+
+interface RecruiterOption {
+  id: number;
+  name: string;
 }
 
 interface InterviewItem {
@@ -22,6 +33,8 @@ interface InterviewItem {
   score?: number | null;
   role?: string;
   date: string;
+  recruiter?: string;
+  interviewer?: string;
 }
 
 interface InterviewProfileResponse {
@@ -30,19 +43,38 @@ interface InterviewProfileResponse {
   Interviews?: InterviewItem[];
 }
 
+interface RecruiterDirectoryResponse {
+  Success: boolean;
+  Error?: string | null;
+  RecruiterData?: Array<{ id: number; name: string }>;
+}
+
 @Component({
   selector: 'app-recuiter-profile',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './recuiter-profile.html',
   styleUrl: './recuiter-profile.scss'
 })
 export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() evaluator!: Evaluator;
+  @Input() mode: 'evaluator' | 'recruiter' = 'evaluator';
   @ViewChild('performanceChartCanvas') performanceChartCanvas?: ElementRef<HTMLCanvasElement>;
 
   loading = false;
   errorMessage = '';
+  saveErrorMessage = '';
+  saveSuccessMessage = '';
+  savingProfile = false;
+  isEditingProfile = false;
   interviews: InterviewItem[] = [];
+  editableRecruiter = {
+    name: '',
+    email: '',
+    phone: '',
+    gender: 'other',
+    assignedRecruiterId: ''
+  };
+  recruiterOptions: RecruiterOption[] = [];
 
   hiredCount = 0;
   pendingCount = 0;
@@ -84,14 +116,24 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
   constructor(private http: HttpClient) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['evaluator'] && this.evaluator?.email) {
+    if (changes['evaluator'] && this.hasProfileLookupValue()) {
+      this.isEditingProfile = false;
+      this.saveErrorMessage = '';
+      this.saveSuccessMessage = '';
+      this.hydrateEditableRecruiter();
       this.loadRecruiterProfile();
+    }
+    if (changes['mode'] && this.mode === 'evaluator') {
+      this.loadRecruiterOptions();
     }
   }
 
   ngOnInit(): void {
     window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
     window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
+    if (this.mode === 'evaluator') {
+      this.loadRecruiterOptions();
+    }
   }
 
   ngOnDestroy(): void {
@@ -112,6 +154,14 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
 
   get totalInterviews(): number {
     return this.interviews.length;
+  }
+
+  get canEditProfile(): boolean {
+    return !!(this.evaluator?.user_id || this.evaluator?.id);
+  }
+
+  get canEditRecruiterAssignment(): boolean {
+    return this.mode === 'evaluator' && this.recruiterOptions.length > 0;
   }
 
   get activePipelineCount(): number {
@@ -169,6 +219,93 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
     if (this.monthOverMonthDelta > 0) return 'trend-up';
     if (this.monthOverMonthDelta < 0) return 'trend-down';
     return 'trend-flat';
+  }
+
+  openEditProfile(): void {
+    if (!this.canEditProfile || this.savingProfile) return;
+    this.saveErrorMessage = '';
+    this.saveSuccessMessage = '';
+    this.hydrateEditableRecruiter();
+    this.isEditingProfile = true;
+  }
+
+  cancelEditProfile(): void {
+    if (this.savingProfile) return;
+    this.isEditingProfile = false;
+    this.saveErrorMessage = '';
+    this.saveSuccessMessage = '';
+    this.hydrateEditableRecruiter();
+  }
+
+  saveRecruiterProfile(): void {
+    if (!this.canEditProfile || this.savingProfile) return;
+
+    const recruiterId = this.evaluator?.user_id || this.evaluator?.id;
+    const name = (this.editableRecruiter.name || '').trim();
+    const email = (this.editableRecruiter.email || '').trim();
+    if (!recruiterId || !name || !email) {
+      this.saveErrorMessage = 'Name and email are required.';
+      this.saveSuccessMessage = '';
+      return;
+    }
+
+    const apiBaseUrl = this.getApiBaseUrl();
+    const body = new URLSearchParams();
+    body.set('recruiter_id', String(recruiterId));
+    body.set('name', name);
+    body.set('email', email);
+    body.set('phone', (this.editableRecruiter.phone || '').trim());
+    body.set('gender', (this.editableRecruiter.gender || 'other').trim().toLowerCase());
+    body.set('profile_type', this.mode === 'recruiter' ? 'recruiter' : 'evaluator');
+    if (this.mode === 'evaluator') {
+      body.set('assigned_recruiter_id', this.editableRecruiter.assignedRecruiterId || '');
+    }
+
+    this.savingProfile = true;
+    this.saveErrorMessage = '';
+    this.saveSuccessMessage = '';
+
+    this.http.post<any>(`${apiBaseUrl}/update-recruiter-details/`, body.toString(), {
+      headers: new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' })
+    })
+      .pipe(
+        catchError((error) => {
+          console.error('Error updating profile details', error);
+          this.savingProfile = false;
+          this.saveSuccessMessage = '';
+          this.saveErrorMessage = error?.error?.Error || 'Failed to update profile details.';
+          return of({ Success: false, Error: this.saveErrorMessage });
+        })
+      )
+      .subscribe((response) => {
+        if (!response?.Success) {
+          this.savingProfile = false;
+          this.saveSuccessMessage = '';
+          this.saveErrorMessage = response?.Error || 'Failed to update profile details.';
+          return;
+        }
+
+        const updated = response?.RecruiterData || {};
+        this.evaluator = {
+          ...this.evaluator,
+          id: updated.id || this.evaluator.id,
+          user_id: updated.user_id || this.evaluator.user_id || this.evaluator.id,
+          profile_id: updated.profile_id || this.evaluator.profile_id,
+          name: updated.name || name,
+          email: updated.email || email,
+          phone: updated.phone ?? this.editableRecruiter.phone,
+          gender: updated.gender || this.editableRecruiter.gender,
+          company_url: updated.company_url || this.evaluator.company_url || '',
+          recruiter_id: updated.recruiter_id ?? this.evaluator.recruiter_id,
+          recruiter_name: updated.recruiter_name || this.getSelectedRecruiterName(),
+        };
+        this.hydrateEditableRecruiter();
+        this.isEditingProfile = false;
+        this.savingProfile = false;
+        this.saveErrorMessage = '';
+        this.saveSuccessMessage = 'Profile details updated.';
+        window.dispatchEvent(new CustomEvent('global-data-refresh'));
+      });
   }
 
   get hasPerformanceData(): boolean {
@@ -356,6 +493,50 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
     return `${window.location.protocol}//${window.location.hostname}:${portNumber}`;
   }
 
+  private hasProfileLookupValue(): boolean {
+    return !!(this.evaluator?.user_id || this.evaluator?.id || this.evaluator?.email);
+  }
+
+  private hydrateEditableRecruiter(): void {
+    this.editableRecruiter = {
+      name: this.evaluator?.name || '',
+      email: this.evaluator?.email || '',
+      phone: this.evaluator?.phone || '',
+      gender: this.evaluator?.gender || 'other',
+      assignedRecruiterId: this.evaluator?.recruiter_id ? String(this.evaluator.recruiter_id) : '',
+    };
+  }
+
+  private loadRecruiterOptions(): void {
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http.get<RecruiterDirectoryResponse>(`${apiBaseUrl}/get-hr-list/`)
+      .pipe(
+        catchError((error) => {
+          console.error('Error fetching recruiter options', error);
+          this.recruiterOptions = [];
+          return of({ Success: false, RecruiterData: [] } as RecruiterDirectoryResponse);
+        })
+      )
+      .subscribe((response) => {
+        const raw = Array.isArray(response?.RecruiterData) ? response.RecruiterData : [];
+        this.recruiterOptions = raw.map((item) => ({ id: item.id, name: item.name }));
+        if (this.mode === 'evaluator' && this.evaluator?.recruiter_id && !this.recruiterOptions.some((item) => item.id === this.evaluator.recruiter_id)) {
+          this.recruiterOptions = [
+            ...this.recruiterOptions,
+            { id: this.evaluator.recruiter_id, name: this.evaluator.recruiter_name || 'Assigned recruiter' }
+          ];
+        }
+        if (!this.editableRecruiter.assignedRecruiterId && this.evaluator?.recruiter_id) {
+          this.editableRecruiter.assignedRecruiterId = String(this.evaluator.recruiter_id);
+        }
+      });
+  }
+
+  private getSelectedRecruiterName(): string {
+    const selectedId = Number(this.editableRecruiter.assignedRecruiterId);
+    return this.recruiterOptions.find((item) => item.id === selectedId)?.name || this.evaluator?.recruiter_name || '';
+  }
+
   private normalizeStatus(value: string): string {
     return (value || '')
       .toString()
@@ -383,14 +564,16 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
   }
 
   loadRecruiterProfile(): void {
-    if (!this.evaluator?.email && !this.evaluator?.id) return;
+    if (!this.hasProfileLookupValue()) return;
 
     this.loading = true;
     this.errorMessage = '';
     const apiBaseUrl = this.getApiBaseUrl();
     const body = new URLSearchParams();
     if (this.evaluator.email) body.append('recruiter', this.evaluator.email);
-    if (this.evaluator.id) body.append('recruiter_id', String(this.evaluator.id));
+    if (this.evaluator.user_id) body.append('recruiter_id', String(this.evaluator.user_id));
+    else if (this.evaluator.id) body.append('recruiter_id', String(this.evaluator.id));
+    body.append('profile_type', this.mode);
 
     this.http
       .post<InterviewProfileResponse>(`${apiBaseUrl}/get-evaluator-profile/`, body.toString(), {
@@ -398,9 +581,11 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
       })
       .pipe(
         catchError((error) => {
-          console.error('Error fetching recruiter profile', error);
+          console.error(`Error fetching ${this.mode} profile`, error);
           this.loading = false;
-          this.errorMessage = 'Failed to load evaluator profile.';
+          this.errorMessage = this.mode === 'recruiter'
+            ? 'Failed to load recruiter profile.'
+            : 'Failed to load evaluator profile.';
           return of({ Success: false, Interviews: [] } as InterviewProfileResponse);
         })
       )
@@ -409,7 +594,9 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
           if (!response?.Success) {
             this.interviews = [];
             this.loading = false;
-            this.errorMessage = response?.Error || 'Failed to load evaluator profile.';
+            this.errorMessage = response?.Error || (this.mode === 'recruiter'
+              ? 'Failed to load recruiter profile.'
+              : 'Failed to load evaluator profile.');
             this.rebuildDerivedState();
             this.destroyChart();
             return;

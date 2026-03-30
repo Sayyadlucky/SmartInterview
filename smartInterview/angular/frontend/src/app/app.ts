@@ -1,12 +1,10 @@
 import { Component, signal } from '@angular/core';
-import { Dashboard } from './dashboard/dashboard';
+import { RouterOutlet } from '@angular/router';
 import { ParticleBackgroundComponent } from './particle-background/particle-background';
 
 @Component({
   selector: 'app-root',
-  imports: [Dashboard,
-    ParticleBackgroundComponent,
-  ],
+  imports: [RouterOutlet, ParticleBackgroundComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 }

@@ -145,6 +145,19 @@ class CandidateOnboardingTests(TestCase):
         self.recruiter.save(update_fields=['first_name', 'last_name'])
         UserProfile.objects.create(user=self.recruiter, role='recruiter', phone='918888888888', gender='male', hr=self.admin)
 
+        self.interviewer = User.objects.create_user(username='interviewer1', password='pass1234', email='interviewer@example.com')
+        self.interviewer.first_name = 'Interviewer'
+        self.interviewer.last_name = 'One'
+        self.interviewer.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(
+            user=self.interviewer,
+            role='interviewer',
+            phone='917777777777',
+            gender='male',
+            hr=self.admin,
+            recruiter=self.recruiter,
+        )
+
         self.role = Vacancies.objects.create(
             role='Python Developer',
             description='Backend role',
@@ -311,6 +324,51 @@ class CandidateOnboardingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'invalid or has expired')
         self.assertContains(response, 'First Name')
+
+    def test_hr_and_admin_dashboard_data_include_interviewer_hierarchy(self):
+        candidate = User.objects.create_user(username='cand-hierarchy', password='pass1234', email='hierarchy@example.com')
+        candidate.first_name = 'Hierarchy'
+        candidate.last_name = 'Candidate'
+        candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919555555555', gender='female', hr=self.admin)
+
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            hr=self.admin,
+            status='scheduled',
+            role=self.role,
+        )
+
+        admin_eval_response = self.client.get(reverse('get-evaluator'))
+        self.assertEqual(admin_eval_response.status_code, 200)
+        admin_eval_payload = admin_eval_response.json()
+        self.assertTrue(admin_eval_payload['Success'])
+        self.assertEqual(admin_eval_payload['RecruiterData'][0]['email'], self.interviewer.email)
+
+        admin_candidates_response = self.client.get(reverse('candidates-tab-data'))
+        self.assertEqual(admin_candidates_response.status_code, 200)
+        admin_candidates_payload = admin_candidates_response.json()
+        self.assertTrue(admin_candidates_payload['Success'])
+        self.assertEqual(admin_candidates_payload['Data']['candidates'][0]['interviewer'], 'Interviewer One')
+        self.assertEqual(admin_candidates_payload['Data']['candidates'][0]['recruiter'], 'Recruiter One')
+
+        self.client.logout()
+        self.client.login(username='recruiter1', password='pass1234')
+
+        hr_eval_response = self.client.get(reverse('get-evaluator'))
+        self.assertEqual(hr_eval_response.status_code, 200)
+        hr_eval_payload = hr_eval_response.json()
+        self.assertTrue(hr_eval_payload['Success'])
+        self.assertEqual(hr_eval_payload['RecruiterData'][0]['email'], self.interviewer.email)
+
+        hr_profile_response = self.client.post(reverse('get-evaluator-profile'), data={'recruiter_id': self.interviewer.profile.id})
+        self.assertEqual(hr_profile_response.status_code, 200)
+        hr_profile_payload = hr_profile_response.json()
+        self.assertTrue(hr_profile_payload['Success'])
+        self.assertEqual(hr_profile_payload['Interviews'][0]['candidate'], 'Hierarchy Candidate')
+        self.assertEqual(hr_profile_payload['Interviews'][0]['recruiter'], 'Recruiter One')
 
 
 @override_settings(MEDIA_ROOT=tempfile.gettempdir())

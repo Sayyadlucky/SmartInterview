@@ -8,6 +8,7 @@ class UserProfile(models.Model):
     ROLE_CHOICES = (
         ('candidate', 'Candidate'),
         ('recruiter', 'Recruiter'),
+        ('interviewer', 'Interviewer'),
         ('admin', 'Admin'),
     )
     Gender_CHOICES = (
@@ -17,12 +18,20 @@ class UserProfile(models.Model):
     )
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='candidate')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='candidate')
     profile_picture = models.FileField(upload_to='profile_pictures/', blank=True, null=True)
     resume = models.FileField(upload_to='resumes/', blank=True, null=True)
     notifications_enabled = models.BooleanField(default=True)
     phone = models.CharField(max_length=15,null=True)
     gender = models.CharField(max_length=10, null=True, choices=Gender_CHOICES, default='other')
+    company_url = models.URLField(blank=True, default='')
+    company = models.ForeignKey(
+        'CompanyProfile',
+        on_delete=models.SET_NULL,
+        related_name='user_profiles',
+        null=True,
+        blank=True
+    )
     hr = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -30,11 +39,115 @@ class UserProfile(models.Model):
         limit_choices_to={'profile__role': 'admin'},
         null=True, blank=True
     )
+    recruiter = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='assigned_interviewers',
+        limit_choices_to={'profile__role': 'recruiter'},
+        null=True, blank=True
+    )
     def __str__(self):
         return f"{self.user.username} ({self.role})"
 
 
+class CompanyProfile(models.Model):
+    class CompanyType(models.TextChoices):
+        PRIVATE = 'private', 'Private Limited'
+        PUBLIC = 'public', 'Public Company'
+        LLP = 'llp', 'LLP'
+        PARTNERSHIP = 'partnership', 'Partnership'
+        SOLE = 'sole_proprietorship', 'Sole Proprietorship'
+        NON_PROFIT = 'non_profit', 'Non Profit'
+        GOVERNMENT = 'government', 'Government'
+        AGENCY = 'agency', 'Agency / Consultancy'
+        OTHER = 'other', 'Other'
+
+    class CompanyStage(models.TextChoices):
+        BOOTSTRAPPED = 'bootstrapped', 'Bootstrapped'
+        SEED = 'seed', 'Seed'
+        SERIES_A = 'series_a', 'Series A'
+        SERIES_B = 'series_b', 'Series B'
+        SERIES_C = 'series_c', 'Series C+'
+        GROWTH = 'growth', 'Growth'
+        ENTERPRISE = 'enterprise', 'Enterprise'
+        PUBLIC = 'public_market', 'Public Market'
+        OTHER = 'other', 'Other'
+
+    class CompanySize(models.TextChoices):
+        SOLO = '1_10', '1-10'
+        SMALL = '11_50', '11-50'
+        MID_SMALL = '51_200', '51-200'
+        MID = '201_500', '201-500'
+        LARGE = '501_1000', '501-1,000'
+        XL = '1001_5000', '1,001-5,000'
+        XXL = '5001_10000', '5,001-10,000'
+        ENTERPRISE = '10000_plus', '10,000+'
+
+    admin = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='company_profile',
+        limit_choices_to={'profile__role': 'admin'},
+    )
+    legal_name = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255, blank=True, default='')
+    company_code = models.CharField(max_length=50, blank=True, default='', db_index=True)
+    description = models.TextField(blank=True, default='')
+    industry = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    sub_industry = models.CharField(max_length=120, blank=True, default='')
+    company_type = models.CharField(max_length=30, choices=CompanyType.choices, default=CompanyType.PRIVATE)
+    company_stage = models.CharField(max_length=30, choices=CompanyStage.choices, blank=True, default='')
+    company_size = models.CharField(max_length=20, choices=CompanySize.choices, blank=True, default='')
+    employee_count = models.PositiveIntegerField(null=True, blank=True)
+    founded_year = models.PositiveIntegerField(null=True, blank=True)
+
+    website = models.URLField(blank=True, default='')
+    careers_page = models.URLField(blank=True, default='')
+    linkedin_url = models.URLField(blank=True, default='')
+    twitter_url = models.URLField(blank=True, default='')
+    logo_url = models.URLField(blank=True, default='')
+    logo = models.FileField(upload_to='company_logos/', blank=True, null=True)
+
+    contact_email = models.EmailField(blank=True, default='')
+    contact_phone = models.CharField(max_length=20, blank=True, default='')
+    alternate_phone = models.CharField(max_length=20, blank=True, default='')
+
+    address_line_1 = models.CharField(max_length=255, blank=True, default='')
+    address_line_2 = models.CharField(max_length=255, blank=True, default='')
+    landmark = models.CharField(max_length=255, blank=True, default='')
+    city = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    state = models.CharField(max_length=120, blank=True, default='')
+    postal_code = models.CharField(max_length=20, blank=True, default='')
+    country = models.CharField(max_length=120, blank=True, default='India')
+    headquarters = models.CharField(max_length=255, blank=True, default='')
+    timezone = models.CharField(max_length=80, blank=True, default='Asia/Kolkata')
+
+    registration_number = models.CharField(max_length=120, blank=True, default='')
+    tax_identifier = models.CharField(max_length=120, blank=True, default='')
+    currency_code = models.CharField(max_length=10, blank=True, default='INR')
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['legal_name', 'id']
+        indexes = [
+            models.Index(fields=['industry', 'city']),
+            models.Index(fields=['company_code']),
+            models.Index(fields=['legal_name']),
+        ]
+
+    def __str__(self):
+        return self.display_name or self.legal_name
+
+
 class Interview(models.Model):
+    INTERVIEW_TYPE_CHOICES = (
+        ('manual', 'Manual Interview'),
+        ('auto', 'Auto Interview'),
+    )
+
     STATUS_CHOICES = (
         ('scheduled', 'Scheduled'),
         ('completed', 'Completed'),
@@ -59,6 +172,18 @@ class Interview(models.Model):
         related_name='recruiter_interviews',
         limit_choices_to={'profile__role': 'recruiter'},
         null=True, blank=True
+    )
+    interviewer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='interviewer_interviews',
+        limit_choices_to={'profile__role': 'interviewer'},
+        null=True, blank=True
+    )
+    interview_type = models.CharField(
+        max_length=20,
+        choices=INTERVIEW_TYPE_CHOICES,
+        default='manual'
     )
     date = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='scheduled')
@@ -383,6 +508,11 @@ class UserNotificationPreference(models.Model):
 
 
 class Vacancies(models.Model):
+    class JobType(models.TextChoices):
+        FULL_TIME = 'full_time', 'Full Time'
+        PART_TIME = 'part_time', 'Part Time'
+        INTERN = 'intern', 'Intern'
+
     STATUS_CHOICES = (
         ('active', 'Active'),
         ('hired', 'Hired'),
@@ -398,8 +528,19 @@ class Vacancies(models.Model):
     )
     description = models.TextField()
     position = models.CharField(max_length=100)
+    job_type = models.CharField(max_length=20, choices=JobType.choices, blank=True, default='')
+    location = models.CharField(max_length=160, blank=True, default='')
+    salary_range = models.CharField(max_length=120, blank=True, default='')
+    experience_required = models.CharField(max_length=120, blank=True, default='')
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='active')
     date = models.DateTimeField(default=timezone.now)
+    company = models.ForeignKey(
+        'CompanyProfile',
+        on_delete=models.SET_NULL,
+        related_name='vacancies',
+        null=True,
+        blank=True,
+    )
     admin = models.ForeignKey(User, null=True, on_delete=models.CASCADE, related_name='admin', limit_choices_to={'profile__role': 'admin'})
 
     def __str__(self):

@@ -11,6 +11,11 @@
   padding: 26px;
 }
 
+.state-card i {
+  margin-right: 8px;
+  color: #78dfff;
+}
+
 .state-card.error {
   border-color: rgba(247, 133, 133, 0.35);
   color: #fecaca;
@@ -43,6 +48,9 @@
 .filter-item label {
   color: #8cb2d3;
   font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .filter-item input,
@@ -119,6 +127,9 @@
   color: #d1ebff;
   font-size: 0.75rem;
   padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .filter-error {
@@ -144,6 +155,12 @@
   font-size: 0.74rem;
 }
 
+.export-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .export-btn {
   border: 1px solid rgba(123, 194, 237, 0.3);
   border-radius: 8px;
@@ -151,6 +168,9 @@
   color: #d1ebff;
   font-size: 0.72rem;
   padding: 5px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .summary-grid {
@@ -171,6 +191,9 @@
 .summary-card .label {
   color: #8cb2d3;
   font-size: 0.73rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .summary-card .value {
@@ -297,6 +320,9 @@
   margin: 0;
   color: #d9ecff;
   font-size: 0.93rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .card-head span {

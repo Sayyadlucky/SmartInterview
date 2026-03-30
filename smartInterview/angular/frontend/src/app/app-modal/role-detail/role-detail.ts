@@ -28,6 +28,17 @@ export class RoleDetail {
   description: string = '';
   roleStatus = '';
   roleDate = '';
+  jobType = '';
+  location = '';
+  salaryRange = '';
+  experienceRequired = '';
+  readonly summaryCards = [
+    { key: 'vacancies', label: 'Approved Headcount', icon: 'ph-briefcase-metal', value: 0 },
+    { key: 'applied', label: 'Applicants Received', icon: 'ph-users-three', value: 0 },
+    { key: 'inProgress', label: 'Active Pipeline', icon: 'ph-path', value: 0 },
+    { key: 'hired', label: 'Closed Hires', icon: 'ph-handshake', value: 0 },
+  ];
+  detailHighlights: Array<{ label: string; value: string; icon: string; helper: string }> = [];
 
   get roleTitleWithId(): string {
     const roleName = (this.roleDetails || '').toString().trim();
@@ -72,6 +83,11 @@ closeModal() {
               this.hiredCandidates = this.extractNumber(role.hired);
               this.roleStatus = (role.status || '').toString();
               this.roleDate = role.date || '';
+              this.jobType = role.job_type || '';
+              this.location = role.location || '';
+              this.salaryRange = role.salary_range || '';
+              this.experienceRequired = role.experience_required || '';
+              this.updatePresentationState();
             } else {
               this.errorMessage = 'No role data found.';
             }
@@ -90,6 +106,60 @@ closeModal() {
   get inProgressRate(): number {
     if (!this.appliedCandidates) return 0;
     return Math.min(100, Math.round((this.shortlistedCandidates / this.appliedCandidates) * 100));
+  }
+
+  get conversionRate(): number {
+    if (!this.appliedCandidates) return 0;
+    return Math.min(100, Math.round((this.hiredCandidates / this.appliedCandidates) * 100));
+  }
+
+  get urgencyLabel(): string {
+    if (!this.openPositions) return 'Hiring target met';
+    if (this.appliedCandidates < this.totalVacancies) return 'Pipeline needs immediate attention';
+    if (this.fulfillmentRate >= 60) return 'Delivery on track';
+    return 'Open positions still require coverage';
+  }
+
+  get roleStatusLabel(): string {
+    const status = this.roleStatus.trim().toLowerCase();
+    if (!status) return 'Status pending';
+    if (status === 'active') return 'Active requisition';
+    if (status === 'closed') return 'Closed requisition';
+    return `${this.roleStatus} requisition`;
+  }
+
+  private updatePresentationState(): void {
+    this.summaryCards[0].value = this.totalVacancies;
+    this.summaryCards[1].value = this.appliedCandidates;
+    this.summaryCards[2].value = this.shortlistedCandidates;
+    this.summaryCards[3].value = this.hiredCandidates;
+
+    this.detailHighlights = [
+      {
+        label: 'Employment Type',
+        value: this.jobType || 'Not specified',
+        icon: 'ph-bag-simple',
+        helper: 'Contract structure for the role',
+      },
+      {
+        label: 'Location',
+        value: this.location || 'Not specified',
+        icon: 'ph-map-pin',
+        helper: 'Primary delivery or work location',
+      },
+      {
+        label: 'Compensation',
+        value: this.salaryRange || 'Not specified',
+        icon: 'ph-currency-circle-dollar',
+        helper: 'Published salary guidance',
+      },
+      {
+        label: 'Experience',
+        value: this.experienceRequired || 'Not specified',
+        icon: 'ph-chart-line-up',
+        helper: 'Target experience range',
+      },
+    ];
   }
 
   private extractNumber(value: any): number {

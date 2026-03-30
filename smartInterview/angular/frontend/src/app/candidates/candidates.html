@@ -1,39 +1,39 @@
 <section class="candidates-tab-shell">
-  <div class="state-card" *ngIf="loading">Loading candidates data...</div>
+  <div class="state-card" *ngIf="loading"><i class="ph ph-spinner-gap"></i> Loading candidates data...</div>
   <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
 
   <div class="candidates-layout" *ngIf="!loading && !errorMessage">
     <div class="summary-grid">
       <article class="summary-card">
-        <span class="label">Total</span>
+        <span class="label"><i class="ph ph-users"></i> Total</span>
         <span class="value">{{ summary.total }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">In Pipeline</span>
+        <span class="label"><i class="ph ph-path"></i> In Pipeline</span>
         <span class="value">{{ summary.scheduled + summary.shortlisted }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Hired</span>
+        <span class="label"><i class="ph ph-handshake"></i> Hired</span>
         <span class="value">{{ summary.hired }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Shortlisted</span>
+        <span class="label"><i class="ph ph-check-circle"></i> Shortlisted</span>
         <span class="value">{{ shortlistedCount }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Needs Action</span>
+        <span class="label"><i class="ph ph-warning-circle"></i> Needs Action</span>
         <span class="value">{{ overdueCount }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Added (7d)</span>
+        <span class="label"><i class="ph ph-calendar-plus"></i> Added (7d)</span>
         <span class="value">{{ thisWeekCandidates }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Rejected</span>
+        <span class="label"><i class="ph ph-x-circle"></i> Rejected</span>
         <span class="value">{{ summary.rejected }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Pipeline Coverage</span>
+        <span class="label"><i class="ph ph-gauge"></i> Pipeline Coverage</span>
         <span class="value">{{ pipelineCoverage }}%</span>
       </article>
     </div>
@@ -41,7 +41,7 @@
     <div class="main-grid">
       <article class="main-panel">
         <div class="panel-head">
-          <h3>Candidates Pipeline</h3>
+          <h3><i class="ph ph-table"></i> Candidates Pipeline</h3>
           <span>{{ filteredCandidates.length }} shown</span>
         </div>
 
@@ -67,9 +67,9 @@
               <option value="name">Name A-Z</option>
             </select>
             <button type="button" class="attention-toggle" [class.active]="attentionOnly" (click)="toggleAttentionOnly()">
-              Needs Attention
+              <i class="ph ph-warning-circle"></i> Needs Attention
             </button>
-            <button type="button" class="clear-all-btn" (click)="clearAllFilters()">Reset</button>
+            <button type="button" class="clear-all-btn" (click)="clearAllFilters()"><i class="ph ph-eraser"></i> Reset</button>
           </div>
         </div>
 
@@ -142,7 +142,7 @@
       <aside class="side-panel">
         <article class="side-card">
           <div class="panel-head">
-            <h3>Needs Attention</h3>
+            <h3><i class="ph ph-warning-diamond"></i> Needs Attention</h3>
             <span>{{ attentionCandidates.length }}</span>
           </div>
           <ul class="mini-list" *ngIf="attentionCandidates.length; else noAttention">
@@ -161,7 +161,7 @@
 
         <article class="side-card">
           <div class="panel-head">
-            <h3>Upcoming Interviews</h3>
+            <h3><i class="ph ph-calendar-check"></i> Upcoming Interviews</h3>
             <span>{{ upcoming.length }}</span>
           </div>
           <ul class="mini-list" *ngIf="upcoming.length; else noUpcoming">
@@ -180,7 +180,7 @@
 
         <article class="side-card">
           <div class="panel-head">
-            <h3>Top Roles</h3>
+            <h3><i class="ph ph-briefcase"></i> Top Roles</h3>
             <span>{{ roleBreakdown.length }}</span>
           </div>
           <div class="role-bars" *ngIf="roleBreakdown.length; else noRoleData">
@@ -199,7 +199,7 @@
 
         <article class="side-card">
           <div class="panel-head">
-            <h3>Top Recruiters</h3>
+            <h3><i class="ph ph-identification-card"></i> Top Recruiters</h3>
             <span>{{ recruiterBreakdown.length }}</span>
           </div>
           <ul class="mini-list compact" *ngIf="recruiterBreakdown.length; else noRecruiterData">

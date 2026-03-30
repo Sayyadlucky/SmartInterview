@@ -1,20 +1,20 @@
 <section class="analytics-shell">
-  <div class="state-card" *ngIf="!initialized">Open Analytics tab to load data.</div>
-  <div class="state-card" *ngIf="initialized && loading">Loading analytics data...</div>
+  <div class="state-card" *ngIf="!initialized"><i class="ph ph-chart-line-up"></i> Open Analytics tab to load data.</div>
+  <div class="state-card" *ngIf="initialized && loading"><i class="ph ph-spinner-gap"></i> Loading analytics data...</div>
   <div class="state-card error" *ngIf="initialized && !loading && errorMessage">{{ errorMessage }}</div>
 
   <div class="analytics-layout" *ngIf="initialized && !loading && !errorMessage">
     <div class="filters-bar">
       <div class="filter-item">
-        <label>From</label>
+        <label><i class="ph ph-calendar-blank"></i> From</label>
         <input type="date" [(ngModel)]="startDate" [max]="endDate || null" (ngModelChange)="onStartDateChange($event)" />
       </div>
       <div class="filter-item">
-        <label>To</label>
+        <label><i class="ph ph-calendar-check"></i> To</label>
         <input type="date" [(ngModel)]="endDate" [min]="startDate || null" (ngModelChange)="onEndDateChange($event)" />
       </div>
       <div class="filter-item">
-        <label>Recruiter</label>
+        <label><i class="ph ph-identification-badge"></i> Recruiter</label>
         <div class="search-select">
           <input
             type="text"
@@ -34,7 +34,7 @@
         </div>
       </div>
       <div class="filter-item">
-        <label>Role</label>
+        <label><i class="ph ph-briefcase"></i> Role</label>
         <div class="search-select">
           <input
             type="text"
@@ -53,38 +53,38 @@
           </div>
         </div>
       </div>
-      <button type="button" class="clear-btn" (click)="clearFilters()">Clear</button>
+      <button type="button" class="clear-btn" (click)="clearFilters()"><i class="ph ph-eraser"></i> Clear</button>
     </div>
     <div class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</div>
     <div class="export-row">
-      <span>Executive Snapshot</span>
-      <button type="button" class="clear-btn" (click)="exportSnapshot('csv')">CSV</button>
-      <button type="button" class="clear-btn" (click)="exportSnapshot('json')">JSON</button>
+      <span><i class="ph ph-file-arrow-down"></i> Executive Snapshot</span>
+      <button type="button" class="clear-btn" (click)="exportSnapshot('csv')"><i class="ph ph-file-csv"></i> CSV</button>
+      <button type="button" class="clear-btn" (click)="exportSnapshot('json')"><i class="ph ph-brackets-curly"></i> JSON</button>
     </div>
 
     <div class="summary-grid">
       <article class="summary-card">
-        <span class="label">Total Interviews</span>
+        <span class="label"><i class="ph ph-chats-teardrop"></i> Total Interviews</span>
         <span class="value">{{ summary.total_interviews }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Hires</span>
+        <span class="label"><i class="ph ph-handshake"></i> Hires</span>
         <span class="value">{{ summary.hires }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Hire Rate</span>
+        <span class="label"><i class="ph ph-percent"></i> Hire Rate</span>
         <span class="value">{{ summary.hire_rate }}%</span>
       </article>
       <article class="summary-card">
-        <span class="label">Open Roles</span>
+        <span class="label"><i class="ph ph-briefcase-metal"></i> Open Roles</span>
         <span class="value">{{ summary.open_roles }}</span>
       </article>
       <article class="summary-card">
-        <span class="label">Avg Time-to-Hire</span>
+        <span class="label"><i class="ph ph-timer"></i> Avg Time-to-Hire</span>
         <span class="value">{{ summary.avg_time_to_hire_days }}d</span>
       </article>
       <article class="summary-card">
-        <span class="label">Median Time-to-Hire</span>
+        <span class="label"><i class="ph ph-hourglass-medium"></i> Median Time-to-Hire</span>
         <span class="value">{{ summary.median_time_to_hire_days }}d</span>
       </article>
     </div>
@@ -92,7 +92,7 @@
     <div class="grid">
       <article class="card">
         <div class="card-head">
-          <h3>Hiring Funnel Analytics</h3>
+          <h3><i class="ph ph-funnel"></i> Hiring Funnel Analytics</h3>
         </div>
         <div class="chart-wrap">
           <canvas #funnelCanvas *ngIf="hasFunnelData; else noFunnel"></canvas>
@@ -108,7 +108,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Time-to-Hire Analytics</h3>
+          <h3><i class="ph ph-timer"></i> Time-to-Hire Analytics</h3>
           <span>Avg {{ timeToHire.avg_days }}d</span>
         </div>
         <div class="chart-wrap">
@@ -119,7 +119,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Source Effectiveness</h3>
+          <h3><i class="ph ph-chart-donut"></i> Source Effectiveness</h3>
         </div>
         <div class="table-wrap" *ngIf="sourceEffectiveness.length; else noSource">
           <table class="table">
@@ -141,7 +141,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Recruiter Performance</h3>
+          <h3><i class="ph ph-identification-card"></i> Recruiter Performance</h3>
         </div>
         <div class="table-wrap" *ngIf="recruiterPerformance.length; else noRecruiterPerf">
           <table class="table">
@@ -163,7 +163,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Role Health</h3>
+          <h3><i class="ph ph-heartbeat"></i> Role Health</h3>
         </div>
         <div class="table-wrap" *ngIf="roleHealth.length; else noRoleHealth">
           <table class="table">
@@ -185,7 +185,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Interview Quality</h3>
+          <h3><i class="ph ph-star-four"></i> Interview Quality</h3>
           <span>{{ interviewQuality.evaluated }} evaluated</span>
         </div>
         <div class="quality-list" *ngIf="qualityRows.length; else noQuality">
@@ -199,7 +199,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Drop-off Analysis</h3>
+          <h3><i class="ph ph-trend-down"></i> Drop-off Analysis</h3>
           <span>{{ dropoffAnalysis.total_dropoffs }} total</span>
         </div>
         <div class="quality-list">
@@ -212,7 +212,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Offer & Acceptance</h3>
+          <h3><i class="ph ph-seal-check"></i> Offer & Acceptance</h3>
           <span>{{ offerAcceptance.acceptance_rate }}% accepted</span>
         </div>
         <div class="quality-list">
@@ -224,7 +224,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>SLA Compliance</h3>
+          <h3><i class="ph ph-shield-check"></i> SLA Compliance</h3>
           <span>{{ slaCompliance.compliance_rate }}% compliant</span>
         </div>
         <div class="quality-list">
@@ -238,7 +238,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Executive Insights</h3>
+          <h3><i class="ph ph-lightbulb"></i> Executive Insights</h3>
           <span>{{ executiveInsights.length }}</span>
         </div>
         <div class="quality-list" *ngIf="executiveInsights.length; else noInsights">
@@ -251,7 +251,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Forecast vs Target</h3>
+          <h3><i class="ph ph-target"></i> Forecast vs Target</h3>
           <span>Gap {{ forecastVsTarget.expected_gap_next_month }}</span>
         </div>
         <div class="quality-list">
@@ -267,7 +267,7 @@
 
       <article class="card">
         <div class="card-head">
-          <h3>Anomaly Flags</h3>
+          <h3><i class="ph ph-warning-diamond"></i> Anomaly Flags</h3>
           <span>{{ anomalyFlags.length }}</span>
         </div>
         <div class="quality-list" *ngIf="anomalyFlags.length; else noFlags">

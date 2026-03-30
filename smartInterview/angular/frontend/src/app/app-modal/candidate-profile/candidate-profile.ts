@@ -9,6 +9,7 @@ interface CandidateData {
   name: string;
   email: string;
   recruiter: string;
+  interviewer?: string;
   role: string;
   role_id?: number | null;
   status: string;
@@ -29,6 +30,17 @@ interface ResumeSection {
     items?: Array<string | Record<string, unknown>>;
   };
   raw_text: string;
+}
+
+interface ResumeSectionView {
+  section: ResumeSection;
+  objectItems: Array<{
+    item: Record<string, unknown>;
+    primary: string;
+    secondary: string[];
+  }>;
+  textItems: string[];
+  paragraphText: string;
 }
 
 interface ResumeData {
@@ -96,7 +108,7 @@ interface InsightData {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './candidate-profile.html',
-  styleUrl: './candidate-profile.scss'
+  styleUrl: './candidate-profile.scss',
 })
 export class CandidateProfile implements OnInit {
   candidate: CandidateData;
@@ -144,6 +156,9 @@ export class CandidateProfile implements OnInit {
     fallback_used: false,
     fallback_provider: '',
   };
+  displaySectionViews: ResumeSectionView[] = [];
+  skillTags: string[] = [];
+  verificationViewItems: Array<{ label: string; verified: boolean; date?: string }> = [];
 
   constructor(
     private http: HttpClient,
@@ -192,23 +207,7 @@ export class CandidateProfile implements OnInit {
   }
 
   get verificationItems(): Array<{ label: string; verified: boolean; date?: string }> {
-    return [
-      {
-        label: 'Phone',
-        verified: !!this.verification.phone_verified,
-        date: this.verification.phone_verified_at,
-      },
-      {
-        label: 'Email',
-        verified: !!this.verification.email_verified,
-        date: this.verification.email_verified_at,
-      },
-      {
-        label: 'Aadhaar',
-        verified: !!this.verification.identity_verified,
-        date: this.verification.identity_verified_at,
-      },
-    ];
+    return this.verificationViewItems;
   }
 
   get summarySection(): string {
@@ -232,8 +231,7 @@ export class CandidateProfile implements OnInit {
   }
 
   get skillList(): string[] {
-    if (this.resumeData.skills?.length) return this.resumeData.skills;
-    return this.getStringItems('skills');
+    return this.skillTags;
   }
 
   get displaySections(): ResumeSection[] {
@@ -348,22 +346,14 @@ export class CandidateProfile implements OnInit {
     return items.filter((item): item is string => typeof item === 'string' && !!item.trim());
   }
 
-  isObjectSection(section: ResumeSection): boolean {
-    return this.getObjectItems(section).length > 0;
-  }
+  trackSection = (_index: number, item: ResumeSectionView): string =>
+    `${item.section.section_key}-${item.section.display_order}`;
 
-  getObjectItems(section: ResumeSection): Array<Record<string, unknown>> {
-    const items = section?.content?.items || [];
-    return items
-      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
-  }
+  trackString = (_index: number, item: string): string => item;
 
-  getTextItems(section: ResumeSection): string[] {
-    const items = section?.content?.items || [];
-    return items.filter((item): item is string => typeof item === 'string' && !!item.trim());
-  }
+  trackObjectItem = (index: number, _item: { item: Record<string, unknown>; primary: string; secondary: string[] }): number => index;
 
-  getObjectPrimary(item: Record<string, unknown>): string {
+  private getObjectPrimary(item: Record<string, unknown>): string {
     const preferred = ['title', 'degree', 'label', 'value'];
     for (const key of preferred) {
       const value = item[key];
@@ -373,7 +363,7 @@ export class CandidateProfile implements OnInit {
     return typeof first === 'string' ? first : 'Entry';
   }
 
-  getObjectSecondary(item: Record<string, unknown>): string[] {
+  private getObjectSecondary(item: Record<string, unknown>): string[] {
     const rows: string[] = [];
     Object.entries(item).forEach(([key, value]) => {
       if (key === 'title') return;
@@ -412,13 +402,65 @@ export class CandidateProfile implements OnInit {
         }
         if (response.Data?.verification) {
           this.verification = { ...this.verification, ...response.Data.verification };
+          this.verificationViewItems = this.buildVerificationItems();
         }
         if (response.Data?.insights) {
           this.insights = { ...this.insights, ...response.Data.insights };
         }
         if (response.Data?.resume) {
           this.resumeData = response.Data.resume;
+          this.skillTags = this.buildSkillTags();
+          this.displaySectionViews = this.buildDisplaySectionViews(this.resumeData.sections || []);
         }
+      });
+  }
+
+  private buildVerificationItems(): Array<{ label: string; verified: boolean; date?: string }> {
+    return [
+      {
+        label: 'Phone',
+        verified: !!this.verification.phone_verified,
+        date: this.verification.phone_verified_at,
+      },
+      {
+        label: 'Email',
+        verified: !!this.verification.email_verified,
+        date: this.verification.email_verified_at,
+      },
+      {
+        label: 'Aadhaar',
+        verified: !!this.verification.identity_verified,
+        date: this.verification.identity_verified_at,
+      },
+    ];
+  }
+
+  private buildSkillTags(): string[] {
+    if (this.resumeData.skills?.length) {
+      return this.resumeData.skills;
+    }
+    return this.getStringItems('skills');
+  }
+
+  private buildDisplaySectionViews(sections: ResumeSection[]): ResumeSectionView[] {
+    return sections
+      .filter((section) => !['summary', 'objective', 'skills'].includes(section.section_key))
+      .map((section) => {
+        const items = section?.content?.items || [];
+        const objectItems = items
+          .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+          .map((item) => ({
+            item,
+            primary: this.getObjectPrimary(item),
+            secondary: this.getObjectSecondary(item),
+          }));
+        const textItems = items.filter((item): item is string => typeof item === 'string' && !!item.trim());
+        return {
+          section,
+          objectItems,
+          textItems,
+          paragraphText: section.content.text || section.raw_text || 'No details available.',
+        };
       });
   }
 

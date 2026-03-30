@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-from sympy import true
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,9 +13,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure--o3*fivnd_=lrfz$6(@9$bsiynr(hv1+!#fd+0o@3m*_7#nfj+'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ['*']
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://shortlistii.com",
+    "https://candidates.shortlistii.com",
+    "https://jobs.shortlistii.com",
+]
 
 
 # Application definition
@@ -185,8 +190,9 @@ EXOTEL_SUBDOMAIN = os.getenv('EXOTEL_SUBDOMAIN', 'api.exotel.com')
 EXOTEL_WEBHOOK_TOKEN = os.getenv('EXOTEL_WEBHOOK_TOKEN', '')
 EXOTEL_WEBHOOK_SECRET = os.getenv('EXOTEL_WEBHOOK_SECRET', '')
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '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')
-OPENAI_RESUME_MODEL = os.getenv('OPENAI_RESUME_MODEL', 'gpt-4.1-mini')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', '').strip() or os.getenv('OPENAI_RESUME_MODEL', 'gpt-4.1-mini').strip()
+OPENAI_RESUME_MODEL = os.getenv('OPENAI_RESUME_MODEL', OPENAI_MODEL).strip()
 
 NOTIFICATION_RETRY_LIMIT = int(os.getenv('NOTIFICATION_RETRY_LIMIT', '2'))
 NOTIFICATION_RETRY_BACKOFF_SECONDS = int(os.getenv('NOTIFICATION_RETRY_BACKOFF_SECONDS', '10'))
@@ -214,6 +220,11 @@ LOGGING = {
         'smartInterview.notifications': {
             'handlers': ['console'],
             'level': os.getenv('NOTIFICATION_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'smartInterview.company_enrichment': {
+            'handlers': ['console'],
+            'level': os.getenv('COMPANY_ENRICHMENT_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
     },

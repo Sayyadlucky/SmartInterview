@@ -35,10 +35,67 @@
   gap: 10px;
 }
 
+.recruiter-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.insight-card {
+  border: 1px solid rgba(136, 204, 246, 0.18);
+  border-radius: 12px;
+  background: rgba(8, 35, 69, 0.62);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.insight-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 76, 132, 0.45);
+  color: #75e1ff;
+  font-size: 0.88rem;
+}
+
+.insight-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.insight-copy span {
+  color: #91b6d5;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.insight-copy strong {
+  color: #e4f5ff;
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.insight-copy small {
+  color: #7fa4c2;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
 .panel-title-row h3 {
   margin: 0;
   color: #d7ecff;
   font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .panel-subtitle {
@@ -56,6 +113,9 @@
   padding: 7px 10px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .primary-btn:hover {
@@ -69,6 +129,10 @@
   gap: 8px;
 }
 
+.stats-row.compact-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .stat-chip {
   border: 1px solid rgba(136, 204, 246, 0.2);
   border-radius: 10px;
@@ -80,6 +144,10 @@
   display: block;
   font-size: 0.72rem;
   color: #96b8d6;
+}
+
+.stat-label i {
+  margin-right: 5px;
 }
 
 .stat-value {
@@ -129,6 +197,40 @@
   color: #fecaca;
   font-size: 0.8rem;
   padding: 8px 10px;
+}
+
+.list-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.list-section-head h4 {
+  margin: 0;
+  color: #d9efff;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.list-section-head p {
+  margin: 3px 0 0;
+  color: #86abca;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.directory-count {
+  flex-shrink: 0;
+  border: 1px solid rgba(137, 226, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(10, 49, 88, 0.6);
+  color: #c8ebff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 9px;
 }
 
 .list-wrap {
@@ -229,6 +331,11 @@
   padding: 18px 12px;
 }
 
+.loading-placeholder i {
+  margin-right: 8px;
+  color: #78dfff;
+}
+
 .empty-state h4 {
   margin: 0 0 4px;
   color: #d5e9fb;
@@ -241,6 +348,66 @@
 
 .profile-panel {
   min-height: 640px;
+}
+
+.profile-workspace-head {
+  border: 1px solid rgba(130, 200, 241, 0.18);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 85% 25%, rgba(54, 153, 240, 0.14), transparent 34%),
+    rgba(8, 31, 62, 0.58);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #8fb6d5;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.profile-workspace-head h3 {
+  margin: 0;
+  color: #e4f4ff;
+  font-size: 1.05rem;
+}
+
+.profile-workspace-head p {
+  margin: 4px 0 0;
+  color: #90b4d0;
+  font-size: 0.78rem;
+  max-width: 520px;
+  line-height: 1.45;
+}
+
+.workspace-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.workspace-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(137, 226, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(10, 48, 85, 0.64);
+  color: #c9ecff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 7px 10px;
 }
 
 .profile-placeholder {
@@ -299,6 +466,9 @@
 .profile-placeholder h3 {
   margin: 0;
   color: #d4eafe;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .profile-placeholder p {
@@ -324,5 +494,26 @@
   .profile-panel,
   .profile-placeholder {
     min-height: 500px;
+  }
+
+  .profile-workspace-head {
+    flex-direction: column;
+  }
+
+  .workspace-badges {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .recruiter-insight-grid,
+  .stats-row,
+  .stats-row.compact-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .list-section-head {
+    align-items: start;
+    flex-direction: column;
   }
 }

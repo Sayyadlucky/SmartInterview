@@ -1,6 +1,7 @@
 import base64
 import html
 import io
+import json
 import mimetypes
 import os
 import random
@@ -86,6 +87,19 @@ def split_name(name: str) -> tuple[str, str]:
     return parts[0], ' '.join(parts[1:])
 
 
+def humanize_identifier(value: str) -> str:
+    cleaned = (value or '').strip()
+    if not cleaned:
+        return ''
+    cleaned = cleaned.split('@', 1)[0]
+    cleaned = re.sub(r'[_\-.]+', ' ', cleaned)
+    cleaned = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', cleaned)
+    cleaned = re.sub(r'(?<=[A-Za-z])(?=[0-9])', ' ', cleaned)
+    cleaned = re.sub(r'(?<=[0-9])(?=[A-Za-z])', ' ', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned.title()
+
+
 def build_signup_context_from_user(user: User, profile: UserProfile | None, interview: Interview | None = None) -> dict:
     return {
         'user_id': user.id,
@@ -162,20 +176,60 @@ def vacancy_recruiter_names(vacancy: Vacancies) -> list[str]:
     ]
 
 
+def resolve_company_logo_url(company, *, include_external_logo: bool = True, request=None) -> str:
+    if not company:
+        return ''
+    if getattr(company, 'logo', None):
+        try:
+            logo_url = company.logo.url or ''
+            if request and logo_url:
+                return request.build_absolute_uri(logo_url)
+            return logo_url
+        except Exception:
+            pass
+    if include_external_logo:
+        return company.logo_url or ''
+    return ''
+
+
+def serialize_company_summary(company, *, include_external_logo: bool = True, request=None) -> dict[str, object] | None:
+    if not company:
+        return None
+    return {
+        'id': company.id,
+        'legal_name': company.legal_name,
+        'display_name': company.display_name or company.legal_name,
+        'industry': company.industry,
+        'website': company.website,
+        'logo_url': resolve_company_logo_url(company, include_external_logo=include_external_logo, request=request),
+        'city': company.city,
+        'state': company.state,
+        'country': company.country,
+        'headquarters': company.headquarters,
+    }
+
+
 def build_vacancy_card_payload(
     vacancy: Vacancies,
     *,
     application: CandidateVacancyApplication | None = None,
     is_saved: bool = False,
+    include_external_company_logo: bool = True,
+    request=None,
 ) -> dict[str, object]:
     recruiter_names = vacancy_recruiter_names(vacancy)
     clean_description = clean_job_description(vacancy.description)
     application_status = application.status if application else ''
     posted_at = vacancy.date or timezone.now()
+    company = getattr(vacancy, 'company', None) or getattr(getattr(vacancy, 'admin', None), 'company_profile', None)
     return {
         'id': vacancy.id,
         'role': clean_job_text(vacancy.role),
         'position': clean_job_text(vacancy.position),
+        'job_type': clean_job_text(vacancy.get_job_type_display() if vacancy.job_type else ''),
+        'location': clean_job_text(vacancy.location),
+        'salary_range': clean_job_text(vacancy.salary_range),
+        'experience_required': clean_job_text(vacancy.experience_required),
         'status': vacancy.status,
         'status_label': vacancy.status.replace('_', ' ').title(),
         'date': posted_at,
@@ -190,6 +244,7 @@ def build_vacancy_card_payload(
             f"{vacancy.admin.first_name} {vacancy.admin.last_name}".strip().title() or vacancy.admin.username
             if vacancy.admin else ''
         ),
+        'company': serialize_company_summary(company, include_external_logo=include_external_company_logo, request=request),
         'application_status': application_status,
         'application_label': application_status.replace('_', ' ').title() if application_status else 'Apply Now',
         'has_applied': application_status in {
@@ -215,7 +270,7 @@ def build_public_jobs_context(request) -> dict[str, object]:
 
     jobs_qs = (
         Vacancies.objects
-        .select_related('admin')
+        .select_related('admin', 'company')
         .prefetch_related('recruiter')
         .exclude(status__in=['closed', 'canceled', 'hired'])
         .order_by('-date', '-id')
@@ -260,6 +315,7 @@ def build_public_jobs_context(request) -> dict[str, object]:
             vacancy,
             application=application_lookup.get(vacancy.id),
             is_saved=vacancy.id in saved_vacancy_ids,
+            request=request,
         )
         for vacancy in jobs_qs
     ]
@@ -281,6 +337,7 @@ def build_public_jobs_context(request) -> dict[str, object]:
                 vacancy,
                 application=application_lookup.get(vacancy.id),
                 is_saved=True,
+                request=request,
             )
             for vacancy in saved_vacancies_qs
             if vacancy.id not in {
@@ -335,12 +392,21 @@ def is_identity_verified(record: CandidateIdentityVerification | None) -> bool:
 
 
 def build_candidate_details(candidate: Interview) -> dict:
+    recruiter_name = (
+        f"{candidate.recruiter.first_name} {candidate.recruiter.last_name}".strip().title()
+        if candidate.recruiter else ''
+    )
+    interviewer_name = (
+        f"{candidate.interviewer.first_name} {candidate.interviewer.last_name}".strip().title()
+        if getattr(candidate, 'interviewer', None) else ''
+    )
     return {
         'id': candidate.id,
         'name': f"{candidate.candidate.first_name} {candidate.candidate.last_name}".strip().title(),
         'email': candidate.candidate.email,
         'phone': candidate.candidate.profile.phone if hasattr(candidate.candidate, 'profile') else '',
-        'recruiter': f"{candidate.recruiter.first_name} {candidate.recruiter.last_name}".strip().title() if candidate.recruiter else '',
+        'recruiter': recruiter_name,
+        'interviewer': interviewer_name,
         'status': candidate.status,
         'score': candidate.score,
         'recording_url': candidate.recording_url,
@@ -349,6 +415,125 @@ def build_candidate_details(candidate: Interview) -> dict:
         'role': candidate.role.role if candidate.role else '',
         'role_id': candidate.role.id if candidate.role else None,
     }
+
+
+def get_display_name(user: User) -> str:
+    full_name = f"{user.first_name} {user.last_name}".strip()
+    if full_name:
+        return full_name.title()
+    fallback = humanize_identifier(user.email) or humanize_identifier(user.username)
+    if fallback:
+        return fallback
+    return user.username or user.email or ''
+
+
+def get_user_role(user: User) -> str:
+    return getattr(getattr(user, 'profile', None), 'role', '')
+
+
+def get_admin_for_user(user: User) -> User | None:
+    role = get_user_role(user)
+    if role == 'admin':
+        return user
+    profile = getattr(user, 'profile', None)
+    if not profile:
+        return None
+    if role == 'recruiter':
+        return profile.hr
+    if role == 'interviewer':
+        if profile.hr:
+            return profile.hr
+        recruiter = profile.recruiter
+        recruiter_profile = getattr(recruiter, 'profile', None) if recruiter else None
+        return recruiter_profile.hr if recruiter_profile else None
+    return profile.hr
+
+
+def get_accessible_interviews(request_user: User):
+    role = get_user_role(request_user)
+    base_qs = Interview.objects.select_related('candidate', 'recruiter', 'interviewer', 'role')
+    if role == 'admin':
+        return base_qs.filter(hr=request_user)
+    if role == 'recruiter':
+        return base_qs.filter(Q(recruiter=request_user) | Q(interviewer__profile__recruiter=request_user)).distinct()
+    if role == 'interviewer':
+        return base_qs.filter(interviewer=request_user)
+    return base_qs.none()
+
+
+def get_accessible_interviewer_profiles(request_user: User):
+    role = get_user_role(request_user)
+    qs = UserProfile.objects.select_related('user', 'recruiter', 'hr').filter(role='interviewer')
+    if role == 'admin':
+        return qs.filter(
+            Q(recruiter__profile__hr=request_user)
+            | Q(user__interviewer_interviews__hr=request_user)
+        ).distinct()
+    if role == 'recruiter':
+        return qs.filter(
+            Q(recruiter=request_user)
+            | Q(user__interviewer_interviews__recruiter=request_user)
+        ).distinct()
+    return qs.none()
+
+
+@login_required
+def workflowEvaluatorOptions(request):
+    try:
+        current_user = get_object_or_404(User, username=request.user.username)
+        evaluator_profiles = get_accessible_interviewer_profiles(current_user).exclude(user__username__iexact='TBD')
+
+        evaluator_list = []
+        for profile in evaluator_profiles.order_by('user__first_name', 'user__last_name'):
+            evaluator_list.append({
+                'id': profile.user_id,
+                'user_id': profile.user_id,
+                'name': get_display_name(profile.user),
+                'email': profile.user.email,
+                'phone': profile.phone,
+                'recruiter_id': profile.recruiter_id,
+                'recruiter_name': get_display_name(profile.recruiter) if profile.recruiter else '',
+            })
+        return JsonResponse({"Success": True, "Error": None, "EvaluatorData": evaluator_list})
+    except Exception as e:
+        return JsonResponse({"Success": False, "Error": str(e), "EvaluatorData": []})
+
+
+def resolve_interview_assignment(operator: User, selected_user_id: str) -> tuple[User | None, User | None, User | None]:
+    selected_user = None
+    if selected_user_id:
+        selected_user = User.objects.filter(id=selected_user_id).select_related('profile').first()
+
+    operator_role = get_user_role(operator)
+    operator_profile = getattr(operator, 'profile', None)
+    admin_user = get_admin_for_user(operator)
+    recruiter_user = operator if operator_role == 'recruiter' else None
+    interviewer_user = operator if operator_role == 'interviewer' else None
+
+    if selected_user:
+        selected_role = get_user_role(selected_user)
+        selected_profile = getattr(selected_user, 'profile', None)
+        if selected_role == 'recruiter':
+            recruiter_user = selected_user
+            admin_user = selected_profile.hr or admin_user
+            interviewer_user = None
+        elif selected_role == 'interviewer':
+            interviewer_user = selected_user
+            recruiter_user = selected_profile.recruiter or recruiter_user
+            admin_user = selected_profile.hr or get_admin_for_user(selected_user) or admin_user
+
+    if interviewer_user and recruiter_user is None:
+        interviewer_profile = getattr(interviewer_user, 'profile', None)
+        recruiter_user = interviewer_profile.recruiter if interviewer_profile else None
+
+    if admin_user is None and recruiter_user is not None:
+        recruiter_profile = getattr(recruiter_user, 'profile', None)
+        admin_user = recruiter_profile.hr if recruiter_profile else None
+
+    if admin_user is None and operator_profile:
+        admin_user = operator_profile.hr
+
+    return admin_user, recruiter_user, interviewer_user
 
 
 def get_latest_candidate_interview(user: User) -> Interview | None:
@@ -1282,11 +1467,25 @@ def addUser(request):
             phone = request.POST.get('phone','')
             role = request.POST.get('profile','')
             gender = request.POST.get('gender','')
+            password = request.POST.get('password', '')
             user_type = request.POST.get('role','')
             recruiter = request.POST.get('recruiter','')
-            admin = get_object_or_404(User, username=request.user.username)
+            operator = get_object_or_404(User, username=request.user.username)
             normalized_user_type = (user_type or '').strip().lower()
-            role_obj = Vacancies.objects.get(id=role) if normalized_user_type != 'recruiter' and role else None
+            role_obj = Vacancies.objects.get(id=role) if normalized_user_type not in {'recruiter', 'interviewer'} and role else None
+            if normalized_user_type == 'recruiter' and len((password or '').strip()) < 8:
+                return JsonResponse({"Success": False, "Error": "Recruiter password must be at least 8 characters."})
+            admin_user, assigned_recruiter, assigned_interviewer = resolve_interview_assignment(operator, recruiter)
+            admin_company = getattr(admin_user, 'company_profile', None) if admin_user else None
+            admin_company_url = ''
+            if admin_company:
+                admin_company_url = admin_company.website or ''
+            elif getattr(getattr(admin_user, 'profile', None), 'company_url', ''):
+                admin_company_url = admin_user.profile.company_url
+            if normalized_user_type == 'interviewer' and assigned_recruiter is None:
+                return JsonResponse({"Success": False, "Error": "Please select a valid HR for the interviewer."})
+            if normalized_user_type not in {'recruiter', 'interviewer'} and admin_user is None:
+                return JsonResponse({"Success": False, "Error": "Unable to resolve the admin assignment for this candidate."})
             if email:
                 first_name, last_name = split_name(name)
                 obj, created = User.objects.get_or_create(
@@ -1299,7 +1498,10 @@ def addUser(request):
                     },
                 )
                 if created:
-                    obj.set_unusable_password()
+                    if normalized_user_type == 'recruiter':
+                        obj.set_password(password.strip())
+                    else:
+                        obj.set_unusable_password()
                     obj.save()
                     # Create or update UserProfile with the given role
                     profile, created_profile = UserProfile.objects.get_or_create(
@@ -1308,69 +1510,95 @@ def addUser(request):
                             'gender': gender,
                             'role': normalized_user_type,
                             'phone': phone,
-                            'hr': admin
+                            'hr': admin_user
                         }
                     )
                     if not created_profile:
                         profile.role = normalized_user_type
                         profile.gender = gender or profile.gender
                         profile.phone = phone or profile.phone
-                        profile.hr = admin
-                        profile.save()
-                    if normalized_user_type != 'recruiter':
-                        # Add the created user profile to the Interview model if needed
-                        recruiter = User.objects.get(id=recruiter)
-                        hr = User.objects.get(username=request.user.username)
-                        candidate = Interview.objects.create(candidate=obj, recruiter=recruiter, hr=hr, status='assessment_pending', role=role_obj)
+                        profile.hr = admin_user
+                    if normalized_user_type == 'interviewer':
+                        profile.recruiter = assigned_recruiter if get_user_role(assigned_recruiter) == 'recruiter' else None
+                    else:
+                        profile.recruiter = None
+                    if normalized_user_type == 'recruiter':
+                        profile.company = admin_company
+                        profile.company_url = admin_company_url or profile.company_url
+                    profile.save()
+                    if normalized_user_type not in {'recruiter', 'interviewer'}:
+                        candidate = Interview.objects.create(
+                            candidate=obj,
+                            recruiter=assigned_recruiter,
+                            interviewer=assigned_interviewer,
+                            hr=admin_user,
+                            status='assessment_pending',
+                            role=role_obj,
+                        )
                         candidate.save()
                         candidate_details = build_candidate_details(candidate)
                         notification_result = send_new_candidate_signup_sms(request, obj, candidate)
-                    if normalized_user_type == 'recruiter':
+                    if normalized_user_type in {'recruiter', 'interviewer'}:
                         recruiter_details = {}
                         recruiter_details['id'] = profile.id
-                        recruiter_details['name'] = (
-                                    profile.user.first_name + " " + profile.user.last_name).title()
+                        recruiter_details['name'] = get_display_name(profile.user)
                         recruiter_details['email'] = profile.user.email
                         recruiter_details['role'] = profile.role
                         recruiter_details['phone'] = profile.phone
                         recruiter_details['gender'] = profile.gender
+                        recruiter_details['hr_id'] = profile.hr_id
+                        recruiter_details['recruiter_id'] = profile.recruiter_id
                         return JsonResponse({"Success": True, "Error": None, "RecruiterData": recruiter_details})
                 else:
                     if not obj.first_name or not obj.last_name:
                         obj.first_name = first_name or obj.first_name
                         obj.last_name = last_name or obj.last_name
                         obj.save(update_fields=['first_name', 'last_name'])
+                    if normalized_user_type == 'recruiter' and password.strip():
+                        obj.set_password(password.strip())
+                        obj.save(update_fields=['password'])
                     profile, created_profile = UserProfile.objects.get_or_create(
                         user=obj,
                         defaults={
                             'gender': gender,
                             'role': normalized_user_type,
                             'phone': phone,
-                            'hr': admin
+                            'hr': admin_user
                         }
                     )
                     if not created_profile:
                         profile.role = normalized_user_type
                         profile.gender = gender or profile.gender
                         profile.phone = phone or profile.phone
-                        profile.hr = admin
-                        profile.save()
+                        profile.hr = admin_user
+                    if normalized_user_type == 'interviewer':
+                        profile.recruiter = assigned_recruiter if get_user_role(assigned_recruiter) == 'recruiter' else None
+                    elif normalized_user_type != 'interviewer':
+                        profile.recruiter = None
                     if normalized_user_type == 'recruiter':
+                        profile.company = admin_company
+                        profile.company_url = admin_company_url or profile.company_url
+                    profile.save()
+                    if normalized_user_type in {'recruiter', 'interviewer'}:
                         recruiter_details = {}
                         recruiter_details['id'] = profile.id
-                        recruiter_details['name'] = (
-                            profile.user.first_name + " " + profile.user.last_name).title()
+                        recruiter_details['name'] = get_display_name(profile.user)
                         recruiter_details['email'] = profile.user.email
                         recruiter_details['role'] = profile.role
                         recruiter_details['phone'] = profile.phone
                         recruiter_details['gender'] = profile.gender
+                        recruiter_details['hr_id'] = profile.hr_id
+                        recruiter_details['recruiter_id'] = profile.recruiter_id
                         return JsonResponse({"Success": True, "Error": None, "RecruiterData": recruiter_details})
-                    if normalized_user_type != 'recruiter':
-                        # Add the created user profile to the Interview model if needed
-                        recruiter = User.objects.get(id=recruiter)
-                        hr = User.objects.get(username=request.user.username)
-                        candidate = Interview.objects.create(candidate=obj, recruiter=recruiter, hr=hr,
-                                                             status='assessment_pending', role=role_obj)
+                    if normalized_user_type not in {'recruiter', 'interviewer'}:
+                        candidate = Interview.objects.create(
+                            candidate=obj,
+                            recruiter=assigned_recruiter,
+                            interviewer=assigned_interviewer,
+                            hr=admin_user,
+                            status='assessment_pending',
+                            role=role_obj,
+                        )
                         candidate.save()
                         candidate_details = build_candidate_details(candidate)
                         notification_result = send_existing_candidate_sms(obj, candidate)
@@ -1380,12 +1608,163 @@ def addUser(request):
                 "Success": True,
                 "Error": None,
                 "CandidateDetails": candidate_details,
-                "Notification": notification_result if normalized_user_type != 'recruiter' else None,
-                "CandidateExists": not created if normalized_user_type != 'recruiter' else False,
-                "SignupRequired": created if normalized_user_type != 'recruiter' else False,
+                "Notification": notification_result if normalized_user_type not in {'recruiter', 'interviewer'} else None,
+                "CandidateExists": not created if normalized_user_type not in {'recruiter', 'interviewer'} else False,
+                "SignupRequired": created if normalized_user_type not in {'recruiter', 'interviewer'} else False,
             })
     except Exception as e:
         return JsonResponse({"Success":False, "Error":str(e)})
+
+
+@csrf_exempt
+@login_required
+def updateRecruiterDetails(request):
+    try:
+        if request.method != 'POST':
+            return JsonResponse({"Success": False, "Error": "Invalid request method."}, status=405)
+
+        operator = get_object_or_404(User, username=request.user.username)
+        operator_role = get_user_role(operator)
+
+        recruiter_id = (request.POST.get('recruiter_id') or '').strip()
+        if not recruiter_id.isdigit():
+            return JsonResponse({"Success": False, "Error": "A valid profile identifier is required."}, status=400)
+
+        profile_type = (request.POST.get('profile_type') or 'recruiter').strip().lower()
+        target_role = 'recruiter' if profile_type == 'recruiter' else 'interviewer'
+        target_label = 'Recruiter' if target_role == 'recruiter' else 'Evaluator'
+
+        target_profile = None
+        target_lookup = int(recruiter_id)
+        if target_role == 'recruiter':
+            if operator_role != 'admin':
+                return JsonResponse({"Success": False, "Error": "Only admins can update recruiter details."}, status=403)
+
+            target_profile = get_object_or_404(
+                UserProfile.objects.select_related('user'),
+                user_id=target_lookup,
+                role='recruiter',
+                hr=operator,
+            )
+        else:
+            accessible_profiles = get_accessible_interviewer_profiles(operator)
+            target_profile = accessible_profiles.select_related('user').filter(
+                Q(id=target_lookup) | Q(user_id=target_lookup)
+            ).first()
+            if not target_profile:
+                if operator_role == 'admin':
+                    error_message = "Evaluator not found in your accessible scope."
+                elif operator_role == 'recruiter':
+                    error_message = "You can only update evaluators assigned to your account."
+                else:
+                    error_message = "You are not allowed to update evaluator details."
+                return JsonResponse({"Success": False, "Error": error_message}, status=403)
+
+        target_user = target_profile.user
+
+        name = (request.POST.get('name') or '').strip()
+        email = (request.POST.get('email') or '').strip().lower()
+        phone = (request.POST.get('phone') or '').strip()
+        gender = (request.POST.get('gender') or '').strip().lower()
+        assignment_field_present = 'assigned_recruiter_id' in request.POST
+        assigned_recruiter_id = (request.POST.get('assigned_recruiter_id') or '').strip()
+
+        if not name:
+            return JsonResponse({"Success": False, "Error": f"{target_label} name is required."}, status=400)
+        if not email:
+            return JsonResponse({"Success": False, "Error": f"{target_label} email is required."}, status=400)
+
+        allowed_genders = {choice[0] for choice in UserProfile.Gender_CHOICES}
+        if gender and gender not in allowed_genders:
+            return JsonResponse({"Success": False, "Error": "Please select a valid gender."}, status=400)
+
+        if User.objects.exclude(id=target_user.id).filter(email__iexact=email).exists():
+            return JsonResponse({"Success": False, "Error": "Another user already uses this email address."}, status=400)
+
+        first_name, last_name = split_name(name)
+        user_update_fields = []
+        if target_user.first_name != first_name:
+            target_user.first_name = first_name
+            user_update_fields.append('first_name')
+        if target_user.last_name != last_name:
+            target_user.last_name = last_name
+            user_update_fields.append('last_name')
+        if target_user.email != email:
+            target_user.email = email
+            user_update_fields.append('email')
+        if user_update_fields:
+            target_user.save(update_fields=user_update_fields)
+
+        profile_update_fields = []
+        if target_role == 'interviewer' and assignment_field_present:
+            assigned_recruiter = None
+            if assigned_recruiter_id:
+                if not assigned_recruiter_id.isdigit():
+                    return JsonResponse({"Success": False, "Error": "Please select a valid recruiter."}, status=400)
+
+                if operator_role == 'admin':
+                    assigned_recruiter = User.objects.filter(
+                        id=int(assigned_recruiter_id),
+                        profile__role='recruiter',
+                        profile__hr=operator,
+                    ).first()
+                elif operator_role == 'recruiter':
+                    if int(assigned_recruiter_id) != operator.id:
+                        return JsonResponse({"Success": False, "Error": "You can only assign evaluators to your own recruiter account."}, status=403)
+                    assigned_recruiter = operator
+
+                if not assigned_recruiter:
+                    return JsonResponse({"Success": False, "Error": "Selected recruiter is not available in your scope."}, status=400)
+
+            if target_profile.recruiter_id != (assigned_recruiter.id if assigned_recruiter else None):
+                target_profile.recruiter = assigned_recruiter
+                profile_update_fields.append('recruiter')
+
+        normalized_phone = phone or ''
+        if target_profile.phone != normalized_phone:
+            target_profile.phone = normalized_phone
+            profile_update_fields.append('phone')
+        normalized_gender = gender or target_profile.gender or 'other'
+        if target_profile.gender != normalized_gender:
+            target_profile.gender = normalized_gender
+            profile_update_fields.append('gender')
+
+        admin_user = get_admin_for_user(operator)
+        admin_company = getattr(admin_user, 'company_profile', None) if admin_user else None
+        admin_company_url = ''
+        if admin_company:
+            admin_company_url = admin_company.website or ''
+            if target_profile.company_id != admin_company.id:
+                target_profile.company = admin_company
+                profile_update_fields.append('company')
+        fallback_company_url = getattr(getattr(admin_user, 'profile', None), 'company_url', '') or ''
+        resolved_company_url = admin_company_url or fallback_company_url or target_profile.company_url or ''
+        if target_profile.company_url != resolved_company_url:
+            target_profile.company_url = resolved_company_url
+            profile_update_fields.append('company_url')
+        if admin_user and target_profile.hr_id != admin_user.id:
+            target_profile.hr = admin_user
+            profile_update_fields.append('hr')
+
+        if profile_update_fields:
+            target_profile.save(update_fields=profile_update_fields)
+
+        recruiter_details = {
+            'id': target_user.id,
+            'user_id': target_user.id,
+            'profile_id': target_profile.id,
+            'name': get_display_name(target_user),
+            'email': target_user.email,
+            'role': target_profile.role,
+            'phone': target_profile.phone,
+            'gender': target_profile.gender,
+            'company_url': target_profile.company_url or '',
+            'recruiter_id': target_profile.recruiter_id,
+            'recruiter_name': get_display_name(target_profile.recruiter) if target_profile.recruiter_id else '',
+        }
+        return JsonResponse({"Success": True, "Error": None, "RecruiterData": recruiter_details})
+    except Exception as e:
+        return JsonResponse({"Success": False, "Error": str(e)})
 
 
 @login_required
@@ -1898,8 +2277,8 @@ def unsaveVacancy(request):
 @login_required
 def recruiterApplicationFeed(request):
     profile = getattr(request.user, 'profile', None)
-    if not profile or profile.role not in {'recruiter', 'admin'}:
-        return JsonResponse({'Success': False, 'Error': 'Recruiter or admin access required.', 'Data': {}})
+    if not profile or profile.role not in {'recruiter', 'interviewer', 'admin'}:
+        return JsonResponse({'Success': False, 'Error': 'Recruiter, interviewer, or admin access required.', 'Data': {}})
 
     applications_qs = (
         CandidateVacancyApplication.objects
@@ -1910,6 +2289,12 @@ def recruiterApplicationFeed(request):
     )
     if profile.role == 'recruiter':
         applications_qs = applications_qs.filter(vacancy__recruiter=request.user)
+    elif profile.role == 'interviewer':
+        assigned_hr = profile.recruiter
+        if assigned_hr:
+            applications_qs = applications_qs.filter(vacancy__recruiter=assigned_hr)
+        else:
+            applications_qs = applications_qs.none()
     else:
         applications_qs = applications_qs.filter(vacancy__admin=request.user)
 
@@ -1918,10 +2303,11 @@ def recruiterApplicationFeed(request):
     for application in applications_qs[:12]:
         candidate = application.candidate
         candidate_profile = getattr(candidate, 'profile', None)
+        public_resume = ensure_public_resume(candidate)
         applications.append({
             'id': application.id,
             'candidate_id': candidate.id,
-            'candidate_name': f"{candidate.first_name} {candidate.last_name}".strip() or candidate.username,
+            'candidate_name': get_display_name(candidate),
             'candidate_email': candidate.email,
             'candidate_phone': candidate_profile.phone if candidate_profile else '',
             'vacancy_id': application.vacancy_id,
@@ -1930,6 +2316,7 @@ def recruiterApplicationFeed(request):
             'status_label': application.status.replace('_', ' ').title(),
             'applied_at': application.applied_at.isoformat() if application.applied_at else '',
             'source': application.source,
+            'public_profile_url': request.build_absolute_uri(reverse('public-candidate-resume', args=[public_resume.short_code])),
         })
 
     return JsonResponse({
@@ -1939,6 +2326,254 @@ def recruiterApplicationFeed(request):
             'count': applications_qs.count(),
             'applications': applications,
             'generated_at': timezone.now().isoformat(),
+        }
+    })
+
+
+def build_candidate_export_document_html(
+    *,
+    rows: list[dict[str, str]],
+    status_label: str,
+    search_label: str,
+    generated_at: str,
+) -> str:
+    def esc(value: str) -> str:
+        return html.escape(str(value or ''))
+
+    row_markup = ''.join(
+        f"""
+        <tr class="{'row-even' if index % 2 == 0 else 'row-odd'}">
+          <td>{esc(row.get('candidateName', ''))}</td>
+          <td>{esc(row.get('email', ''))}</td>
+          <td>{esc(row.get('role', ''))}</td>
+          <td>{esc(row.get('roleId', ''))}</td>
+          <td>{esc(row.get('recruiter', ''))}</td>
+          <td>{esc(row.get('interviewer', ''))}</td>
+          <td>{esc(row.get('status', ''))}</td>
+          <td>{esc(row.get('score', ''))}</td>
+          <td>{esc(row.get('date', ''))}</td>
+          <td>{esc(row.get('notes', ''))}</td>
+        </tr>
+        """
+        for index, row in enumerate(rows)
+    )
+    executive_summary = (
+        f"This report presents {len(rows)} candidate record{'s' if len(rows) != 1 else ''} "
+        "from the current dashboard view. It is prepared for recruiter review, hiring coordination, "
+        "and stakeholder sharing."
+    )
+    scope_summary = f"Applied filters: status = {status_label}; search = {search_label}."
+    return f"""
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Candidate Data Export</title>
+        <style>
+          body {{ font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #1d2a36; background: #ffffff; }}
+          .header {{ display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 2px solid #dce7f2; }}
+          .brand-site {{ font-size: 13px; color: #4d6780; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }}
+          .brand h1 {{ margin: 0; font-size: 26px; color: #123b69; }}
+          .brand p {{ margin: 6px 0 0; color: #58718a; font-size: 13px; }}
+          .meta {{ display: grid; gap: 8px; min-width: 260px; }}
+          .meta-card {{ border: 1px solid #d7e3ef; border-radius: 10px; padding: 10px 12px; background: #f8fbff; }}
+          .meta-card span {{ display: block; font-size: 11px; text-transform: uppercase; color: #6d8297; letter-spacing: 0.06em; }}
+          .meta-card strong {{ display: block; margin-top: 4px; font-size: 14px; color: #12263a; }}
+          .summary-panel {{ margin-bottom: 18px; border: 1px solid #d7e3ef; border-radius: 14px; background: linear-gradient(180deg, #f9fbfe, #f4f8fc); padding: 16px 18px; }}
+          .summary-panel h2 {{ margin: 0 0 8px; font-size: 16px; color: #123b69; }}
+          .summary-panel p {{ margin: 0 0 6px; color: #4d6780; font-size: 13px; line-height: 1.6; }}
+          .summary-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }}
+          .summary-tile {{ border: 1px solid #d7e3ef; border-radius: 12px; padding: 12px 14px; background: #ffffff; }}
+          .summary-tile span {{ display: block; font-size: 11px; color: #6d8297; text-transform: uppercase; letter-spacing: 0.06em; }}
+          .summary-tile strong {{ display: block; margin-top: 5px; color: #12263a; font-size: 18px; }}
+          table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+          thead th {{ background: #123b69; color: #ffffff; padding: 10px 8px; text-align: left; }}
+          tbody td {{ border-bottom: 1px solid #dfe7ef; padding: 9px 8px; vertical-align: top; }}
+          .row-even {{ background: #f8fbff; }}
+          .row-odd {{ background: #ffffff; }}
+          .footer {{ margin-top: 18px; font-size: 11px; color: #6d8297; border-top: 1px solid #dce7f2; padding-top: 12px; }}
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="brand">
+            <div class="brand-site">shortlistii.com</div>
+            <h1>Candidate Data Export</h1>
+            <p>Corporate candidate report prepared for hiring reviews, recruiter coordination, and leadership sharing.</p>
+          </div>
+          <div class="meta">
+            <div class="meta-card"><span>Generated At</span><strong>{esc(generated_at)}</strong></div>
+            <div class="meta-card"><span>Status Filter</span><strong>{esc(status_label)}</strong></div>
+            <div class="meta-card"><span>Search Filter</span><strong>{esc(search_label)}</strong></div>
+          </div>
+        </div>
+        <div class="summary-panel">
+          <h2>Report Overview</h2>
+          <p>{esc(executive_summary)}</p>
+          <p>{esc(scope_summary)}</p>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-tile"><span>Total Candidates</span><strong>{len(rows)}</strong></div>
+          <div class="summary-tile"><span>Export Format</span><strong>PDF</strong></div>
+          <div class="summary-tile"><span>Prepared For</span><strong>Recruitment Operations</strong></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Candidate Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Role ID</th>
+              <th>Recruiter</th>
+              <th>Evaluator</th>
+              <th>Status</th>
+              <th>Score</th>
+              <th>Interview Date</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>{row_markup}</tbody>
+        </table>
+        <div class="footer">Generated by shortlistii.com • Candidate Data Export Report • {esc(generated_at)}</div>
+      </body>
+    </html>
+    """
+
+
+@csrf_exempt
+@login_required
+def exportCandidateDataPdf(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'Success': False, 'Error': 'Invalid request payload.', 'Data': None}, status=400)
+
+    rows = payload.get('rows') or []
+    if not isinstance(rows, list) or not rows:
+        return JsonResponse({'Success': False, 'Error': 'No candidate rows were provided.', 'Data': None}, status=400)
+
+    generated_at = timezone.localtime(timezone.now()).strftime('%b %d, %Y, %I:%M %p')
+    status_label = str(payload.get('statusLabel') or 'All Candidates')
+    search_label = str(payload.get('searchLabel') or 'No search applied')
+    html_document = build_candidate_export_document_html(
+        rows=rows,
+        status_label=status_label,
+        search_label=search_label,
+        generated_at=generated_at,
+    )
+    pdf_bytes, _renderer = render_pdf_from_html(html_document, request.build_absolute_uri('/'), 'Candidate Data Export')
+    filename = f"candidate_data_{timezone.localtime(timezone.now()).strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@csrf_exempt
+@login_required
+def reviewRecruiterApplication(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': {}}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in {'recruiter', 'interviewer', 'admin'}:
+        return JsonResponse({'Success': False, 'Error': 'Recruiter, interviewer, or admin access required.', 'Data': {}}, status=403)
+
+    application_id = (request.POST.get('application_id') or '').strip()
+    action = (request.POST.get('action') or '').strip().lower()
+    if not application_id.isdigit():
+        return JsonResponse({'Success': False, 'Error': 'A valid application is required.', 'Data': {}}, status=400)
+    if action not in {'accept', 'reject'}:
+        return JsonResponse({'Success': False, 'Error': 'Action must be accept or reject.', 'Data': {}}, status=400)
+
+    applications_qs = (
+        CandidateVacancyApplication.objects
+        .select_related('candidate', 'candidate__profile', 'vacancy', 'vacancy__admin')
+        .prefetch_related('vacancy__recruiter')
+        .filter(id=int(application_id), status=CandidateVacancyApplication.Status.PENDING_REVIEW)
+    )
+
+    if profile.role == 'recruiter':
+        applications_qs = applications_qs.filter(vacancy__recruiter=request.user)
+    elif profile.role == 'interviewer':
+        assigned_hr = profile.recruiter
+        if assigned_hr:
+            applications_qs = applications_qs.filter(vacancy__recruiter=assigned_hr)
+        else:
+            applications_qs = applications_qs.none()
+    else:
+        applications_qs = applications_qs.filter(vacancy__admin=request.user)
+
+    application = applications_qs.distinct().first()
+    if not application:
+        return JsonResponse({'Success': False, 'Error': 'Pending request not found.', 'Data': {}}, status=404)
+
+    candidate = application.candidate
+    vacancy = application.vacancy
+
+    with transaction.atomic():
+        if action == 'accept':
+            application.status = CandidateVacancyApplication.Status.APPROVED
+            application.reviewed_at = timezone.now()
+            application.save(update_fields=['status', 'reviewed_at', 'updated_at'])
+
+            assigned_recruiter = None
+            if profile.role == 'recruiter':
+                assigned_recruiter = request.user
+            elif profile.role == 'interviewer':
+                assigned_recruiter = profile.recruiter
+            else:
+                assigned_recruiter = vacancy.recruiter.first()
+
+            interview = (
+                Interview.objects
+                .filter(candidate=candidate, role=vacancy)
+                .order_by('-id')
+                .first()
+            )
+            if interview:
+                changed_fields = []
+                if not interview.recruiter and assigned_recruiter:
+                    interview.recruiter = assigned_recruiter
+                    changed_fields.append('recruiter')
+                if not interview.hr and vacancy.admin:
+                    interview.hr = vacancy.admin
+                    changed_fields.append('hr')
+                if interview.status in {'rejected', 'cancelled'}:
+                    interview.status = 'assessment_pending'
+                    changed_fields.append('status')
+                if changed_fields:
+                    interview.save(update_fields=changed_fields)
+            else:
+                Interview.objects.create(
+                    candidate=candidate,
+                    recruiter=assigned_recruiter,
+                    interviewer=None,
+                    hr=vacancy.admin,
+                    status='assessment_pending',
+                    role=vacancy,
+                )
+            status_label = 'Accepted'
+            message = 'Request accepted and candidate added to the hiring pipeline.'
+        else:
+            application.status = CandidateVacancyApplication.Status.REJECTED
+            application.reviewed_at = timezone.now()
+            application.save(update_fields=['status', 'reviewed_at', 'updated_at'])
+            status_label = 'Rejected'
+            message = 'Request rejected successfully.'
+
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'application_id': application.id,
+            'status': application.status,
+            'status_label': status_label,
+            'message': message,
+            'candidate_id': candidate.id,
+            'vacancy_id': vacancy.id,
         }
     })
 
@@ -2065,6 +2700,7 @@ def build_candidate_dashboard_context(
 
     recent_job_postings_qs = (
         Vacancies.objects
+        .select_related('company')
         .prefetch_related('recruiter')
         .exclude(status__in=['closed', 'canceled', 'hired'])
         .order_by('-date', '-id')
@@ -2129,10 +2765,15 @@ def build_candidate_dashboard_context(
             'id': vacancy.id,
             'role': vacancy.role,
             'position': vacancy.position,
+            'job_type': vacancy.get_job_type_display() if vacancy.job_type else '',
+            'location': vacancy.location,
+            'salary_range': vacancy.salary_range,
+            'experience_required': vacancy.experience_required,
             'status': vacancy.status,
             'date': vacancy.date,
             'description': (vacancy.description or '').strip(),
             'recruiters': recruiter_names,
+            'company': serialize_company_summary(vacancy.company),
             'match_score': min(score, 100),
             'is_recommended': strong_match,
             'is_relevant': is_relevant,
@@ -2376,9 +3017,64 @@ def submitCandidateIdentityVerification(request):
 @login_required
 def getCandidateProfileData(request, interview_id: int):
     try:
+        def trim_text(value, limit: int = 1200) -> str:
+            text = str(value or '').strip()
+            if len(text) <= limit:
+                return text
+            return f"{text[:limit].rstrip()}..."
+
+        def compact_resume_payload(payload: dict) -> dict:
+            resume_payload = dict(payload or {})
+            resume_payload['summary'] = trim_text(resume_payload.get('summary', ''), 1800)
+            resume_payload['raw_text_preview'] = trim_text(resume_payload.get('raw_text_preview', ''), 1200)
+            resume_payload['ai_raw_preview'] = trim_text(resume_payload.get('ai_raw_preview', ''), 800)
+            resume_payload['skills'] = [
+                trim_text(skill, 80)
+                for skill in (resume_payload.get('skills') or [])[:40]
+            ]
+
+            compact_sections = []
+            for section in (resume_payload.get('sections') or [])[:12]:
+                content = section.get('content') or {}
+                raw_items = content.get('items') or []
+                compact_items = []
+                for item in raw_items[:10]:
+                    if isinstance(item, str):
+                        compact_items.append(trim_text(item, 220))
+                        continue
+                    if isinstance(item, dict):
+                        compact_item = {}
+                        for key, value in list(item.items())[:8]:
+                            if isinstance(value, list):
+                                compact_item[key] = [trim_text(entry, 140) for entry in value[:6]]
+                            elif isinstance(value, str):
+                                compact_item[key] = trim_text(value, 220)
+                            else:
+                                compact_item[key] = value
+                        compact_items.append(compact_item)
+                compact_sections.append({
+                    'section_key': section.get('section_key', ''),
+                    'title': trim_text(section.get('title', ''), 80),
+                    'section_type': section.get('section_type', ''),
+                    'display_order': section.get('display_order', 0),
+                    'content': {
+                        'text': trim_text(content.get('text', ''), 1400),
+                        'items': compact_items,
+                    },
+                    'raw_text': trim_text(section.get('raw_text', ''), 1200),
+                })
+            resume_payload['sections'] = compact_sections
+            return resume_payload
+
+        def build_file_url(file_field) -> str:
+            try:
+                return request.build_absolute_uri(file_field.url) if file_field else ''
+            except Exception:
+                return ''
+
         interview = (
-            Interview.objects
-            .select_related('candidate', 'candidate__profile', 'recruiter', 'role')
+            get_accessible_interviews(request.user)
+            .select_related('candidate', 'candidate__profile', 'recruiter', 'interviewer', 'role')
             .filter(id=interview_id)
             .first()
         )
@@ -2391,18 +3087,14 @@ def getCandidateProfileData(request, interview_id: int):
             .prefetch_related('sections')
             .first()
         )
-        resume_data = ResumeProcessingService().serialize_resume(latest_resume)
-        profile = interview.candidate.profile
-        prefs, _ = UserNotificationPreference.objects.get_or_create(user=interview.candidate)
+        resume_data = compact_resume_payload(ResumeProcessingService().serialize_resume(latest_resume))
+        profile = getattr(interview.candidate, 'profile', None)
+        prefs = UserNotificationPreference.objects.filter(user=interview.candidate).first()
         identity_record = CandidateIdentityVerification.objects.filter(candidate=interview.candidate).first()
         insight_snapshot = CandidateInsightSnapshot.objects.filter(candidate=interview.candidate).first()
         public_resume = CandidatePublicResume.objects.filter(candidate=interview.candidate, is_active=True).first()
-        resume_data['file_url'] = (
-            request.build_absolute_uri(profile.resume.url)
-            if getattr(profile, 'resume', None)
-            else ''
-        )
-        candidate_name = f"{interview.candidate.first_name} {interview.candidate.last_name}".strip().title()
+        resume_data['file_url'] = build_file_url(getattr(profile, 'resume', None))
+        candidate_name = get_display_name(interview.candidate)
 
         return JsonResponse({
             'Success': True,
@@ -2414,23 +3106,22 @@ def getCandidateProfileData(request, interview_id: int):
                     'name': candidate_name,
                     'email': interview.candidate.email,
                     'phone': getattr(profile, 'phone', ''),
-                    'recruiter': f"{interview.recruiter.first_name} {interview.recruiter.last_name}".strip().title() if interview.recruiter else '',
+                    'recruiter': get_display_name(interview.recruiter) if interview.recruiter else '',
+                    'interviewer': get_display_name(interview.interviewer) if interview.interviewer else '',
                     'role': interview.role.role if interview.role else '',
                     'role_id': interview.role_id,
                     'status': interview.status,
                     'score': interview.score,
                     'date': interview.date.isoformat() if interview.date else '',
-                    'profile_picture': request.build_absolute_uri(profile.profile_picture.url)
-                    if getattr(profile, 'profile_picture', None)
-                    else '',
+                    'profile_picture': build_file_url(getattr(profile, 'profile_picture', None)),
                     'public_resume_downloads': public_resume.download_count if public_resume else 0,
                 },
                 'verification': {
-                    'phone_verified': bool(prefs.phone_verified_at),
-                    'email_verified': bool(prefs.email_verified_at),
+                    'phone_verified': bool(getattr(prefs, 'phone_verified_at', None)),
+                    'email_verified': bool(getattr(prefs, 'email_verified_at', None)),
                     'identity_verified': is_identity_verified(identity_record),
-                    'phone_verified_at': prefs.phone_verified_at.isoformat() if prefs.phone_verified_at else '',
-                    'email_verified_at': prefs.email_verified_at.isoformat() if prefs.email_verified_at else '',
+                    'phone_verified_at': prefs.phone_verified_at.isoformat() if getattr(prefs, 'phone_verified_at', None) else '',
+                    'email_verified_at': prefs.email_verified_at.isoformat() if getattr(prefs, 'email_verified_at', None) else '',
                     'identity_verified_at': identity_record.processed_at.isoformat() if identity_record and identity_record.processed_at else '',
                     'identity_status': identity_record.status if identity_record else CandidateIdentityVerification.Status.NOT_STARTED,
                 },
@@ -2542,6 +3233,10 @@ def addRole(request):
             name = request.POST.get('name', '')
             description = request.POST.get('description', '')
             vacancies = request.POST.get('vacancies', '')
+            job_type = request.POST.get('job_type', '')
+            location = request.POST.get('location', '')
+            salary_range = request.POST.get('salary_range', '')
+            experience_required = request.POST.get('experience_required', '')
             status = request.POST.get('status', '')
             recruiter_ids = request.POST.getlist('recruiter')
             if not recruiter_ids:
@@ -2549,19 +3244,39 @@ def addRole(request):
                 if single_recruiter:
                     recruiter_ids = [single_recruiter]
             user = User.objects.get(username=request.user.username)
-            if user.profile.role == 'admin':
-                obj = Vacancies(
-                        role= name,
-                        description= description,
-                        position= int(vacancies) if vacancies.isdigit() else 0,
-                        status= status,
-                        admin= user,
-                )
-                obj.save()
-                valid_recruiters = User.objects.filter(id__in=recruiter_ids, profile__role='recruiter')
-                if not valid_recruiters.exists():
-                    return JsonResponse({"Success": False, "Error": "Please select at least one valid recruiter.", "Data": ""})
-                obj.recruiter.add(*valid_recruiters)
+            current_role = get_user_role(user)
+            if current_role not in {'admin', 'recruiter'}:
+                return JsonResponse({"Success": False, "Error": "Only admins or recruiters can post jobs.", "Data": ""})
+
+            admin_user = get_admin_for_user(user)
+            if not admin_user:
+                return JsonResponse({"Success": False, "Error": "Unable to resolve admin scope for this job posting.", "Data": ""})
+
+            linked_company = getattr(admin_user, 'company_profile', None)
+            if linked_company is None:
+                linked_company = getattr(getattr(user, 'profile', None), 'company', None)
+
+            if current_role == 'recruiter' and not recruiter_ids:
+                recruiter_ids = [str(user.id)]
+
+            valid_recruiters = User.objects.filter(id__in=recruiter_ids, profile__role='recruiter')
+            if not valid_recruiters.exists():
+                return JsonResponse({"Success": False, "Error": "Please select at least one valid recruiter.", "Data": ""})
+
+            obj = Vacancies(
+                    role=name,
+                    description=description,
+                    position=int(vacancies) if vacancies.isdigit() else 0,
+                    job_type=(job_type or '').strip(),
+                    location=(location or '').strip(),
+                    salary_range=(salary_range or '').strip(),
+                    experience_required=(experience_required or '').strip(),
+                    status=status,
+                    company=linked_company,
+                    admin=admin_user,
+            )
+            obj.save()
+            obj.recruiter.add(*valid_recruiters)
         return JsonResponse({
             "Success": True,
             "Error": None,
@@ -2571,8 +3286,13 @@ def addRole(request):
                     "name": obj.role,
                     "description": obj.description,
                     "vacancies": obj.position,
+                    "job_type": obj.get_job_type_display() if obj.job_type else '',
+                    "location": obj.location,
+                    "salary_range": obj.salary_range,
+                    "experience_required": obj.experience_required,
                     "date": obj.date,
                     "status": obj.status,
+                    "company": serialize_company_summary(obj.company, request=request),
                 }
             }
         })
@@ -2582,15 +3302,49 @@ def addRole(request):
 @login_required
 def getRoleList(request):
     try:
-        admin = get_object_or_404(User, username=request.user.username)
-        role_data = Vacancies.objects.filter(admin=admin)
+        current_user = get_object_or_404(User, username=request.user.username)
+        current_role = get_user_role(current_user)
+        admin_scope = get_admin_for_user(current_user)
+        if not admin_scope:
+            return JsonResponse({"Success": True, "Error": None, "RoleData": []})
+
+        role_data = (
+            Vacancies.objects
+            .filter(admin=admin_scope)
+            .select_related('company', 'admin', 'admin__company_profile')
+            .prefetch_related('recruiter')
+            .annotate(
+                applications_count=Count('interviews', distinct=True),
+                hired_count=Count('interviews', filter=Q(interviews__status='hired'), distinct=True),
+                active_pipeline_count=Count(
+                    'interviews',
+                    filter=Q(interviews__status__in=[
+                        'scheduled',
+                        'shortlisted',
+                        'assessment_pending',
+                        'assessment_completed',
+                        'auto_screening_scheduled',
+                    ]),
+                    distinct=True,
+                ),
+            )
+            .order_by('-date', '-id')
+        )
+
+        if current_role == 'recruiter':
+            role_data = role_data.filter(recruiter=current_user).distinct()
+
         role_list = []
         for role in role_data:
-            role_details = {}
-            role_details['id'] = role.id
+            vacancy_count = int(role.position) if str(role.position).isdigit() else 0
+            role_details = build_vacancy_card_payload(role, include_external_company_logo=False, request=request)
             role_details['name'] = role.role
-            role_details['description'] = role.description
-            role_details['vacancies'] = int(role.position) if str(role.position).isdigit() else 0
+            role_details['vacancies'] = vacancy_count
+            role_details['applications'] = int(role.applications_count or 0)
+            role_details['hired'] = int(role.hired_count or 0)
+            role_details['inprogress'] = int(role.active_pipeline_count or 0)
+            role_details['open_positions'] = max(vacancy_count - role_details['hired'], 0)
+            role_details['recruiter_count'] = len(role_details.get('recruiters', []))
             role_list.append(role_details)
         return JsonResponse({"Success":True, "Error":None, "RoleData":role_list})
     except Exception as e:
@@ -2599,7 +3353,7 @@ def getRoleList(request):
 @login_required
 def getRoleData(request, id):
     try:
-        role_data = Vacancies.objects.get(id=id)
+        role_data = Vacancies.objects.select_related('company').get(id=id)
 
         # Get queryset of interviews
         interviews = Interview.objects.filter(role=role_data)
@@ -2627,8 +3381,13 @@ def getRoleData(request, id):
         role_details['name'] = role_data.role
         role_details['description'] = role_data.description
         role_details['position'] = role_data.position
+        role_details['job_type'] = role_data.get_job_type_display() if role_data.job_type else ''
+        role_details['location'] = role_data.location
+        role_details['salary_range'] = role_data.salary_range
+        role_details['experience_required'] = role_data.experience_required
         role_details['status'] = role_data.status
         role_details['date'] = role_data.date
+        role_details['company'] = serialize_company_summary(role_data.company, request=request)
         role_details["applications"] = total_interviews,
         role_details["hired"] = counts.get("hired", 0),
         role_details["inprogress"] = counts.get("shortlisted", 0),
@@ -2642,14 +3401,34 @@ def getRoleData(request, id):
 def getHrList(request):
     try:
         admin = get_object_or_404(User, username=request.user.username)
-        recruiter_data = UserProfile.objects.filter(hr=admin, role='recruiter')
+        recruiter_data = (
+            UserProfile.objects
+            .filter(hr=admin, role='recruiter')
+            .exclude(user__username__iexact='TBD')
+            .annotate(
+                interviewers_count=Count('user__recruiter_interviews__interviewer', distinct=True),
+                candidates_count=Count(
+                    'user__recruiter_interviews__candidate',
+                    filter=Q(user__recruiter_interviews__interviewer__isnull=False),
+                    distinct=True
+                ),
+            )
+            .order_by('user__first_name', 'user__last_name')
+        )
         recruiter_list = []
         for recruiter in recruiter_data:
             recruiter_details = {}
             recruiter_details['id'] = recruiter.user.id
-            recruiter_details['name'] = (recruiter.user.first_name + " " + recruiter.user.last_name).title()
+            recruiter_details['user_id'] = recruiter.user.id
+            recruiter_details['profile_id'] = recruiter.id
+            recruiter_details['name'] = get_display_name(recruiter.user)
             recruiter_details['email'] = recruiter.user.email
             recruiter_details['role'] = recruiter.role
+            recruiter_details['phone'] = recruiter.phone
+            recruiter_details['gender'] = recruiter.gender
+            recruiter_details['company_url'] = recruiter.company_url or ''
+            recruiter_details['interviewers_count'] = recruiter.interviewers_count
+            recruiter_details['candidates_count'] = recruiter.candidates_count
             recruiter_list.append(recruiter_details)
         return JsonResponse({"Success":True, "Error":None, "RecruiterData":recruiter_list})
     except Exception as e:
@@ -2658,30 +3437,61 @@ def getHrList(request):
 @login_required
 def getEvaluator(request):
     try:
-        admin = get_object_or_404(User, username=request.user.username)
+        current_user = get_object_or_404(User, username=request.user.username)
+        current_role = get_user_role(current_user)
+        admin_user = get_admin_for_user(current_user)
+        if not admin_user:
+            return JsonResponse({"Success": True, "Error": None, "RecruiterData": []})
+
+        interviews_qs = Interview.objects.select_related(
+            'interviewer', 'interviewer__profile', 'recruiter'
+        ).filter(hr=admin_user, interviewer__isnull=False)
+
+        if current_role == 'recruiter':
+            interviews_qs = interviews_qs.filter(recruiter=current_user)
+
+        interviewer_ids = list(
+            interviews_qs.values_list('interviewer_id', flat=True).distinct()
+        )
+
         recruiter_data = (
             UserProfile.objects
-            .filter(hr=admin, role='recruiter')
+            .select_related('user')
+            .filter(user_id__in=interviewer_ids, role='interviewer')
             .exclude(user__username__iexact='TBD')
-            .annotate(
-                interviews_count=Count(
-                    'user__recruiter_interviews',
-                    filter=Q(user__recruiter_interviews__hr=admin),
-                    distinct=True
-                )
-            )
-            .order_by('-interviews_count', 'user__first_name', 'user__last_name')[:8]
+            .order_by('user__first_name', 'user__last_name')
         )
+
+        interview_counts = {
+            item['interviewer']: item['count']
+            for item in interviews_qs.values('interviewer').annotate(count=Count('id'))
+        }
+
+        recruiter_names_by_interviewer: dict[int, list[str]] = defaultdict(list)
+        for item in interviews_qs.exclude(recruiter__isnull=True):
+            interviewer_id = item.interviewer_id
+            recruiter_name = f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
+            if recruiter_name and recruiter_name not in recruiter_names_by_interviewer[interviewer_id]:
+                recruiter_names_by_interviewer[interviewer_id].append(recruiter_name)
+
         recruiter_list = []
         for recruiter in recruiter_data:
             recruiter_details = {}
-            recruiter_details['id'] = recruiter.id
-            recruiter_details['name'] = (recruiter.user.first_name + " " + recruiter.user.last_name).title()
+            recruiter_details['id'] = recruiter.user_id
+            recruiter_details['user_id'] = recruiter.user_id
+            recruiter_details['profile_id'] = recruiter.id
+            recruiter_details['name'] = get_display_name(recruiter.user)
             recruiter_details['email'] = recruiter.user.email
             recruiter_details['role'] = recruiter.role
             recruiter_details['phone'] = recruiter.phone
             recruiter_details['gender'] = recruiter.gender
-            recruiter_details['interviews_count'] = recruiter.interviews_count
+            recruiter_details['interviews_count'] = interview_counts.get(recruiter.user_id, 0)
+            linked_names = recruiter_names_by_interviewer.get(recruiter.user_id, [])
+            recruiter_details['recruiter_id'] = recruiter.recruiter_id
+            recruiter_details['recruiter_name'] = get_display_name(recruiter.recruiter) if recruiter.recruiter_id else ''
+            recruiter_details['recruiters_count'] = len(linked_names)
+            recruiter_details['hr_id'] = recruiter.recruiter_id if current_role == 'recruiter' else recruiter.hr_id
+            recruiter_details['hr_name'] = ', '.join(linked_names[:3])
             recruiter_list.append(recruiter_details)
         return JsonResponse({"Success":True, "Error":None, "RecruiterData":recruiter_list})
     except Exception as e:
@@ -2691,23 +3501,69 @@ def getEvaluator(request):
 @login_required
 def evaluatorSearch(request):
     try:
-        admin = get_object_or_404(User, username=request.user.username)
+        current_user = get_object_or_404(User, username=request.user.username)
         name = (request.POST.get('name') or '').strip()
-        recruiter_data = UserProfile.objects.filter(hr=admin, role='recruiter').exclude(user__username__iexact='TBD')
+        current_role = get_user_role(current_user)
+        admin_user = get_admin_for_user(current_user)
+        if not admin_user:
+            return JsonResponse({"Success": True, "Error": None, "RecruiterData": []})
+
+        interviews_qs = Interview.objects.select_related(
+            'interviewer', 'interviewer__profile', 'recruiter'
+        ).filter(hr=admin_user, interviewer__isnull=False)
+
+        if current_role == 'recruiter':
+            interviews_qs = interviews_qs.filter(recruiter=current_user)
+
         if name:
-            recruiter_data = recruiter_data.filter(
-                Q(user__first_name__icontains=name) | Q(user__last_name__icontains=name)
+            interviews_qs = interviews_qs.filter(
+                Q(interviewer__first_name__icontains=name)
+                | Q(interviewer__last_name__icontains=name)
+                | Q(interviewer__email__icontains=name)
+                | Q(interviewer__profile__phone__icontains=name)
+                | Q(recruiter__first_name__icontains=name)
+                | Q(recruiter__last_name__icontains=name)
             )
-        recruiter_data = recruiter_data.distinct()
+
+        interviewer_ids = list(
+            interviews_qs.values_list('interviewer_id', flat=True).distinct()
+        )
+
+        recruiter_data = (
+            UserProfile.objects
+            .select_related('user')
+            .filter(user_id__in=interviewer_ids, role='interviewer')
+            .exclude(user__username__iexact='TBD')
+            .order_by('user__first_name', 'user__last_name')
+        )
+
+        interview_counts = {
+            item['interviewer']: item['count']
+            for item in interviews_qs.values('interviewer').annotate(count=Count('id'))
+        }
+
+        recruiter_names_by_interviewer: dict[int, list[str]] = defaultdict(list)
+        for item in interviews_qs.exclude(recruiter__isnull=True):
+            interviewer_id = item.interviewer_id
+            recruiter_name = f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
+            if recruiter_name and recruiter_name not in recruiter_names_by_interviewer[interviewer_id]:
+                recruiter_names_by_interviewer[interviewer_id].append(recruiter_name)
+
         recruiter_list = []
         for recruiter in recruiter_data:
             recruiter_details = {}
-            recruiter_details['id'] = recruiter.id
-            recruiter_details['name'] = (recruiter.user.first_name + " " + recruiter.user.last_name).title()
+            recruiter_details['id'] = recruiter.user_id
+            recruiter_details['user_id'] = recruiter.user_id
+            recruiter_details['profile_id'] = recruiter.id
+            recruiter_details['name'] = get_display_name(recruiter.user)
             recruiter_details['email'] = recruiter.user.email
             recruiter_details['role'] = recruiter.role
             recruiter_details['phone'] = recruiter.phone
             recruiter_details['gender'] = recruiter.gender
+            recruiter_details['interviews_count'] = interview_counts.get(recruiter.user_id, 0)
+            recruiter_details['recruiter_id'] = recruiter.recruiter_id
+            recruiter_details['recruiter_name'] = get_display_name(recruiter.recruiter) if recruiter.recruiter_id else ''
+            recruiter_details['hr_name'] = ', '.join(recruiter_names_by_interviewer.get(recruiter.user_id, [])[:3])
             recruiter_list.append(recruiter_details)
         return JsonResponse({"Success": True, "Error": None, "RecruiterData": recruiter_list})
     except Exception as e:
@@ -2729,29 +3585,53 @@ def getInterviewsForProfile(request):
             or request.GET.get('recruiter_id')
             or ''
         ).strip()
+        profile_type = (
+            request.POST.get('profile_type')
+            or request.GET.get('profile_type')
+            or 'evaluator'
+        ).strip().lower()
 
-        hr = get_object_or_404(User, username=request.user.username)
-        recruiter = None
+        current_user = get_object_or_404(User, username=request.user.username)
+        admin_user = get_admin_for_user(current_user)
+        target_user = None
+        target_role = 'recruiter' if profile_type == 'recruiter' else 'interviewer'
+
+        if not admin_user:
+            return JsonResponse({"Success": False, "Error": "Admin scope not found.", "Interviews": []})
 
         if recruiter_email:
-            recruiter = User.objects.filter(email__iexact=recruiter_email).first()
+            target_user = User.objects.filter(email__iexact=recruiter_email, profile__role=target_role).first()
 
-        if recruiter is None and recruiter_id.isdigit():
-            profile = UserProfile.objects.filter(id=int(recruiter_id), role='recruiter').select_related('user').first()
+        if target_user is None and recruiter_id.isdigit():
+            lookup_id = int(recruiter_id)
+            profile = UserProfile.objects.filter(
+                Q(id=lookup_id) | Q(user_id=lookup_id),
+                role=target_role
+            ).select_related('user').first()
             if profile:
-                recruiter = profile.user
+                target_user = profile.user
             else:
-                recruiter = User.objects.filter(id=int(recruiter_id)).first()
+                target_user = User.objects.filter(id=lookup_id, profile__role=target_role).first()
 
-        if recruiter is None:
-            return JsonResponse({"Success": False, "Error": "Recruiter not found.", "Interviews": []})
+        if target_user is None:
+            return JsonResponse({"Success": False, "Error": f"{target_role.title()} not found.", "Interviews": []})
 
-        interviews = (
-            Interview.objects
-            .filter(recruiter=recruiter, hr=hr)
-            .select_related('candidate', 'role')
-            .order_by('-date')[:1000]
-        )
+        if target_role == 'recruiter':
+            interviews = (
+                Interview.objects
+                .select_related('candidate', 'role', 'recruiter', 'interviewer')
+                .filter(hr=admin_user, recruiter=target_user, interviewer__isnull=False)
+                .order_by('-date')[:1000]
+            )
+        else:
+            interviews = (
+                Interview.objects
+                .select_related('candidate', 'role', 'recruiter', 'interviewer')
+                .filter(hr=admin_user, interviewer=target_user)
+            )
+            if get_user_role(current_user) == 'recruiter':
+                interviews = interviews.filter(recruiter=current_user)
+            interviews = interviews.order_by('-date')[:1000]
         interview_list = []
 
         for interview in interviews:
@@ -2762,6 +3642,15 @@ def getInterviewsForProfile(request):
             interview_details['score'] = interview.score
             interview_details['role'] = interview.role.role if interview.role else ''
             interview_details['date'] = interview.date.isoformat() if interview.date else ''
+            interview_details['recruiter'] = (
+                f"{interview.recruiter.first_name} {interview.recruiter.last_name}".strip().title()
+                if interview.recruiter else ''
+            )
+            interview_details['interviewer'] = (
+                f"{interview.interviewer.first_name} {interview.interviewer.last_name}".strip().title()
+                if interview.interviewer else ''
+            )
+            interview_details['admin_id'] = admin_user.id if admin_user else None
             interview_list.append(interview_details)
             
         return JsonResponse({"Success": True, "Error": None, "Interviews": interview_list})
@@ -2790,13 +3679,7 @@ def getVacancyReruiters(request, id):
 @login_required
 def candidatesTabData(request):
     try:
-        admin = get_object_or_404(User, username=request.user.username)
-        interviews = (
-            Interview.objects
-            .filter(hr=admin)
-            .select_related('candidate', 'recruiter', 'role')
-            .order_by('-date')
-        )
+        interviews = get_accessible_interviews(request.user).order_by('-date')
 
         status_counts = defaultdict(int)
         role_agg = defaultdict(lambda: {"count": 0, "hired": 0, "scheduled": 0})
@@ -2818,7 +3701,11 @@ def candidatesTabData(request):
                 f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
                 if item.recruiter else 'Unassigned'
             )
-            recruiter_agg[recruiter_name] += 1
+            interviewer_name = (
+                f"{item.interviewer.first_name} {item.interviewer.last_name}".strip().title()
+                if item.interviewer else recruiter_name
+            )
+            recruiter_agg[interviewer_name] += 1
 
             candidate_rows.append({
                 "id": item.id,
@@ -2826,6 +3713,7 @@ def candidatesTabData(request):
                 "email": item.candidate.email,
                 "status": normalized,
                 "recruiter": recruiter_name,
+                "interviewer": interviewer_name,
                 "role": role_name,
                 "role_id": item.role.id if item.role else None,
                 "score": float(item.score) if item.score is not None else None,
@@ -2846,6 +3734,10 @@ def candidatesTabData(request):
                 "recruiter": (
                     f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
                     if item.recruiter else 'Unassigned'
+                ),
+                "interviewer": (
+                    f"{item.interviewer.first_name} {item.interviewer.last_name}".strip().title()
+                    if item.interviewer else 'Unassigned'
                 ),
                 "date": item.date.isoformat() if item.date else '',
                 "status": 'scheduled',
@@ -2898,15 +3790,10 @@ def candidatesTabData(request):
 @login_required
 def activityTabData(request):
     try:
-        admin = get_object_or_404(User, username=request.user.username)
+        admin = get_admin_for_user(request.user)
         now = timezone.now()
         tz = timezone.get_current_timezone()
-        base_qs = (
-            Interview.objects
-            .filter(hr=admin)
-            .select_related('candidate', 'recruiter', 'role')
-            .order_by('-date')
-        )
+        base_qs = get_accessible_interviews(request.user).order_by('-date')
 
         recruiter_options = []
         recruiter_seen = set()
@@ -3001,7 +3888,7 @@ def activityTabData(request):
         upcoming_count = interviews.filter(status='scheduled', date__gte=now).count()
         hired_count = interviews.filter(status__in=['hired', 'completed']).count()
         active_recruiters = interviews.exclude(recruiter__isnull=True).values('recruiter').distinct().count()
-        open_roles = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']).count()
+        open_roles = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']).count() if admin else 0
         last_30_days = interviews.filter(date__gte=now - timedelta(days=30)).count()
 
         # Trend range (dynamic if date filter applied)
@@ -3350,7 +4237,7 @@ def activityTabData(request):
         }
 
         # Phase 3: Open role risk score
-        open_vacancies_qs = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired'])
+        open_vacancies_qs = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']) if admin else Vacancies.objects.none()
         if role_filter and role_filter != 'all' and role_filter.isdigit():
             open_vacancies_qs = open_vacancies_qs.filter(id=int(role_filter))
         if recruiter_filter and recruiter_filter != 'all' and recruiter_filter.isdigit():
@@ -3617,16 +4504,11 @@ def activityTabData(request):
 @login_required
 def analyticsTabData(request):
     try:
-        admin = get_object_or_404(User, username=request.user.username)
+        admin = get_admin_for_user(request.user)
         now = timezone.now()
         tz = timezone.get_current_timezone()
 
-        base_qs = (
-            Interview.objects
-            .filter(hr=admin)
-            .select_related('candidate', 'recruiter', 'role')
-            .order_by('-date')
-        )
+        base_qs = get_accessible_interviews(request.user).order_by('-date')
 
         recruiter_options = []
         recruiter_seen = set()
@@ -3694,7 +4576,7 @@ def analyticsTabData(request):
         total_interviews = interviews.count()
         hired_qs = interviews.filter(status__in=['hired', 'completed'])
         hired_count = hired_qs.count()
-        open_roles_count = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']).count()
+        open_roles_count = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']).count() if admin else 0
 
         # Funnel analytics
         funnel_labels = ['Applied', 'Assessment Pending', 'Scheduled', 'Shortlisted', 'Hired']

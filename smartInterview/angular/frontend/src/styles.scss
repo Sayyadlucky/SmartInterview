@@ -67,6 +67,27 @@ app-root {
   overflow: visible !important;
 }
 
+.workflow-action-dialog .mat-mdc-dialog-container {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.workflow-action-dialog .mat-mdc-dialog-container .mdc-dialog__surface,
+.workflow-action-dialog .mat-mdc-dialog-surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border-radius: 0 !important;
+}
+
+.workflow-action-dialog .mat-mdc-dialog-inner-container,
+.workflow-action-dialog .mdc-dialog__container,
+.workflow-action-dialog.cdk-overlay-pane {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .cdk-overlay-dark-backdrop {
   background: rgba(6, 17, 36, 0.72);
 }
