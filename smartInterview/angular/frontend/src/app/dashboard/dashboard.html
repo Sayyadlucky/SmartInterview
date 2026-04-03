@@ -1,4 +1,5 @@
-<div class="navbar">
+<header class="navbar-shell">
+<nav class="navbar" aria-label="Primary navigation">
   <div class="navbar-brand shortlistii-logo shortlistii-navbar" aria-label="shortlistii.com">
     <span class="logo-text">shortlist</span>
     <span class="logo-ii" aria-hidden="true">
@@ -15,32 +16,43 @@
     </span>
   </div>
   <button
+    #mobileNavToggleButton
     type="button"
     class="mobile-nav-toggle"
     [attr.aria-expanded]="mobileNavOpen"
+    aria-controls="dashboardMobileNavPanel"
     aria-label="Toggle navigation menu"
     (click)="toggleMobileNav()">
     <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen"></i>
   </button>
   <div class="navbar-right">
-    <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"><i class="ph ph-gauge"></i> Dashboard</a>
-    <a routerLink="/dashboard/jobs" routerLinkActive="active"><i class="ph ph-briefcase"></i> Job Postings</a>
-    <a href="#" (click)="$event.preventDefault()"><i class="ph ph-users"></i> Candidates</a>
-    <a href="#" (click)="$event.preventDefault()"><i class="ph ph-user-plus"></i> Talent</a>
-    <a href="logout/"><i class="ph ph-sign-out"></i> Logout</a>
+    <a href="/dashboard" [class.active]="activeTab === 'overview'"><i class="ph ph-gauge"></i> Dashboard</a>
+    <a href="/dashboard/jobs"><i class="ph ph-briefcase"></i> Job Postings</a>
+    <button type="button" class="nav-link-button" [class.active]="activeTab === 'candidates'" (click)="setActiveTab('candidates')"><i class="ph ph-users"></i> Candidates</button>
+    <button type="button" class="nav-link-button" [class.active]="activeTab === 'ai-talent-pool'" (click)="openAiTalentPool()"><i class="ph ph-sparkle"></i> AI Talent Pool</button>
+    <a href="/logout/"><i class="ph ph-sign-out"></i> Logout</a>
   </div>
-</div>
-<div class="mobile-nav-panel" [class.is-open]="mobileNavOpen">
-  <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMobileNav()"><i class="ph ph-gauge"></i> Dashboard</a>
-  <a routerLink="/dashboard/jobs" routerLinkActive="active" (click)="closeMobileNav()"><i class="ph ph-briefcase"></i> Job Postings</a>
-  <a href="#" (click)="$event.preventDefault(); closeMobileNav()"><i class="ph ph-users"></i> Candidates</a>
-  <a href="#" (click)="$event.preventDefault(); closeMobileNav()"><i class="ph ph-user-plus"></i> Talent</a>
-  <a href="logout/" (click)="closeMobileNav()"><i class="ph ph-sign-out"></i> Logout</a>
-</div>
+</nav>
+</header>
+<nav
+  #mobileNavPanel
+  id="dashboardMobileNavPanel"
+  class="mobile-nav-panel"
+  [class.is-open]="mobileNavOpen"
+  aria-label="Mobile navigation"
+  [attr.aria-hidden]="!mobileNavOpen"
+  tabindex="-1">
+  <a href="/dashboard" [class.active]="activeTab === 'overview'" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()"><i class="ph ph-gauge"></i> Dashboard</a>
+  <a href="/dashboard/jobs" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()"><i class="ph ph-briefcase"></i> Job Postings</a>
+  <button type="button" class="nav-link-button" [class.active]="activeTab === 'candidates'" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('candidates'); closeMobileNav()"><i class="ph ph-users"></i> Candidates</button>
+  <button type="button" class="nav-link-button" [class.active]="activeTab === 'ai-talent-pool'" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openAiTalentPool(); closeMobileNav()"><i class="ph ph-sparkle"></i> AI Talent Pool</button>
+  <a href="/logout/" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()"><i class="ph ph-sign-out"></i> Logout</a>
+</nav>
 <button
   type="button"
   class="mobile-nav-backdrop"
   [class.is-open]="mobileNavOpen"
+  [attr.aria-hidden]="!mobileNavOpen"
   aria-label="Close navigation menu"
   (click)="closeMobileNav()"></button>
 
@@ -81,6 +93,7 @@
       <button class="tab-btn" [class.active]="activeTab === 'recruiters'" type="button" (click)="setActiveTab('recruiters')" [style.display]="loginUserRole === 'admin' ? '' : 'none'"><i class="ph ph-briefcase"></i> Recruiters</button>
       <button class="tab-btn" [class.active]="activeTab === 'evaluators'" type="button" (click)="setActiveTab('evaluators')"><i class="ph ph-identification-badge"></i> Evaluators</button>
       <button class="tab-btn" [class.active]="activeTab === 'candidates'" type="button" (click)="setActiveTab('candidates')"><i class="ph ph-user"></i> Candidates</button>
+      <button class="tab-btn" [class.active]="activeTab === 'ai-talent-pool'" type="button" (click)="openAiTalentPool()"><i class="ph ph-sparkle"></i> AI Talent Pool</button>
       <!-- <button class="tab-btn tab-btn-disabled" disabled><i class="ph ph-paper-plane-right"></i> Invite <span class="soon-tag">Soon</span></button> -->
       <button class="tab-btn" [class.active]="activeTab === 'activity'" type="button" (click)="setActiveTab('activity')"><i class="ph ph-activity"></i> Activity</button>
       <button class="tab-btn" [class.active]="activeTab === 'analytics'" type="button" (click)="setActiveTab('analytics')"><i class="ph ph-graph"></i> Analytics</button>
@@ -488,6 +501,11 @@
       <app-candidates></app-candidates>
     </div>
 
+    <!-- ================= AI TALENT POOL TAB ================= -->
+    <div class="tab-content active" id="ai-talent-pool" *ngIf="activeTab === 'ai-talent-pool'">
+      <app-talent-pool [initialRoleId]="talentPoolRoleId" [roleCatalog]="roleCatalog"></app-talent-pool>
+    </div>
+
     <!-- ================= ACTIVITY TAB ================= -->
     <div class="tab-content active" id="activity" *ngIf="activeTab === 'activity'">
       <app-activity></app-activity>
@@ -500,9 +518,16 @@
   </main>
 </div>
 
-<div class="company-modal-overlay" *ngIf="companyDetailsModalOpen && companyProfile" (click)="closeCompanyDetailsModal()">
-  <div class="company-modal-card" role="dialog" aria-modal="true" aria-labelledby="companyDetailsTitle" (click)="$event.stopPropagation()">
-    <button type="button" class="company-modal-close" (click)="closeCompanyDetailsModal()" aria-label="Close company details">×</button>
+<div class="company-modal-overlay" *ngIf="companyDetailsModalOpen && companyProfile" (click)="closeCompanyDetailsModal()" aria-hidden="true"></div>
+<div
+  #companyModalCard
+  class="company-modal-card"
+  *ngIf="companyDetailsModalOpen && companyProfile"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="companyDetailsTitle"
+  tabindex="-1">
+    <button #companyModalCloseButton type="button" class="company-modal-close" (click)="closeCompanyDetailsModal()" aria-label="Close company details">×</button>
     <div class="company-modal-head">
       <div class="company-modal-brand">
         <div class="company-modal-logo-shell" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
@@ -758,7 +783,6 @@
     </div>
     </ng-template>
   </div>
-</div>
 
 <div class="application-toast" *ngIf="applicationToastOpen">
   <div class="application-toast__copy">

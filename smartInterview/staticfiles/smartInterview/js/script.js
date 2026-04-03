@@ -1,3 +1,8 @@
+import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+
 const byId = (id) => document.getElementById(id);
 
 const header = byId("mainHeader");
@@ -7,7 +12,6 @@ const loginPanel = byId("loginPanel");
 const openLoginBtn = byId("openLoginBtn");
 const contactSignInBtn = byId("contactSignInBtn");
 const closeLogin = byId("closeLogin");
-const getStartedBtn = byId("getStartedBtn");
 const loginForm = byId("loginForm");
 const errorMsg = byId("errorMsg");
 const mobileMenuBtn = byId("mobileMenuBtn");
@@ -82,20 +86,6 @@ function initCoreUi() {
     const y = (e.clientY / window.innerHeight) * 100;
     document.documentElement.style.setProperty("--mx", `${x}%`);
     document.documentElement.style.setProperty("--my", `${y}%`);
-  });
-
-  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-    anchor.addEventListener("click", (e) => {
-      const href = anchor.getAttribute("href");
-      const target = href ? document.querySelector(href) : null;
-      if (!target) return;
-      e.preventDefault();
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
-
-  getStartedBtn?.addEventListener("click", () => {
-    byId("features")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   mobileMenuBtn?.addEventListener("click", openMobileMenu);
@@ -175,7 +165,7 @@ function initGsapMotion() {
   });
 
   if (hasScrollTrigger) {
-    gsap.set([".eyebrow", ".wordmark", ".subtitle", ".hero-stats"], { autoAlpha: 0, y: 24 });
+    gsap.set([".wordmark", ".subtitle", ".hero-stats"], { autoAlpha: 0, y: 24 });
 
     gsap.timeline({
       scrollTrigger: {
@@ -185,7 +175,6 @@ function initGsapMotion() {
         scrub: 1,
       },
     })
-      .to(".eyebrow", { autoAlpha: 1, y: 0, ease: "none" }, 0.05)
       .to(".wordmark", { autoAlpha: 1, y: 0, ease: "none" }, 0.16)
       .to(".subtitle", { autoAlpha: 1, y: 0, ease: "none" }, 0.28)
       .to(".hero-stats", { autoAlpha: 1, y: 0, ease: "none" }, 0.4);

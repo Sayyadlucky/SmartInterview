@@ -6,6 +6,26 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+load_env_file(BASE_DIR / '.env')
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -15,10 +35,31 @@ SECRET_KEY = 'django-insecure--o3*fivnd_=lrfz$6(@9$bsiynr(hv1+!#fd+0o@3m*_7#nfj+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'shortlistii.com',
+    '.shortlistii.com',
+    '127.0.0.1',
+    'localhost',
+    'lvh.com',
+    '.lvh.com',
+    'lvh.me',
+    '.lvh.me',
+]
 
 CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://lvh.com:8000",
+    "http://litio.lvh.com:8000",
+    "http://candidates.lvh.com:8000",
+    "http://jobs.lvh.com:8000",
+    "http://lvh.me:8000",
+    "http://candidates.lvh.me:8000",
+    "http://jobs.lvh.me:8000",
     "https://shortlistii.com",
+    "https://www.shortlistii.com",
+    "https://litio.shortlistii.com",
+    "https://candidate.sshortlistii.com",
     "https://candidates.shortlistii.com",
     "https://jobs.shortlistii.com",
 ]
@@ -40,8 +81,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'smartInterview.middleware.SubdomainMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -122,6 +165,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -165,6 +209,8 @@ MSG91_AUTH_KEY = os.getenv('MSG91_AUTH_KEY', '')
 MSG91_SENDER_ID = os.getenv('MSG91_SENDER_ID', '')
 MSG91_ROUTE = os.getenv('MSG91_ROUTE', '4')
 MSG91_OTP_TEMPLATE_ID = os.getenv('MSG91_OTP_TEMPLATE_ID', '')
+MSG91_INTERVIEW_TEMPLATE_ID = os.getenv('MSG91_INTERVIEW_TEMPLATE_ID', '')
+MSG91_CANDIDATE_SIGNUP_TEMPLATE_ID = os.getenv('MSG91_CANDIDATE_SIGNUP_TEMPLATE_ID', '')
 MSG91_OTP_LENGTH = int(os.getenv('MSG91_OTP_LENGTH', '6'))
 MSG91_OTP_EXPIRY_SECONDS = int(os.getenv('MSG91_OTP_EXPIRY_SECONDS', '300'))
 MSG91_OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv('MSG91_OTP_RESEND_COOLDOWN_SECONDS', '60'))

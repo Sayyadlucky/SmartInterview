@@ -16,10 +16,15 @@ const mobileDrawer = byId("mobileDrawer");
 const mobileDrawerBackdrop = byId("mobileDrawerBackdrop");
 const drawerSignInBtn = byId("drawerSignInBtn");
 const preloader = byId("preloader");
+const heroSection = byId("hero");
 
 const hasGsap = typeof window.gsap !== "undefined";
 const hasScrollTrigger = typeof window.ScrollTrigger !== "undefined";
 const hasThree = typeof window.THREE !== "undefined";
+const isFixedHeaderPage =
+  document.body?.classList.contains("candidate-login-page") ||
+  document.body?.classList.contains("candidate-signup-page") ||
+  document.body?.classList.contains("jobs-portal-page");
 
 if ("scrollRestoration" in history) {
   history.scrollRestoration = "manual";
@@ -73,9 +78,13 @@ function initCoreUi() {
   const year = byId("currentYear");
   if (year) year.textContent = new Date().getFullYear();
 
-  window.addEventListener("scroll", () => {
-    header?.classList.toggle("scrolled", window.scrollY > 24);
-  });
+  if (isFixedHeaderPage) {
+    header?.classList.add("scrolled");
+  } else {
+    window.addEventListener("scroll", () => {
+      header?.classList.toggle("scrolled", window.scrollY > 24);
+    });
+  }
 
   window.addEventListener("mousemove", (e) => {
     const x = (e.clientX / window.innerWidth) * 100;
@@ -152,6 +161,7 @@ function initLoginPanel() {
 
 function initGsapMotion() {
   if (!hasGsap) return;
+  if (!heroSection) return;
   if (hasScrollTrigger) gsap.registerPlugin(ScrollTrigger);
 
   const intro = gsap.timeline({ defaults: { ease: "power3.out" } });

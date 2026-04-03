@@ -1,16 +1,16 @@
-import { Component, AfterViewInit, OnDestroy, OnInit, ViewChild, ElementRef, SimpleChanges } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, OnInit, ViewChild, ElementRef, SimpleChanges, DestroyRef, inject, HostListener } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';  // Import HttpClient
 import { catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { of, timeout } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Evaluators } from '../evaluators/evaluators';
 import { Recruiters } from '../recruiters/recruiters';
 import { Candidates } from '../candidates/candidates';
 import { Activity } from '../activity/activity';
 import { Analytics } from '../analytics/analytics';
+import { TalentPool } from '../talent-pool/talent-pool';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
 import { AddUser } from '../app-modal/add-user/add-user';
@@ -18,6 +18,9 @@ import { ConfirmationBox } from '../app-modal/confirmation-box/confirmation-box/
 import { RoleDetail } from '../app-modal/role-detail/role-detail';
 import { CandidateProfile } from '../app-modal/candidate-profile/candidate-profile';
 import { WorkflowAction } from '../app-modal/workflow-action/workflow-action';
+import { getApiBaseUrl } from '../core/api-base';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { writeWorkspaceContext } from '../core/workspace-context';
 
 Chart.register(...registerables);
 
@@ -147,12 +150,14 @@ interface CompanyProfileFormData {
   standalone: true,
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
-  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, FormsModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, FormsModule],
 })
 export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly apiTimeoutMs = 12000;
   data: any;
   loading = false;
-  activeTab: 'overview' | 'recruiters' | 'evaluators' | 'candidates' | 'activity' | 'analytics' = 'overview';
+  activeTab: 'overview' | 'recruiters' | 'evaluators' | 'candidates' | 'ai-talent-pool' | 'activity' | 'analytics' = 'overview';
   mobileNavOpen = false;
   candidatesData: any;
   scheduledCandidates: any;
@@ -196,9 +201,17 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   applicationToastMessage = '';
   pendingRequestsModalOpen = false;
   pendingRequestsSearch = '';
+  talentPoolRoleId: string | null = null;
+  @ViewChild('mobileNavPanel') mobileNavPanelRef?: ElementRef<HTMLElement>;
+  @ViewChild('mobileNavToggleButton') mobileNavToggleButtonRef?: ElementRef<HTMLButtonElement>;
+  @ViewChild('companyModalCard') companyModalCardRef?: ElementRef<HTMLElement>;
+  @ViewChild('companyModalCloseButton') companyModalCloseButtonRef?: ElementRef<HTMLButtonElement>;
   private applicationIdsSeen = new Set<number>();
   private applicationPollTimer: ReturnType<typeof setInterval> | null = null;
   private applicationToastTimer: ReturnType<typeof setTimeout> | null = null;
+  private previousFocusedElement: HTMLElement | null = null;
+  private mobileNavPreviousFocusedElement: HTMLElement | null = null;
+  private bodyScrollLocked = false;
 
   private sourceCanvas?: ElementRef<HTMLCanvasElement>;
   private sourceChart?: Chart;
@@ -252,6 +265,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     this.assessmentCompletedCandidates = [];
   }
   ngOnInit(): void {
+    this.syncWorkspaceStateFromLocation();
     window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
     window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.fetchData();
@@ -261,16 +275,29 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     this.showPagination = (this.candidatesData?.length || 0) > this.pageSize;
   }
 
-  setActiveTab(tab: 'overview' | 'recruiters' | 'evaluators' | 'candidates' | 'activity' | 'analytics'): void {
+  setActiveTab(tab: 'overview' | 'recruiters' | 'evaluators' | 'candidates' | 'ai-talent-pool' | 'activity' | 'analytics', options?: { roleId?: string | null; updateUrl?: boolean }): void {
     if (this.activeTab === 'overview' && tab !== 'overview' && this.sourceChart) {
       this.sourceChart.destroy();
       this.sourceChart = undefined;
     }
     this.activeTab = tab;
+    if (tab === 'ai-talent-pool') {
+      this.talentPoolRoleId = options?.roleId ?? this.talentPoolRoleId;
+    } else if (!options?.roleId) {
+      this.talentPoolRoleId = null;
+    }
     window.dispatchEvent(new CustomEvent('dashboard-tab-change', { detail: { tab } }));
+    if (options?.updateUrl !== false) {
+      this.updateWorkspaceUrl();
+    }
     if (tab === 'overview') {
       setTimeout(() => this.renderChart(), 0);
     }
+  }
+
+  openAiTalentPool(roleId?: string | number | null): void {
+    const nextRoleId = roleId ? String(roleId) : null;
+    this.setActiveTab('ai-talent-pool', { roleId: nextRoleId, updateUrl: true });
   }
 
   ngOnDestroy(): void {
@@ -284,30 +311,73 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this.applicationToastTimer);
       this.applicationToastTimer = null;
     }
+    this.unlockBodyScroll();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleDocumentKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (this.companyDetailsModalOpen) {
+        event.preventDefault();
+        this.closeCompanyDetailsModal();
+        return;
+      }
+      if (this.mobileNavOpen) {
+        event.preventDefault();
+        this.closeMobileNav(true);
+      }
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    if (this.companyDetailsModalOpen) {
+      this.trapFocus(event, this.companyModalCardRef?.nativeElement);
+      return;
+    }
+
+    if (this.mobileNavOpen) {
+      this.trapFocus(event, this.mobileNavPanelRef?.nativeElement);
+    }
   }
 
   toggleMobileNav(): void {
-    this.mobileNavOpen = !this.mobileNavOpen;
-  }
-
-  closeMobileNav(): void {
-    this.mobileNavOpen = false;
-  }
-
-  private getApiBaseUrl(): string {
-    let port_number = '';
-    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-      port_number = '8000';
+    if (this.mobileNavOpen) {
+      this.closeMobileNav(true);
+      return;
     }
-    return `${window.location.protocol}//${window.location.hostname}:${port_number}`;
+
+    this.mobileNavPreviousFocusedElement = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : this.mobileNavToggleButtonRef?.nativeElement || null;
+    this.mobileNavOpen = true;
+    this.updateBodyScrollLock();
+    setTimeout(() => this.focusFirstElement(this.mobileNavPanelRef?.nativeElement), 0);
+  }
+
+  closeMobileNav(restoreFocus = false): void {
+    if (!this.mobileNavOpen) {
+      return;
+    }
+    this.mobileNavOpen = false;
+    this.updateBodyScrollLock();
+    if (restoreFocus) {
+      setTimeout(() => {
+        (this.mobileNavPreviousFocusedElement || this.mobileNavToggleButtonRef?.nativeElement)?.focus();
+      }, 0);
+    }
   }
 
   // Example API call
   fetchData(): void {
     this.loading = true;
-    const apiBaseUrl = this.getApiBaseUrl();
+    const apiBaseUrl = getApiBaseUrl();
     this.http.get(apiBaseUrl + '/dashboard-data/') // Replace with your API URL
       .pipe(
+        timeout(this.apiTimeoutMs),
+        takeUntilDestroyed(this.destroyRef),
         catchError(error => {
           console.error('Error fetching data', error);
           this.loading = false;
@@ -325,6 +395,11 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
           this.loginUser = this.data.Data.login_user.name;
           this.loginUserRole = this.data.Data.login_user.role || '';
           this.companyProfile = this.data.Data.company_profile || null;
+          writeWorkspaceContext({
+            loginUserName: this.loginUser,
+            loginUserRole: this.loginUserRole,
+            companyProfile: this.companyProfile,
+          });
           this.hydrateCompanyViewModel();
           this.lastUpdatedAt = new Date();
           this.assign_status();
@@ -335,9 +410,11 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   }
 
   fetchRoleCatalog(): void {
-    const apiBaseUrl = this.getApiBaseUrl();
+    const apiBaseUrl = getApiBaseUrl();
     this.http.get(apiBaseUrl + '/get-role-list/')
       .pipe(
+        timeout(this.apiTimeoutMs),
+        takeUntilDestroyed(this.destroyRef),
         catchError(error => {
           console.error('Error fetching role catalog', error);
           return of([]);
@@ -351,9 +428,11 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   }
 
   fetchRecruiterApplicationFeed(initialLoad = false): void {
-    const apiBaseUrl = this.getApiBaseUrl();
+    const apiBaseUrl = getApiBaseUrl();
     this.http.get<any>(`${apiBaseUrl}/recruiter-application-feed/`)
       .pipe(
+        timeout(this.apiTimeoutMs),
+        takeUntilDestroyed(this.destroyRef),
         catchError(error => {
           console.error('Error fetching recruiter application feed', error);
           return of(null);
@@ -416,20 +495,28 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
 
   openCompanyDetailsModal(): void {
     if (this.companyProfile) {
+      this.previousFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.companyEditMode = false;
       this.selectedCompanyLogoFile = null;
       this.selectedCompanyLogoName = '';
       this.populateCompanyForm();
       this.companyDetailsModalOpen = true;
+      this.updateBodyScrollLock();
+      setTimeout(() => this.companyModalCloseButtonRef?.nativeElement.focus(), 0);
     }
   }
 
   closeCompanyDetailsModal(): void {
+    if (!this.companyDetailsModalOpen) {
+      return;
+    }
     this.companyDetailsModalOpen = false;
     this.companyEditMode = false;
     this.companySaving = false;
     this.selectedCompanyLogoFile = null;
     this.selectedCompanyLogoName = '';
+    this.updateBodyScrollLock();
+    setTimeout(() => this.previousFocusedElement?.focus(), 0);
   }
 
   get filteredRecruiterApplications(): RecruiterApplicationItem[] {
@@ -470,7 +557,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     }
 
     application.actionLoading = true;
-    const apiBaseUrl = this.getApiBaseUrl();
+    const apiBaseUrl = getApiBaseUrl();
     const body = new URLSearchParams();
     body.set('application_id', String(application.id));
     body.set('action', action);
@@ -601,11 +688,141 @@ nextPage() {
   }
 }
 
-prevPage() {
+  prevPage() {
   if (this.currentPage > 1) {
     this.currentPage--;
   }
 }
+
+  private trapFocus(event: KeyboardEvent, container?: HTMLElement): void {
+    if (!container) {
+      return;
+    }
+
+    const focusableElements = this.getFocusableElements(container);
+    if (!focusableElements.length) {
+      event.preventDefault();
+      container.focus();
+      return;
+    }
+
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    const activeElement = document.activeElement as HTMLElement | null;
+
+    if (!activeElement || !container.contains(activeElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+      return;
+    }
+
+    if (event.shiftKey && activeElement === first) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+
+    if (!event.shiftKey && activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((element) => {
+      if (element.hasAttribute('hidden')) {
+        return false;
+      }
+      if (element.getAttribute('aria-hidden') === 'true') {
+        return false;
+      }
+      return element.offsetParent !== null || element === document.activeElement;
+    });
+  }
+
+  private focusFirstElement(container?: HTMLElement): void {
+    if (!container) {
+      return;
+    }
+    const [firstElement] = this.getFocusableElements(container);
+    (firstElement || container).focus();
+  }
+
+  private updateBodyScrollLock(): void {
+    const shouldLock = this.mobileNavOpen || this.companyDetailsModalOpen;
+    if (shouldLock && !this.bodyScrollLocked) {
+      document.body.style.overflow = 'hidden';
+      this.bodyScrollLocked = true;
+      return;
+    }
+    if (!shouldLock && this.bodyScrollLocked) {
+      this.unlockBodyScroll();
+    }
+  }
+
+  private unlockBodyScroll(): void {
+    document.body.style.overflow = '';
+    this.bodyScrollLocked = false;
+  }
+
+  private syncWorkspaceStateFromLocation(): void {
+    const url = new URL(window.location.href);
+    const requestedTab = this.normalizeDashboardTab(url.searchParams.get('tab') || url.hash.replace(/^#/, ''));
+    const requestedRoleId = (url.searchParams.get('role') || '').trim() || null;
+
+    if (requestedTab) {
+      this.activeTab = requestedTab;
+    }
+    if (requestedTab === 'ai-talent-pool') {
+      this.talentPoolRoleId = requestedRoleId;
+    }
+  }
+
+  private normalizeDashboardTab(value: string): 'overview' | 'recruiters' | 'evaluators' | 'candidates' | 'ai-talent-pool' | 'activity' | 'analytics' | null {
+    const normalized = (value || '').trim().toLowerCase();
+    switch (normalized) {
+      case 'overview':
+      case 'dashboard':
+        return 'overview';
+      case 'recruiters':
+        return 'recruiters';
+      case 'evaluators':
+        return 'evaluators';
+      case 'candidates':
+        return 'candidates';
+      case 'talent':
+      case 'talent-pool':
+      case 'ai-talent-pool':
+        return 'ai-talent-pool';
+      case 'activity':
+        return 'activity';
+      case 'analytics':
+        return 'analytics';
+      default:
+        return null;
+    }
+  }
+
+  private updateWorkspaceUrl(): void {
+    const url = new URL(window.location.href);
+    if (this.activeTab === 'overview') {
+      url.searchParams.delete('tab');
+      url.searchParams.delete('role');
+    } else {
+      url.searchParams.set('tab', this.activeTab);
+      if (this.activeTab === 'ai-talent-pool' && this.talentPoolRoleId) {
+        url.searchParams.set('role', this.talentPoolRoleId);
+      } else {
+        url.searchParams.delete('role');
+      }
+    }
+    url.hash = '';
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }
 
   get filteredCandidates() {
   const statusFiltered = this.selectedStatus
@@ -744,7 +961,7 @@ saveCompanyProfile(): void {
   }
 
   this.companySaving = true;
-  const apiBaseUrl = this.getApiBaseUrl();
+  const apiBaseUrl = getApiBaseUrl();
   const formData = new FormData();
   const entries = Object.entries(this.companyForm) as Array<[keyof CompanyProfileFormData, string]>;
   for (const [key, value] of entries) {
@@ -1412,7 +1629,7 @@ private exportCandidatesAsWord(documentHtml: string): void {
 }
 
 private exportCandidatesAsPdf(): void {
-  const apiBaseUrl = this.getApiBaseUrl();
+  const apiBaseUrl = getApiBaseUrl();
   const body = {
     rows: this.buildCandidateExportRows(),
     statusLabel: this.selectedStatus ? this.selectedStatus.replace(/_/g, ' ') : 'All Candidates',

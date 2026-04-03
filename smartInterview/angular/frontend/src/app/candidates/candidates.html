@@ -3,74 +3,136 @@
   <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
 
   <div class="candidates-layout" *ngIf="!loading && !errorMessage">
+    <section class="hero-panel">
+      <div class="hero-copy">
+        <span class="section-kicker"><i class="ph ph-users-three"></i> Candidates Workspace</span>
+        <h2>Candidate Operations</h2>
+        <p>
+          Track candidate movement, surface high-priority profiles, and keep recruiter follow-up aligned across the pipeline.
+        </p>
+      </div>
+      <div class="hero-metrics" aria-label="Candidate summary snapshot">
+        <article class="hero-metric-card">
+          <span class="label"><i class="ph ph-path"></i> Active Pipeline</span>
+          <strong>{{ activePipelineCount }}</strong>
+          <small>{{ pipelineCoverage }}% of all candidates are still in motion</small>
+        </article>
+        <article class="hero-metric-card">
+          <span class="label"><i class="ph ph-handshake"></i> Hire Rate</span>
+          <strong>{{ hireRate }}%</strong>
+          <small>{{ summary.hired }} hired from {{ summary.total }} total candidates</small>
+        </article>
+        <article class="hero-metric-card">
+          <span class="label"><i class="ph ph-check-circle"></i> Shortlist Rate</span>
+          <strong>{{ shortlistRate }}%</strong>
+          <small>{{ shortlistedCount }} shortlisted and ready for decisioning</small>
+        </article>
+      </div>
+    </section>
+
     <div class="summary-grid">
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-users"></i> Total</span>
+      <article class="summary-card summary-card--primary">
+        <span class="label"><i class="ph ph-users"></i> Total Candidates</span>
         <span class="value">{{ summary.total }}</span>
+        <small>All profiles currently visible in your workspace.</small>
       </article>
       <article class="summary-card">
         <span class="label"><i class="ph ph-path"></i> In Pipeline</span>
-        <span class="value">{{ summary.scheduled + summary.shortlisted }}</span>
+        <span class="value">{{ activePipelineCount }}</span>
+        <small>Scheduled and shortlisted candidates still being processed.</small>
       </article>
       <article class="summary-card">
         <span class="label"><i class="ph ph-handshake"></i> Hired</span>
         <span class="value">{{ summary.hired }}</span>
+        <small>Closed successfully across all visible roles.</small>
       </article>
       <article class="summary-card">
         <span class="label"><i class="ph ph-check-circle"></i> Shortlisted</span>
         <span class="value">{{ shortlistedCount }}</span>
+        <small>Candidates closest to decision or final evaluation.</small>
       </article>
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-warning-circle"></i> Needs Action</span>
+      <article class="summary-card summary-card--attention">
+        <span class="label"><i class="ph ph-warning-diamond"></i> Needs Action</span>
         <span class="value">{{ overdueCount }}</span>
+        <small>Profiles that need timely attention to avoid pipeline drag.</small>
       </article>
       <article class="summary-card">
-        <span class="label"><i class="ph ph-calendar-plus"></i> Added (7d)</span>
+        <span class="label"><i class="ph ph-calendar-plus"></i> Added In 7 Days</span>
         <span class="value">{{ thisWeekCandidates }}</span>
+        <small>Recent candidate inflow over the last week.</small>
       </article>
       <article class="summary-card">
         <span class="label"><i class="ph ph-x-circle"></i> Rejected</span>
         <span class="value">{{ summary.rejected }}</span>
+        <small>Candidates filtered out during evaluation.</small>
       </article>
       <article class="summary-card">
         <span class="label"><i class="ph ph-gauge"></i> Pipeline Coverage</span>
         <span class="value">{{ pipelineCoverage }}%</span>
+        <small>Share of candidates still active in the funnel.</small>
       </article>
     </div>
 
     <div class="main-grid">
       <article class="main-panel">
-        <div class="panel-head">
-          <h3><i class="ph ph-table"></i> Candidates Pipeline</h3>
-          <span>{{ filteredCandidates.length }} shown</span>
+        <div class="panel-head panel-head--wide">
+          <div>
+            <span class="section-kicker"><i class="ph ph-faders-horizontal"></i> Pipeline Controls</span>
+            <p class="panel-subtitle">Search, filter, prioritize, and jump into candidate or role detail from one operating table.</p>
+          </div>
+          <div class="panel-meta">
+            <span class="meta-chip"><i class="ph ph-list-bullets"></i> {{ filteredCandidates.length }} visible</span>
+            <span class="meta-chip" *ngIf="activeFilterCount"><i class="ph ph-funnel"></i> {{ activeFilterCount }} filter{{ activeFilterCount === 1 ? '' : 's' }}</span>
+          </div>
         </div>
 
         <div class="toolbar">
           <div class="search-box">
             <i class="ph ph-magnifying-glass"></i>
             <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" placeholder="Search candidate, email, role, recruiter" />
-            <button *ngIf="searchTerm" (click)="clearSearch()">Clear</button>
+            <button *ngIf="searchTerm" type="button" (click)="clearSearch()">Clear</button>
           </div>
+
           <div class="toolbar-row">
-            <select [(ngModel)]="recruiterFilter" (change)="onFiltersChanged()">
-              <option value="all">All Recruiters</option>
-              <option *ngFor="let recruiter of recruiterOptions" [value]="recruiter">{{ recruiter }}</option>
-            </select>
-            <select [(ngModel)]="roleFilter" (change)="onFiltersChanged()">
-              <option value="all">All Roles</option>
-              <option *ngFor="let role of roleOptions" [value]="role.id">{{ role.name }} - {{ role.id }}</option>
-            </select>
-            <select [(ngModel)]="sortBy" (change)="onFiltersChanged()">
-              <option value="recent">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="urgency">Highest Urgency</option>
-              <option value="name">Name A-Z</option>
-            </select>
+            <label class="filter-field">
+              <span>Recruiter</span>
+              <select [(ngModel)]="recruiterFilter" (change)="onFiltersChanged()">
+                <option value="all">All Recruiters</option>
+                <option *ngFor="let recruiter of recruiterOptions" [value]="recruiter">{{ recruiter }}</option>
+              </select>
+            </label>
+
+            <label class="filter-field">
+              <span>Role</span>
+              <select [(ngModel)]="roleFilter" (change)="onFiltersChanged()">
+                <option value="all">All Roles</option>
+                <option *ngFor="let role of roleOptions" [value]="role.id">{{ role.name }} - {{ role.id }}</option>
+              </select>
+            </label>
+
+            <label class="filter-field">
+              <span>Sort</span>
+              <select [(ngModel)]="sortBy" (change)="onFiltersChanged()">
+                <option value="recent">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="urgency">Highest Urgency</option>
+                <option value="name">Name A-Z</option>
+              </select>
+            </label>
+
             <button type="button" class="attention-toggle" [class.active]="attentionOnly" (click)="toggleAttentionOnly()">
               <i class="ph ph-warning-circle"></i> Needs Attention
             </button>
-            <button type="button" class="clear-all-btn" (click)="clearAllFilters()"><i class="ph ph-eraser"></i> Reset</button>
+
+            <button type="button" class="clear-all-btn" (click)="clearAllFilters()">
+              <i class="ph ph-arrow-counter-clockwise"></i> Reset
+            </button>
           </div>
+        </div>
+
+        <div class="active-filters-bar" *ngIf="activeFilterCount">
+          <span><i class="ph ph-faders-horizontal"></i> {{ activeFilterCount }} active filter{{ activeFilterCount === 1 ? '' : 's' }}</span>
+          <button type="button" class="clear-inline-btn" (click)="clearAllFilters()">Clear all</button>
         </div>
 
         <div class="status-pills">
@@ -81,8 +143,19 @@
             [class.active]="statusFilter === item.key"
             (click)="setStatusFilter(item.key)"
           >
-            {{ item.label }} ({{ getStatusCount(item.key) }})
+            {{ item.label }}
+            <span>{{ getStatusCount(item.key) }}</span>
           </button>
+        </div>
+
+        <div class="results-meta" *ngIf="filteredCandidates.length">
+          <span><i class="ph ph-list-checks"></i> Showing {{ pageStart }}-{{ pageEnd }} of {{ filteredCandidates.length }}</span>
+          <label class="page-size-select">
+            <span>Rows</span>
+            <select [ngModel]="pageSize" (ngModelChange)="setPageSize($event)">
+              <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
+            </select>
+          </label>
         </div>
 
         <div class="table-wrap">
@@ -107,17 +180,17 @@
                   </div>
                 </td>
                 <td>
-                  <span class="status-chip">{{ candidate.status | titlecase }}</span>
+                  <span class="status-chip">{{ candidate.statusLabel }}</span>
                 </td>
-                <td>{{ candidate.recruiter }}</td>
-                <td>{{ formatRoleWithId(candidate.role, candidate.role_id) }}</td>
+                <td class="text-wrap-cell">{{ candidate.recruiter }}</td>
+                <td class="text-wrap-cell">{{ candidate.roleDisplay }}</td>
                 <td>
                   <div class="urgency-wrap">
-                    <span class="urgency-chip" [ngClass]="urgencyClass(candidate)">{{ urgencyLabel(candidate) }}</span>
-                    <small>{{ ageLabel(candidate) }}</small>
+                    <span class="urgency-chip" [ngClass]="candidate.urgencyClass">{{ candidate.urgencyLabel }}</span>
+                    <small>{{ candidate.ageLabel }}</small>
                   </div>
                 </td>
-                <td>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</td>
+                <td class="text-wrap-cell">{{ candidate.date | date: 'MMM d, y, h:mm a' }}</td>
                 <td>
                   <div class="row-actions">
                     <button type="button" (click)="openCandidateProfile(candidate)">View</button>
@@ -128,7 +201,12 @@
             </tbody>
           </table>
           <ng-template #emptyState>
-            <div class="empty-state">No candidates found for selected filters.</div>
+            <div class="empty-state">
+              <div class="empty-state-icon"><i class="ph ph-folder-open"></i></div>
+              <h4>No candidates found</h4>
+              <p>Try adjusting the search, filters, or attention toggle to widen the pipeline view.</p>
+              <button type="button" class="empty-state-btn" (click)="clearAllFilters()">Reset Filters</button>
+            </div>
           </ng-template>
         </div>
 
@@ -140,18 +218,21 @@
       </article>
 
       <aside class="side-panel">
-        <article class="side-card">
+        <article class="side-card side-card--priority">
           <div class="panel-head">
-            <h3><i class="ph ph-warning-diamond"></i> Needs Attention</h3>
+            <h3><i class="ph ph-warning-diamond"></i> Priority Queue</h3>
             <span>{{ attentionCandidates.length }}</span>
           </div>
+          <p class="side-note">Candidates most likely to require immediate follow-up based on age and stage.</p>
           <ul class="mini-list" *ngIf="attentionCandidates.length; else noAttention">
             <li *ngFor="let item of attentionCandidates">
-              <div>
-                <strong>{{ item.name }}</strong>
-                <small>{{ formatRoleWithId(item.role, item.role_id) }} • {{ item.recruiter }}</small>
-              </div>
-              <span class="urgency-chip" [ngClass]="urgencyClass(item)">{{ urgencyLabel(item) }}</span>
+              <button type="button" class="mini-link" (click)="openCandidateProfile(item)">
+                <div>
+                  <strong>{{ item.name }}</strong>
+                  <small>{{ item.roleDisplay }} • {{ item.recruiter }}</small>
+                </div>
+                <span class="urgency-chip" [ngClass]="item.urgencyClass">{{ item.urgencyLabel }}</span>
+              </button>
             </li>
           </ul>
           <ng-template #noAttention>
@@ -164,6 +245,7 @@
             <h3><i class="ph ph-calendar-check"></i> Upcoming Interviews</h3>
             <span>{{ upcoming.length }}</span>
           </div>
+          <p class="side-note">The next scheduled conversations across your visible candidate pool.</p>
           <ul class="mini-list" *ngIf="upcoming.length; else noUpcoming">
             <li *ngFor="let item of upcoming | slice:0:6">
               <div>
@@ -180,9 +262,10 @@
 
         <article class="side-card">
           <div class="panel-head">
-            <h3><i class="ph ph-briefcase"></i> Top Roles</h3>
+            <h3><i class="ph ph-briefcase"></i> Role Distribution</h3>
             <span>{{ roleBreakdown.length }}</span>
           </div>
+          <p class="side-note">Roles currently attracting the largest candidate volume.</p>
           <div class="role-bars" *ngIf="roleBreakdown.length; else noRoleData">
             <div class="role-row" *ngFor="let role of roleBreakdown | slice:0:6">
               <div class="role-top">
@@ -199,9 +282,10 @@
 
         <article class="side-card">
           <div class="panel-head">
-            <h3><i class="ph ph-identification-card"></i> Top Recruiters</h3>
+            <h3><i class="ph ph-identification-card"></i> Recruiter Load</h3>
             <span>{{ recruiterBreakdown.length }}</span>
           </div>
+          <p class="side-note">Recruiters driving the most candidate volume right now.</p>
           <ul class="mini-list compact" *ngIf="recruiterBreakdown.length; else noRecruiterData">
             <li *ngFor="let item of recruiterBreakdown | slice:0:6">
               <strong>{{ item.name }}</strong>

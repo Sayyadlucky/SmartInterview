@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 {% load form_tags %}
+{% load host_links %}
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -13,18 +14,35 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/EffectComposer.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/RenderPass.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script src="{% static 'smartInterview/js/script.js' %}?v=20260309f" defer></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260330a"></script>
 </head>
 <body>
   <div id="preloader" aria-hidden="true">
     <div class="loader-mark">
-      <i class="ph ph-cube-focus"></i>
-      <span>SHORTLISTII.COM</span>
+      <div class="shortlistii-logo" aria-label="shortlistii.com">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </div>
     </div>
     <div class="loader-bar"><span></span></div>
   </div>
@@ -41,6 +59,7 @@
   <header id="mainHeader">
     <div class="header-shell">
       <a href="#hero" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <i class="ph ph-cube-focus"></i>
         <span class="logo-text">shortlist</span>
 
           <span class="logo-ii" aria-hidden="true">
@@ -122,16 +141,16 @@
             <span>m</span>
           </span>
         </h1>
-        <h2>Shortlist the Right Candidates Instantly</h2>
+        <h2>We Bring Your Hiring Experiance to Next Level</h2>
         <p class="subtitle">
           shortlistii unifies candidate screening, ranking, recruiter workflows,
           transcript intelligence, and analytics into one hiring command center.
         </p>
 
         <div class="hero-cta">
-          <button id="getStartedBtn" class="btn btn-primary">Explore Platform</button>
-          <a href="#new-features" class="btn btn-outline">Newly Added Features</a>
-          <a href="{% url 'jobs-portal' %}" class="btn btn-outline">Browse Jobs</a>
+          <a id="getStartedBtn" href="{% host_link request 'litio' %}" class="btn btn-primary">Explore Litio</a>
+          <a href="{% host_link request 'marketing_candidate_login' %}" class="btn btn-outline">Candidate Login</a>
+          <a href="{% host_link request 'marketing_jobs' %}" class="btn btn-outline">Browse Jobs</a>
         </div>
       </div>
 
@@ -173,7 +192,7 @@
       </div>
       <div class="visuals-layout">
         <div class="visuals-copy glass-card reveal-up">
-          <h3>Shortlistii + SmartVideo Experience</h3>
+          <h3>Shortlistii + Litio Experience</h3>
           <p>
             This platform view reflects your real stack: role pipeline operations, evaluator workflows, live video
             interviews, voice verification, transcript intelligence, and actionable analytics for faster hiring.
@@ -353,7 +372,7 @@
     <form method="post" id="loginForm">
       {% csrf_token %}
       <div id="loginPanel" class="glass-card">
-        <button id="closeLogin" aria-label="Close Login Panel">
+        <button type="button" id="closeLogin" aria-label="Close Login Panel">
           <i class="ph ph-x"></i>
         </button>
 

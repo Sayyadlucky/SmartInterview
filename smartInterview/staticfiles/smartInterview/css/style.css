@@ -49,6 +49,18 @@ body {
   margin-bottom: 16px;
 }
 
+.loader-mark .shortlistii-logo {
+  align-items: flex-end;
+}
+
+.loader-mark .shortlistii-logo .logo-text {
+  font-size: 2rem;
+}
+
+.loader-mark .shortlistii-logo .logo-ii {
+  transform: scale(1.9);
+}
+
 .loader-mark i {
   font-size: 2rem;
   color: #7ce8ff;

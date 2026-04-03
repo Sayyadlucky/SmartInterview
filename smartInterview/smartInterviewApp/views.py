@@ -16,8 +16,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import CompanyProfile, Interview
 from .commonViews import (
+    candidateDashboard,
+    candidateLogin,
     get_accessible_interviews,
     get_accessible_interviewer_profiles,
+    publicJobsPortal,
     send_existing_candidate_sms,
 )
 from .services.company_enrichment import ensure_company_profile_for_user
@@ -51,15 +54,20 @@ def resolve_login_identifier(identifier: str) -> str:
     return value
 
 
-def _is_jobs_subdomain(request) -> bool:
-    host = (request.get_host() or '').split(':', 1)[0].lower()
-    return host.startswith('jobs.')
-
-
 def home(request):
-    if _is_jobs_subdomain(request):
-        from .commonViews import build_public_jobs_context
-        return render(request, 'smartInterview/jobs_portal.html', build_public_jobs_context(request))
+    subdomain = getattr(request, 'subdomain', 'main')
+    if subdomain == 'jobs':
+        profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+        if profile and profile.role in {'admin', 'recruiter', 'interviewer'}:
+            return redirect('/dashboard/')
+        return publicJobsPortal(request)
+    if subdomain == 'candidates':
+        profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+        if profile and profile.role == 'candidate':
+            return candidateDashboard(request)
+        if request.user.is_authenticated:
+            return redirect('/dashboard/')
+        return candidateLogin(request)
 
     if request.method == 'POST':
         post_data = request.POST.copy()
@@ -68,10 +76,10 @@ def home(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('dashboard')  # or role-based redirect
+            return redirect('/dashboard/')
     else:
         if request.user.is_authenticated:
-            return redirect('/dashboard')
+            return redirect('/dashboard/')
         form = LoginForm()
     return render(request, 'smartInterview/index.html', {'form': form})
 

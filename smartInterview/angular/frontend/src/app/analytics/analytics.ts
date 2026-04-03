@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
 import { Chart, registerables } from 'chart.js';
+import { getApiBaseUrl } from '../core/api-base';
 
 Chart.register(...registerables);
 
@@ -395,14 +396,6 @@ export class Analytics implements OnInit, AfterViewInit, AfterViewChecked, OnDes
     this.loadAnalyticsData();
   }
 
-  private getApiBaseUrl(): string {
-    let port = '';
-    if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-      port = '8000';
-    }
-    return `${window.location.protocol}//${window.location.hostname}:${port}`;
-  }
-
   private loadAnalyticsData(): void {
     if (!this.initialized) return;
     this.loading = true;
@@ -414,7 +407,7 @@ export class Analytics implements OnInit, AfterViewInit, AfterViewChecked, OnDes
     if (this.startDate) params = params.set('start_date', this.startDate);
     if (this.endDate) params = params.set('end_date', this.endDate);
 
-    this.http.get<AnalyticsResponse>(`${this.getApiBaseUrl()}/analytics-tab-data/`, { params })
+    this.http.get<AnalyticsResponse>(`${getApiBaseUrl()}/analytics-tab-data/`, { params })
       .pipe(
         catchError((error) => {
           console.error('Error fetching analytics data', error);

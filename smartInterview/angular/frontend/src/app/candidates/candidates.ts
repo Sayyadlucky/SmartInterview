@@ -20,6 +20,19 @@ interface CandidateItem {
   date: string;
 }
 
+interface CandidateViewModel extends CandidateItem {
+  normalizedStatus: string;
+  statusLabel: string;
+  roleDisplay: string;
+  urgencyLevel: 'high' | 'medium' | 'low';
+  urgencyLabel: string;
+  urgencyClass: string;
+  ageLabel: string;
+  dateValue: number;
+  isOverdue: boolean;
+  searchBlob: string;
+}
+
 interface UpcomingItem {
   id: number;
   candidate: string;
@@ -74,7 +87,7 @@ export class Candidates implements OnInit, OnDestroy {
   loading = false;
   errorMessage = '';
 
-  candidates: CandidateItem[] = [];
+  candidates: CandidateViewModel[] = [];
   roleBreakdown: RoleBreakdownItem[] = [];
   recruiterBreakdown: RecruiterBreakdownItem[] = [];
   upcoming: UpcomingItem[] = [];
@@ -99,13 +112,14 @@ export class Candidates implements OnInit, OnDestroy {
   attentionOnly = false;
   pageSize = 10;
   currentPage = 1;
-  filteredCandidatesCache: CandidateItem[] = [];
+  filteredCandidatesCache: CandidateViewModel[] = [];
   recruiterOptionsCache: string[] = [];
   roleOptionsCache: Array<{ id: string; name: string }> = [];
   overdueCountValue = 0;
   thisWeekCandidatesValue = 0;
-  attentionCandidatesCache: CandidateItem[] = [];
+  attentionCandidatesCache: CandidateViewModel[] = [];
   private readonly statusUpdateListener = () => this.loadCandidatesTabData();
+  readonly pageSizeOptions = [10, 25, 50];
 
   readonly statusFilters = [
     { key: 'all', label: 'All' },
@@ -135,13 +149,32 @@ export class Candidates implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil(this.filteredCandidatesCache.length / this.pageSize));
   }
 
-  get filteredCandidates(): CandidateItem[] {
+  get filteredCandidates(): CandidateViewModel[] {
     return this.filteredCandidatesCache;
   }
 
-  get pagedCandidates(): CandidateItem[] {
+  get pagedCandidates(): CandidateViewModel[] {
     const start = (this.currentPage - 1) * this.pageSize;
     return this.filteredCandidates.slice(start, start + this.pageSize);
+  }
+
+  get pageStart(): number {
+    if (!this.filteredCandidates.length) return 0;
+    return (this.currentPage - 1) * this.pageSize + 1;
+  }
+
+  get pageEnd(): number {
+    return Math.min(this.currentPage * this.pageSize, this.filteredCandidates.length);
+  }
+
+  get activeFilterCount(): number {
+    let count = 0;
+    if (this.statusFilter !== 'all') count += 1;
+    if (this.recruiterFilter !== 'all') count += 1;
+    if (this.roleFilter !== 'all') count += 1;
+    if (this.attentionOnly) count += 1;
+    if (this.searchTerm.trim()) count += 1;
+    return count;
   }
 
   setStatusFilter(status: string): void {
@@ -177,6 +210,14 @@ export class Candidates implements OnInit, OnDestroy {
     this.applyCandidateFilters();
   }
 
+  setPageSize(size: string | number): void {
+    const nextSize = Number(size);
+    if (!Number.isFinite(nextSize) || nextSize <= 0) return;
+    this.pageSize = nextSize;
+    this.currentPage = 1;
+    this.applyCandidateFilters();
+  }
+
   clearSearch(): void {
     this.searchTerm = '';
     this.currentPage = 1;
@@ -191,11 +232,11 @@ export class Candidates implements OnInit, OnDestroy {
     if (this.currentPage < this.totalPages) this.currentPage += 1;
   }
 
-  trackCandidate(_index: number, item: CandidateItem): number {
+  trackCandidate(_index: number, item: CandidateViewModel): number {
     return item.id;
   }
 
-  openCandidateProfile(candidate: CandidateItem): void {
+  openCandidateProfile(candidate: CandidateViewModel): void {
     const dialogRef = this.dialog.open(CandidateProfile, {
       width: '95vw',
       maxWidth: '980px',
@@ -209,10 +250,10 @@ export class Candidates implements OnInit, OnDestroy {
       if (!result) return;
 
       if (result.action === 'updated' && result.candidate) {
-        const updated = result.candidate as CandidateItem;
+        const updated = this.enrichCandidate(result.candidate as CandidateItem);
         const index = this.candidates.findIndex((c) => c.id === updated.id);
         if (index !== -1) {
-          this.candidates[index] = { ...this.candidates[index], ...updated, status: this.normalizeStatus(updated.status) };
+          this.candidates[index] = updated;
           this.rebuildSummaryFromCandidates();
           this.rebuildCandidateCaches();
           this.applyCandidateFilters();
@@ -263,12 +304,26 @@ export class Candidates implements OnInit, OnDestroy {
     return Number(this.summary.shortlisted || 0);
   }
 
-  get pipelineCoverage(): number {
-    if (!this.summary.total) return 0;
-    return Math.round(((this.summary.scheduled + this.summary.shortlisted) / this.summary.total) * 100);
+  get activePipelineCount(): number {
+    return Number(this.summary.scheduled || 0) + Number(this.summary.shortlisted || 0);
   }
 
-  get attentionCandidates(): CandidateItem[] {
+  get pipelineCoverage(): number {
+    if (!this.summary.total) return 0;
+    return Math.round((this.activePipelineCount / this.summary.total) * 100);
+  }
+
+  get hireRate(): number {
+    if (!this.summary.total) return 0;
+    return Math.round((Number(this.summary.hired || 0) / this.summary.total) * 100);
+  }
+
+  get shortlistRate(): number {
+    if (!this.summary.total) return 0;
+    return Math.round((Number(this.summary.shortlisted || 0) / this.summary.total) * 100);
+  }
+
+  get attentionCandidates(): CandidateViewModel[] {
     return this.attentionCandidatesCache;
   }
 
@@ -282,28 +337,6 @@ export class Candidates implements OnInit, OnDestroy {
     const id = (roleId ?? '').toString().trim();
     if (!roleName) return id;
     return id ? `${roleName} - ${id}` : roleName;
-  }
-
-  urgencyLabel(item: CandidateItem): string {
-    const level = this.getUrgencyLevel(item);
-    if (level === 'high') return 'High';
-    if (level === 'medium') return 'Medium';
-    return 'Low';
-  }
-
-  urgencyClass(item: CandidateItem): string {
-    const level = this.getUrgencyLevel(item);
-    if (level === 'high') return 'high';
-    if (level === 'medium') return 'medium';
-    return 'low';
-  }
-
-  ageLabel(item: CandidateItem): string {
-    const days = this.getAgeInDays(item.date);
-    if (days === null) return 'Unknown';
-    if (days === 0) return 'Today';
-    if (days === 1) return '1 day';
-    return `${days} days`;
   }
 
   private getApiBaseUrl(): string {
@@ -336,43 +369,77 @@ export class Candidates implements OnInit, OnDestroy {
     return Math.max(0, Math.floor(diff / (24 * 60 * 60 * 1000)));
   }
 
+  private getStatusLabel(status: string): string {
+    const normalized = this.normalizeStatus(status);
+    if (!normalized) return 'Unknown';
+    return normalized.replace(/\b\w/g, (match) => match.toUpperCase());
+  }
+
   private isClosedStatus(status: string): boolean {
     const normalized = this.normalizeStatus(status);
     return ['hired', 'completed', 'rejected', 'cancelled'].includes(normalized);
   }
 
-  private isOverdue(item: CandidateItem): boolean {
-    if (this.isClosedStatus(item.status)) return false;
-    const age = this.getAgeInDays(item.date);
-    return age !== null && age >= 5;
-  }
-
-  private getUrgencyLevel(item: CandidateItem): 'high' | 'medium' | 'low' {
-    const status = this.normalizeStatus(item.status);
+  private getUrgencyLevel(status: string, age: number | null): 'high' | 'medium' | 'low' {
     if (this.isClosedStatus(status)) return 'low';
-    const age = this.getAgeInDays(item.date) ?? 0;
-    if ((status === 'shortlisted' && age >= 3) || (status === 'scheduled' && age >= 3) || age >= 7) return 'high';
-    if (age >= 3) return 'medium';
+    const ageValue = age ?? 0;
+    if ((status === 'shortlisted' && ageValue >= 3) || (status === 'scheduled' && ageValue >= 3) || ageValue >= 7) return 'high';
+    if (ageValue >= 3) return 'medium';
     return 'low';
   }
 
-  private sortByUrgency(a: CandidateItem, b: CandidateItem): number {
-    const rank = { high: 3, medium: 2, low: 1 };
-    const ra = rank[this.getUrgencyLevel(a)];
-    const rb = rank[this.getUrgencyLevel(b)];
-    if (ra !== rb) return rb - ra;
-    const da = this.getValidDate(a.date)?.getTime() || 0;
-    const db = this.getValidDate(b.date)?.getTime() || 0;
-    return da - db;
+  private getAgeLabel(days: number | null): string {
+    if (days === null) return 'Unknown';
+    if (days === 0) return 'Today';
+    if (days === 1) return '1 day';
+    return `${days} days`;
   }
 
-  private sortCandidates(a: CandidateItem, b: CandidateItem): number {
-    const dateA = this.getValidDate(a.date)?.getTime() || 0;
-    const dateB = this.getValidDate(b.date)?.getTime() || 0;
-    if (this.sortBy === 'oldest') return dateA - dateB;
+  private enrichCandidate(item: CandidateItem): CandidateViewModel {
+    const normalizedStatus = this.normalizeStatus(item.status);
+    const age = this.getAgeInDays(item.date);
+    const urgencyLevel = this.getUrgencyLevel(normalizedStatus, age);
+    const dateValue = this.getValidDate(item.date)?.getTime() || 0;
+    const roleDisplay = this.formatRoleWithId(item.role, item.role_id);
+
+    return {
+      ...item,
+      status: normalizedStatus,
+      normalizedStatus,
+      statusLabel: this.getStatusLabel(normalizedStatus),
+      roleDisplay,
+      urgencyLevel,
+      urgencyLabel: this.getStatusLabel(urgencyLevel),
+      urgencyClass: urgencyLevel,
+      ageLabel: this.getAgeLabel(age),
+      dateValue,
+      isOverdue: !this.isClosedStatus(normalizedStatus) && age !== null && age >= 5,
+      searchBlob: [
+        item.name,
+        item.email,
+        item.recruiter,
+        item.role,
+        item.role_id,
+        normalizedStatus,
+      ]
+        .map((value) => (value || '').toString().toLowerCase())
+        .join(' '),
+    };
+  }
+
+  private sortByUrgency(a: CandidateViewModel, b: CandidateViewModel): number {
+    const rank = { high: 3, medium: 2, low: 1 };
+    const ra = rank[a.urgencyLevel];
+    const rb = rank[b.urgencyLevel];
+    if (ra !== rb) return rb - ra;
+    return a.dateValue - b.dateValue;
+  }
+
+  private sortCandidates(a: CandidateViewModel, b: CandidateViewModel): number {
+    if (this.sortBy === 'oldest') return a.dateValue - b.dateValue;
     if (this.sortBy === 'name') return a.name.localeCompare(b.name);
     if (this.sortBy === 'urgency') return this.sortByUrgency(a, b);
-    return dateB - dateA;
+    return b.dateValue - a.dateValue;
   }
 
   private loadCandidatesTabData(): void {
@@ -401,10 +468,7 @@ export class Candidates implements OnInit, OnDestroy {
           ...this.summary,
           ...(data.summary || {})
         };
-        this.candidates = (data.candidates || []).map((item) => ({
-          ...item,
-          status: this.normalizeStatus(item.status)
-        }));
+        this.candidates = (data.candidates || []).map((item) => this.enrichCandidate(item));
         this.roleBreakdown = data.role_breakdown || [];
         this.recruiterBreakdown = data.recruiter_breakdown || [];
         this.upcoming = data.upcoming || [];
@@ -430,7 +494,7 @@ export class Candidates implements OnInit, OnDestroy {
     };
 
     this.candidates.forEach((item) => {
-      const s = this.normalizeStatus(item.status);
+      const s = item.normalizedStatus;
       if (s === 'hired' || s === 'completed') counts.hired += 1;
       else if (s === 'scheduled') counts.scheduled += 1;
       else if (s === 'shortlisted') counts.shortlisted += 1;
@@ -460,12 +524,11 @@ export class Candidates implements OnInit, OnDestroy {
 
     const now = Date.now();
     this.thisWeekCandidatesValue = this.candidates.filter((item) => {
-      const t = this.getValidDate(item.date)?.getTime();
-      return !!t && now - t <= 7 * 24 * 60 * 60 * 1000;
+      return !!item.dateValue && now - item.dateValue <= 7 * 24 * 60 * 60 * 1000;
     }).length;
-    this.overdueCountValue = this.candidates.filter((item) => this.isOverdue(item)).length;
+    this.overdueCountValue = this.candidates.filter((item) => item.isOverdue).length;
     this.attentionCandidatesCache = this.candidates
-      .filter((item) => this.getUrgencyLevel(item) !== 'low')
+      .filter((item) => item.urgencyLevel !== 'low')
       .sort((a, b) => this.sortByUrgency(a, b))
       .slice(0, 6);
   }
@@ -474,25 +537,21 @@ export class Candidates implements OnInit, OnDestroy {
     const term = this.searchTerm.trim().toLowerCase();
     const byFilters = this.candidates.filter((item) => {
       if (this.statusFilter === 'all') return true;
-      const normalized = this.normalizeStatus(item.status);
-      if (this.statusFilter === 'hired') return normalized === 'hired' || normalized === 'completed';
-      return normalized === this.statusFilter;
+      if (this.statusFilter === 'hired') return item.normalizedStatus === 'hired' || item.normalizedStatus === 'completed';
+      return item.normalizedStatus === this.statusFilter;
     }).filter((item) => {
       if (this.recruiterFilter !== 'all' && item.recruiter !== this.recruiterFilter) return false;
       if (this.roleFilter !== 'all') {
         const roleId = (item.role_id ?? '').toString();
         if (roleId !== this.roleFilter) return false;
       }
-      if (this.attentionOnly && this.getUrgencyLevel(item) === 'low') return false;
+      if (this.attentionOnly && item.urgencyLevel === 'low') return false;
       return true;
     });
 
-    const filtered = !term ? byFilters : byFilters.filter((item) =>
-      [item.name, item.email, item.recruiter, item.role, item.status]
-        .map((v) => (v || '').toString().toLowerCase())
-        .some((v) => v.includes(term))
-    );
+    const filtered = !term ? byFilters : byFilters.filter((item) => item.searchBlob.includes(term));
 
     this.filteredCandidatesCache = filtered.sort((a, b) => this.sortCandidates(a, b));
+    this.currentPage = Math.min(this.currentPage, this.totalPages);
   }
 }

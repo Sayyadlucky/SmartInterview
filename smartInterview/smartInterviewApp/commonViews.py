@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import html
 import io
 import json
@@ -18,11 +19,14 @@ from statistics import median
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core import signing
 from django.core import serializers
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -38,6 +42,7 @@ from django.db import transaction
 from django.db.models import Count, Case, When, CharField, Value, Q, F
 from django.utils import timezone
 from smartInterviewApp.notifications.channels import send_sms, send_template_message
+from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.identity_verification import CandidateIdentityVerificationService
 from smartInterviewApp.insights import CandidateInsightService
 from smartInterviewApp.otp.services import request_email_otp, request_otp, verify_email_otp, verify_otp
@@ -47,6 +52,8 @@ from .models import CandidateIdentityVerification, CandidateInsightSnapshot, Can
 
 SIGNUP_TOKEN_SALT = 'candidate-signup'
 SIGNUP_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+PASSWORD_RESET_SESSION_KEY = 'candidate_password_reset'
+PASSWORD_RESET_MAX_AGE_SECONDS = 60 * 15
 PDF_RENDERER_PYTHON_CANDIDATES = [
     '/Users/sayyadlucky/PycharmProjects/smartvideo/.venv/bin/python',
 ]
@@ -75,7 +82,10 @@ def normalize_interview_status(value: str) -> str:
 
 
 def normalize_phone(value: str) -> str:
-    return ''.join(ch for ch in (value or '') if ch.isdigit())
+    digits = ''.join(ch for ch in (value or '') if ch.isdigit())
+    if len(digits) == 10:
+        return f'91{digits}'
+    return digits
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -85,6 +95,13 @@ def split_name(name: str) -> tuple[str, str]:
     if len(parts) == 1:
         return parts[0], ''
     return parts[0], ' '.join(parts[1:])
+
+
+def format_interview_schedule(value) -> tuple[str, str]:
+    if not value:
+        return '', ''
+    localized = timezone.localtime(value)
+    return localized.strftime('%d %b %Y'), localized.strftime('%I:%M %p')
 
 
 def humanize_identifier(value: str) -> str:
@@ -98,6 +115,49 @@ def humanize_identifier(value: str) -> str:
     cleaned = re.sub(r'(?<=[0-9])(?=[A-Za-z])', ' ', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
     return cleaned.title()
+
+
+def mask_phone_last_four(value: str) -> str:
+    digits = normalize_phone(value)
+    if not digits:
+        return ''
+    if len(digits) <= 4:
+        return digits
+    return f"{'•' * max(0, len(digits) - 4)}{digits[-4:]}"
+
+
+def candidate_password_reset_rate_limited(request, action: str, identifier: str, limit: int, window_seconds: int) -> bool:
+    ip = (request.META.get('REMOTE_ADDR') or 'unknown').strip()
+    digest = hashlib.sha256(f'{action}:{ip}:{identifier}'.encode('utf-8')).hexdigest()
+    key = f'candidate-password-reset-rate:{digest}'
+    current = cache.get(key, 0)
+    if current >= limit:
+        return True
+    cache.set(key, current + 1, timeout=window_seconds)
+    return False
+
+
+def get_candidate_password_reset_state(request) -> dict | None:
+    state = request.session.get(PASSWORD_RESET_SESSION_KEY)
+    if not state:
+        return None
+
+    expires_at = state.get('expires_at')
+    if not expires_at or timezone.now().timestamp() > float(expires_at):
+        request.session.pop(PASSWORD_RESET_SESSION_KEY, None)
+        request.session.modified = True
+        return None
+    return state
+
+
+def set_candidate_password_reset_state(request, state: dict) -> None:
+    request.session[PASSWORD_RESET_SESSION_KEY] = state
+    request.session.modified = True
+
+
+def clear_candidate_password_reset_state(request) -> None:
+    request.session.pop(PASSWORD_RESET_SESSION_KEY, None)
+    request.session.modified = True
 
 
 def build_signup_context_from_user(user: User, profile: UserProfile | None, interview: Interview | None = None) -> dict:
@@ -1286,15 +1346,29 @@ def send_existing_candidate_sms(candidate: User, interview: Interview) -> dict:
 
     recruiter_name = f"{interview.recruiter.first_name} {interview.recruiter.last_name}".strip().title() if interview.recruiter else 'our team'
     role_name = interview.role.role if interview.role else 'the role'
-    message = (
-        f"Hi {candidate.first_name or 'Candidate'}, you have been added for the {role_name} role on SmartInterview. "
-        f"Our recruiter {recruiter_name} will connect with you shortly regarding the interview."
-    )
-    sms_result = send_sms(phone, message, metadata={'event_type': 'candidate_interview_created', 'interview_id': interview.id})
+    interview_date, interview_time = format_interview_schedule(interview.date)
+    message = build_sms_message('candidate_interview_created', {
+        'candidate_name': (candidate.first_name or 'Candidate').strip().title(),
+        'role_name': role_name,
+        'recruiter_name': recruiter_name,
+        'interview_date': interview_date,
+        'interview_time': interview_time,
+    })
+    sms_result = send_sms(phone, message, metadata={
+        'event_type': 'candidate_interview_created',
+        'interview_id': interview.id,
+        'msg91_template_id': getattr(settings, 'MSG91_INTERVIEW_TEMPLATE_ID', ''),
+    })
     whatsapp_result = send_candidate_whatsapp_notification(
         phone=phone,
         template_name=getattr(settings, 'CANDIDATE_EXISTING_WHATSAPP_TEMPLATE', 'candidate_interview_created'),
-        parameters=[candidate.first_name or 'Candidate', role_name, recruiter_name],
+        parameters=[
+            (candidate.first_name or 'Candidate').strip().title(),
+            role_name,
+            recruiter_name,
+            interview_date,
+            interview_time,
+        ],
         metadata={'event_type': 'candidate_interview_created', 'interview_id': interview.id},
     )
     return {
@@ -1325,17 +1399,22 @@ def send_new_candidate_signup_sms(request, candidate: User, interview: Interview
         return {'sent': False, 'reason': 'Candidate phone number is missing.'}
 
     token = build_candidate_signup_token(candidate, interview)
-    signup_url = request.build_absolute_uri(f"{reverse('candidate-signup')}?token={token}")
+    signup_url = request.build_absolute_uri(f"{reverse('candidate-signup-root')}?token={token}")
     role_name = interview.role.role if interview.role else 'the role'
-    message = (
-        f"Hi {candidate.first_name or 'Candidate'}, complete your SmartInterview profile for the {role_name} role: "
-        f"{signup_url} Set your password and upload your resume to proceed."
-    )
-    sms_result = send_sms(phone, message, metadata={'event_type': 'candidate_signup_invite', 'interview_id': interview.id})
+    message = build_sms_message('candidate_signup_invite', {
+        'candidate_name': (candidate.first_name or 'Candidate').strip().title(),
+        'role_name': role_name,
+        'signup_url': signup_url,
+    })
+    sms_result = send_sms(phone, message, metadata={
+        'event_type': 'candidate_signup_invite',
+        'interview_id': interview.id,
+        'msg91_template_id': getattr(settings, 'MSG91_CANDIDATE_SIGNUP_TEMPLATE_ID', ''),
+    })
     whatsapp_result = send_candidate_whatsapp_notification(
         phone=phone,
         template_name=getattr(settings, 'CANDIDATE_SIGNUP_WHATSAPP_TEMPLATE', 'candidate_signup_invite'),
-        parameters=[candidate.first_name or 'Candidate', role_name, signup_url],
+        parameters=[(candidate.first_name or 'Candidate').strip().title(), role_name, signup_url],
         metadata={'event_type': 'candidate_signup_invite', 'interview_id': interview.id},
     )
     return {
@@ -1412,10 +1491,10 @@ def notify_recruiters_for_candidate_application(candidate: User, vacancy: Vacanc
             })
             continue
 
-        message = (
-            f"Candidate application alert: {candidate_name} applied for {vacancy.role}. "
-            f"Please review the candidate profile and decide the next hiring step."
-        )
+        message = build_sms_message('candidate_vacancy_application', {
+            'candidate_name': candidate_name,
+            'vacancy_role': vacancy.role,
+        })
         sms_result = send_sms(phone, message, metadata={
             'event_type': 'candidate_vacancy_application',
             'candidate_id': candidate.id,
@@ -1917,6 +1996,159 @@ def candidateLogin(request):
     return render(request, 'smartInterview/candidate_login.html', {'form': form, 'next': next_url})
 
 
+def candidatePasswordResetStart(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    email = (request.POST.get('email') or '').strip().lower()
+    if not email:
+        return JsonResponse({'Success': False, 'Error': 'Enter your registered email address.'})
+
+    if candidate_password_reset_rate_limited(request, 'start', email, limit=5, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many reset attempts. Please try again shortly.'}, status=429)
+
+    candidate = (
+        User.objects.select_related('profile')
+        .filter(email__iexact=email, profile__role='candidate')
+        .first()
+    )
+    phone = normalize_phone(getattr(getattr(candidate, 'profile', None), 'phone', ''))
+    if not candidate or not phone:
+        clear_candidate_password_reset_state(request)
+        return JsonResponse({'Success': False, 'Error': 'We could not verify those account details.'})
+
+    state = {
+        'user_id': candidate.id,
+        'email': email,
+        'phone': phone,
+        'masked_phone': mask_phone_last_four(phone),
+        'contact_verified': False,
+        'otp_verified': False,
+        'expires_at': timezone.now().timestamp() + PASSWORD_RESET_MAX_AGE_SECONDS,
+    }
+    set_candidate_password_reset_state(request, state)
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'masked_phone': state['masked_phone'],
+            'last_four': phone[-4:],
+        }
+    })
+
+
+def candidatePasswordResetVerifyPhone(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    state = get_candidate_password_reset_state(request)
+    if not state:
+        return JsonResponse({'Success': False, 'Error': 'Your reset session has expired. Start again.'})
+
+    phone = normalize_phone(request.POST.get('phone') or '')
+    if len(phone) < 10:
+        return JsonResponse({'Success': False, 'Error': 'Enter your registered mobile number.'})
+
+    if candidate_password_reset_rate_limited(request, 'phone', state.get('email', ''), limit=5, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many verification attempts. Please try again shortly.'}, status=429)
+
+    expected = state.get('phone', '')
+    if not expected or phone[-10:] != expected[-10:]:
+        return JsonResponse({'Success': False, 'Error': 'Mobile number does not match our records.'})
+
+    user = User.objects.filter(id=state.get('user_id'), profile__role='candidate').first()
+    if not user:
+        clear_candidate_password_reset_state(request)
+        return JsonResponse({'Success': False, 'Error': 'We could not verify those account details.'})
+
+    otp_result = request_otp(
+        phone=expected,
+        purpose='password_reset',
+        user=user,
+        metadata={'source': 'candidate_password_reset'},
+    )
+    if not otp_result.get('success'):
+        return JsonResponse({'Success': False, 'Error': otp_result.get('message') or 'Unable to send OTP right now.'})
+
+    state['contact_verified'] = True
+    state['otp_verified'] = False
+    state['expires_at'] = timezone.now().timestamp() + PASSWORD_RESET_MAX_AGE_SECONDS
+    set_candidate_password_reset_state(request, state)
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'masked_phone': state['masked_phone'],
+            'message': 'OTP sent to your registered mobile number.',
+        }
+    })
+
+
+def candidatePasswordResetVerifyOtp(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    state = get_candidate_password_reset_state(request)
+    if not state or not state.get('contact_verified'):
+        return JsonResponse({'Success': False, 'Error': 'Complete mobile verification first.'})
+
+    otp = (request.POST.get('otp') or '').strip()
+    if not otp:
+        return JsonResponse({'Success': False, 'Error': 'Enter the OTP sent to your mobile number.'})
+
+    if candidate_password_reset_rate_limited(request, 'otp', state.get('email', ''), limit=10, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many OTP attempts. Please try again shortly.'}, status=429)
+
+    otp_result = verify_otp(phone=state['phone'], otp=otp, purpose='password_reset')
+    if not otp_result.get('success'):
+        return JsonResponse({'Success': False, 'Error': otp_result.get('message') or 'Invalid OTP.'})
+
+    state['otp_verified'] = True
+    state['expires_at'] = timezone.now().timestamp() + PASSWORD_RESET_MAX_AGE_SECONDS
+    set_candidate_password_reset_state(request, state)
+    return JsonResponse({'Success': True, 'Error': None, 'Data': {'message': 'OTP verified successfully.'}})
+
+
+def candidatePasswordResetComplete(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    state = get_candidate_password_reset_state(request)
+    if not state or not state.get('otp_verified'):
+        return JsonResponse({'Success': False, 'Error': 'Verify the OTP before setting a new password.'})
+
+    password = request.POST.get('password') or ''
+    confirm_password = request.POST.get('confirm_password') or ''
+    if not password or not confirm_password:
+        return JsonResponse({'Success': False, 'Error': 'Enter and confirm your new password.'})
+    if password != confirm_password:
+        return JsonResponse({'Success': False, 'Error': 'Passwords do not match.'})
+
+    if candidate_password_reset_rate_limited(request, 'complete', state.get('email', ''), limit=5, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many password reset attempts. Please try again shortly.'}, status=429)
+
+    user = User.objects.filter(id=state.get('user_id'), profile__role='candidate').first()
+    if not user:
+        clear_candidate_password_reset_state(request)
+        return JsonResponse({'Success': False, 'Error': 'We could not verify those account details.'})
+
+    try:
+        validate_password(password, user=user)
+    except ValidationError as exc:
+        return JsonResponse({'Success': False, 'Error': ' '.join(exc.messages)})
+
+    user.set_password(password)
+    user.save(update_fields=['password'])
+    clear_candidate_password_reset_state(request)
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'message': 'Password updated successfully. Use your new password to sign in.',
+        }
+    })
+
+
 @login_required(login_url='candidate-login')
 def candidateDashboard(request):
     profile = getattr(request.user, 'profile', None)
@@ -1996,6 +2228,31 @@ def candidateDashboard(request):
         profile_saved=profile_saved,
         profile_error=profile_error,
     ))
+
+
+@login_required(login_url='candidate-login')
+def candidateSecureResume(request):
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist as exc:
+        raise Http404('Candidate profile not found.') from exc
+
+    if profile.role != 'candidate' or not profile.resume:
+        raise Http404('Resume not found.')
+
+    resume_field = profile.resume
+    resume_name = os.path.basename(resume_field.name or '') or f'{request.user.username}-resume'
+    mime_type, _ = mimetypes.guess_type(resume_name)
+
+    try:
+        response = FileResponse(resume_field.open('rb'), content_type=mime_type or 'application/octet-stream')
+    except FileNotFoundError as exc:
+        raise Http404('Resume file not found.') from exc
+
+    response['Content-Disposition'] = f'inline; filename="{resume_name}"'
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 def publicCandidateResume(request, short_code: str):
@@ -2662,7 +2919,7 @@ def build_candidate_dashboard_context(
 
     resume_skills = (resume_data.get('skills') or [])[:10]
     profile_picture_url = request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else ''
-    resume_file_url = request.build_absolute_uri(profile.resume.url) if profile.resume else ''
+    resume_file_url = request.build_absolute_uri(reverse('candidate-secure-resume')) if profile.resume else ''
     resume_sections = []
     career_objective = ''
     for section in (resume_data.get('sections') or []):
@@ -3298,6 +3555,58 @@ def addRole(request):
         })
     except Exception as e:
         return JsonResponse({"Success": False, "Error": e, "Data": ""})
+
+
+@csrf_exempt
+@login_required
+def closeVacancy(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': {}}, status=405)
+
+    current_user = get_object_or_404(User, username=request.user.username)
+    current_role = get_user_role(current_user)
+    if current_role not in {'admin', 'recruiter'}:
+        return JsonResponse({'Success': False, 'Error': 'Admin or recruiter access is required.', 'Data': {}}, status=403)
+
+    vacancy_id_raw = (request.POST.get('vacancy_id') or '').strip()
+    if not vacancy_id_raw.isdigit():
+        return JsonResponse({'Success': False, 'Error': 'A valid vacancy is required.', 'Data': {}}, status=400)
+
+    admin_scope = get_admin_for_user(current_user)
+    if not admin_scope:
+        return JsonResponse({'Success': False, 'Error': 'Unable to resolve admin scope for this vacancy.', 'Data': {}}, status=403)
+
+    vacancies_qs = Vacancies.objects.filter(id=int(vacancy_id_raw), admin=admin_scope)
+    if current_role == 'recruiter':
+        vacancies_qs = vacancies_qs.filter(recruiter=current_user)
+
+    vacancy = vacancies_qs.first()
+    if vacancy is None:
+        return JsonResponse({'Success': False, 'Error': 'Vacancy not found.', 'Data': {}}, status=404)
+
+    if vacancy.status == 'closed':
+        return JsonResponse({
+            'Success': True,
+            'Error': None,
+            'Data': {
+                'vacancy_id': vacancy.id,
+                'status': vacancy.status,
+                'status_label': vacancy.get_status_display(),
+            }
+        })
+
+    vacancy.status = 'closed'
+    vacancy.save(update_fields=['status'])
+
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'vacancy_id': vacancy.id,
+            'status': vacancy.status,
+            'status_label': vacancy.get_status_display(),
+        }
+    })
 
 @login_required
 def getRoleList(request):

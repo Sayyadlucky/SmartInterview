@@ -14,6 +14,8 @@ from smartInterviewApp.models import Notification, NotificationAttempt, OtpReque
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
 from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT
+from smartInterviewApp.notifications.sms_templates import build_sms_message
+from smartInterviewApp.integrations.providers.meta_whatsapp import MetaWhatsappProvider
 
 
 @override_settings(
@@ -46,6 +48,53 @@ class NotificationSystemTests(TestCase):
         self.assertEqual(OtpRequest.objects.count(), 1)
         self.assertEqual(OtpRequest.objects.first().status, OtpRequest.Status.VERIFIED)
 
+    @patch('smartInterviewApp.integrations.providers.meta_whatsapp.MetaWhatsappProvider.send_authentication_message')
+    @patch('smartInterviewApp.integrations.providers.msg91.Msg91OtpProvider.request_otp')
+    def test_otp_request_uses_whatsapp_authentication_template(self, request_otp_mock, whatsapp_auth_mock):
+        request_otp_mock.return_value = ProviderResult(
+            success=True,
+            status='sent',
+            provider_request_id='req-2',
+            response_payload={'request_id': 'req-2'},
+        )
+        whatsapp_auth_mock.return_value = ProviderResult(
+            success=True,
+            status='sent',
+            provider_message_id='wa-auth-1',
+            response_payload={'messages': [{'id': 'wa-auth-1'}]},
+        )
+
+        service = OtpService()
+        with patch.object(OtpService, '_generate_otp', return_value='123456'):
+            req = service.request_otp(phone='9876543210', purpose='verify_phone', user=self.user)
+
+        self.assertTrue(req['success'])
+        whatsapp_auth_mock.assert_called_once_with(
+            to='919876543210',
+            template_name='verify_phone_otp',
+            language_code='en',
+            code='123456',
+            metadata={'purpose': 'verify_phone', 'channel': 'whatsapp_authentication_otp'},
+        )
+
+    def test_meta_whatsapp_authentication_template_payload(self):
+        provider = MetaWhatsappProvider()
+        with patch.object(provider, '_send_template_payload', return_value=ProviderResult(success=True, status='sent')) as payload_mock:
+            provider.send_authentication_message(
+                to='919876543210',
+                template_name='verify_phone_otp',
+                language_code='en',
+                code='123456',
+            )
+
+        payload = payload_mock.call_args.args[0]
+        self.assertEqual(payload['template']['name'], 'verify_phone_otp')
+        self.assertEqual(payload['template']['language']['code'], 'en')
+        self.assertEqual(
+            payload['template']['components'],
+            [{'type': 'body', 'parameters': [{'type': 'text', 'text': '123456'}]}],
+        )
+
     @patch('smartInterviewApp.integrations.providers.meta_whatsapp.MetaWhatsappProvider.send_template_message')
     @patch('smartInterviewApp.integrations.providers.msg91.Msg91SmsProvider.send_sms')
     def test_notification_routing_medium_fallback_to_sms(self, sms_mock, whatsapp_mock):
@@ -66,6 +115,7 @@ class NotificationSystemTests(TestCase):
         self.assertEqual(attempts[1].channel, NotificationAttempt.Channel.SMS)
         self.assertEqual(attempts[1].status, NotificationAttempt.Status.SENT)
         self.assertEqual(notification.final_channel, NotificationAttempt.Channel.SMS)
+        self.assertEqual(sms_mock.call_args.args[1], 'Interview reminder.')
 
     @patch('smartInterviewApp.integrations.providers.meta_whatsapp.MetaWhatsappProvider.send_template_message')
     @patch('smartInterviewApp.integrations.providers.msg91.Msg91SmsProvider.send_sms')
@@ -86,6 +136,25 @@ class NotificationSystemTests(TestCase):
         self.assertEqual(channels, [NotificationAttempt.Channel.WHATSAPP, NotificationAttempt.Channel.SMS, NotificationAttempt.Channel.VOICE])
         self.assertEqual(notification.final_channel, NotificationAttempt.Channel.VOICE)
         self.assertEqual(notification.status, Notification.Status.SENT)
+        self.assertEqual(sms_mock.call_args.args[1], 'Critical alert. Check the dashboard immediately.')
+
+    def test_build_sms_message_templates(self):
+        self.assertIn(
+            'Python Developer',
+            build_sms_message('candidate_signup_invite', {
+                'candidate_name': 'Asha',
+                'role_name': 'Python Developer',
+                'signup_url': 'https://example.com/signup',
+            }),
+        )
+        self.assertIn(
+            'Recruiter One',
+            build_sms_message('candidate_interview_created', {
+                'candidate_name': 'Asha',
+                'role_name': 'Python Developer',
+                'recruiter_name': 'Recruiter One',
+            }),
+        )
 
     def test_meta_webhook_updates_status(self):
         notification = Notification.objects.create(
@@ -445,3 +514,53 @@ class PublicJobsPortalTests(TestCase):
         self.assertEqual(page_response.status_code, 200)
         self.assertContains(page_response, 'Saved Postings')
         self.assertContains(page_response, 'Remove Saved')
+
+    @patch('smartInterviewApp.commonViews.verify_otp')
+    @patch('smartInterviewApp.commonViews.request_otp')
+    def test_candidate_password_reset_flow_updates_password(self, request_otp_mock, verify_otp_mock):
+        request_otp_mock.return_value = {'success': True, 'message': 'OTP sent.'}
+        verify_otp_mock.return_value = {'success': True, 'message': 'OTP verified.'}
+
+        start_response = self.client.post(reverse('candidate-password-reset-start'), data={'email': self.candidate.email})
+        self.assertEqual(start_response.status_code, 200)
+        self.assertTrue(start_response.json()['Success'])
+        self.assertEqual(start_response.json()['Data']['last_four'], '9993')
+
+        phone_response = self.client.post(reverse('candidate-password-reset-verify-phone'), data={'phone': '919999999993'})
+        self.assertEqual(phone_response.status_code, 200)
+        self.assertTrue(phone_response.json()['Success'])
+        request_otp_mock.assert_called_once()
+
+        otp_response = self.client.post(reverse('candidate-password-reset-verify-otp'), data={'otp': '123456'})
+        self.assertEqual(otp_response.status_code, 200)
+        self.assertTrue(otp_response.json()['Success'])
+        verify_otp_mock.assert_called_once_with(phone='919999999993', otp='123456', purpose='password_reset')
+
+        complete_response = self.client.post(reverse('candidate-password-reset-complete'), data={
+            'password': 'ResetPass#2026',
+            'confirm_password': 'ResetPass#2026',
+        })
+        self.assertEqual(complete_response.status_code, 200)
+        self.assertTrue(complete_response.json()['Success'])
+
+        self.candidate.refresh_from_db()
+        self.assertTrue(self.candidate.check_password('ResetPass#2026'))
+
+    @patch('smartInterviewApp.commonViews.verify_otp')
+    @patch('smartInterviewApp.commonViews.request_otp')
+    def test_candidate_password_reset_rejects_mismatched_passwords(self, request_otp_mock, verify_otp_mock):
+        request_otp_mock.return_value = {'success': True, 'message': 'OTP sent.'}
+        verify_otp_mock.return_value = {'success': True, 'message': 'OTP verified.'}
+
+        self.client.post(reverse('candidate-password-reset-start'), data={'email': self.candidate.email})
+        self.client.post(reverse('candidate-password-reset-verify-phone'), data={'phone': '919999999993'})
+        self.client.post(reverse('candidate-password-reset-verify-otp'), data={'otp': '123456'})
+
+        response = self.client.post(reverse('candidate-password-reset-complete'), data={
+            'password': 'ResetPass#2026',
+            'confirm_password': 'MismatchPass#2026',
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['Success'])
+        self.assertEqual(response.json()['Error'], 'Passwords do not match.')
