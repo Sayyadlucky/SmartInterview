@@ -1,9 +1,80 @@
 <section class="analytics-shell">
   <div class="state-card" *ngIf="!initialized"><i class="ph ph-chart-line-up"></i> Open Analytics tab to load data.</div>
-  <div class="state-card" *ngIf="initialized && loading"><i class="ph ph-spinner-gap"></i> Loading analytics data...</div>
-  <div class="state-card error" *ngIf="initialized && !loading && errorMessage">{{ errorMessage }}</div>
+  <ng-container *ngIf="initialized && loading; else analyticsLoadedState">
+    <div class="analytics-skeleton" aria-hidden="true">
+      <div class="filters-bar analytics-filters-skeleton skeleton-card">
+        <div class="filter-item" *ngFor="let _ of [1, 2, 3, 4]">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-card analytics-filter-skeleton"></div>
+        </div>
+        <div class="skeleton-chip skeleton-chip-button"></div>
+      </div>
 
-  <div class="analytics-layout" *ngIf="initialized && !loading && !errorMessage">
+      <div class="export-row analytics-export-skeleton skeleton-card">
+        <div class="skeleton-line skeleton-line-body short"></div>
+        <div class="analytics-skeleton-actions">
+          <div class="skeleton-chip skeleton-chip-inline"></div>
+          <div class="skeleton-chip skeleton-chip-inline"></div>
+        </div>
+      </div>
+
+      <div class="summary-grid analytics-summary-skeleton">
+        <article class="summary-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-line skeleton-line-value short"></div>
+        </article>
+      </div>
+
+      <div class="grid">
+        <article class="card skeleton-card analytics-chart-skeleton" *ngFor="let _ of [1, 2]">
+          <div class="card-head analytics-skeleton-head">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-count"></div>
+          </div>
+          <div class="analytics-chart-area">
+            <div class="analytics-chart-bars">
+              <div class="analytics-chart-bar" *ngFor="let __ of [1, 2, 3, 4, 5, 6]"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card skeleton-card analytics-table-skeleton" *ngFor="let _ of [1, 2, 3]">
+          <div class="card-head analytics-skeleton-head">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+          </div>
+          <div class="analytics-table-head">
+            <div class="skeleton-line skeleton-line-table-head" *ngFor="let __ of [1, 2, 3, 4]"></div>
+          </div>
+          <div class="analytics-table-body">
+            <div class="analytics-table-row" *ngFor="let __ of [1, 2, 3, 4]">
+              <div class="skeleton-line skeleton-line-item-title"></div>
+              <div class="skeleton-line skeleton-line-count"></div>
+              <div class="skeleton-line skeleton-line-count"></div>
+              <div class="skeleton-line skeleton-line-count"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card skeleton-card analytics-list-skeleton" *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7]">
+          <div class="card-head analytics-skeleton-head">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-count"></div>
+          </div>
+          <div class="analytics-skeleton-list">
+            <div class="analytics-list-row skeleton-card" *ngFor="let __ of [1, 2, 3, 4]">
+              <div class="skeleton-line skeleton-line-body"></div>
+              <div class="skeleton-line skeleton-line-value short"></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #analyticsLoadedState>
+  <div class="state-card error" *ngIf="initialized && errorMessage">{{ errorMessage }}</div>
+
+  <div class="analytics-layout" *ngIf="initialized && !errorMessage">
     <div class="filters-bar">
       <div class="filter-item">
         <label><i class="ph ph-calendar-blank"></i> From</label>
@@ -279,4 +350,5 @@
       </article>
     </div>
   </div>
+  </ng-template>
 </section>

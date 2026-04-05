@@ -32,7 +32,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(normalize_statuses, migrations.RunPython.noop),
         migrations.AlterField(
             model_name='interview',
             name='status',
@@ -52,4 +51,5 @@ class Migration(migrations.Migration):
                 max_length=30,
             ),
         ),
+        migrations.RunPython(normalize_statuses, migrations.RunPython.noop),
     ]

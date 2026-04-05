@@ -1,59 +1,59 @@
-<section class="evaluators-layout">
+<section class="evaluators-layout" [attr.aria-busy]="loading">
   <aside class="sidebar-panel">
-    <div class="panel-title-row">
-      <div>
-        <h3><i class="ph" [class.ph-identification-badge]="mode === 'recruiter'" [class.ph-user-list]="mode !== 'recruiter'"></i>{{ panelTitle }}</h3>
-        <p class="panel-subtitle">{{ panelSubtitle }}</p>
-      </div>
-      <button class="primary-btn" (click)="addEvaluator()"><i class="ph ph-plus"></i>{{ addButtonLabel }}</button>
-    </div>
-
-    <div class="recruiter-insight-grid" *ngIf="mode === 'recruiter'">
-      <article class="insight-card" *ngFor="let card of recruiterSummaryCards">
-        <div class="insight-icon">
-          <i class="ph" [ngClass]="card.icon"></i>
+    <ng-container *ngIf="!loading; else evaluatorsSidebarSkeleton">
+      <div class="panel-title-row">
+        <div>
+          <h3><i class="ph" [class.ph-identification-badge]="mode === 'recruiter'" [class.ph-user-list]="mode !== 'recruiter'"></i>{{ panelTitle }}</h3>
+          <p class="panel-subtitle">{{ panelSubtitle }}</p>
         </div>
-        <div class="insight-copy">
-          <span>{{ card.label }}</span>
-          <strong>{{ card.value }}</strong>
-          <small>{{ card.helper }}</small>
+        <button class="primary-btn" (click)="addEvaluator()"><i class="ph ph-plus"></i>{{ addButtonLabel }}</button>
+      </div>
+
+      <div class="recruiter-insight-grid" *ngIf="mode === 'recruiter'">
+        <article class="insight-card" *ngFor="let card of recruiterSummaryCards">
+          <div class="insight-icon">
+            <i class="ph" [ngClass]="card.icon"></i>
+          </div>
+          <div class="insight-copy">
+            <span>{{ card.label }}</span>
+            <strong>{{ card.value }}</strong>
+            <small>{{ card.helper }}</small>
+          </div>
+        </article>
+      </div>
+
+      <div class="stats-row" [class.compact-stats]="mode === 'recruiter'">
+        <div class="stat-chip">
+          <span class="stat-label"><i class="ph ph-stack"></i> Total</span>
+          <span class="stat-value">{{ totalEvaluators }}</span>
         </div>
-      </article>
-    </div>
-
-    <div class="stats-row" [class.compact-stats]="mode === 'recruiter'">
-      <div class="stat-chip">
-        <span class="stat-label"><i class="ph ph-stack"></i> Total</span>
-        <span class="stat-value">{{ totalEvaluators }}</span>
+        <div class="stat-chip">
+          <span class="stat-label"><i class="ph ph-eye"></i> Showing</span>
+          <span class="stat-value">{{ displayedEvaluatorsCount }}</span>
+        </div>
       </div>
-      <div class="stat-chip">
-        <span class="stat-label"><i class="ph ph-eye"></i> Showing</span>
-        <span class="stat-value">{{ displayedEvaluatorsCount }}</span>
+
+      <div class="search-wrap">
+        <i class="ph ph-magnifying-glass"></i>
+        <input
+          type="text"
+          [placeholder]="mode === 'recruiter' ? 'Search by name, role, email' : 'Search by name, HR, role, email'"
+          [(ngModel)]="searchTerm"
+          (input)="filterEvaluators()"
+        />
+        <button *ngIf="searchTerm" class="clear-btn" (click)="clearSearch()">Clear</button>
       </div>
-    </div>
 
-    <div class="search-wrap">
-      <i class="ph ph-magnifying-glass"></i>
-      <input
-        type="text"
-        [placeholder]="mode === 'recruiter' ? 'Search by name, role, email' : 'Search by name, HR, role, email'"
-        [(ngModel)]="searchTerm"
-        (input)="filterEvaluators()"
-      />
-      <button *ngIf="searchTerm" class="clear-btn" (click)="clearSearch()">Clear</button>
-    </div>
+      <div *ngIf="errorMessage" class="error-banner">{{ errorMessage }}</div>
 
-    <div *ngIf="errorMessage" class="error-banner">{{ errorMessage }}</div>
-
-    <div class="list-section-head">
-      <div>
-        <h4><i class="ph" [class.ph-identification-card]="mode === 'recruiter'" [class.ph-users-three]="mode !== 'recruiter'"></i>{{ mode === 'recruiter' ? 'Recruiter Directory' : 'Evaluator Directory' }}</h4>
-        <p>{{ mode === 'recruiter' ? 'Select a recruiter to review ownership, linked evaluators, and activity.' : 'Select an evaluator to review interview activity and recruiter mapping.' }}</p>
+      <div class="list-section-head">
+        <div>
+          <h4><i class="ph" [class.ph-identification-card]="mode === 'recruiter'" [class.ph-users-three]="mode !== 'recruiter'"></i>{{ mode === 'recruiter' ? 'Recruiter Directory' : 'Evaluator Directory' }}</h4>
+          <p>{{ mode === 'recruiter' ? 'Select a recruiter to review ownership, linked evaluators, and activity.' : 'Select an evaluator to review interview activity and recruiter mapping.' }}</p>
+        </div>
+        <span class="directory-count">{{ displayedEvaluatorsCount }}</span>
       </div>
-      <span class="directory-count">{{ displayedEvaluatorsCount }}</span>
-    </div>
 
-    <div class="list-wrap" *ngIf="!loading; else loadingState">
       <button
         *ngFor="let recruiter of recruitersList"
         class="evaluator-item"
@@ -79,16 +79,69 @@
         <h4>{{ emptyStateTitle }}</h4>
         <p>{{ emptyStateText }}</p>
       </div>
-    </div>
+    </ng-container>
 
-    <ng-template #loadingState>
-      <div class="list-wrap">
-        <div class="loading-placeholder"><i class="ph ph-spinner-gap"></i> Loading evaluators...</div>
+    <ng-template #evaluatorsSidebarSkeleton>
+      <div class="evaluators-skeleton evaluators-sidebar-skeleton" aria-hidden="true">
+        <div class="panel-title-row evaluators-skeleton-head">
+          <div class="evaluators-skeleton-stack">
+            <div class="skeleton-line skeleton-line-title"></div>
+            <div class="skeleton-line skeleton-line-body"></div>
+          </div>
+          <div class="skeleton-chip skeleton-chip-button"></div>
+        </div>
+
+        <div class="recruiter-insight-grid" *ngIf="mode === 'recruiter'">
+          <article class="insight-card skeleton-card evaluators-summary-skeleton" *ngFor="let _ of [1, 2, 3, 4]">
+            <div class="skeleton-icon"></div>
+            <div class="evaluators-skeleton-stack">
+              <div class="skeleton-line skeleton-line-label"></div>
+              <div class="skeleton-line skeleton-line-value"></div>
+              <div class="skeleton-line skeleton-line-helper"></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="stats-row" [class.compact-stats]="mode === 'recruiter'">
+          <div class="stat-chip skeleton-card evaluators-stat-skeleton" *ngFor="let _ of [1, 2]">
+            <div class="skeleton-line skeleton-line-label"></div>
+            <div class="skeleton-line skeleton-line-value short"></div>
+          </div>
+        </div>
+
+        <div class="search-wrap skeleton-card evaluators-search-skeleton">
+          <div class="skeleton-icon"></div>
+          <div class="skeleton-line skeleton-line-search"></div>
+        </div>
+
+        <div class="list-section-head evaluators-skeleton-list-head">
+          <div class="evaluators-skeleton-stack">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-body short"></div>
+          </div>
+          <div class="skeleton-chip skeleton-chip-count"></div>
+        </div>
+
+        <div class="list-wrap evaluators-list-skeleton">
+          <div class="evaluator-item evaluators-item-skeleton skeleton-card" *ngFor="let _ of [1, 2, 3, 4, 5]" aria-hidden="true">
+            <div class="skeleton-avatar"></div>
+            <div class="evaluators-skeleton-stack">
+              <div class="skeleton-line skeleton-line-item-title"></div>
+              <div class="skeleton-line skeleton-line-item-sub"></div>
+              <div class="skeleton-line skeleton-line-item-sub short"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </ng-template>
   </aside>
 
   <main class="profile-panel">
+    <ng-container *ngIf="loading; else evaluatorPanelState">
+      <ng-container *ngTemplateOutlet="evaluatorDetailSkeleton"></ng-container>
+    </ng-container>
+
+    <ng-template #evaluatorPanelState>
     <ng-container *ngIf="hasSelectedEvaluator; else placeholderState">
       <div class="profile-workspace-head" *ngIf="mode === 'recruiter'">
         <div>
@@ -109,6 +162,75 @@
       </div>
       <app-recuiter-profile [evaluator]="selectedEvaluator!" [mode]="mode"></app-recuiter-profile>
     </ng-container>
+    </ng-template>
+
+    <ng-template #evaluatorDetailSkeleton>
+      <div class="evaluators-skeleton evaluators-detail-skeleton" aria-hidden="true">
+        <section class="profile-workspace-head evaluators-detail-head-skeleton skeleton-card">
+          <div class="workspace-identity">
+            <div class="skeleton-avatar skeleton-avatar-lg"></div>
+            <div class="evaluators-skeleton-stack">
+              <div class="skeleton-line skeleton-line-kicker"></div>
+              <div class="skeleton-line skeleton-line-title"></div>
+              <div class="skeleton-line skeleton-line-body"></div>
+              <div class="skeleton-line skeleton-line-body short"></div>
+            </div>
+          </div>
+          <div class="workspace-badges evaluators-skeleton-badges">
+            <div class="skeleton-chip" *ngFor="let _ of [1, 2]"></div>
+          </div>
+        </section>
+
+        <div class="evaluators-detail-grid">
+          <section class="skeleton-card evaluators-detail-panel-skeleton">
+            <div class="evaluators-skeleton-panel-head">
+              <div class="evaluators-skeleton-stack">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+              </div>
+              <div class="skeleton-icon"></div>
+            </div>
+            <div class="evaluators-kpi-skeleton-grid">
+              <article class="skeleton-card evaluators-kpi-skeleton" *ngFor="let _ of [1, 2, 3, 4]">
+                <div class="skeleton-line skeleton-line-label"></div>
+                <div class="skeleton-line skeleton-line-value short"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="skeleton-card evaluators-detail-panel-skeleton">
+            <div class="evaluators-skeleton-panel-head">
+              <div class="evaluators-skeleton-stack">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+              </div>
+            </div>
+            <div class="evaluators-skeleton-stack">
+              <div class="skeleton-bar-row" *ngFor="let _ of [1, 2, 3, 4]">
+                <div class="skeleton-line skeleton-line-item-title"></div>
+                <div class="skeleton-track"><span></span></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="skeleton-card evaluators-detail-panel-skeleton">
+            <div class="evaluators-skeleton-panel-head">
+              <div class="evaluators-skeleton-stack">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+              </div>
+            </div>
+            <div class="evaluators-skeleton-stack">
+              <div class="skeleton-bar-row" *ngFor="let _ of [1, 2, 3, 4, 5]">
+                <div class="skeleton-line skeleton-line-label"></div>
+                <div class="skeleton-track"><span></span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </ng-template>
 
     <ng-template #placeholderState>
       <div class="profile-placeholder">

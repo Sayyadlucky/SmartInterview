@@ -14,9 +14,170 @@
   --cand-radius-md: 14px;
   --cand-radius-lg: 18px;
   --cand-transition: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cand-skeleton-surface: rgba(9, 37, 72, 0.58);
+  --cand-skeleton-border: rgba(137, 206, 246, 0.14);
+  --cand-skeleton-shimmer:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(64, 231, 255, 0.04) 40%,
+      rgba(131, 184, 255, 0.09) 50%,
+      rgba(64, 231, 255, 0.04) 60%,
+      transparent 100%
+    );
   min-height: 680px;
   display: grid;
   gap: 16px;
+}
+
+.candidates-skeleton,
+.candidates-skeleton-stack,
+.candidates-skeleton-list {
+  display: grid;
+  gap: 12px;
+}
+
+.skeleton-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.skeleton-line,
+.skeleton-chip,
+.skeleton-icon,
+.skeleton-card::after {
+  pointer-events: none;
+}
+
+.skeleton-line,
+.skeleton-chip,
+.skeleton-icon {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 999px;
+  background: var(--cand-skeleton-surface);
+  border: 1px solid var(--cand-skeleton-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.skeleton-line::after,
+.skeleton-chip::after,
+.skeleton-icon::after,
+.skeleton-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: var(--cand-skeleton-shimmer);
+  animation: candidatesSkeletonShimmer 1.8s ease-in-out infinite;
+}
+
+.skeleton-card::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%),
+    var(--cand-skeleton-shimmer);
+  opacity: 0.78;
+}
+
+.skeleton-line { height: 12px; }
+.skeleton-line-kicker,
+.skeleton-line-label { width: 38%; height: 10px; }
+.skeleton-line-title { width: min(260px, 72%); height: 22px; }
+.skeleton-line-body { width: 100%; }
+.skeleton-line-body.short { width: 68%; }
+.skeleton-line-helper { width: 76%; height: 10px; }
+.skeleton-line-value { width: 56%; height: 24px; border-radius: 12px; }
+.skeleton-line-value.short { width: 66%; }
+.skeleton-line-panel-title { width: 48%; height: 14px; }
+.skeleton-line-count { width: 34px; }
+.skeleton-line-search { width: 100%; }
+.skeleton-line-item-title { width: 62%; height: 14px; }
+.skeleton-line-item-sub { width: 84%; }
+.skeleton-line-table-head { width: 80%; height: 12px; }
+
+.skeleton-chip { width: 112px; height: 34px; }
+.skeleton-chip-button { width: 120px; height: 40px; }
+.skeleton-chip-inline { width: 64px; height: 28px; }
+.skeleton-icon { width: 22px; height: 22px; border-radius: 8px; }
+
+.candidates-skeleton-hero,
+.candidates-main-skeleton,
+.candidates-side-skeleton {
+  box-shadow: var(--cand-shadow);
+}
+
+.candidates-skeleton-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.candidates-skeleton-meta,
+.candidates-skeleton-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.candidates-search-skeleton {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.candidates-filter-skeleton {
+  min-height: 40px;
+  border-radius: 10px;
+  background: var(--cand-surface-soft);
+}
+
+.candidates-status-skeleton {
+  margin-bottom: 12px;
+}
+
+.candidates-table-skeleton {
+  display: grid;
+  gap: 0;
+}
+
+.candidates-table-head,
+.candidates-table-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) 0.8fr 1fr 1fr 0.9fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.candidates-table-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(120, 188, 235, 0.2);
+  background: rgba(21, 58, 104, 0.46);
+}
+
+.candidates-table-body {
+  display: grid;
+}
+
+.candidates-table-row {
+  padding: 12px;
+  border-bottom: 1px solid rgba(120, 188, 235, 0.12);
+}
+
+.candidates-skeleton-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+@keyframes candidatesSkeletonShimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
 }
 
 .state-card {
@@ -794,6 +955,11 @@
   .hero-metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .candidates-table-head,
+  .candidates-table-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1200px) {
@@ -819,6 +985,11 @@
   .panel-meta {
     justify-content: flex-start;
   }
+
+  .candidates-skeleton-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 860px) {
@@ -835,6 +1006,12 @@
     font-size: 0.74rem;
     padding: 8px 9px;
   }
+
+  .candidates-table-head,
+  .candidates-table-row,
+  .candidates-summary-skeleton {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 700px) {
@@ -844,5 +1021,15 @@
 
   .table-wrap {
     min-height: 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line::after,
+  .skeleton-chip::after,
+  .skeleton-icon::after,
+  .skeleton-card::after {
+    animation: none;
+    transform: none;
   }
 }

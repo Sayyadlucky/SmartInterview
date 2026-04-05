@@ -164,10 +164,7 @@ export class Evaluators implements OnInit, OnDestroy {
 
   private syncSelectedEvaluatorReference(): void {
     if (!this.selectedEvaluator) return;
-    const updated = this.allRecruiters.find((r) => r.id === this.selectedEvaluator?.id);
-    if (updated) {
-      this.selectedEvaluator = updated;
-    }
+    this.selectedEvaluator = this.allRecruiters.find((r) => r.id === this.selectedEvaluator?.id) || null;
   }
 
   loadEvaluators(): void {
@@ -190,10 +187,7 @@ export class Evaluators implements OnInit, OnDestroy {
       .subscribe((response) => {
         const list = this.parseRecruiterData(response);
         this.allRecruiters = list;
-        this.recruitersList = list;
-        if (!this.selectedEvaluator && list.length) {
-          this.selectedEvaluator = list[0];
-        }
+        this.applyLocalFilter();
         this.syncSelectedEvaluatorReference();
         this.loading = false;
       });
@@ -243,14 +237,17 @@ export class Evaluators implements OnInit, OnDestroy {
     const term = this.searchTerm.trim().toLowerCase();
     if (!term) {
       this.recruitersList = this.allRecruiters;
-      return;
+    } else {
+      this.recruitersList = this.allRecruiters.filter((r) =>
+        [r.name, r.email, r.role, r.phone, r.hr_name]
+          .map((v) => (v || '').toString().toLowerCase())
+          .some((v) => v.includes(term))
+      );
     }
 
-    this.recruitersList = this.allRecruiters.filter((r) =>
-      [r.name, r.email, r.role, r.phone, r.hr_name]
-        .map((v) => (v || '').toString().toLowerCase())
-        .some((v) => v.includes(term))
-    );
+    if (this.selectedEvaluator && !this.recruitersList.some((item) => item.id === this.selectedEvaluator?.id)) {
+      this.selectedEvaluator = null;
+    }
   }
 
   private searchEvaluatorsRemote(term: string): void {
@@ -280,6 +277,9 @@ export class Evaluators implements OnInit, OnDestroy {
         const remoteList = this.parseRecruiterData(response);
         if (response?.Success) {
           this.recruitersList = remoteList;
+          if (this.selectedEvaluator && !this.recruitersList.some((item) => item.id === this.selectedEvaluator?.id)) {
+            this.selectedEvaluator = null;
+          }
         } else if (!this.errorMessage) {
           this.errorMessage = response?.Error || 'Search failed.';
         }

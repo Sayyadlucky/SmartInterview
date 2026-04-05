@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
+from smartInterviewApp.pgvector_compat import HnswIndex, VectorField
+
 
 # Profile table linked to built-in User
 class UserProfile(models.Model):
@@ -186,7 +188,7 @@ class Interview(models.Model):
         default='manual'
     )
     date = models.DateTimeField(default=timezone.now)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='scheduled')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='scheduled')
     score = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recording_url = models.URLField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
@@ -276,6 +278,86 @@ class CandidateResumeSection(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.resume_id})"
+
+
+class CandidateSearchProfile(models.Model):
+    candidate = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='search_profile',
+        limit_choices_to={'profile__role': 'candidate'},
+    )
+    active_resume = models.ForeignKey(
+        CandidateResume,
+        on_delete=models.SET_NULL,
+        related_name='search_profiles',
+        null=True,
+        blank=True,
+    )
+    normalized_title = models.CharField(max_length=255, blank=True, default='', db_index=True)
+    normalized_skills = models.JSONField(default=list, blank=True)
+    role_family = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    role_subfamily = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    experience_years = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, db_index=True)
+    location_normalized = models.CharField(max_length=255, blank=True, default='', db_index=True)
+    latest_role_summary = models.CharField(max_length=255, blank=True, default='')
+    recent_companies = models.JSONField(default=list, blank=True)
+    domain_exposure = models.JSONField(default=list, blank=True)
+    availability = models.CharField(max_length=120, blank=True, default='')
+    profile_quality_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    search_text = models.TextField(blank=True, default='')
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+    embedding_json = models.JSONField(default=list, blank=True)
+    search_metadata = models.JSONField(default=dict, blank=True)
+    parser_signature = models.CharField(max_length=128, blank=True, default='', db_index=True)
+    source_signature = models.CharField(max_length=128, blank=True, default='', db_index=True)
+    inactive_reason = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    active_resume_found = models.BooleanField(default=False)
+    searchable_profile_built = models.BooleanField(default=False)
+    missing_fields_summary = models.JSONField(default=list, blank=True)
+    indexed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ['-indexed_at', '-updated_at']
+        indexes = [
+            models.Index(fields=['role_family', 'role_subfamily'], name='cand_search_family_idx'),
+            models.Index(fields=['location_normalized', 'experience_years'], name='cand_search_loc_exp_idx'),
+            HnswIndex(
+                name='cand_search_embedding_hnsw',
+                fields=['embedding'],
+                m=16,
+                ef_construction=64,
+            ),
+        ]
+
+    def __str__(self):
+        return f"SearchProfile<{self.candidate_id}>"
+
+
+class RoleSearchCache(models.Model):
+    vacancy = models.OneToOneField(
+        'Vacancies',
+        on_delete=models.CASCADE,
+        related_name='search_cache',
+    )
+    query_signature = models.CharField(max_length=128, blank=True, default='', db_index=True)
+    role_family = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    role_subfamily = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    location_normalized = models.CharField(max_length=255, blank=True, default='')
+    search_text = models.TextField(blank=True, default='')
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+    embedding_json = models.JSONField(default=list, blank=True)
+    search_metadata = models.JSONField(default=dict, blank=True)
+    indexed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"RoleSearchCache<{self.vacancy_id}>"
 
 
 class OtpRequest(models.Model):

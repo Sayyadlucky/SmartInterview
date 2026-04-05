@@ -1,8 +1,114 @@
 <section class="candidates-tab-shell">
-  <div class="state-card" *ngIf="loading"><i class="ph ph-spinner-gap"></i> Loading candidates data...</div>
-  <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+  <ng-container *ngIf="loading; else candidatesLoadedState">
+    <div class="candidates-skeleton" aria-hidden="true">
+      <section class="hero-panel candidates-skeleton-hero skeleton-card">
+        <div class="hero-copy candidates-skeleton-stack">
+          <div class="skeleton-line skeleton-line-kicker"></div>
+          <div class="skeleton-line skeleton-line-title"></div>
+          <div class="skeleton-line skeleton-line-body"></div>
+          <div class="skeleton-line skeleton-line-body short"></div>
+        </div>
+        <div class="hero-metrics">
+          <article class="hero-metric-card skeleton-card" *ngFor="let _ of [1, 2, 3]">
+            <div class="skeleton-line skeleton-line-label"></div>
+            <div class="skeleton-line skeleton-line-value"></div>
+            <div class="skeleton-line skeleton-line-helper"></div>
+          </article>
+        </div>
+      </section>
 
-  <div class="candidates-layout" *ngIf="!loading && !errorMessage">
+      <div class="summary-grid candidates-summary-skeleton">
+        <article class="summary-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7, 8]">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-line skeleton-line-value short"></div>
+          <div class="skeleton-line skeleton-line-helper"></div>
+        </article>
+      </div>
+
+      <div class="main-grid">
+        <article class="main-panel skeleton-card candidates-main-skeleton">
+          <div class="panel-head panel-head--wide candidates-skeleton-panel-head">
+            <div class="candidates-skeleton-stack">
+              <div class="skeleton-line skeleton-line-kicker"></div>
+              <div class="skeleton-line skeleton-line-body"></div>
+            </div>
+            <div class="candidates-skeleton-meta">
+              <div class="skeleton-chip" *ngFor="let _ of [1, 2]"></div>
+            </div>
+          </div>
+
+          <div class="toolbar candidates-toolbar-skeleton">
+            <div class="search-box skeleton-card candidates-search-skeleton">
+              <div class="skeleton-icon"></div>
+              <div class="skeleton-line skeleton-line-search"></div>
+            </div>
+
+            <div class="toolbar-row candidates-toolbar-row-skeleton">
+              <div class="filter-field" *ngFor="let _ of [1, 2, 3]">
+                <div class="skeleton-line skeleton-line-label"></div>
+                <div class="skeleton-card candidates-filter-skeleton"></div>
+              </div>
+              <div class="skeleton-chip skeleton-chip-button"></div>
+              <div class="skeleton-chip skeleton-chip-button"></div>
+            </div>
+          </div>
+
+          <div class="status-pills candidates-status-skeleton">
+            <div class="skeleton-chip" *ngFor="let _ of [1, 2, 3, 4, 5]"></div>
+          </div>
+
+          <div class="results-meta candidates-results-skeleton">
+            <div class="skeleton-line skeleton-line-body short"></div>
+            <div class="skeleton-chip"></div>
+          </div>
+
+          <div class="table-wrap candidates-table-skeleton">
+            <div class="candidates-table-head">
+              <div class="skeleton-line skeleton-line-table-head" *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7]"></div>
+            </div>
+            <div class="candidates-table-body">
+              <div class="candidates-table-row" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
+                <div class="skeleton-line skeleton-line-item-title"></div>
+                <div class="skeleton-chip skeleton-chip-inline"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+                <div class="skeleton-chip skeleton-chip-inline"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+                <div class="candidates-skeleton-actions">
+                  <div class="skeleton-chip skeleton-chip-inline"></div>
+                  <div class="skeleton-chip skeleton-chip-inline"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="side-panel">
+          <article class="side-card skeleton-card candidates-side-skeleton" *ngFor="let _ of [1, 2, 3, 4]">
+            <div class="panel-head candidates-skeleton-panel-head">
+              <div class="skeleton-line skeleton-line-panel-title"></div>
+              <div class="skeleton-line skeleton-line-count"></div>
+            </div>
+            <div class="skeleton-line skeleton-line-helper"></div>
+            <div class="candidates-skeleton-list">
+              <div class="candidates-skeleton-list-item" *ngFor="let __ of [1, 2, 3, 4]">
+                <div class="candidates-skeleton-stack">
+                  <div class="skeleton-line skeleton-line-item-title"></div>
+                  <div class="skeleton-line skeleton-line-item-sub"></div>
+                </div>
+                <div class="skeleton-chip skeleton-chip-inline"></div>
+              </div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #candidatesLoadedState>
+  <div class="state-card error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <div class="candidates-layout" *ngIf="!errorMessage">
     <section class="hero-panel">
       <div class="hero-copy">
         <span class="section-kicker"><i class="ph ph-users-three"></i> Candidates Workspace</span>
@@ -299,4 +405,5 @@
       </aside>
     </div>
   </div>
+  </ng-template>
 </section>

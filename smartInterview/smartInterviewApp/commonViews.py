@@ -1,8 +1,10 @@
 import base64
+import csv
 import hashlib
 import html
 import io
 import json
+import logging
 import mimetypes
 import os
 import random
@@ -47,6 +49,8 @@ from smartInterviewApp.identity_verification import CandidateIdentityVerificatio
 from smartInterviewApp.insights import CandidateInsightService
 from smartInterviewApp.otp.services import request_email_otp, request_otp, verify_email_otp, verify_otp
 from smartInterviewApp.resume_processing import ResumeProcessingService
+from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
+from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication
 
 
@@ -60,6 +64,7 @@ PDF_RENDERER_PYTHON_CANDIDATES = [
 PDF_BROWSER_CANDIDATES = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ]
+logger = logging.getLogger(__name__)
 
 
 def normalize_interview_status(value: str) -> str:
@@ -4094,6 +4099,341 @@ def candidatesTabData(request):
         })
     except Exception as e:
         return JsonResponse({"Success": False, "Error": str(e), "Data": {}})
+
+
+@csrf_exempt
+@login_required
+def ai_talent_pool_match(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': {}}, status=405)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+
+    role_id_raw = (payload.get('role_id') or request.POST.get('role_id') or '').__str__().strip()
+    top_k_raw = (payload.get('top_k') or request.POST.get('top_k') or '20').__str__().strip()
+
+    if not role_id_raw.isdigit():
+        return JsonResponse({'Success': False, 'Error': 'A valid role_id is required.', 'Data': {}}, status=400)
+
+    try:
+        top_k = max(1, min(int(top_k_raw or '20'), 100))
+    except (TypeError, ValueError):
+        top_k = 20
+
+    current_user = get_object_or_404(User, username=request.user.username)
+    current_role = get_user_role(current_user)
+    if current_role not in {'admin', 'recruiter', 'interviewer'}:
+        return JsonResponse({'Success': False, 'Error': 'Hiring workspace access is required.', 'Data': {}}, status=403)
+
+    admin_scope = get_admin_for_user(current_user)
+    if not admin_scope:
+        return JsonResponse({'Success': False, 'Error': 'No hiring workspace is mapped to the current user.', 'Data': {}}, status=403)
+
+    role_qs = (
+        Vacancies.objects
+        .select_related('company', 'admin', 'admin__company_profile')
+        .prefetch_related('recruiter')
+        .filter(id=int(role_id_raw), admin=admin_scope)
+    )
+    if current_role == 'recruiter':
+        role_qs = role_qs.filter(recruiter=current_user).distinct()
+    role = role_qs.first()
+    if not role:
+        return JsonResponse({'Success': False, 'Error': 'Role not found or inaccessible.', 'Data': {}}, status=404)
+
+    try:
+        service = AiTalentPoolService()
+        data = service.build_matches(
+            role=role,
+            top_k=top_k,
+            accessible_interviews=get_accessible_interviews(current_user),
+        )
+        return JsonResponse({'Success': True, 'Error': None, 'Data': data})
+    except RetrievalBackendUnavailable as exc:
+        logger.exception('AI talent pool retrieval backend unavailable user=%s role=%s', current_user.id, role.id)
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': {}}, status=503)
+    except Exception as exc:
+        logger.exception('AI talent pool matching failed for user=%s role=%s', current_user.id, role.id)
+        return JsonResponse({'Success': False, 'Error': f'Unable to build AI talent pool right now: {exc}', 'Data': {}}, status=500)
+
+
+@csrf_exempt
+@login_required
+def ai_talent_pool_search(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': {}}, status=405)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+
+    query = str(payload.get('query') or '').strip()
+    filters = payload.get('filters') or {}
+    top_k_raw = str(payload.get('top_k') or '20').strip()
+    if not query:
+        return JsonResponse({'Success': False, 'Error': 'A search query is required.', 'Data': {}}, status=400)
+
+    try:
+        top_k = max(1, min(int(top_k_raw), 100))
+    except (TypeError, ValueError):
+        top_k = 20
+
+    current_user = get_object_or_404(User, username=request.user.username)
+    current_role = get_user_role(current_user)
+    if current_role not in {'admin', 'recruiter', 'interviewer'}:
+        return JsonResponse({'Success': False, 'Error': 'Hiring workspace access is required.', 'Data': {}}, status=403)
+
+    admin_scope = get_admin_for_user(current_user)
+    if not admin_scope:
+        return JsonResponse({'Success': False, 'Error': 'No hiring workspace is mapped to the current user.', 'Data': {}}, status=403)
+
+    try:
+        service = AiTalentPoolService()
+        data = service.build_search(
+            query=query,
+            filters=filters,
+            top_k=top_k,
+            accessible_interviews=get_accessible_interviews(current_user),
+        )
+        return JsonResponse({'Success': True, 'Error': None, 'Data': data})
+    except RetrievalBackendUnavailable as exc:
+        logger.exception('AI talent pool search retrieval backend unavailable user=%s', current_user.id)
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': {}}, status=503)
+    except Exception as exc:
+        logger.exception('AI talent pool search failed for user=%s query=%s', current_user.id, query)
+        return JsonResponse({'Success': False, 'Error': f'Unable to search AI talent pool right now: {exc}', 'Data': {}}, status=500)
+
+
+@login_required
+def ai_talent_pool_audit(request, role_id: int):
+    current_user = get_object_or_404(User, username=request.user.username)
+    current_role = get_user_role(current_user)
+    if current_role not in {'admin', 'recruiter', 'interviewer'}:
+        return JsonResponse({'Success': False, 'Error': 'Hiring workspace access is required.', 'Data': {}}, status=403)
+
+    admin_scope = get_admin_for_user(current_user)
+    if not admin_scope:
+        return JsonResponse({'Success': False, 'Error': 'No hiring workspace is mapped to the current user.', 'Data': {}}, status=403)
+
+    top_k_raw = (request.GET.get('top_k') or '20').strip()
+    export_format = (request.GET.get('format') or 'json').strip().lower()
+    try:
+        top_k = max(1, min(int(top_k_raw), 100))
+    except (TypeError, ValueError):
+        top_k = 20
+
+    role_qs = (
+        Vacancies.objects
+        .select_related('company', 'admin', 'admin__company_profile')
+        .prefetch_related('recruiter')
+        .filter(id=role_id, admin=admin_scope)
+    )
+    if current_role == 'recruiter':
+        role_qs = role_qs.filter(recruiter=current_user).distinct()
+    role = role_qs.first()
+    if not role:
+        return JsonResponse({'Success': False, 'Error': 'Role not found or inaccessible.', 'Data': {}}, status=404)
+
+    try:
+        service = AiTalentPoolService()
+        data = service.build_matches(
+            role=role,
+            top_k=top_k,
+            accessible_interviews=get_accessible_interviews(current_user),
+        )
+    except Exception as exc:
+        logger.exception('AI talent pool audit failed for user=%s role=%s', current_user.id, role.id)
+        return JsonResponse({'Success': False, 'Error': f'Unable to build AI talent pool audit right now: {exc}', 'Data': {}}, status=500)
+
+    audit_payload = {
+        'role_summary': data.get('role_summary', {}),
+        'retrieval_diagnostics': data.get('retrieval_diagnostics', {}),
+        'scoring_config': data.get('scoring_config', {}),
+        'results': data.get('results', [])[:top_k],
+    }
+
+    if export_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="ai_talent_pool_audit_role_{role.id}.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'candidate_id',
+            'name',
+            'email',
+            'title',
+            'location',
+            'ai_score',
+            'ai_band',
+            'vector_rank',
+            'retrieval_distance',
+            'retrieval_similarity',
+            'retrieval_source',
+            'pre_calibration_band',
+            'post_calibration_band',
+            'band_calibration_applied',
+            'band_calibration_reason',
+            'ranking_confidence',
+            'role_profile_is_sparse',
+            'role_family',
+            'role_subfamily',
+            'candidate_primary_family',
+            'inferred_role_family',
+            'used_title_inference',
+            'confidence_adjustment_reason',
+            'confidence_upgrade_reason',
+            'confidence_downgrade_reason',
+            'graph_boost_applied',
+            'title_adjacency_reason',
+            'semantic_similarity_raw',
+            'semantic_similarity_calibrated',
+            'semantic_floor_applied',
+            'semantic_floor_reason',
+            'semantic_similarity_score',
+            'must_have_score',
+            'preferred_score',
+            'experience_fit_score',
+            'title_fit_score',
+            'location_score',
+            'pipeline_signal_score',
+            'required_skills_count',
+            'matched_required_skills_count',
+            'missing_required_skills_count',
+            'exact_required_skills',
+            'normalized_required_skills',
+            'normalized_preferred_skills',
+            'exact_candidate_skills',
+            'normalized_candidate_skills',
+            'selected_embedding_skills',
+            'omitted_embedding_skills',
+            'embedding_selection_source',
+            'embedding_text_builder_version',
+            'candidate_embedding_sections_used',
+            'exact_skill_matches',
+            'related_skill_matches_summary',
+            'role_supporting_skill_inference',
+            'role_adjacent_skill_inference',
+            'role_embedding_text',
+            'role_embedding_builder_version',
+            'role_embedding_sections_used',
+            'matched_required_skills',
+            'missing_required_skills',
+            'candidate_embedding_text',
+            'candidate_embedding_text_token_count',
+            'role_embedding_text_token_count',
+            'candidate_embedding_present',
+            'role_embedding_present',
+            'candidate_embedding_dimension',
+            'role_embedding_dimension',
+            'raw_vector_distance',
+            'indexed_similarity_from_pgvector',
+            'pgvector_distance_metric',
+            'distance_to_similarity_formula',
+            'similarity_before_clamp',
+            'similarity_after_clamp',
+            'cosine_similarity_before_calibration',
+            'recomputed_role_aware_cosine_similarity',
+            'semantic_score_source',
+            'semantic_score_clamp_reason',
+            'pgvector_enabled',
+            'pgvector_backend_available',
+            'retrieval_fallback_reason',
+            'matched_skills',
+            'missing_skills',
+            'explanations',
+        ])
+        for item in audit_payload['results']:
+            writer.writerow([
+                item.get('candidate_id', ''),
+                item.get('name', ''),
+                item.get('email', ''),
+                item.get('title', ''),
+                item.get('location', ''),
+                item.get('ai_score', ''),
+                item.get('ai_band', ''),
+                item.get('vector_rank', ''),
+                item.get('retrieval_distance', ''),
+                item.get('retrieval_similarity', ''),
+                item.get('retrieval_source', ''),
+                item.get('pre_calibration_band', ''),
+                item.get('post_calibration_band', ''),
+                item.get('band_calibration_applied', ''),
+                item.get('band_calibration_reason', ''),
+                item.get('ranking_confidence', ''),
+                item.get('role_profile_is_sparse', ''),
+                item.get('role_family', ''),
+                item.get('role_subfamily', ''),
+                item.get('candidate_primary_family', ''),
+                item.get('inferred_role_family', ''),
+                item.get('used_title_inference', ''),
+                item.get('confidence_adjustment_reason', ''),
+                item.get('confidence_upgrade_reason', ''),
+                item.get('confidence_downgrade_reason', ''),
+                item.get('graph_boost_applied', ''),
+                item.get('title_adjacency_reason', ''),
+                item.get('semantic_similarity_raw', ''),
+                item.get('semantic_similarity_calibrated', ''),
+                item.get('semantic_floor_applied', ''),
+                item.get('semantic_floor_reason', ''),
+                item.get('semantic_similarity_score', ''),
+                item.get('must_have_score', ''),
+                item.get('preferred_score', ''),
+                item.get('experience_fit_score', ''),
+                item.get('title_fit_score', ''),
+                item.get('location_score', ''),
+                item.get('pipeline_signal_score', ''),
+                item.get('required_skills_count', ''),
+                item.get('matched_required_skills_count', ''),
+                item.get('missing_required_skills_count', ''),
+                ', '.join(item.get('exact_required_skills', []) or []),
+                ', '.join(item.get('normalized_required_skills', []) or []),
+                ', '.join(item.get('normalized_preferred_skills', []) or []),
+                ', '.join(item.get('exact_candidate_skills', []) or []),
+                ', '.join(item.get('normalized_candidate_skills', []) or []),
+                ', '.join(item.get('selected_embedding_skills', []) or []),
+                ', '.join(item.get('omitted_embedding_skills', []) or []),
+                item.get('embedding_selection_source', ''),
+                item.get('embedding_text_builder_version', ''),
+                ' | '.join(item.get('candidate_embedding_sections_used', []) or []),
+                ', '.join(item.get('exact_skill_matches', []) or []),
+                ' | '.join(item.get('related_skill_matches_summary', []) or []),
+                ', '.join(item.get('role_supporting_skill_inference', []) or []),
+                ', '.join(item.get('role_adjacent_skill_inference', []) or []),
+                item.get('role_embedding_text', ''),
+                item.get('role_embedding_builder_version', ''),
+                ' | '.join(item.get('role_embedding_sections_used', []) or []),
+                ', '.join(item.get('matched_required_skills', []) or []),
+                ', '.join(item.get('missing_required_skills', []) or []),
+                item.get('candidate_embedding_text', ''),
+                item.get('candidate_embedding_text_token_count', ''),
+                item.get('role_embedding_text_token_count', ''),
+                item.get('candidate_embedding_present', ''),
+                item.get('role_embedding_present', ''),
+                item.get('candidate_embedding_dimension', ''),
+                item.get('role_embedding_dimension', ''),
+                item.get('raw_vector_distance', ''),
+                item.get('indexed_similarity_from_pgvector', ''),
+                item.get('pgvector_distance_metric', ''),
+                item.get('distance_to_similarity_formula', ''),
+                item.get('similarity_before_clamp', ''),
+                item.get('similarity_after_clamp', ''),
+                item.get('cosine_similarity_before_calibration', ''),
+                item.get('recomputed_role_aware_cosine_similarity', ''),
+                item.get('semantic_score_source', ''),
+                item.get('semantic_score_clamp_reason', ''),
+                item.get('pgvector_enabled', ''),
+                item.get('pgvector_backend_available', ''),
+                item.get('retrieval_fallback_reason', ''),
+                ', '.join(item.get('matched_skills', []) or []),
+                ', '.join(item.get('missing_skills', []) or []),
+                ' | '.join(item.get('explanations', []) or []),
+            ])
+        return response
+
+    return JsonResponse({'Success': True, 'Error': None, 'Data': audit_payload})
 
 
 @login_required

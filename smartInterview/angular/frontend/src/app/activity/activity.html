@@ -1,8 +1,144 @@
 <section class="activity-shell">
-  <div class="state-card" *ngIf="loading"><i class="ph ph-spinner-gap"></i> Loading activity data...</div>
-  <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+  <ng-container *ngIf="loading; else activityLoadedState">
+    <div class="activity-skeleton" aria-hidden="true">
+      <div class="filters-bar activity-filters-skeleton skeleton-card">
+        <div class="filter-item" *ngFor="let _ of [1, 2, 3, 4, 5]">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-card activity-filter-skeleton"></div>
+        </div>
+        <div class="skeleton-chip skeleton-chip-button"></div>
+      </div>
 
-  <div class="activity-layout" *ngIf="!loading && !errorMessage">
+      <div class="export-row activity-export-skeleton skeleton-card">
+        <div class="skeleton-line skeleton-line-body short"></div>
+        <div class="activity-skeleton-actions">
+          <div class="skeleton-chip skeleton-chip-inline"></div>
+          <div class="skeleton-chip skeleton-chip-inline"></div>
+        </div>
+      </div>
+
+      <div class="summary-grid activity-summary-skeleton">
+        <article class="summary-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-line skeleton-line-value short"></div>
+        </article>
+      </div>
+
+      <div class="content-grid">
+        <div class="main-zone">
+          <div class="top-grid">
+            <article class="main-card top-trend skeleton-card activity-chart-skeleton">
+              <div class="card-head activity-skeleton-head">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+              <div class="activity-chart-area">
+                <div class="activity-chart-bars">
+                  <div class="activity-chart-bar" *ngFor="let _ of [1, 2, 3, 4, 5, 6]"></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="main-card top-status skeleton-card activity-chart-skeleton">
+              <div class="card-head activity-skeleton-head">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+              <div class="activity-status-skeleton">
+                <div class="activity-status-chart skeleton-card"></div>
+                <div class="activity-status-legend">
+                  <div class="activity-status-row" *ngFor="let _ of [1, 2, 3, 4]">
+                    <div class="skeleton-icon"></div>
+                    <div class="skeleton-line skeleton-line-body short"></div>
+                    <div class="skeleton-line skeleton-line-count"></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="main-card top-risk skeleton-card activity-table-skeleton">
+              <div class="card-head activity-skeleton-head">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+              <div class="activity-table-head">
+                <div class="skeleton-line skeleton-line-table-head" *ngFor="let _ of [1, 2, 3, 4]"></div>
+              </div>
+              <div class="activity-table-body">
+                <div class="activity-table-row" *ngFor="let _ of [1, 2, 3, 4]">
+                  <div class="skeleton-line skeleton-line-item-title"></div>
+                  <div class="skeleton-line skeleton-line-count"></div>
+                  <div class="skeleton-line skeleton-line-count"></div>
+                  <div class="skeleton-chip skeleton-chip-inline"></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="main-card top-insights skeleton-card activity-list-skeleton">
+              <div class="card-head activity-skeleton-head">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+              <div class="activity-skeleton-list">
+                <div class="activity-list-row skeleton-card" *ngFor="let _ of [1, 2, 3, 4]">
+                  <div class="skeleton-line skeleton-line-body"></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="main-card top-target skeleton-card activity-bars-skeleton">
+              <div class="card-head activity-skeleton-head">
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+              <div class="activity-inline-skeleton skeleton-card"></div>
+              <div class="activity-bar-list">
+                <div class="activity-bar-row" *ngFor="let _ of [1, 2, 3, 4]">
+                  <div class="skeleton-line skeleton-line-label"></div>
+                  <div class="skeleton-track"><span></span></div>
+                  <div class="skeleton-line skeleton-line-count"></div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <article class="main-card skeleton-card activity-bars-skeleton" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
+            <div class="card-head activity-skeleton-head">
+              <div class="skeleton-line skeleton-line-panel-title"></div>
+              <div class="skeleton-line skeleton-line-count"></div>
+            </div>
+            <div class="activity-bar-list">
+              <div class="activity-bar-row" *ngFor="let __ of [1, 2, 3, 4, 5]">
+                <div class="skeleton-line skeleton-line-label"></div>
+                <div class="skeleton-track"><span></span></div>
+                <div class="skeleton-line skeleton-line-count"></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side-col">
+          <article class="side-card skeleton-card activity-side-skeleton" *ngFor="let _ of [1, 2, 3]">
+            <div class="card-head activity-skeleton-head">
+              <div class="skeleton-line skeleton-line-panel-title"></div>
+              <div class="skeleton-line skeleton-line-count"></div>
+            </div>
+            <div class="activity-skeleton-list">
+              <div class="activity-list-row skeleton-card" *ngFor="let __ of [1, 2, 3, 4]">
+                <div class="skeleton-line skeleton-line-item-title"></div>
+                <div class="skeleton-line skeleton-line-item-sub"></div>
+              </div>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #activityLoadedState>
+  <div class="state-card error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <div class="activity-layout" *ngIf="!errorMessage">
     <div class="filters-bar">
       <div class="filter-item">
         <label><i class="ph ph-calendar-blank"></i> From</label>
@@ -482,4 +618,5 @@
       </aside>
     </div>
   </div>
+  </ng-template>
 </section>

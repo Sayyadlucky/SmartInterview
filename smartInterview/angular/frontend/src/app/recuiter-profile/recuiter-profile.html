@@ -1,5 +1,78 @@
 <section class="recruiter-shell" *ngIf="evaluator">
-  <div *ngIf="loading" class="state-card"><i class="ph ph-spinner-gap"></i>Loading evaluator profile...</div>
+  <div *ngIf="loading" class="recruiter-profile-skeleton" aria-hidden="true">
+    <section class="hero-panel skeleton-card profile-hero-skeleton">
+      <div class="hero-top-row">
+        <div class="hero-profile">
+          <div class="skeleton-avatar skeleton-avatar-lg"></div>
+          <div class="skeleton-stack">
+            <div class="skeleton-line skeleton-line-title"></div>
+            <div class="skeleton-line skeleton-line-body short"></div>
+            <div class="profile-pill-skeletons">
+              <div class="skeleton-chip" *ngFor="let _ of [1, 2, 3, 4]"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skeleton-chip skeleton-chip-button"></div>
+      </div>
+
+      <div class="skeleton-card profile-trend-skeleton">
+        <div class="skeleton-line skeleton-line-label"></div>
+        <div class="skeleton-line skeleton-line-body"></div>
+      </div>
+
+      <div class="profile-kpi-skeleton-grid">
+        <article class="kpi-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4]">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-line skeleton-line-value short"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="left-stack">
+        <article class="card skeleton-card profile-content-skeleton">
+          <div class="skeleton-panel-head">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-count"></div>
+          </div>
+          <div class="skeleton-list">
+            <div class="skeleton-row" *ngFor="let _ of [1, 2, 3, 4]">
+              <div class="skeleton-line skeleton-line-item-title"></div>
+              <div class="skeleton-line skeleton-line-body short"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card skeleton-card profile-content-skeleton">
+          <div class="skeleton-panel-head">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-count"></div>
+          </div>
+          <div class="skeleton-bars">
+            <div class="skeleton-bar-row" *ngFor="let _ of [1, 2, 3, 4]">
+              <div class="skeleton-line skeleton-line-item-title"></div>
+              <div class="skeleton-track"><span></span></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="right-stack">
+        <article class="card skeleton-card profile-content-skeleton" *ngFor="let _ of [1, 2, 3]">
+          <div class="skeleton-panel-head">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-count"></div>
+          </div>
+          <div class="skeleton-bars">
+            <div class="skeleton-bar-row" *ngFor="let __ of [1, 2, 3, 4, 5]">
+              <div class="skeleton-line skeleton-line-label"></div>
+              <div class="skeleton-track"><span></span></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
   <div *ngIf="!loading && errorMessage" class="state-card error">{{ errorMessage }}</div>
 
   <div class="profile-canvas" *ngIf="!loading && !errorMessage">

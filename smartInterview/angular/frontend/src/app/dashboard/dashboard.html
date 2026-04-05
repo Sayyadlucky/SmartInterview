@@ -100,8 +100,126 @@
     </div>
 
     <!-- ================= OVERVIEW TAB ================= -->
-    <div class="tab-content active" id="overview" *ngIf="activeTab === 'overview'">
-      <div *ngIf="loading" class="loading-indicator">Loading data...</div>
+    <div class="tab-content active" id="overview" *ngIf="activeTab === 'overview'" [attr.aria-busy]="loading">
+      <div *ngIf="loading" class="dashboard-skeleton" aria-hidden="true">
+        <section class="dashboard-card dashboard-skeleton-hero skeleton-card">
+          <div class="dashboard-skeleton-hero-copy">
+            <div class="skeleton-line skeleton-line-title"></div>
+            <div class="skeleton-line skeleton-line-subtitle"></div>
+            <div class="dashboard-skeleton-chip-row">
+              <div class="skeleton-chip"></div>
+              <div class="skeleton-chip"></div>
+              <div class="skeleton-chip"></div>
+            </div>
+          </div>
+          <div class="dashboard-skeleton-hero-side">
+            <div class="skeleton-card dashboard-skeleton-company-card">
+              <div class="skeleton-avatar"></div>
+              <div class="dashboard-skeleton-company-copy">
+                <div class="skeleton-line skeleton-line-label"></div>
+                <div class="skeleton-line skeleton-line-company"></div>
+                <div class="skeleton-line skeleton-line-meta"></div>
+                <div class="skeleton-line skeleton-line-meta skeleton-line-meta-small"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="dashboard-skeleton-grid">
+          <div class="dashboard-skeleton-main">
+            <section class="dashboard-skeleton-kpis">
+              <article class="dashboard-card skeleton-card skeleton-kpi-card" *ngFor="let _ of [1, 2, 3, 4]">
+                <div class="skeleton-line skeleton-line-kpi-label"></div>
+                <div class="skeleton-line skeleton-line-kpi-value"></div>
+              </article>
+            </section>
+
+            <section class="dashboard-skeleton-overview-row">
+              <article class="dashboard-card skeleton-card dashboard-skeleton-panel" *ngFor="let _ of [1, 2, 3]">
+                <div class="dashboard-skeleton-panel-head">
+                  <div class="skeleton-icon"></div>
+                  <div class="skeleton-line skeleton-line-panel-title"></div>
+                </div>
+                <div class="dashboard-skeleton-stack">
+                  <div class="skeleton-line skeleton-line-body"></div>
+                  <div class="skeleton-line skeleton-line-body"></div>
+                  <div class="skeleton-line skeleton-line-body short"></div>
+                  <div class="skeleton-line skeleton-line-body"></div>
+                </div>
+              </article>
+            </section>
+
+            <section class="dashboard-card skeleton-card dashboard-skeleton-table">
+              <div class="dashboard-skeleton-panel-head">
+                <div class="skeleton-icon"></div>
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+              </div>
+              <div class="dashboard-skeleton-table-head">
+                <div class="skeleton-line skeleton-line-table-head wide"></div>
+                <div class="skeleton-line skeleton-line-table-head"></div>
+                <div class="skeleton-line skeleton-line-table-head short"></div>
+                <div class="skeleton-line skeleton-line-table-head short"></div>
+              </div>
+              <div class="dashboard-skeleton-table-body">
+                <div class="skeleton-table-row skeleton-table-row-1">
+                  <div class="skeleton-line skeleton-line-table-cell wide"></div>
+                  <div class="skeleton-line skeleton-line-table-cell"></div>
+                  <div class="skeleton-line skeleton-line-table-cell medium"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-chip skeleton-chip-action"></div>
+                </div>
+                <div class="skeleton-table-row skeleton-table-row-2">
+                  <div class="skeleton-line skeleton-line-table-cell wide alt"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-line skeleton-line-table-cell"></div>
+                  <div class="skeleton-line skeleton-line-table-cell medium"></div>
+                  <div class="skeleton-chip skeleton-chip-action short"></div>
+                </div>
+                <div class="skeleton-table-row skeleton-table-row-3">
+                  <div class="skeleton-line skeleton-line-table-cell medium"></div>
+                  <div class="skeleton-line skeleton-line-table-cell"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-chip skeleton-chip-action"></div>
+                </div>
+                <div class="skeleton-table-row skeleton-table-row-4">
+                  <div class="skeleton-line skeleton-line-table-cell wide"></div>
+                  <div class="skeleton-line skeleton-line-table-cell medium"></div>
+                  <div class="skeleton-line skeleton-line-table-cell medium"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-chip skeleton-chip-action short"></div>
+                </div>
+                <div class="skeleton-table-row skeleton-table-row-5">
+                  <div class="skeleton-line skeleton-line-table-cell wide alt"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-line skeleton-line-table-cell medium"></div>
+                  <div class="skeleton-line skeleton-line-table-cell short"></div>
+                  <div class="skeleton-chip skeleton-chip-action"></div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="dashboard-skeleton-side">
+            <article class="dashboard-card skeleton-card dashboard-skeleton-side-card">
+              <div class="skeleton-line skeleton-line-side-title"></div>
+              <div class="dashboard-skeleton-stack">
+                <div class="skeleton-chip skeleton-chip-wide"></div>
+                <div class="skeleton-chip skeleton-chip-wide"></div>
+                <div class="skeleton-chip skeleton-chip-wide"></div>
+              </div>
+            </article>
+            <article class="dashboard-card skeleton-card dashboard-skeleton-side-card">
+              <div class="skeleton-line skeleton-line-side-title"></div>
+              <div class="dashboard-skeleton-stack">
+                <div class="skeleton-line skeleton-line-body"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+                <div class="skeleton-line skeleton-line-body"></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </div>
       <div *ngIf="!loading">
 
       <!-- 🔹 Unified Grid: Summary + Middle + Sidebar -->
