@@ -1,8 +1,3 @@
-import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-
 const byId = (id) => document.getElementById(id);
 
 const header = byId("mainHeader");
@@ -12,6 +7,7 @@ const loginPanel = byId("loginPanel");
 const openLoginBtn = byId("openLoginBtn");
 const contactSignInBtn = byId("contactSignInBtn");
 const closeLogin = byId("closeLogin");
+const getStartedBtn = byId("getStartedBtn");
 const loginForm = byId("loginForm");
 const errorMsg = byId("errorMsg");
 const mobileMenuBtn = byId("mobileMenuBtn");
@@ -20,10 +16,15 @@ const mobileDrawer = byId("mobileDrawer");
 const mobileDrawerBackdrop = byId("mobileDrawerBackdrop");
 const drawerSignInBtn = byId("drawerSignInBtn");
 const preloader = byId("preloader");
+const heroSection = byId("hero");
 
 const hasGsap = typeof window.gsap !== "undefined";
 const hasScrollTrigger = typeof window.ScrollTrigger !== "undefined";
 const hasThree = typeof window.THREE !== "undefined";
+const isFixedHeaderPage =
+  document.body?.classList.contains("candidate-login-page") ||
+  document.body?.classList.contains("candidate-signup-page") ||
+  document.body?.classList.contains("jobs-portal-page");
 
 if ("scrollRestoration" in history) {
   history.scrollRestoration = "manual";
@@ -77,15 +78,33 @@ function initCoreUi() {
   const year = byId("currentYear");
   if (year) year.textContent = new Date().getFullYear();
 
-  window.addEventListener("scroll", () => {
-    header?.classList.toggle("scrolled", window.scrollY > 24);
-  });
+  if (isFixedHeaderPage) {
+    header?.classList.add("scrolled");
+  } else {
+    window.addEventListener("scroll", () => {
+      header?.classList.toggle("scrolled", window.scrollY > 24);
+    });
+  }
 
   window.addEventListener("mousemove", (e) => {
     const x = (e.clientX / window.innerWidth) * 100;
     const y = (e.clientY / window.innerHeight) * 100;
     document.documentElement.style.setProperty("--mx", `${x}%`);
     document.documentElement.style.setProperty("--my", `${y}%`);
+  });
+
+  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener("click", (e) => {
+      const href = anchor.getAttribute("href");
+      const target = href ? document.querySelector(href) : null;
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  getStartedBtn?.addEventListener("click", () => {
+    byId("features")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   mobileMenuBtn?.addEventListener("click", openMobileMenu);
@@ -129,7 +148,7 @@ function initLoginPanel() {
 
       const data = await res.json();
       if (data.success) {
-        window.location.href = "/dashboard/";
+        window.location.href = data.redirect_url || "/dashboard/";
         return;
       }
 
@@ -142,6 +161,7 @@ function initLoginPanel() {
 
 function initGsapMotion() {
   if (!hasGsap) return;
+  if (!heroSection) return;
   if (hasScrollTrigger) gsap.registerPlugin(ScrollTrigger);
 
   const intro = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -165,7 +185,7 @@ function initGsapMotion() {
   });
 
   if (hasScrollTrigger) {
-    gsap.set([".wordmark", ".subtitle", ".hero-stats"], { autoAlpha: 0, y: 24 });
+    gsap.set([".eyebrow", ".wordmark", ".subtitle", ".hero-stats"], { autoAlpha: 0, y: 24 });
 
     gsap.timeline({
       scrollTrigger: {
@@ -175,6 +195,7 @@ function initGsapMotion() {
         scrub: 1,
       },
     })
+      .to(".eyebrow", { autoAlpha: 1, y: 0, ease: "none" }, 0.05)
       .to(".wordmark", { autoAlpha: 1, y: 0, ease: "none" }, 0.16)
       .to(".subtitle", { autoAlpha: 1, y: 0, ease: "none" }, 0.28)
       .to(".hero-stats", { autoAlpha: 1, y: 0, ease: "none" }, 0.4);

@@ -330,6 +330,7 @@ def build_vacancy_card_payload(
 
 
 def build_public_jobs_context(request) -> dict[str, object]:
+    default_jobs_limit = 10
     q = (request.GET.get('q') or '').strip()
     recruiter_filter = (request.GET.get('recruiter') or '').strip()
     posted_since = normalize_posted_since_filter(request.GET.get('posted'))
@@ -365,6 +366,10 @@ def build_public_jobs_context(request) -> dict[str, object]:
             | Q(recruiter__first_name__iexact=recruiter_filter)
             | Q(recruiter__last_name__iexact=recruiter_filter)
         ).distinct()
+
+    should_limit_default_feed = not q and not recruiter_filter and not posted_since and sort == 'recent'
+    if should_limit_default_feed:
+        jobs_qs = jobs_qs[:default_jobs_limit]
 
     application_lookup: dict[int, CandidateVacancyApplication] = {}
     saved_vacancy_ids: set[int] = set()

@@ -570,6 +570,38 @@ class PublicJobsPortalTests(TestCase):
         self.assertContains(response, 'Backend Python Developer')
         self.assertContains(response, 'Login to Apply')
 
+    def test_jobs_portal_limits_default_feed_to_top_ten_roles(self):
+        for index in range(12):
+            vacancy = Vacancies.objects.create(
+                role=f'Backend Python Developer {index}',
+                description='Performance-sensitive landing role',
+                position='1',
+                status='active',
+                admin=self.admin,
+            )
+            vacancy.recruiter.add(self.recruiter)
+
+        response = self.client.get(reverse('jobs-portal'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['job_cards']), 10)
+
+    def test_jobs_portal_search_returns_full_matching_result_set(self):
+        for index in range(12):
+            vacancy = Vacancies.objects.create(
+                role=f'Backend Python Developer Search {index}',
+                description='Searchable role for portal filtering',
+                position='1',
+                status='active',
+                admin=self.admin,
+            )
+            vacancy.recruiter.add(self.recruiter)
+
+        response = self.client.get(reverse('jobs-portal'), {'q': 'Backend Python Developer'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['job_cards']), 13)
+
     def test_candidate_login_honors_next_for_jobs_portal(self):
         response = self.client.post(reverse('candidate-login'), data={
             'username': self.candidate.email,
