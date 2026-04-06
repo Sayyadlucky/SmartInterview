@@ -191,7 +191,10 @@ class CandidateSignupForm(forms.Form):
         widget=forms.EmailInput(attrs={
             'class': 'signup-input',
             'autocomplete': 'email',
+            'autocapitalize': 'off',
+            'inputmode': 'email',
             'placeholder': 'Email address',
+            'spellcheck': 'false',
         }),
     )
     phone = forms.CharField(
@@ -200,11 +203,12 @@ class CandidateSignupForm(forms.Form):
         widget=forms.TextInput(attrs={
             'class': 'signup-input',
             'autocomplete': 'tel',
+            'inputmode': 'numeric',
             'placeholder': 'Mobile number',
         }),
     )
     gender = forms.ChoiceField(
-        choices=UserProfile.Gender_CHOICES,
+        choices=(('', 'Select gender'),) + UserProfile.Gender_CHOICES,
         required=False,
         widget=forms.Select(attrs={
             'class': 'signup-input',
@@ -216,6 +220,7 @@ class CandidateSignupForm(forms.Form):
             'class': 'signup-input',
             'autocomplete': 'new-password',
             'placeholder': 'Create password',
+            'spellcheck': 'false',
         }),
         help_text='Use at least 8 characters.',
     )
@@ -225,6 +230,7 @@ class CandidateSignupForm(forms.Form):
             'class': 'signup-input',
             'autocomplete': 'new-password',
             'placeholder': 'Confirm password',
+            'spellcheck': 'false',
         }),
     )
     profile_picture = forms.FileField(

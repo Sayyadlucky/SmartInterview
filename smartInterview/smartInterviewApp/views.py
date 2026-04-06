@@ -24,6 +24,7 @@ from .commonViews import (
     send_existing_candidate_sms,
 )
 from .services.company_enrichment import ensure_company_profile_for_user
+from .templatetags.host_links import build_host_link
 
 
 def normalize_interview_status(value: str) -> str:
@@ -57,15 +58,23 @@ def resolve_login_identifier(identifier: str) -> str:
     return value
 
 
+def get_post_login_redirect_url(request, user) -> str:
+    profile = getattr(user, 'profile', None)
+    if profile and profile.role == 'candidate':
+        return build_host_link(request, 'candidates')
+    return '/dashboard/'
+
+
 def home(request):
     subdomain = getattr(request, 'subdomain', 'main')
+    profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
     if subdomain == 'jobs':
-        profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+        if profile and profile.role == 'candidate':
+            return redirect(build_host_link(request, 'candidates'))
         if profile and profile.role in {'admin', 'recruiter', 'interviewer'}:
             return redirect('/dashboard/')
         return publicJobsPortal(request)
     if subdomain == 'candidates':
-        profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
         if profile and profile.role == 'candidate':
             return candidateDashboard(request)
         if request.user.is_authenticated:
@@ -79,15 +88,18 @@ def home(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('/dashboard/')
+            return redirect(get_post_login_redirect_url(request, user))
     else:
         if request.user.is_authenticated:
-            return redirect('/dashboard/')
+            return redirect(get_post_login_redirect_url(request, request.user))
         form = LoginForm()
     return render(request, 'smartInterview/index.html', {'form': form})
 
 @login_required(login_url='home')
 def dashboard(request):
+    profile = getattr(request.user, 'profile', None)
+    if profile and profile.role == 'candidate':
+        return redirect(build_host_link(request, 'candidates'))
     ensure_company_profile_for_user(request.user)
     return render(request, 'smartInterview/dashboard.html')
 
@@ -100,7 +112,11 @@ def ajax_login(request):
 
     if user is not None:
         login(request, user)
-        return JsonResponse({'success': True, 'message': 'Login successful'})
+        return JsonResponse({
+            'success': True,
+            'message': 'Login successful',
+            'redirect_url': get_post_login_redirect_url(request, user),
+        })
     else:
         return JsonResponse({'success': False, 'message': 'Invalid username or password'})
 
@@ -111,6 +127,9 @@ class MyLogoutView(View):
 @login_required
 def dashboardData(request):
     try:
+        profile = getattr(request.user, 'profile', None)
+        if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+            return JsonResponse({"Success": False, "Error": "Dashboard access is restricted."}, status=403)
         admin = get_object_or_404(User, username=request.user.username)
         candidates_data = get_accessible_interviews(admin)
         candidate_list = []

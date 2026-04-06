@@ -387,12 +387,105 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(profile.resume.name.endswith('manual_resume.pdf'))
         process_resume_mock.assert_called_once_with(candidate, profile, interview=None)
 
+    def test_candidate_signup_reopens_security_step_when_password_validation_fails(self):
+        response = self.client.post(reverse('candidate-signup'), data={
+            'first_name': 'Step',
+            'last_name': 'Recovery',
+            'email': 'step.recovery@example.com',
+            'phone': '9876543210',
+            'gender': 'female',
+            'password': 'StrongPass123!',
+            'confirm_password': 'StrongPass124!',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Passwords do not match.')
+        self.assertContains(response, 'data-initial-step="2"')
+
     def test_candidate_signup_invalid_token_falls_back_to_manual_form(self):
         response = self.client.get(reverse('candidate-signup'), {'token': 'bad-token'})
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'invalid or has expired')
         self.assertContains(response, 'First Name')
+
+
+class CandidateRoutingTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin-route', password='pass1234', email='admin.route@example.com')
+        self.admin.first_name = 'Admin'
+        self.admin.last_name = 'Route'
+        self.admin.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.admin, role='admin', phone='919111111112', gender='other')
+
+        self.recruiter = User.objects.create_user(username='recruiter-route', password='pass1234', email='recruiter.route@example.com')
+        self.recruiter.first_name = 'Recruiter'
+        self.recruiter.last_name = 'Route'
+        self.recruiter.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.recruiter, role='recruiter', phone='919111111113', gender='male', hr=self.admin)
+
+        self.interviewer = User.objects.create_user(username='interviewer-route', password='pass1234', email='interviewer.route@example.com')
+        self.interviewer.first_name = 'Interviewer'
+        self.interviewer.last_name = 'Route'
+        self.interviewer.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(
+            user=self.interviewer,
+            role='interviewer',
+            phone='919111111114',
+            gender='male',
+            hr=self.admin,
+            recruiter=self.recruiter,
+        )
+
+        self.role = Vacancies.objects.create(
+            role='Python Developer',
+            description='Backend role',
+            position='2',
+            status='active',
+            admin=self.admin,
+        )
+        self.role.recruiter.add(self.recruiter)
+
+        self.candidate = User.objects.create_user(
+            username='candidate-route',
+            password='pass1234',
+            email='candidate.route@example.com',
+        )
+        UserProfile.objects.create(
+            user=self.candidate,
+            role='candidate',
+            phone='919111111111',
+            gender='female',
+            hr=self.admin,
+        )
+        self.client.login(username='admin-route', password='pass1234')
+
+    def test_main_home_redirects_authenticated_candidate_to_candidate_domain(self):
+        self.client.force_login(self.candidate)
+
+        response = self.client.get('/', secure=True, HTTP_HOST='shortlistii.com')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], 'https://candidates.shortlistii.com/')
+
+    def test_dashboard_redirects_candidate_to_candidate_domain(self):
+        self.client.force_login(self.candidate)
+
+        response = self.client.get('/dashboard/', secure=True, HTTP_HOST='shortlistii.com')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], 'https://candidates.shortlistii.com/')
+
+    def test_ajax_login_returns_candidate_domain_redirect_for_candidate(self):
+        response = self.client.post('/login/', data={
+            'username': 'candidate.route@example.com',
+            'password': 'pass1234',
+        }, secure=True, HTTP_HOST='shortlistii.com')
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['redirect_url'], 'https://candidates.shortlistii.com/')
 
     def test_hr_and_admin_dashboard_data_include_interviewer_hierarchy(self):
         candidate = User.objects.create_user(username='cand-hierarchy', password='pass1234', email='hierarchy@example.com')

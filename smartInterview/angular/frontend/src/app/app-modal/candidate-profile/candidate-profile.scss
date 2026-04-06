@@ -15,75 +15,291 @@
   box-shadow: 0 18px 60px rgba(2, 12, 28, 0.65);
 }
 
-.profile-loader-shell {
+.profile-skeleton,
+.profile-resume-skeleton {
+  --profile-skeleton-surface: rgba(9, 37, 72, 0.58);
+  --profile-skeleton-surface-strong: rgba(10, 40, 76, 0.66);
+  --profile-skeleton-border: rgba(137, 206, 246, 0.14);
+  --profile-skeleton-shimmer:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(64, 231, 255, 0.035) 40%,
+      rgba(131, 184, 255, 0.085) 50%,
+      rgba(64, 231, 255, 0.035) 60%,
+      transparent 100%
+    );
+}
+
+.profile-skeleton {
   min-height: 440px;
   display: grid;
-  place-items: center;
-  padding: 40px 16px 24px;
+  gap: 12px;
+  padding-top: 18px;
 }
 
-.profile-loader-card {
-  width: min(440px, 100%);
-  border: 1px solid rgba(118, 194, 239, 0.2);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(10, 39, 73, 0.9), rgba(7, 27, 53, 0.82));
-  padding: 28px 24px;
+.profile-skeleton-hero,
+.profile-skeleton-section,
+.profile-skeleton-resume,
+.profile-skeleton-stat,
+.profile-skeleton-actions,
+.profile-skeleton-mini-card,
+.profile-skeleton-detail-card,
+.profile-skeleton-resume-block {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.profile-skeleton-hero,
+.profile-skeleton-section,
+.profile-skeleton-resume {
+  padding: 16px;
+}
+
+.profile-skeleton-hero {
   display: grid;
-  gap: 18px;
-  justify-items: center;
-  text-align: center;
-  box-shadow: 0 18px 44px rgba(2, 12, 28, 0.34);
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
+  gap: 12px;
 }
 
-.profile-loader-orb {
-  width: 58px;
-  height: 58px;
-  border-radius: 999px;
-  border: 2px solid rgba(87, 214, 255, 0.2);
-  border-top-color: #7be7ff;
-  border-right-color: rgba(121, 201, 255, 0.72);
-  background: radial-gradient(circle at 30% 30%, rgba(102, 222, 255, 0.24), rgba(29, 83, 157, 0.1));
-  animation: profile-spin 0.9s linear infinite;
+.profile-skeleton-head,
+.profile-skeleton-copy,
+.profile-skeleton-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
-.profile-loader-copy h3 {
-  margin: 0 0 6px;
-  color: #ebf8ff;
-  font-size: 1.08rem;
+.profile-skeleton-head {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
 }
 
-.profile-loader-copy p {
-  margin: 0;
-  color: #97bddc;
-  font-size: 0.84rem;
-  line-height: 1.5;
+.profile-skeleton-actions {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
 }
 
-.profile-loader-bars {
-  width: 100%;
+.profile-skeleton-action-grid,
+.profile-skeleton-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-skeleton-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-skeleton-stat {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-skeleton-section,
+.profile-skeleton-resume {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-skeleton-section-head,
+.profile-skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-skeleton-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-skeleton-card-grid--double {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-skeleton-mini-card,
+.profile-skeleton-detail-card,
+.profile-skeleton-resume-block {
+  padding: 14px;
   display: grid;
   gap: 10px;
 }
 
-.profile-loader-bars span {
-  display: block;
-  height: 10px;
+.profile-skeleton-timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-skeleton-timeline-item {
+  display: grid;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(96, 188, 239, 0.18);
+}
+
+.profile-resume-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-card {
+  border: 1px solid rgba(137, 206, 246, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(9, 34, 67, 0.7), rgba(7, 28, 56, 0.62)),
+    radial-gradient(circle at top right, rgba(64, 231, 255, 0.06), transparent 34%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(140, 216, 255, 0.03);
+}
+
+.skeleton-line,
+.skeleton-chip,
+.skeleton-avatar {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(68, 131, 201, 0.18), rgba(123, 231, 255, 0.48), rgba(68, 131, 201, 0.18));
-  background-size: 200% 100%;
-  animation: profile-shimmer 1.25s ease-in-out infinite;
+  background: var(--profile-skeleton-surface);
+  border: 1px solid var(--profile-skeleton-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
-.profile-loader-bars span:nth-child(2) {
-  width: 82%;
-  justify-self: center;
-  animation-delay: 0.1s;
+.skeleton-line::after,
+.skeleton-chip::after,
+.skeleton-avatar::after,
+.skeleton-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: var(--profile-skeleton-shimmer);
+  animation: profile-shimmer 1.85s ease-in-out infinite;
+  pointer-events: none;
 }
 
-.profile-loader-bars span:nth-child(3) {
-  width: 68%;
-  justify-self: center;
-  animation-delay: 0.2s;
+.skeleton-card::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%),
+    var(--profile-skeleton-shimmer);
+  opacity: 0.75;
+}
+
+.skeleton-line {
+  height: 12px;
+}
+
+.skeleton-line-title {
+  width: min(220px, 72%);
+  height: 18px;
+}
+
+.skeleton-line-label {
+  width: 38%;
+  height: 10px;
+}
+
+.skeleton-line-value {
+  width: 58%;
+  height: 20px;
+  border-radius: 12px;
+}
+
+.skeleton-line-meta {
+  width: 52%;
+}
+
+.skeleton-line-helper {
+  width: 32%;
+  height: 10px;
+}
+
+.skeleton-line-helper.short {
+  width: 24%;
+}
+
+.skeleton-line-panel-title {
+  width: 42%;
+  height: 14px;
+}
+
+.skeleton-line-section-label {
+  width: 26%;
+  height: 12px;
+}
+
+.skeleton-line-body {
+  width: 100%;
+}
+
+.skeleton-line-body.short {
+  width: 72%;
+}
+
+.skeleton-line-item-title {
+  width: 64%;
+  height: 14px;
+}
+
+.skeleton-line-item-sub {
+  width: 86%;
+}
+
+.skeleton-line-item-sub.short {
+  width: 66%;
+}
+
+.skeleton-chip {
+  height: 34px;
+}
+
+.skeleton-chip-pill {
+  width: 110px;
+}
+
+.skeleton-chip-pill.short {
+  width: 84px;
+}
+
+.skeleton-chip-button {
+  width: 132px;
+  border-radius: 10px;
+}
+
+.skeleton-chip-button.short {
+  width: 110px;
+}
+
+.skeleton-chip-score {
+  width: 54px;
+  height: 28px;
+  border-radius: 10px;
+  background: var(--profile-skeleton-surface-strong);
+}
+
+.skeleton-chip-tag {
+  width: 92px;
+  height: 30px;
+  border-radius: 12px;
+}
+
+.skeleton-avatar {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+
+.skeleton-avatar-lg {
+  width: 68px;
+  height: 68px;
 }
 
 .close-btn {
@@ -208,23 +424,9 @@
   animation: profile-pulse 1.1s ease-in-out infinite;
 }
 
-@keyframes profile-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes profile-shimmer {
-  0% {
-    background-position: 200% 0;
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
   100% {
-    background-position: -20% 0;
-    opacity: 0.6;
+    transform: translateX(100%);
   }
 }
 
@@ -636,6 +838,19 @@
 }
 
 @media (max-width: 900px) {
+  .profile-skeleton-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-skeleton-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-skeleton-card-grid,
+  .profile-skeleton-card-grid--double {
+    grid-template-columns: 1fr;
+  }
+
   .hero {
     flex-direction: column;
     align-items: stretch;
@@ -660,5 +875,40 @@
 
   .resume-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-skeleton {
+    gap: 10px;
+  }
+
+  .profile-skeleton-head {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-skeleton-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-skeleton-hero,
+  .profile-skeleton-section,
+  .profile-skeleton-resume,
+  .profile-skeleton-actions,
+  .profile-skeleton-mini-card,
+  .profile-skeleton-detail-card,
+  .profile-skeleton-resume-block {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line::after,
+  .skeleton-chip::after,
+  .skeleton-avatar::after,
+  .skeleton-card::after,
+  .inline-loader-dot {
+    animation: none;
+    transform: none;
   }
 }

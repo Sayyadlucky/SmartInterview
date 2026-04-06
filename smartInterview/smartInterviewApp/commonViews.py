@@ -2017,6 +2017,7 @@ def candidateSignup(request):
     interview = None
     user = None
     profile = None
+    initial_step = 1
 
     if token:
         try:
@@ -2069,15 +2070,19 @@ def candidateSignup(request):
                 ResumeProcessingService().process_profile_resume(user, profile, interview=interview)
             return render(request, 'smartInterview/candidate_signup.html', {
                 'form': None,
+                'initial_step': 1,
                 'token_error': token_error,
                 'signup_context': signup_context,
                 'signup_success': True,
             })
+        if any(form.errors.get(field_name) for field_name in ('password', 'confirm_password', 'profile_picture', 'resume')):
+            initial_step = 2
     else:
         form = CandidateSignupForm(user=user, manual_mode=signup_context is None)
 
     return render(request, 'smartInterview/candidate_signup.html', {
         'form': form,
+        'initial_step': initial_step,
         'token': token,
         'token_error': token_error,
         'signup_context': signup_context,

@@ -1,19 +1,100 @@
 <div class="profile-dialog-shell">
   <button class="close-btn" (click)="close()">×</button>
 
-  <div class="profile-loader-shell" *ngIf="initialProfileLoading; else profileContent">
-    <div class="profile-loader-card">
-      <div class="profile-loader-orb"></div>
-      <div class="profile-loader-copy">
-        <h3>Loading candidate profile</h3>
-        <p>Fetching interview details, resume insights, and verification signals.</p>
+  <div class="profile-skeleton" *ngIf="initialProfileLoading; else profileContent" aria-hidden="true">
+    <section class="profile-skeleton-hero skeleton-card">
+      <div class="profile-skeleton-head">
+        <div class="skeleton-avatar skeleton-avatar-lg"></div>
+        <div class="profile-skeleton-copy">
+          <div class="skeleton-line skeleton-line-title"></div>
+          <div class="skeleton-line skeleton-line-body short"></div>
+          <div class="skeleton-line skeleton-line-body skeleton-line-meta"></div>
+          <div class="profile-skeleton-chip-row">
+            <div class="skeleton-chip skeleton-chip-pill"></div>
+            <div class="skeleton-chip skeleton-chip-pill short"></div>
+          </div>
+        </div>
       </div>
-      <div class="profile-loader-bars">
-        <span></span>
-        <span></span>
-        <span></span>
+      <div class="profile-skeleton-actions skeleton-card">
+        <div class="skeleton-line skeleton-line-panel-title"></div>
+        <div class="profile-skeleton-action-grid">
+          <div class="skeleton-chip skeleton-chip-button"></div>
+          <div class="skeleton-chip skeleton-chip-button short"></div>
+          <div class="skeleton-chip skeleton-chip-button"></div>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <section class="profile-skeleton-stats">
+      <article class="skeleton-card profile-skeleton-stat" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
+        <div class="skeleton-line skeleton-line-label"></div>
+        <div class="skeleton-line skeleton-line-value"></div>
+      </article>
+    </section>
+
+    <section class="profile-skeleton-section skeleton-card">
+      <div class="profile-skeleton-section-head">
+        <div class="skeleton-line skeleton-line-panel-title"></div>
+        <div class="skeleton-line skeleton-line-helper"></div>
+      </div>
+      <div class="profile-skeleton-card-grid">
+        <article class="skeleton-card profile-skeleton-mini-card" *ngFor="let _ of [1, 2, 3]">
+          <div class="skeleton-line skeleton-line-item-title"></div>
+          <div class="skeleton-line skeleton-line-item-sub"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="profile-skeleton-section skeleton-card">
+      <div class="profile-skeleton-section-head">
+        <div class="skeleton-line skeleton-line-panel-title"></div>
+        <div class="skeleton-line skeleton-line-helper"></div>
+      </div>
+      <div class="profile-skeleton-card-grid profile-skeleton-card-grid--double">
+        <article class="skeleton-card profile-skeleton-detail-card" *ngFor="let _ of [1, 2]">
+          <div class="profile-skeleton-row">
+            <div class="skeleton-line skeleton-line-item-title"></div>
+            <div class="skeleton-chip skeleton-chip-score"></div>
+          </div>
+          <div class="profile-skeleton-stack">
+            <div class="skeleton-line skeleton-line-body"></div>
+            <div class="skeleton-line skeleton-line-body"></div>
+            <div class="skeleton-line skeleton-line-body short"></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="profile-skeleton-resume skeleton-card">
+      <div class="profile-skeleton-section-head">
+        <div class="skeleton-line skeleton-line-panel-title"></div>
+        <div class="skeleton-line skeleton-line-helper short"></div>
+      </div>
+      <article class="skeleton-card profile-skeleton-resume-block">
+        <div class="skeleton-line skeleton-line-section-label"></div>
+        <div class="profile-skeleton-stack">
+          <div class="skeleton-line skeleton-line-body"></div>
+          <div class="skeleton-line skeleton-line-body"></div>
+          <div class="skeleton-line skeleton-line-body short"></div>
+        </div>
+      </article>
+      <article class="skeleton-card profile-skeleton-resume-block">
+        <div class="skeleton-line skeleton-line-section-label"></div>
+        <div class="profile-skeleton-chip-row">
+          <div class="skeleton-chip skeleton-chip-tag" *ngFor="let _ of [1, 2, 3, 4, 5, 6]"></div>
+        </div>
+      </article>
+      <article class="skeleton-card profile-skeleton-resume-block" *ngFor="let _ of [1, 2]">
+        <div class="skeleton-line skeleton-line-section-label"></div>
+        <div class="profile-skeleton-timeline">
+          <div class="profile-skeleton-timeline-item" *ngFor="let __ of [1, 2]">
+            <div class="skeleton-line skeleton-line-item-title"></div>
+            <div class="skeleton-line skeleton-line-item-sub"></div>
+            <div class="skeleton-line skeleton-line-item-sub short"></div>
+          </div>
+        </div>
+      </article>
+    </section>
   </div>
 
   <ng-template #profileContent>
@@ -131,8 +212,38 @@
   <div class="resume-mock">
     <div class="resume-state resume-state--loading" *ngIf="resumeLoading">
       <span class="inline-loader-dot"></span>
-      <span>Processing resume profile...</span>
+      <span>{{ resumeData.available ? 'Refreshing structured resume profile...' : 'Processing resume profile...' }}</span>
     </div>
+
+    <div class="profile-resume-skeleton" *ngIf="resumeLoading" aria-hidden="true">
+      <article class="skeleton-card profile-skeleton-resume-block">
+        <div class="skeleton-line skeleton-line-section-label"></div>
+        <div class="profile-skeleton-stack">
+          <div class="skeleton-line skeleton-line-body"></div>
+          <div class="skeleton-line skeleton-line-body"></div>
+          <div class="skeleton-line skeleton-line-body short"></div>
+        </div>
+      </article>
+
+      <article class="skeleton-card profile-skeleton-resume-block">
+        <div class="skeleton-line skeleton-line-section-label"></div>
+        <div class="profile-skeleton-chip-row">
+          <div class="skeleton-chip skeleton-chip-tag" *ngFor="let _ of [1, 2, 3, 4, 5]"></div>
+        </div>
+      </article>
+
+      <article class="skeleton-card profile-skeleton-resume-block" *ngFor="let _ of [1, 2]">
+        <div class="skeleton-line skeleton-line-section-label"></div>
+        <div class="profile-skeleton-timeline">
+          <div class="profile-skeleton-timeline-item" *ngFor="let __ of [1, 2]">
+            <div class="skeleton-line skeleton-line-item-title"></div>
+            <div class="skeleton-line skeleton-line-item-sub"></div>
+            <div class="skeleton-line skeleton-line-item-sub short"></div>
+          </div>
+        </div>
+      </article>
+    </div>
+
     <div class="resume-state resume-state--error" *ngIf="!resumeLoading && resumeData.error_message">{{ resumeData.error_message }}</div>
     <div class="resume-state" *ngIf="!resumeLoading && !resumeData.available && !resumeData.error_message">
       Resume uploaded, but structured profile data is not ready yet.
