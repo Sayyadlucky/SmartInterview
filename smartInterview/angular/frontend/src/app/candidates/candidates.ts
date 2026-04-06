@@ -125,6 +125,9 @@ export class Candidates implements OnInit, OnDestroy {
     { key: 'all', label: 'All' },
     { key: 'scheduled', label: 'Scheduled' },
     { key: 'shortlisted', label: 'Shortlisted' },
+    { key: 'offer made', label: 'Offer Made' },
+    { key: 'offer accepted', label: 'Offer Accepted' },
+    { key: 'offer declined', label: 'Offer Declined' },
     { key: 'hired', label: 'Hired' },
     { key: 'rejected', label: 'Rejected' },
     { key: 'assessment pending', label: 'Assessment Pending' },
@@ -377,7 +380,7 @@ export class Candidates implements OnInit, OnDestroy {
 
   private isClosedStatus(status: string): boolean {
     const normalized = this.normalizeStatus(status);
-    return ['hired', 'completed', 'rejected', 'cancelled'].includes(normalized);
+    return ['hired', 'completed', 'offer declined', 'rejected', 'cancelled'].includes(normalized);
   }
 
   private getUrgencyLevel(status: string, age: number | null): 'high' | 'medium' | 'low' {
@@ -497,7 +500,7 @@ export class Candidates implements OnInit, OnDestroy {
       const s = item.normalizedStatus;
       if (s === 'hired' || s === 'completed') counts.hired += 1;
       else if (s === 'scheduled') counts.scheduled += 1;
-      else if (s === 'shortlisted') counts.shortlisted += 1;
+      else if (s === 'shortlisted' || s === 'offer made' || s === 'offer accepted') counts.shortlisted += 1;
       else if (s === 'rejected') counts.rejected += 1;
       else if (s === 'assessment pending') counts.assessment_pending += 1;
       else if (s === 'assessment completed') counts.assessment_completed += 1;
@@ -538,6 +541,9 @@ export class Candidates implements OnInit, OnDestroy {
     const byFilters = this.candidates.filter((item) => {
       if (this.statusFilter === 'all') return true;
       if (this.statusFilter === 'hired') return item.normalizedStatus === 'hired' || item.normalizedStatus === 'completed';
+      if (this.statusFilter === 'shortlisted') {
+        return item.normalizedStatus === 'shortlisted' || item.normalizedStatus === 'offer made' || item.normalizedStatus === 'offer accepted';
+      }
       return item.normalizedStatus === this.statusFilter;
     }).filter((item) => {
       if (this.recruiterFilter !== 'all' && item.recruiter !== this.recruiterFilter) return false;

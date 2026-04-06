@@ -155,6 +155,9 @@ class Interview(models.Model):
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
         ('shortlisted', 'Shortlisted'),
+        ('offer_made', 'Offer Made'),
+        ('offer_accepted', 'Offer Accepted'),
+        ('offer_declined', 'Offer Declined'),
         ('hired', 'Hired'),
         ('assessment_pending', 'Assessment Pending'),
         ('rejected', 'Rejected'),
@@ -189,6 +192,7 @@ class Interview(models.Model):
     )
     date = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='scheduled')
+    hired_at = models.DateTimeField(null=True, blank=True)
     score = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recording_url = models.URLField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
@@ -637,6 +641,11 @@ class CandidateVacancyApplication(models.Model):
         WITHDRAWN = 'withdrawn', 'Withdrawn'
         NOT_INTERESTED = 'not_interested', 'Not Interested'
 
+    class PipelineSource(models.TextChoices):
+        SELF_APPLIED = 'self_applied', 'Self Applied'
+        DIRECT = 'direct', 'Direct'
+        REFERRAL = 'referral', 'Referral'
+
     candidate = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -650,8 +659,20 @@ class CandidateVacancyApplication(models.Model):
     )
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.PENDING_REVIEW)
     source = models.CharField(max_length=30, blank=True, default='candidate_dashboard')
+    # Canonical origin used for source/origin analytics. Prefer setting this at
+    # application creation time so reporting does not rely on heuristic inference.
+    pipeline_source = models.CharField(
+        max_length=20,
+        choices=PipelineSource.choices,
+        blank=True,
+        default='',
+        db_index=True,
+    )
     notes = models.TextField(blank=True, default='')
     recruiter_notification = models.JSONField(default=dict, blank=True)
+    # Canonical start of the hiring cycle for time-to-hire analytics.
+    # Keep this populated as early as possible for every candidate-vacancy pair.
+    hiring_started_at = models.DateTimeField(null=True, blank=True, db_index=True)
     applied_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

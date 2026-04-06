@@ -1,6 +1,22 @@
 <div class="profile-dialog-shell">
   <button class="close-btn" (click)="close()">×</button>
 
+  <div class="profile-loader-shell" *ngIf="initialProfileLoading; else profileContent">
+    <div class="profile-loader-card">
+      <div class="profile-loader-orb"></div>
+      <div class="profile-loader-copy">
+        <h3>Loading candidate profile</h3>
+        <p>Fetching interview details, resume insights, and verification signals.</p>
+      </div>
+      <div class="profile-loader-bars">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #profileContent>
   <div class="hero">
     <div class="hero-main">
       <div class="avatar" [class.avatar--image]="candidate.profile_picture">
@@ -113,7 +129,10 @@
   </section>
 
   <div class="resume-mock">
-    <div class="resume-state" *ngIf="resumeLoading">Processing resume profile...</div>
+    <div class="resume-state resume-state--loading" *ngIf="resumeLoading">
+      <span class="inline-loader-dot"></span>
+      <span>Processing resume profile...</span>
+    </div>
     <div class="resume-state resume-state--error" *ngIf="!resumeLoading && resumeData.error_message">{{ resumeData.error_message }}</div>
     <div class="resume-state" *ngIf="!resumeLoading && !resumeData.available && !resumeData.error_message">
       Resume uploaded, but structured profile data is not ready yet.
@@ -165,4 +184,5 @@
     <button class="ghost" type="button" (click)="close()">Cancel</button>
     <button class="primary" type="button" (click)="saveAndClose()">Done</button>
   </div>
+  </ng-template>
 </div>

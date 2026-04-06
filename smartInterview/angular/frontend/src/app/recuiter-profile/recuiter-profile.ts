@@ -349,6 +349,9 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
       Scheduled: 0,
       'Assessment Pending': 0,
       Shortlisted: 0,
+      'Offer Made': 0,
+      'Offer Accepted': 0,
+      'Offer Declined': 0,
       Hired: 0,
       Rejected: 0,
       Cancelled: 0
@@ -359,6 +362,9 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
       if (status === 'scheduled') statusBuckets['Scheduled'] += 1;
       else if (status === 'assessment pending') statusBuckets['Assessment Pending'] += 1;
       else if (status === 'shortlisted') statusBuckets['Shortlisted'] += 1;
+      else if (status === 'offer made') statusBuckets['Offer Made'] += 1;
+      else if (status === 'offer accepted') statusBuckets['Offer Accepted'] += 1;
+      else if (status === 'offer declined') statusBuckets['Offer Declined'] += 1;
       else if (status === 'hired' || status === 'completed') statusBuckets['Hired'] += 1;
       else if (status === 'rejected') statusBuckets['Rejected'] += 1;
       else if (status === 'cancelled') statusBuckets['Cancelled'] += 1;

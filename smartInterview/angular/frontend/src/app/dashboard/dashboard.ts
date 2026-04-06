@@ -625,7 +625,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   this.scheduledCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'scheduled' && !this.isAutoScreeningCandidate(c));
   this.completedCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'completed');
   this.cancelledCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'cancelled');
-  this.shortlistedCandidates = list.filter((c: any) => this.normalizeStatus(c?.status) === 'shortlisted');
+  this.shortlistedCandidates = list.filter((c: any) => {
+    const s = this.normalizeStatus(c?.status);
+    return s === 'shortlisted' || s === 'offer made' || s === 'offer accepted';
+  });
   this.hiredCandidates = list.filter((c: any) => {
     const s = this.normalizeStatus(c?.status);
     return s === 'completed' || s === 'hired';
@@ -1428,6 +1431,9 @@ private matchesPipelineStatus(candidate: any, normalizedStatus: string): boolean
   const candidateStatus = this.normalizeStatus(candidate?.status);
   if (normalizedStatus === 'completed') {
     return candidateStatus === 'completed' || candidateStatus === 'hired';
+  }
+  if (normalizedStatus === 'shortlisted') {
+    return candidateStatus === 'shortlisted' || candidateStatus === 'offer made' || candidateStatus === 'offer accepted';
   }
   if (normalizedStatus === 'auto screening scheduled') {
     return candidateStatus === 'auto screening scheduled'

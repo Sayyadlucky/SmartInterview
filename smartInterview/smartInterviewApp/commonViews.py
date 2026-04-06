@@ -41,7 +41,8 @@ from django.urls import reverse
 from .models import Interview
 from .models import UserNotificationPreference, UserProfile, Vacancies
 from django.db import transaction
-from django.db.models import Count, Case, When, CharField, Value, Q, F
+from django.db.models import Count, Case, When, CharField, Value, Q, F, Max, Min, DateTimeField
+from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
 from smartInterviewApp.notifications.channels import send_sms, send_template_message
 from smartInterviewApp.notifications.sms_templates import build_sms_message
@@ -75,6 +76,9 @@ def normalize_interview_status(value: str) -> str:
         'completed': 'completed',
         'cancelled': 'cancelled',
         'shortlisted': 'shortlisted',
+        'offer made': 'offer_made',
+        'offer accepted': 'offer_accepted',
+        'offer declined': 'offer_declined',
         'hired': 'hired',
         'rejected': 'rejected',
         'assessment pending': 'assessment_pending',
@@ -540,6 +544,108 @@ def get_accessible_interviewer_profiles(request_user: User):
             | Q(user__interviewer_interviews__recruiter=request_user)
         ).distinct()
     return qs.none()
+
+
+def resolve_application_hiring_started_at(candidate_id: int, vacancy_id: int):
+    application_start = (
+        CandidateVacancyApplication.objects
+        .filter(candidate_id=candidate_id, vacancy_id=vacancy_id)
+        .exclude(hiring_started_at__isnull=True)
+        .order_by('hiring_started_at')
+        .values_list('hiring_started_at', flat=True)
+        .first()
+    )
+    if application_start:
+        return application_start
+
+    applied_at = (
+        CandidateVacancyApplication.objects
+        .filter(candidate_id=candidate_id, vacancy_id=vacancy_id)
+        .exclude(applied_at__isnull=True)
+        .order_by('applied_at')
+        .values_list('applied_at', flat=True)
+        .first()
+    )
+    if applied_at:
+        return applied_at
+
+    created_at = (
+        CandidateVacancyApplication.objects
+        .filter(candidate_id=candidate_id, vacancy_id=vacancy_id)
+        .exclude(created_at__isnull=True)
+        .order_by('created_at')
+        .values_list('created_at', flat=True)
+        .first()
+    )
+    if created_at:
+        return created_at
+
+    # `Interview.date` is only a constrained fallback for TTH start because the
+    # Interview model does not have a canonical cycle-start timestamp.
+    return (
+        Interview.objects
+        .filter(candidate_id=candidate_id, role_id=vacancy_id)
+        .exclude(status__in=['hired', 'completed'])
+        .exclude(date__isnull=True)
+        .order_by('date')
+        .values_list('date', flat=True)
+        .first()
+    )
+
+
+def ensure_application_hiring_started_at(application: CandidateVacancyApplication) -> None:
+    resolved_start = resolve_application_hiring_started_at(application.candidate_id, application.vacancy_id)
+    if not resolved_start:
+        return
+
+    current_start = application.hiring_started_at
+    if current_start and current_start <= resolved_start:
+        return
+
+    application.hiring_started_at = resolved_start
+    application.save(update_fields=['hiring_started_at', 'updated_at'])
+
+
+def ensure_application_pipeline_source(
+    application: CandidateVacancyApplication,
+    pipeline_source: str | None = None,
+) -> None:
+    resolved_source = pipeline_source
+    if not resolved_source and application.source == 'candidate_dashboard':
+        resolved_source = CandidateVacancyApplication.PipelineSource.SELF_APPLIED
+
+    if not resolved_source:
+        return
+    if application.pipeline_source == resolved_source:
+        return
+    if application.pipeline_source:
+        return
+
+    application.pipeline_source = resolved_source
+    application.save(update_fields=['pipeline_source', 'updated_at'])
+
+
+def ensure_pipeline_application(
+    candidate: User,
+    vacancy: Vacancies,
+    pipeline_source: str | None = None,
+) -> CandidateVacancyApplication:
+    resolved_source = pipeline_source or ''
+    application, _created = CandidateVacancyApplication.objects.get_or_create(
+        candidate=candidate,
+        vacancy=vacancy,
+        defaults={
+            'status': CandidateVacancyApplication.Status.APPROVED,
+            'pipeline_source': resolved_source,
+        },
+    )
+    if application.status != CandidateVacancyApplication.Status.APPROVED:
+        application.status = CandidateVacancyApplication.Status.APPROVED
+        application.reviewed_at = timezone.now()
+        application.save(update_fields=['status', 'reviewed_at', 'updated_at'])
+    ensure_application_pipeline_source(application, pipeline_source)
+    ensure_application_hiring_started_at(application)
+    return application
 
 
 @login_required
@@ -1611,6 +1717,11 @@ def addUser(request):
                         profile.company_url = admin_company_url or profile.company_url
                     profile.save()
                     if normalized_user_type not in {'recruiter', 'interviewer'}:
+                        ensure_pipeline_application(
+                            obj,
+                            role_obj,
+                            CandidateVacancyApplication.PipelineSource.REFERRAL,
+                        )
                         candidate = Interview.objects.create(
                             candidate=obj,
                             recruiter=assigned_recruiter,
@@ -1675,6 +1786,11 @@ def addUser(request):
                         recruiter_details['recruiter_id'] = profile.recruiter_id
                         return JsonResponse({"Success": True, "Error": None, "RecruiterData": recruiter_details})
                     if normalized_user_type not in {'recruiter', 'interviewer'}:
+                        ensure_pipeline_application(
+                            obj,
+                            role_obj,
+                            CandidateVacancyApplication.PipelineSource.DIRECT,
+                        )
                         candidate = Interview.objects.create(
                             candidate=obj,
                             recruiter=assigned_recruiter,
@@ -2384,11 +2500,15 @@ def applyToVacancy(request):
             candidate=request.user,
             vacancy=vacancy,
             status=CandidateVacancyApplication.Status.PENDING_REVIEW,
+            pipeline_source=CandidateVacancyApplication.PipelineSource.SELF_APPLIED,
         )
+        ensure_application_hiring_started_at(application)
     else:
         application.status = CandidateVacancyApplication.Status.PENDING_REVIEW
         application.reviewed_at = None
         application.save(update_fields=['status', 'reviewed_at', 'updated_at'])
+        ensure_application_pipeline_source(application, CandidateVacancyApplication.PipelineSource.SELF_APPLIED)
+        ensure_application_hiring_started_at(application)
 
     notification_result = notify_recruiters_for_candidate_application(request.user, vacancy)
     application.recruiter_notification = notification_result
@@ -2425,8 +2545,13 @@ def markVacancyNotInterested(request):
     application, _ = CandidateVacancyApplication.objects.get_or_create(
         candidate=request.user,
         vacancy=vacancy,
-        defaults={'status': CandidateVacancyApplication.Status.NOT_INTERESTED},
+        defaults={
+            'status': CandidateVacancyApplication.Status.NOT_INTERESTED,
+            'pipeline_source': CandidateVacancyApplication.PipelineSource.SELF_APPLIED,
+        },
     )
+    ensure_application_pipeline_source(application, CandidateVacancyApplication.PipelineSource.SELF_APPLIED)
+    ensure_application_hiring_started_at(application)
     if application.status != CandidateVacancyApplication.Status.NOT_INTERESTED:
         application.status = CandidateVacancyApplication.Status.NOT_INTERESTED
         application.reviewed_at = timezone.now()
@@ -2780,6 +2905,7 @@ def reviewRecruiterApplication(request):
             application.status = CandidateVacancyApplication.Status.APPROVED
             application.reviewed_at = timezone.now()
             application.save(update_fields=['status', 'reviewed_at', 'updated_at'])
+            ensure_application_hiring_started_at(application)
 
             assigned_recruiter = None
             if profile.role == 'recruiter':
@@ -4444,6 +4570,21 @@ def activityTabData(request):
         tz = timezone.get_current_timezone()
         base_qs = get_accessible_interviews(request.user).order_by('-date')
 
+        def normalize_recruiter_display(first_name, last_name, fallback='Not Assigned'):
+            full_name = f"{(first_name or '').strip()} {(last_name or '').strip()}".strip().title()
+            if not full_name:
+                return fallback
+            lowered = full_name.lower()
+            if lowered in {'tbd', 'tbd tbd'}:
+                return 'Not Assigned'
+            return full_name
+
+        def normalize_role_display(role_name):
+            value = (role_name or '').strip()
+            if value.lower() == 'salesfore developer':
+                return 'Salesforce Developer'
+            return value or 'Unassigned'
+
         recruiter_options = []
         recruiter_seen = set()
         for row in (
@@ -4459,7 +4600,10 @@ def activityTabData(request):
             recruiter_seen.add(r_id)
             recruiter_options.append({
                 'id': r_id,
-                'name': f"{(row.get('recruiter__first_name') or '').strip()} {(row.get('recruiter__last_name') or '').strip()}".strip().title() or 'Unassigned'
+                'name': normalize_recruiter_display(
+                    row.get('recruiter__first_name'),
+                    row.get('recruiter__last_name'),
+                ),
             })
 
         role_options = []
@@ -4477,7 +4621,7 @@ def activityTabData(request):
             role_seen.add(role_id)
             role_options.append({
                 'id': role_id,
-                'name': row.get('role__role') or 'Unassigned'
+                'name': normalize_role_display(row.get('role__role')),
             })
 
         interviews = base_qs
@@ -4561,8 +4705,12 @@ def activityTabData(request):
             if len(month_points) > 12:
                 month_points = month_points[-12:]
         else:
-            cursor_year = now.year
-            cursor_month = now.month
+            latest_hire_dt = interviews.filter(status__in=['hired', 'completed']).aggregate(latest=Max('date')).get('latest')
+            latest_activity_dt = interviews.aggregate(latest=Max('date')).get('latest')
+            trend_anchor = latest_hire_dt or latest_activity_dt or now
+            trend_anchor = timezone.localtime(trend_anchor, tz)
+            cursor_year = trend_anchor.year
+            cursor_month = trend_anchor.month
             for _ in range(6):
                 month_points.append((cursor_year, cursor_month))
                 cursor_month -= 1
@@ -4729,19 +4877,29 @@ def activityTabData(request):
                 top_drop = dropoff_reasons[0]
                 insights.append(f'Top drop-off reason: {top_drop["reason"]} ({top_drop["count"]}).')
 
-        # Phase 2: Recruiter response-time proxy (candidate created -> interview date)
+        # Phase 2: Recruiter response-time proxy.
+        # Measure first recruiter touch as candidate creation -> first interview date, and
+        # ignore legacy/outlier lags beyond 30 days because they usually represent dormant
+        # inventory or migrated records rather than operational response time.
         lead_time_hours = []
         recruiter_lead = defaultdict(list)
-        for item in interviews:
+        first_touch_by_candidate = {}
+        for item in interviews.order_by('candidate_id', 'date'):
+            if not item.candidate_id or item.candidate_id in first_touch_by_candidate:
+                continue
+            first_touch_by_candidate[item.candidate_id] = item
+
+        response_time_outlier_limit_hours = 24 * 30
+        for item in first_touch_by_candidate.values():
             if not item.date or not item.candidate or not item.candidate.date_joined:
                 continue
             diff_hours = (item.date - item.candidate.date_joined).total_seconds() / 3600
-            if diff_hours < 0:
+            if diff_hours < 0 or diff_hours > response_time_outlier_limit_hours:
                 continue
             lead_time_hours.append(diff_hours)
-            recruiter_name = (
-                f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
-                if item.recruiter else 'Unassigned'
+            recruiter_name = normalize_recruiter_display(
+                item.recruiter.first_name if item.recruiter else '',
+                item.recruiter.last_name if item.recruiter else '',
             )
             recruiter_lead[recruiter_name].append(diff_hours)
 
@@ -5009,6 +5167,7 @@ def activityTabData(request):
                     'candidate': candidate_name,
                     'interviews': len(entries),
                     'roles': role_names[:3],
+                    'primary_role_id': latest.role_id if latest.role_id else None,
                     'latest_status': normalize_interview_status(latest.status).replace('_', ' ').title(),
                     'reopened': is_reopened,
                 })
@@ -5041,7 +5200,11 @@ def activityTabData(request):
         recruiter_breakdown = []
         for r in recruiter_stats:
             recruiter_breakdown.append({
-                'name': f"{(r.get('recruiter__first_name') or '').strip()} {(r.get('recruiter__last_name') or '').strip()}".strip().title() or 'Unassigned',
+                'recruiter_id': r.get('recruiter'),
+                'name': normalize_recruiter_display(
+                    r.get('recruiter__first_name'),
+                    r.get('recruiter__last_name'),
+                ),
                 'count': r.get('count', 0),
             })
 
@@ -5057,7 +5220,8 @@ def activityTabData(request):
         role_breakdown = []
         for r in role_stats:
             role_breakdown.append({
-                'role': r.get('role__role') or 'Unassigned',
+                'role_id': r.get('role'),
+                'role': normalize_role_display(r.get('role__role')),
                 'count': r.get('count', 0),
                 'hired': r.get('hired', 0),
             })
@@ -5066,10 +5230,10 @@ def activityTabData(request):
         for item in interviews[:14]:
             status = normalize_interview_status(item.status).replace('_', ' ').title()
             candidate_name = f"{item.candidate.first_name} {item.candidate.last_name}".strip().title()
-            role_name = item.role.role if item.role else 'Unassigned'
-            recruiter_name = (
-                f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
-                if item.recruiter else 'Unassigned'
+            role_name = normalize_role_display(item.role.role if item.role else 'Unassigned')
+            recruiter_name = normalize_recruiter_display(
+                item.recruiter.first_name if item.recruiter else '',
+                item.recruiter.last_name if item.recruiter else '',
             )
             recent_activity.append({
                 'id': item.id,
@@ -5083,7 +5247,7 @@ def activityTabData(request):
             upcoming_list.append({
                 'id': item.id,
                 'candidate': f"{item.candidate.first_name} {item.candidate.last_name}".strip().title(),
-                'role': item.role.role if item.role else 'Unassigned',
+                'role': normalize_role_display(item.role.role if item.role else 'Unassigned'),
                 'date': item.date.isoformat() if item.date else '',
             })
 
@@ -5156,46 +5320,49 @@ def analyticsTabData(request):
         admin = get_admin_for_user(request.user)
         now = timezone.now()
         tz = timezone.get_current_timezone()
+        include_debug = request.GET.get('debug') == '1'
+        def ensure_aware(value):
+            if not value:
+                return None
+            if timezone.is_naive(value):
+                return timezone.make_aware(value, tz)
+            return timezone.localtime(value, tz)
 
-        base_qs = get_accessible_interviews(request.user).order_by('-date')
+        def iso_or_empty(value):
+            return value.isoformat() if value else ''
 
-        recruiter_options = []
-        recruiter_seen = set()
-        for row in (
-            base_qs
-            .exclude(recruiter__isnull=True)
-            .values('recruiter', 'recruiter__first_name', 'recruiter__last_name')
-            .distinct()
-            .order_by('recruiter__first_name', 'recruiter__last_name')
-        ):
-            r_id = row.get('recruiter')
-            if not r_id or r_id in recruiter_seen:
-                continue
-            recruiter_seen.add(r_id)
-            recruiter_options.append({
-                'id': r_id,
-                'name': f"{(row.get('recruiter__first_name') or '').strip()} {(row.get('recruiter__last_name') or '').strip()}".strip().title() or 'Unassigned'
-            })
+        base_scope = get_accessible_interviews(request.user).order_by('-date')
 
-        role_options = []
-        role_seen = set()
-        for row in (
-            base_qs
-            .exclude(role__isnull=True)
-            .values('role', 'role__role')
-            .distinct()
-            .order_by('role__role')
-        ):
-            role_id = row.get('role')
-            if not role_id or role_id in role_seen:
-                continue
-            role_seen.add(role_id)
-            role_options.append({
-                'id': role_id,
-                'name': row.get('role__role') or 'Unassigned'
-            })
+        recruiter_options = [
+            {
+                'id': row['recruiter'],
+                'name': f"{(row.get('recruiter__first_name') or '').strip()} {(row.get('recruiter__last_name') or '').strip()}".strip().title() or 'Unassigned',
+            }
+            for row in (
+                base_scope
+                .exclude(recruiter__isnull=True)
+                .values('recruiter', 'recruiter__first_name', 'recruiter__last_name')
+                .order_by('recruiter__first_name', 'recruiter__last_name')
+                .distinct()
+            )
+            if row.get('recruiter')
+        ]
 
-        interviews = base_qs
+        role_options = [
+            {
+                'id': row['role'],
+                'name': row.get('role__role') or 'Unassigned',
+            }
+            for row in (
+                base_scope
+                .exclude(role__isnull=True)
+                .values('role', 'role__role')
+                .order_by('role__role')
+                .distinct()
+            )
+            if row.get('role')
+        ]
+
         recruiter_filter = (request.GET.get('recruiter') or '').strip()
         role_filter = (request.GET.get('role') or '').strip()
         start_date_str = (request.GET.get('start_date') or '').strip()
@@ -5204,9 +5371,9 @@ def analyticsTabData(request):
         parsed_end_date = None
 
         if recruiter_filter and recruiter_filter != 'all' and recruiter_filter.isdigit():
-            interviews = interviews.filter(recruiter_id=int(recruiter_filter))
+            base_scope = base_scope.filter(recruiter_id=int(recruiter_filter))
         if role_filter and role_filter != 'all' and role_filter.isdigit():
-            interviews = interviews.filter(role_id=int(role_filter))
+            base_scope = base_scope.filter(role_id=int(role_filter))
 
         if start_date_str:
             parsed_start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -5215,23 +5382,66 @@ def analyticsTabData(request):
         if parsed_start_date and parsed_end_date and parsed_start_date > parsed_end_date:
             parsed_start_date, parsed_end_date = parsed_end_date, parsed_start_date
 
-        if parsed_start_date:
-            start_dt = timezone.make_aware(datetime.combine(parsed_start_date, time.min), tz)
-            interviews = interviews.filter(date__gte=start_dt)
-        if parsed_end_date:
-            end_dt = timezone.make_aware(datetime.combine(parsed_end_date, time.max), tz)
-            interviews = interviews.filter(date__lte=end_dt)
+        start_dt = ensure_aware(datetime.combine(parsed_start_date, time.min)) if parsed_start_date else None
+        end_dt = ensure_aware(datetime.combine(parsed_end_date, time.max)) if parsed_end_date else None
 
-        total_interviews = interviews.count()
-        hired_qs = interviews.filter(status__in=['hired', 'completed'])
-        hired_count = hired_qs.count()
-        open_roles_count = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']).count() if admin else 0
+        canonical_hire_annotation = Case(
+            When(hired_at__isnull=False, then=F('hired_at')),
+            When(status__in=['hired', 'completed'], then=F('date')),
+            default=Value(None),
+            output_field=DateTimeField(),
+        )
+        event_timestamp_annotation = Case(
+            When(status__in=['hired', 'completed'], then=canonical_hire_annotation),
+            default=F('date'),
+            output_field=DateTimeField(),
+        )
 
-        # Funnel analytics
+        base_scope = (
+            base_scope
+            .annotate(
+                canonical_hire_at=canonical_hire_annotation,
+                analytics_event_at=event_timestamp_annotation,
+            )
+            .distinct()
+        )
+
+        filtered_interviews = base_scope
+        if start_dt:
+            filtered_interviews = filtered_interviews.filter(analytics_event_at__gte=start_dt)
+        if end_dt:
+            filtered_interviews = filtered_interviews.filter(analytics_event_at__lte=end_dt)
+        filtered_interviews = filtered_interviews.distinct()
+
+        scoped_interviews = filtered_interviews
+
+        hire_rows = list(
+            scoped_interviews
+            .filter(status__in=['hired', 'completed'])
+            .exclude(canonical_hire_at__isnull=True)
+            .values('id', 'candidate_id', 'role_id', 'recruiter_id', 'canonical_hire_at')
+        )
+        hire_ids = {row['id'] for row in hire_rows}
+
+        status_counts = {
+            row['status']: row['count']
+            for row in scoped_interviews.values('status').annotate(count=Count('id', distinct=True))
+        }
+        total_interviews = sum(status_counts.values())
+        hired_count = len(hire_rows)
+
+        open_roles_qs = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']) if admin else Vacancies.objects.none()
+        if recruiter_filter and recruiter_filter != 'all' and recruiter_filter.isdigit():
+            open_roles_qs = open_roles_qs.filter(recruiter__id=int(recruiter_filter))
+        if role_filter and role_filter != 'all' and role_filter.isdigit():
+            open_roles_qs = open_roles_qs.filter(id=int(role_filter))
+        open_roles = list(open_roles_qs.distinct().values('id', 'role', 'position'))
+        open_roles_count = len(open_roles)
+
         funnel_labels = ['Applied', 'Assessment Pending', 'Scheduled', 'Shortlisted', 'Hired']
-        assessment_count = interviews.filter(status__in=['assessment_pending', 'auto_screening_scheduled']).count()
-        scheduled_count = interviews.filter(status='scheduled').count()
-        shortlisted_count = interviews.filter(status='shortlisted').count()
+        assessment_count = status_counts.get('assessment_pending', 0) + status_counts.get('auto_screening_scheduled', 0)
+        scheduled_count = status_counts.get('scheduled', 0)
+        shortlisted_count = status_counts.get('shortlisted', 0)
         funnel_values = [total_interviews, assessment_count, scheduled_count, shortlisted_count, hired_count]
         conversions = []
         for idx in range(len(funnel_labels) - 1):
@@ -5240,11 +5450,22 @@ def analyticsTabData(request):
             conversions.append({
                 'from': funnel_labels[idx],
                 'to': funnel_labels[idx + 1],
-                'rate': round((nxt / current) * 100) if current else 0,
+                'rate': min(100, round((nxt / current) * 100)) if current else 0,
             })
 
         # Time-to-hire analytics
-        tth_days = []
+        # `Interview.date` is not a guaranteed hiring-cycle start timestamp.
+        # Start priority is:
+        # 1. earliest CandidateVacancyApplication.hiring_started_at
+        # 2. earliest CandidateVacancyApplication.applied_at
+        # 3. earliest CandidateVacancyApplication.created_at
+        # 4. earliest non-terminal Interview.date for the same candidate-role pair
+        # End timestamp is `hired_at`, with legacy fallback to the hired/completed
+        # interview `date` only when `hired_at` is missing.
+        # TTH therefore depends on application data quality.
+        # Recommendation: CandidateVacancyApplication.hiring_started_at should be
+        # the canonical TTH start field and should be indexed + reliably populated
+        # for every candidate-role pair.
         month_points = []
         cursor_year = now.year
         cursor_month = now.month
@@ -5256,38 +5477,194 @@ def analyticsTabData(request):
                 cursor_year -= 1
         month_points.reverse()
 
+        candidate_ids = {row['candidate_id'] for row in hire_rows if row.get('candidate_id')}
+        vacancy_ids = {row['role_id'] for row in hire_rows if row.get('role_id')}
+
+        application_hiring_started_by_pair = {}
+        application_applied_by_pair = {}
+        application_created_by_pair = {}
+        if candidate_ids and vacancy_ids:
+            hiring_started_rows = (
+                CandidateVacancyApplication.objects
+                .filter(candidate_id__in=candidate_ids, vacancy_id__in=vacancy_ids)
+                .exclude(hiring_started_at__isnull=True)
+                .values('candidate_id', 'vacancy_id')
+                .annotate(first_hiring_started_at=Min('hiring_started_at'))
+            )
+            application_hiring_started_by_pair = {
+                (row['candidate_id'], row['vacancy_id']): row['first_hiring_started_at']
+                for row in hiring_started_rows
+            }
+
+            applied_rows = (
+                CandidateVacancyApplication.objects
+                .filter(candidate_id__in=candidate_ids, vacancy_id__in=vacancy_ids)
+                .exclude(applied_at__isnull=True)
+                .values('candidate_id', 'vacancy_id')
+                .annotate(first_applied_at=Min('applied_at'))
+            )
+            application_applied_by_pair = {
+                (row['candidate_id'], row['vacancy_id']): row['first_applied_at']
+                for row in applied_rows
+            }
+            created_rows = (
+                CandidateVacancyApplication.objects
+                .filter(candidate_id__in=candidate_ids, vacancy_id__in=vacancy_ids)
+                .exclude(created_at__isnull=True)
+                .values('candidate_id', 'vacancy_id')
+                .annotate(first_created_at=Min('created_at'))
+            )
+            application_created_by_pair = {
+                (row['candidate_id'], row['vacancy_id']): row['first_created_at']
+                for row in created_rows
+            }
+
+        interview_fallback_start_by_pair = {}
+        if candidate_ids and vacancy_ids:
+            fallback_rows = (
+                scoped_interviews
+                .filter(candidate_id__in=candidate_ids, role_id__in=vacancy_ids)
+                .exclude(status__in=['hired', 'completed'])
+                .exclude(date__isnull=True)
+                .values('candidate_id', 'role_id')
+                .annotate(first_seen_at=Min('date'))
+            )
+            interview_fallback_start_by_pair = {
+                (row['candidate_id'], row['role_id']): row['first_seen_at']
+                for row in fallback_rows
+            }
+
+        monthly_tth_values = {(y, m): [] for y, m in month_points}
+        valid_tth_monthly_counts = {(y, m): 0 for y, m in month_points}
+        all_hire_monthly_counts = {(y, m): 0 for y, m in month_points}
+        tth_days: list[float] = []
+        sample_hires = [] if include_debug else None
+        suspicious_start_equals_hire_count = 0
+
+        debug = {
+            'total_hires_considered': len(hire_rows),
+            'hires_with_valid_start': 0,
+            'hires_with_valid_end': 0,
+            'hires_used_for_tth': 0,
+            'hires_skipped_missing_start': 0,
+            'hires_skipped_missing_end': 0,
+            'hires_skipped_negative_duration': 0,
+            'suspicious_start_equals_hire_count': 0,
+            'tth_sum_days': 0,
+            'tth_min_days': 0,
+            'tth_max_days': 0,
+        }
+        if include_debug:
+            debug['sample_hires'] = sample_hires
+
+        for row in hire_rows:
+            hire_ts = ensure_aware(row.get('canonical_hire_at'))
+            hiring_started_at = ensure_aware(application_hiring_started_by_pair.get((row['candidate_id'], row['role_id'])))
+            applied_start = ensure_aware(application_applied_by_pair.get((row['candidate_id'], row['role_id'])))
+            created_fallback = ensure_aware(application_created_by_pair.get((row['candidate_id'], row['role_id'])))
+            interview_fallback = ensure_aware(interview_fallback_start_by_pair.get((row['candidate_id'], row['role_id'])))
+
+            skip_reason = ''
+            duration_days = None
+            chosen_start = None
+
+            if not hire_ts:
+                debug['hires_skipped_missing_end'] += 1
+                skip_reason = 'missing_hire_timestamp'
+            else:
+                debug['hires_with_valid_end'] += 1
+                month_key = (hire_ts.year, hire_ts.month)
+                if month_key in all_hire_monthly_counts:
+                    all_hire_monthly_counts[month_key] += 1
+
+                # Never use hired/completed interview rows as the default cycle
+                # start; that would collapse start and end onto the same event.
+                chosen_start = hiring_started_at or applied_start or created_fallback or interview_fallback
+                if not chosen_start:
+                    debug['hires_skipped_missing_start'] += 1
+                    skip_reason = 'missing_start_timestamp'
+                else:
+                    debug['hires_with_valid_start'] += 1
+                    if chosen_start == hire_ts:
+                        suspicious_start_equals_hire_count += 1
+                    duration_days = (hire_ts - chosen_start).total_seconds() / 86400
+                    if duration_days < 0:
+                        debug['hires_skipped_negative_duration'] += 1
+                        skip_reason = 'negative_duration'
+                        duration_days = None
+                    else:
+                        month_key = (hire_ts.year, hire_ts.month)
+                        if month_key in monthly_tth_values:
+                            monthly_tth_values[month_key].append(duration_days)
+                            valid_tth_monthly_counts[month_key] += 1
+                        tth_days.append(duration_days)
+                        debug['hires_used_for_tth'] += 1
+
+            if include_debug and sample_hires is not None and len(sample_hires) < 10:
+                sample_hires.append({
+                    'interview_id': row['id'],
+                    'candidate_id': row['candidate_id'],
+                    'role_id': row['role_id'],
+                    'canonical_hire_at': iso_or_empty(hire_ts),
+                    'hiring_started_at': iso_or_empty(hiring_started_at),
+                    'application_start_at': iso_or_empty(applied_start),
+                    'application_created_fallback_at': iso_or_empty(created_fallback),
+                    'interview_fallback_start_at': iso_or_empty(interview_fallback),
+                    'chosen_start_at': iso_or_empty(chosen_start),
+                    'duration_days': round(duration_days, 3) if duration_days is not None else None,
+                    'skip_reason': skip_reason,
+                })
+
+        debug['suspicious_start_equals_hire_count'] = suspicious_start_equals_hire_count
+        if tth_days:
+            debug['tth_sum_days'] = round(sum(tth_days), 3)
+            debug['tth_min_days'] = round(min(tth_days), 3)
+            debug['tth_max_days'] = round(max(tth_days), 3)
+
         tth_labels = []
         tth_monthly_avg = []
         tth_monthly_hires = []
+        tth_monthly_total_hires = []
         for y, m in month_points:
             tth_labels.append(timezone.datetime(y, m, 1).strftime('%b %Y'))
-            month_hires = hired_qs.filter(date__year=y, date__month=m)
-            month_values = []
-            for item in month_hires:
-                if item.candidate and item.candidate.date_joined and item.date:
-                    diff_days = (item.date - item.candidate.date_joined).total_seconds() / 86400
-                    if diff_days >= 0:
-                        month_values.append(diff_days)
-                        tth_days.append(diff_days)
+            month_values = monthly_tth_values[(y, m)]
             tth_monthly_avg.append(round(sum(month_values) / len(month_values), 1) if month_values else 0)
-            tth_monthly_hires.append(month_hires.count())
+            tth_monthly_hires.append(valid_tth_monthly_counts[(y, m)])
+            tth_monthly_total_hires.append(all_hire_monthly_counts[(y, m)])
 
-        # Source effectiveness (heuristic from email domain)
-        source_agg = defaultdict(lambda: {'total': 0, 'hired': 0})
-        for item in interviews:
-            email = (item.candidate.email or '').lower()
-            if '.edu' in email:
-                source = 'Campus'
-            elif any(x in email for x in ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com']):
-                source = 'Direct'
-            elif '@' in email:
-                source = 'Referral/Internal'
-            else:
-                source = 'Unknown'
-            source_agg[source]['total'] += 1
-            if item.status in ['hired', 'completed']:
-                source_agg[source]['hired'] += 1
         source_effectiveness = []
+        pipeline_source_labels = {
+            CandidateVacancyApplication.PipelineSource.SELF_APPLIED: 'Self Applied',
+            CandidateVacancyApplication.PipelineSource.DIRECT: 'Direct',
+            CandidateVacancyApplication.PipelineSource.REFERRAL: 'Referral',
+        }
+        source_agg = defaultdict(lambda: {'total': 0, 'hired': 0})
+        scoped_pairs = {
+            (row['candidate_id'], row['role_id'])
+            for row in scoped_interviews.values('candidate_id', 'role_id').distinct()
+            if row.get('candidate_id') and row.get('role_id')
+        }
+        application_sources = {}
+        if scoped_pairs:
+            source_rows = (
+                CandidateVacancyApplication.objects
+                .filter(
+                    candidate_id__in={pair[0] for pair in scoped_pairs},
+                    vacancy_id__in={pair[1] for pair in scoped_pairs},
+                )
+                .values('candidate_id', 'vacancy_id', 'pipeline_source')
+            )
+            application_sources = {
+                (row['candidate_id'], row['vacancy_id']): row['pipeline_source']
+                for row in source_rows
+            }
+
+        for row in scoped_interviews.values('id', 'candidate_id', 'role_id').distinct().iterator():
+            pipeline_source = application_sources.get((row.get('candidate_id'), row.get('role_id'))) or ''
+            source_label = pipeline_source_labels.get(pipeline_source, 'Unclassified')
+            source_agg[source_label]['total'] += 1
+            if row['id'] in hire_ids:
+                source_agg[source_label]['hired'] += 1
         for source, val in source_agg.items():
             total = val['total']
             hired = val['hired']
@@ -5299,20 +5676,28 @@ def analyticsTabData(request):
             })
         source_effectiveness.sort(key=lambda x: x['total'], reverse=True)
 
-        # Recruiter performance
-        recruiter_map = defaultdict(lambda: {'interviews': 0, 'hired': 0})
-        for item in interviews:
-            r_name = (
-                f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title()
-                if item.recruiter else 'Unassigned'
+        recruiter_totals = {
+            row['recruiter_id']: row
+            for row in (
+                scoped_interviews
+                .values('recruiter_id', 'recruiter__first_name', 'recruiter__last_name')
+                .annotate(interviews=Count('id', distinct=True))
             )
-            recruiter_map[r_name]['interviews'] += 1
-            if item.status in ['hired', 'completed']:
-                recruiter_map[r_name]['hired'] += 1
+        }
+        recruiter_hires = {
+            row['recruiter_id']: row['hired']
+            for row in (
+                scoped_interviews
+                .filter(id__in=hire_ids)
+                .values('recruiter_id')
+                .annotate(hired=Count('id', distinct=True))
+            )
+        }
         recruiter_performance = []
-        for name, val in recruiter_map.items():
-            total = val['interviews']
-            hired = val['hired']
+        for recruiter_id, row in recruiter_totals.items():
+            total = row['interviews']
+            hired = recruiter_hires.get(recruiter_id, 0)
+            name = f"{(row.get('recruiter__first_name') or '').strip()} {(row.get('recruiter__last_name') or '').strip()}".strip().title() or 'Unassigned'
             recruiter_performance.append({
                 'name': name,
                 'interviews': total,
@@ -5321,23 +5706,42 @@ def analyticsTabData(request):
             })
         recruiter_performance.sort(key=lambda x: x['interviews'], reverse=True)
 
-        # Role health
+        role_pipeline_counts = {
+            row['role_id']: row['pipeline']
+            for row in (
+                scoped_interviews
+                .values('role_id')
+                .annotate(
+                    pipeline=Count(
+                        'id',
+                        filter=Q(status__in=['assessment_pending', 'auto_screening_scheduled', 'scheduled', 'shortlisted']),
+                        distinct=True,
+                    )
+                )
+            )
+        }
+        role_hire_counts = {
+            row['role_id']: row['filled']
+            for row in (
+                scoped_interviews
+                .filter(id__in=hire_ids)
+                .values('role_id')
+                .annotate(filled=Count('id', distinct=True))
+            )
+        }
         role_health = []
-        open_roles_qs = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired'])
-        if role_filter and role_filter != 'all' and role_filter.isdigit():
-            open_roles_qs = open_roles_qs.filter(id=int(role_filter))
-        for role in open_roles_qs:
+        for role in open_roles:
             try:
-                target = int(role.position)
+                target = int(role.get('position') or 0)
             except (TypeError, ValueError):
                 target = 0
-            role_qs = interviews.filter(role_id=role.id)
-            filled = role_qs.filter(status__in=['hired', 'completed']).count()
-            pipeline = role_qs.filter(status__in=['assessment_pending', 'auto_screening_scheduled', 'scheduled', 'shortlisted']).count()
-            remaining = max(target - filled, 0)
-            risk = round((remaining / target) * 100) if target > 0 else 0
+            role_id = role['id']
+            filled = role_hire_counts.get(role_id, 0)
+            pipeline = role_pipeline_counts.get(role_id, 0)
+            coverage_gap = max(target - (filled + pipeline), 0)
+            risk = round((coverage_gap / target) * 100) if target > 0 else 0
             role_health.append({
-                'role': role.role,
+                'role': role.get('role') or 'Unassigned',
                 'target': target,
                 'filled': filled,
                 'pipeline': pipeline,
@@ -5345,7 +5749,6 @@ def analyticsTabData(request):
             })
         role_health.sort(key=lambda x: x['risk'], reverse=True)
 
-        # Interview quality
         score_bands = {
             'Excellent (8-10)': 0,
             'Good (6-7.9)': 0,
@@ -5353,11 +5756,9 @@ def analyticsTabData(request):
             'Low (<4)': 0,
         }
         evaluated = 0
-        for item in interviews:
-            if item.score is None:
-                continue
+        for score in scoped_interviews.exclude(score__isnull=True).values_list('score', flat=True).distinct():
+            score_val = float(score)
             evaluated += 1
-            score_val = float(item.score)
             if score_val >= 8:
                 score_bands['Excellent (8-10)'] += 1
             elif score_val >= 6:
@@ -5367,24 +5768,31 @@ def analyticsTabData(request):
             else:
                 score_bands['Low (<4)'] += 1
 
-        # Phase 2: Drop-off and rejection analysis
-        no_show = interviews.filter(status='scheduled', date__lt=now).count()
-        screening_timeout = interviews.filter(status='assessment_pending', date__lt=now - timedelta(days=7)).count()
+        timing_metrics = scoped_interviews.aggregate(
+            no_show=Count('id', filter=Q(status='scheduled', date__lt=now), distinct=True),
+            screening_timeout=Count('id', filter=Q(status='assessment_pending', date__lt=now - timedelta(days=7)), distinct=True),
+            scheduled_overdue=Count('id', filter=Q(status='scheduled', date__lt=now), distinct=True),
+            assessment_timeout=Count('id', filter=Q(status='assessment_pending', date__lt=now - timedelta(days=7)), distinct=True),
+            shortlisted_stale=Count('id', filter=Q(status='shortlisted', date__lt=now - timedelta(days=10)), distinct=True),
+        )
+        no_show = timing_metrics['no_show'] or 0
+        screening_timeout = timing_metrics['screening_timeout'] or 0
+
         dropoff_analysis = {
-            'total_dropoffs': interviews.filter(status__in=['rejected', 'cancelled']).count() + no_show + screening_timeout,
-            'rejected': interviews.filter(status='rejected').count(),
-            'cancelled': interviews.filter(status='cancelled').count(),
+            'total_dropoffs': status_counts.get('rejected', 0) + status_counts.get('cancelled', 0) + no_show + screening_timeout,
+            'rejected': status_counts.get('rejected', 0),
+            'cancelled': status_counts.get('cancelled', 0),
             'no_show': no_show,
             'screening_timeout': screening_timeout,
             'by_role': [],
         }
         role_drop = (
-            interviews
+            scoped_interviews
             .values('role__role')
             .annotate(
-                rejected=Count('id', filter=Q(status='rejected')),
-                cancelled=Count('id', filter=Q(status='cancelled')),
-                total=Count('id')
+                rejected=Count('id', filter=Q(status='rejected'), distinct=True),
+                cancelled=Count('id', filter=Q(status='cancelled'), distinct=True),
+                total=Count('id', distinct=True),
             )
             .order_by('-rejected', '-cancelled')[:8]
         )
@@ -5397,10 +5805,23 @@ def analyticsTabData(request):
                 'drop_rate': round((drop_count / total) * 100) if total else 0,
             })
 
-        # Phase 2: Offer and acceptance (inferred from shortlisted/hired)
-        offers_made = interviews.filter(status__in=['shortlisted', 'hired', 'completed']).count()
-        offers_accepted = interviews.filter(status__in=['hired', 'completed']).count()
-        offers_pending = interviews.filter(status='shortlisted').count()
+        # Offer-stage analytics prefer the explicit offer statuses when present.
+        # Because Interview.status is a current-state field, hires/completions are
+        # still treated as accepted offer outcomes for downstream compatibility.
+        offer_stage_statuses = ['offer_made', 'offer_accepted', 'offer_declined', 'hired', 'completed']
+        offer_stage_qs = scoped_interviews.filter(status__in=offer_stage_statuses)
+        offers_made = offer_stage_qs.values('id').distinct().count()
+        offers_accepted = scoped_interviews.filter(status__in=['offer_accepted', 'hired', 'completed']).values('id').distinct().count()
+        offers_pending = scoped_interviews.filter(status='offer_made').values('id').distinct().count()
+        if offers_made == 0:
+            # Legacy fallback while old records are still using shortlist/hire as
+            # the closest proxy for offer-stage movement.
+            offers_made = max(
+                scoped_interviews.filter(status__in=['shortlisted', 'hired', 'completed']).values('id').distinct().count(),
+                hired_count,
+            )
+            offers_accepted = min(hired_count, offers_made)
+            offers_pending = max(shortlisted_count, 0)
         offer_acceptance = {
             'offers_made': offers_made,
             'offers_accepted': offers_accepted,
@@ -5410,62 +5831,84 @@ def analyticsTabData(request):
             'monthly_offers': [],
             'monthly_accepted': [],
         }
+        offers_by_month = {
+            (row['month'].year, row['month'].month): row['count']
+            for row in (
+                scoped_interviews
+                .filter(status__in=offer_stage_statuses)
+                .annotate(month=TruncMonth('analytics_event_at', tzinfo=tz))
+                .values('month')
+                .annotate(count=Count('id', distinct=True))
+                .order_by('month')
+            )
+            if row.get('month')
+        }
         for y, m in month_points:
-            month_qs = interviews.filter(date__year=y, date__month=m)
-            offer_acceptance['monthly_offers'].append(month_qs.filter(status__in=['shortlisted', 'hired', 'completed']).count())
-            offer_acceptance['monthly_accepted'].append(month_qs.filter(status__in=['hired', 'completed']).count())
+            offer_acceptance['monthly_offers'].append(max(offers_by_month.get((y, m), 0), all_hire_monthly_counts[(y, m)] if offers_by_month else 0))
+            offer_acceptance['monthly_accepted'].append(all_hire_monthly_counts[(y, m)])
 
-        # Phase 2: SLA compliance
-        active_pipeline_qs = interviews.filter(status__in=['assessment_pending', 'auto_screening_scheduled', 'scheduled', 'shortlisted'])
-        active_pipeline_total = active_pipeline_qs.count()
-        breached_count = (
-            interviews.filter(status='scheduled', date__lt=now).count()
-            + interviews.filter(status='assessment_pending', date__lt=now - timedelta(days=7)).count()
-            + interviews.filter(status='shortlisted', date__lt=now - timedelta(days=10)).count()
-        )
+        active_pipeline_total = assessment_count + scheduled_count + shortlisted_count
+        scheduled_overdue = timing_metrics['scheduled_overdue'] or 0
+        assessment_timeout = timing_metrics['assessment_timeout'] or 0
+        shortlisted_stale = timing_metrics['shortlisted_stale'] or 0
+        breached_count = min(scheduled_overdue + assessment_timeout + shortlisted_stale, active_pipeline_total)
+        breach_candidates = []
+        breach_seen = set()
+        breach_specs = [
+            ('Scheduled overdue', Q(status='scheduled', date__lt=now)),
+            ('Assessment > 7 days', Q(status='assessment_pending', date__lt=now - timedelta(days=7))),
+            ('Shortlisted > 10 days', Q(status='shortlisted', date__lt=now - timedelta(days=10))),
+        ]
+        for breach_label, breach_filter in breach_specs:
+            rows = (
+                scoped_interviews
+                .filter(breach_filter)
+                .select_related('candidate', 'role')
+                .order_by('date')
+            )
+            for item in rows:
+                if item.id in breach_seen:
+                    continue
+                breach_seen.add(item.id)
+                candidate_name = f"{item.candidate.first_name} {item.candidate.last_name}".strip() or item.candidate.username or item.candidate.email or f"Candidate {item.candidate_id}"
+                breach_candidates.append({
+                    'candidate_name': candidate_name,
+                    'role': item.role.role if item.role else '',
+                    'breach_label': breach_label,
+                })
+
         sla_compliance = {
             'active_pipeline': active_pipeline_total,
             'breached': breached_count,
-            'compliance_rate': round(((active_pipeline_total - breached_count) / active_pipeline_total) * 100) if active_pipeline_total else 100,
+            'compliance_rate': max(0, min(100, round(((active_pipeline_total - breached_count) / active_pipeline_total) * 100))) if active_pipeline_total else 100,
             'breakdown': [
-                {
-                    'label': 'Scheduled overdue',
-                    'count': interviews.filter(status='scheduled', date__lt=now).count()
-                },
-                {
-                    'label': 'Assessment > 7 days',
-                    'count': interviews.filter(status='assessment_pending', date__lt=now - timedelta(days=7)).count()
-                },
-                {
-                    'label': 'Shortlisted > 10 days',
-                    'count': interviews.filter(status='shortlisted', date__lt=now - timedelta(days=10)).count()
-                },
-            ]
+                {'label': 'Scheduled overdue', 'count': scheduled_overdue},
+                {'label': 'Assessment > 7 days', 'count': assessment_timeout},
+                {'label': 'Shortlisted > 10 days', 'count': shortlisted_stale},
+            ],
+            'breach_candidates': breach_candidates[:8],
         }
 
-        # Phase 2: Executive insights
         executive_insights = []
         if total_interviews == 0:
             executive_insights.append('No interviews in selected range.')
         else:
             executive_insights.append(f'Hire rate is {round((hired_count / total_interviews) * 100)}% across selected scope.')
             if dropoff_analysis['total_dropoffs'] > 0:
-                executive_insights.append(
-                    f'Drop-offs total {dropoff_analysis["total_dropoffs"]}, led by rejected/cancelled candidates.'
-                )
+                executive_insights.append(f'Drop-offs total {dropoff_analysis["total_dropoffs"]}, led by rejected/cancelled candidates.')
             if offers_made > 0:
                 executive_insights.append(f'Offer acceptance is {offer_acceptance["acceptance_rate"]}% ({offers_accepted}/{offers_made}).')
             if sla_compliance['breached'] > 0:
                 executive_insights.append(f'{sla_compliance["breached"]} candidates are currently outside SLA.')
 
-        # Phase 3: Forecast vs target
         total_target = 0
-        for role in open_roles_qs:
+        for role in open_roles:
             try:
-                total_target += max(int(role.position), 0)
+                total_target += max(int(role.get('position') or 0), 0)
             except (TypeError, ValueError):
                 continue
-        last3_hires = tth_monthly_hires[-3:] if len(tth_monthly_hires) >= 3 else tth_monthly_hires
+        all_monthly_hires = [all_hire_monthly_counts[(y, m)] for y, m in month_points]
+        last3_hires = all_monthly_hires[-3:] if len(all_monthly_hires) >= 3 else all_monthly_hires
         avg_recent_hires = round(sum(last3_hires) / len(last3_hires), 1) if last3_hires else 0
 
         forecast_labels = []
@@ -5478,17 +5921,33 @@ def analyticsTabData(request):
             forecast_labels.append(timezone.datetime(y, m, 1).strftime('%b %Y'))
             projected_hires.append(round(avg_recent_hires, 1))
 
+        open_demand_target = total_target
+        monthly_target = round(open_demand_target / 3, 1) if open_demand_target else 0
+        if total_target == 0:
+            delivery_status = 'Monitoring'
+        elif hired_count > total_target:
+            delivery_status = 'Ahead of target'
+        elif hired_count == total_target:
+            delivery_status = 'At target'
+        elif hired_count > 0:
+            delivery_status = 'In progress'
+        else:
+            delivery_status = 'Not started'
+        delivery_ratio = round((hired_count / total_target), 3) if total_target else 0
+
         forecast_vs_target = {
             'current_target': total_target,
             'current_hired': hired_count,
-            'monthly_target': round(total_target / 3, 1) if total_target else 0,
+            'monthly_target': monthly_target,
+            'open_demand_target': open_demand_target,
             'next_labels': forecast_labels,
             'projected_hires': projected_hires,
-            'expected_gap_next_month': round(max((total_target / 3) - avg_recent_hires, 0), 1) if total_target else 0,
-            'projection_basis': 'Average hires from last 3 months',
+            'expected_gap_next_month': round(max(monthly_target - projected_hires[0], 0), 1) if projected_hires else 0,
+            'projection_basis': 'Projection based on average hires from the last 3 months',
+            'delivery_status': delivery_status,
+            'delivery_ratio': delivery_ratio,
         }
 
-        # Phase 3: anomaly flags
         anomaly_flags = []
         drop_rate = round((dropoff_analysis['total_dropoffs'] / total_interviews) * 100, 1) if total_interviews else 0
         if drop_rate >= 35:
@@ -5542,6 +6001,9 @@ def analyticsTabData(request):
             }
         }
 
+        avg_tth = round(sum(tth_days) / len(tth_days), 1) if tth_days else 0
+        median_tth = round(median(tth_days), 1) if tth_days else 0
+
         return JsonResponse({
             'Success': True,
             'Error': None,
@@ -5551,8 +6013,8 @@ def analyticsTabData(request):
                     'hires': hired_count,
                     'hire_rate': round((hired_count / total_interviews) * 100) if total_interviews else 0,
                     'open_roles': open_roles_count,
-                    'avg_time_to_hire_days': round(sum(tth_days) / len(tth_days), 1) if tth_days else 0,
-                    'median_time_to_hire_days': round(median(tth_days), 1) if tth_days else 0,
+                    'avg_time_to_hire_days': avg_tth,
+                    'median_time_to_hire_days': median_tth,
                 },
                 'funnel': {
                     'labels': funnel_labels,
@@ -5560,11 +6022,12 @@ def analyticsTabData(request):
                     'conversions': conversions,
                 },
                 'time_to_hire': {
-                    'avg_days': round(sum(tth_days) / len(tth_days), 1) if tth_days else 0,
-                    'median_days': round(median(tth_days), 1) if tth_days else 0,
+                    'avg_days': avg_tth,
+                    'median_days': median_tth,
                     'monthly_labels': tth_labels,
                     'monthly_avg_days': tth_monthly_avg,
                     'monthly_hires': tth_monthly_hires,
+                    'monthly_total_hires': tth_monthly_total_hires,
                 },
                 'source_effectiveness': source_effectiveness[:8],
                 'recruiter_performance': recruiter_performance[:8],
@@ -5588,6 +6051,7 @@ def analyticsTabData(request):
                     'implemented': [1, 2, 3],
                     'pending': [],
                     'note': 'All three phases are implemented.',
+                    **({'debug': debug} if include_debug else {}),
                 }
             }
         })

@@ -34,6 +34,9 @@ def normalize_interview_status(value: str) -> str:
         'completed': 'completed',
         'cancelled': 'cancelled',
         'shortlisted': 'shortlisted',
+        'offer made': 'offer_made',
+        'offer accepted': 'offer_accepted',
+        'offer declined': 'offer_declined',
         'hired': 'hired',
         'rejected': 'rejected',
         'assessment pending': 'assessment_pending',
@@ -320,14 +323,20 @@ def updateCandidateStatus(request):
         candidate = Interview.objects.get(id=candidate_id)
         candidate.status = status
         candidate.date = timezone.now()
-        candidate.save(update_fields=['status', 'date'])
+        update_fields = ['status', 'date']
+        if status in {'hired', 'completed'} and not candidate.hired_at:
+            # Preserve the first known hire/completion timestamp as the canonical
+            # analytics event time. `date` remains available for legacy UI flows.
+            candidate.hired_at = candidate.date
+            update_fields.append('hired_at')
+        candidate.save(update_fields=update_fields)
         return JsonResponse({
             "Success": True,
             "Error": None,
             "Data": {
                 "candidate_id": candidate.id,
                 "status": candidate.status,
-                "date": candidate.date.isoformat() if candidate.date else ''
+                "date": candidate.date.isoformat() if candidate.date else '',
             }
         })
     except Exception as e:

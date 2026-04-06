@@ -53,6 +53,10 @@ export class ProfileUpdate implements OnInit {
       scheduled: 'In Progress',
       rejected: 'Disqualified',
       shortlisted: 'Shortlisted',
+      offer_made: 'Offer Made',
+      offer_accepted: 'Offer Accepted',
+      offer_declined: 'Offer Declined',
+      hired: 'Hired',
       completed: 'Hired',
       cancelled: 'Cancelled',
       assessment_pending: 'Assessments Pending',
@@ -66,10 +70,24 @@ export class ProfileUpdate implements OnInit {
       },
       completed: {}, // no transitions
       shortlisted: {
-        completed: 'Hired',
+        offer_made: 'Offer Made',
         rejected: 'Disqualified',
         cancelled: 'Cancelled',
       },
+      offer_made: {
+        offer_accepted: 'Offer Accepted',
+        offer_declined: 'Offer Declined',
+        cancelled: 'Cancelled',
+      },
+      offer_accepted: {
+        hired: 'Hired',
+        offer_declined: 'Offer Declined',
+      },
+      offer_declined: {
+        offer_made: 'Offer Made',
+        assessment_pending: 'Assessments Pending',
+      },
+      hired: {},
       assessment_completed: {
         scheduled: 'In Progress',
         rejected: 'Disqualified',

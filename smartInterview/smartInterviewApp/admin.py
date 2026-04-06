@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
+    CandidateVacancyApplication,
     CompanyProfile,
     UserProfile,
     Interview,
@@ -32,6 +33,29 @@ admin.site.register(User, UserAdmin)
 # Register other models
 admin.site.register(Interview)
 admin.site.register(Vacancies)
+
+
+@admin.register(CandidateVacancyApplication)
+class CandidateVacancyApplicationAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'candidate',
+        'vacancy',
+        'status',
+        'pipeline_source',
+        'hiring_started_at',
+        'applied_at',
+        'reviewed_at',
+        'updated_at',
+    )
+    list_filter = ('status', 'pipeline_source', 'vacancy')
+    search_fields = (
+        'candidate__username',
+        'candidate__email',
+        'vacancy__role',
+        'vacancy__id',
+    )
+    readonly_fields = ('applied_at', 'created_at', 'updated_at')
 
 
 @admin.register(CompanyProfile)

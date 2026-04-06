@@ -32,6 +32,77 @@
   pointer-events: none;
 }
 
+.role-loader-shell {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  padding: 36px 12px 18px;
+}
+
+.role-loader-card {
+  width: min(440px, 100%);
+  border: 1px solid rgba(137, 206, 246, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(10, 39, 73, 0.9), rgba(7, 27, 53, 0.82));
+  padding: 28px 24px;
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  text-align: center;
+  box-shadow: 0 18px 44px rgba(2, 12, 28, 0.34);
+}
+
+.role-loader-orb {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  border: 2px solid rgba(87, 214, 255, 0.2);
+  border-top-color: #7be7ff;
+  border-right-color: rgba(121, 201, 255, 0.72);
+  background: radial-gradient(circle at 30% 30%, rgba(102, 222, 255, 0.24), rgba(29, 83, 157, 0.1));
+  animation: role-spin 0.9s linear infinite;
+}
+
+.role-loader-copy h3 {
+  margin: 0 0 6px;
+  color: #ebf8ff;
+  font-size: 1.08rem;
+}
+
+.role-loader-copy p {
+  margin: 0;
+  color: #97bddc;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.role-loader-bars {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+
+.role-loader-bars span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(68, 131, 201, 0.18), rgba(123, 231, 255, 0.48), rgba(68, 131, 201, 0.18));
+  background-size: 200% 100%;
+  animation: role-shimmer 1.25s ease-in-out infinite;
+}
+
+.role-loader-bars span:nth-child(2) {
+  width: 82%;
+  justify-self: center;
+  animation-delay: 0.1s;
+}
+
+.role-loader-bars span:nth-child(3) {
+  width: 68%;
+  justify-self: center;
+  animation-delay: 0.2s;
+}
+
 .close-btn {
   position: absolute;
   top: 14px;
@@ -191,6 +262,26 @@
 .content {
   display: grid;
   gap: 16px;
+}
+
+@keyframes role-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes role-shimmer {
+  0% {
+    background-position: 200% 0;
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    background-position: -20% 0;
+    opacity: 0.6;
+  }
 }
 
 .summary-grid {

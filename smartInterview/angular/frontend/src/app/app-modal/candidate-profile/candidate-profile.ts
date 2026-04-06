@@ -214,6 +214,10 @@ export class CandidateProfile implements OnInit {
     return this.resumeData.summary || this.getSectionText('summary') || this.getSectionText('objective');
   }
 
+  get initialProfileLoading(): boolean {
+    return this.resumeLoading && !this.resumeData.available && !this.resumeData.error_message && !this.displaySectionViews.length;
+  }
+
   get readinessInsightScore(): string {
     return this.insights.resume_score != null ? `${this.insights.resume_score}` : '--';
   }
@@ -484,9 +488,22 @@ export class CandidateProfile implements OnInit {
         { key: 'cancelled', label: 'Cancel' }
       ],
       'shortlisted': [
-        { key: 'completed', label: 'Mark Hired' },
+        { key: 'offer_made', label: 'Send Offer' },
         { key: 'rejected', label: 'Disqualify' },
         { key: 'cancelled', label: 'Cancel' }
+      ],
+      'offer made': [
+        { key: 'offer_accepted', label: 'Mark Offer Accepted' },
+        { key: 'offer_declined', label: 'Mark Offer Declined' },
+        { key: 'cancelled', label: 'Cancel' }
+      ],
+      'offer accepted': [
+        { key: 'hired', label: 'Mark Hired' },
+        { key: 'offer_declined', label: 'Mark Offer Declined' }
+      ],
+      'offer declined': [
+        { key: 'offer_made', label: 'Re-open Offer' },
+        { key: 'assessment_pending', label: 'Move Back to Assessment' }
       ],
       'assessment pending': [
         { key: 'scheduled', label: 'Move to Scheduled' },
@@ -508,7 +525,8 @@ export class CandidateProfile implements OnInit {
       'cancelled': [
         { key: 'assessment_pending', label: 'Reopen' }
       ],
-      'completed': []
+      'completed': [],
+      'hired': []
     };
 
     return transitions[status] || [];

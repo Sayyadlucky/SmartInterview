@@ -3,6 +3,22 @@
     <i class="ph ph-x"></i>
   </button>
 
+  <div class="role-loader-shell" *ngIf="initialRoleLoading; else roleContent">
+    <div class="role-loader-card">
+      <div class="role-loader-orb"></div>
+      <div class="role-loader-copy">
+        <h3>Loading role details</h3>
+        <p>Preparing pipeline coverage, hiring progress, and requisition context for this role.</p>
+      </div>
+      <div class="role-loader-bars">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #roleContent>
   <div class="role-hero">
     <div class="role-hero-copy">
       <div class="eyebrow">
@@ -108,4 +124,5 @@
       </section>
     </div>
   </div>
+  </ng-template>
 </div>

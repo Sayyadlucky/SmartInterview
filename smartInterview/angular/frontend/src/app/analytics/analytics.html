@@ -1,5 +1,6 @@
 <section class="analytics-shell">
   <div class="state-card" *ngIf="!initialized"><i class="ph ph-chart-line-up"></i> Open Analytics tab to load data.</div>
+
   <ng-container *ngIf="initialized && loading; else analyticsLoadedState">
     <div class="analytics-skeleton" aria-hidden="true">
       <div class="filters-bar analytics-filters-skeleton skeleton-card">
@@ -18,15 +19,30 @@
         </div>
       </div>
 
+      <article class="brief-hero skeleton-card">
+        <div class="brief-main">
+          <div class="skeleton-line skeleton-line-panel-title"></div>
+          <div class="skeleton-line skeleton-line-body"></div>
+          <div class="skeleton-line skeleton-line-body short"></div>
+        </div>
+        <div class="brief-signal-grid">
+          <div class="signal-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4]">
+            <div class="skeleton-line skeleton-line-label"></div>
+            <div class="skeleton-line skeleton-line-body short"></div>
+          </div>
+        </div>
+      </article>
+
       <div class="summary-grid analytics-summary-skeleton">
         <article class="summary-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
           <div class="skeleton-line skeleton-line-label"></div>
           <div class="skeleton-line skeleton-line-value short"></div>
+          <div class="skeleton-chip skeleton-chip-inline"></div>
         </article>
       </div>
 
-      <div class="grid">
-        <article class="card skeleton-card analytics-chart-skeleton" *ngFor="let _ of [1, 2]">
+      <div class="grid grid-core">
+        <article class="card skeleton-card analytics-chart-skeleton" *ngFor="let _ of [1, 2, 3, 4]">
           <div class="card-head analytics-skeleton-head">
             <div class="skeleton-line skeleton-line-panel-title"></div>
             <div class="skeleton-line skeleton-line-count"></div>
@@ -37,10 +53,13 @@
             </div>
           </div>
         </article>
+      </div>
 
-        <article class="card skeleton-card analytics-table-skeleton" *ngFor="let _ of [1, 2, 3]">
+      <div class="grid">
+        <article class="card skeleton-card analytics-table-skeleton" *ngFor="let _ of [1, 2, 3, 4, 5, 6]">
           <div class="card-head analytics-skeleton-head">
             <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-count"></div>
           </div>
           <div class="analytics-table-head">
             <div class="skeleton-line skeleton-line-table-head" *ngFor="let __ of [1, 2, 3, 4]"></div>
@@ -54,301 +73,642 @@
             </div>
           </div>
         </article>
-
-        <article class="card skeleton-card analytics-list-skeleton" *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7]">
-          <div class="card-head analytics-skeleton-head">
-            <div class="skeleton-line skeleton-line-panel-title"></div>
-            <div class="skeleton-line skeleton-line-count"></div>
-          </div>
-          <div class="analytics-skeleton-list">
-            <div class="analytics-list-row skeleton-card" *ngFor="let __ of [1, 2, 3, 4]">
-              <div class="skeleton-line skeleton-line-body"></div>
-              <div class="skeleton-line skeleton-line-value short"></div>
-            </div>
-          </div>
-        </article>
       </div>
     </div>
   </ng-container>
 
   <ng-template #analyticsLoadedState>
-  <div class="state-card error" *ngIf="initialized && errorMessage">{{ errorMessage }}</div>
+    <div class="state-card error" *ngIf="initialized && errorMessage">{{ errorMessage }}</div>
 
-  <div class="analytics-layout" *ngIf="initialized && !errorMessage">
-    <div class="filters-bar">
-      <div class="filter-item">
-        <label><i class="ph ph-calendar-blank"></i> From</label>
-        <input type="date" [(ngModel)]="startDate" [max]="endDate || null" (ngModelChange)="onStartDateChange($event)" />
+    <div class="analytics-layout" *ngIf="initialized && !errorMessage">
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label><i class="ph ph-calendar-blank"></i> From</label>
+          <input type="date" [(ngModel)]="startDate" [max]="endDate || null" (ngModelChange)="onStartDateChange($event)" />
+        </div>
+        <div class="filter-item">
+          <label><i class="ph ph-calendar-check"></i> To</label>
+          <input type="date" [(ngModel)]="endDate" [min]="startDate || null" (ngModelChange)="onEndDateChange($event)" />
+        </div>
+        <div class="filter-item">
+          <label><i class="ph ph-identification-badge"></i> Recruiter</label>
+          <div class="search-select">
+            <input
+              type="text"
+              [ngModel]="recruiterQuery"
+              (ngModelChange)="onRecruiterInputChange($event)"
+              (focus)="onRecruiterInputFocus()"
+              (blur)="onRecruiterInputBlur()"
+              (keydown.enter)="selectFirstRecruiterMatch()"
+              placeholder="Search recruiter"
+            />
+            <div class="search-select-list" *ngIf="showRecruiterMenu">
+              <button type="button" *ngFor="let item of filteredRecruiterOptions; trackBy: trackByOption" (mousedown)="selectRecruiterOption(item.id, item.name)">
+                {{ item.name }}
+              </button>
+              <div class="search-empty" *ngIf="!filteredRecruiterOptions.length">No recruiter found</div>
+            </div>
+          </div>
+        </div>
+        <div class="filter-item">
+          <label><i class="ph ph-briefcase"></i> Role</label>
+          <div class="search-select">
+            <input
+              type="text"
+              [ngModel]="roleQuery"
+              (ngModelChange)="onRoleInputChange($event)"
+              (focus)="onRoleInputFocus()"
+              (blur)="onRoleInputBlur()"
+              (keydown.enter)="selectFirstRoleMatch()"
+              placeholder="Search role"
+            />
+            <div class="search-select-list" *ngIf="showRoleMenu">
+              <button type="button" *ngFor="let item of filteredRoleOptions; trackBy: trackByOption" (mousedown)="selectRoleOption(item.id, item.name)">
+                {{ formatRoleWithId(item.name, item.id) }}
+              </button>
+              <div class="search-empty" *ngIf="!filteredRoleOptions.length">No role found</div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="clear-btn" (click)="clearFilters()"><i class="ph ph-eraser"></i> Clear</button>
       </div>
-      <div class="filter-item">
-        <label><i class="ph ph-calendar-check"></i> To</label>
-        <input type="date" [(ngModel)]="endDate" [min]="startDate || null" (ngModelChange)="onEndDateChange($event)" />
+
+      <div class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</div>
+
+      <div class="export-row">
+        <div class="export-meta">
+          <span class="export-title"><i class="ph ph-file-arrow-down"></i> Executive Snapshot</span>
+          <span class="export-subtitle">{{ getFilterSummary() }}</span>
+        </div>
+        <div class="export-badges">
+          <span class="meta-chip" *ngIf="executiveSnapshot.generated_at; else liveSnapshot">
+            <i class="ph ph-clock"></i> Updated {{ executiveSnapshot.generated_at | date:'medium' }}
+          </span>
+          <ng-template #liveSnapshot>
+            <span class="meta-chip"><i class="ph ph-wave-sine"></i> Live view</span>
+          </ng-template>
+          <span class="meta-chip"><i class="ph ph-brain"></i> AI-assisted synthesis</span>
+        </div>
+        <div class="export-actions">
+          <button type="button" class="clear-btn" (click)="exportSnapshot('csv')"><i class="ph ph-file-csv"></i> CSV</button>
+          <button type="button" class="clear-btn" (click)="exportSnapshot('json')"><i class="ph ph-brackets-curly"></i> JSON</button>
+        </div>
       </div>
-      <div class="filter-item">
-        <label><i class="ph ph-identification-badge"></i> Recruiter</label>
-        <div class="search-select">
-          <input
-            type="text"
-            [ngModel]="recruiterQuery"
-            (ngModelChange)="onRecruiterInputChange($event)"
-            (focus)="onRecruiterInputFocus()"
-            (blur)="onRecruiterInputBlur()"
-            (keydown.enter)="selectFirstRecruiterMatch()"
-            placeholder="Search recruiter"
-          />
-          <div class="search-select-list" *ngIf="showRecruiterMenu">
-            <button type="button" *ngFor="let item of filteredRecruiterOptions" (mousedown)="selectRecruiterOption(item.id, item.name)">
-              {{ item.name }}
+
+      <article class="brief-hero">
+        <div class="brief-main">
+          <div class="eyebrow"><i class="ph ph-brain"></i> AI Analytics Brief</div>
+          <div class="brief-headline-row">
+            <div>
+              <h2>Executive intelligence for hiring pace, risk, and next actions.</h2>
+              <p>
+                This brief synthesizes funnel health, hiring speed, candidate origin, recruiter performance,
+                SLA pressure, and forecasted delivery risk for the current filter view.
+              </p>
+            </div>
+            <div class="brief-status-stack">
+              <div class="brief-status">
+                <span class="brief-status-label">Current Delivery</span>
+                <strong>{{ currentDeliveryStatus }}</strong>
+                <small>{{ currentDeliveryMetric }}</small>
+              </div>
+              <div class="brief-status" [ngClass]="getToneClass(forecastSummary.tone)">
+                <span class="brief-status-label">Future Forecast</span>
+                <strong>{{ forecastSummary.status }}</strong>
+                <small>{{ forecastSummary.metric }}</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="brief-metrics">
+            <div class="brief-metric-pill">
+              <span>Forecast status</span>
+              <strong>{{ forecastSummary.status }}</strong>
+            </div>
+            <div class="brief-metric-pill">
+              <span>Anomaly load</span>
+              <strong>{{ anomalySummary.count }}</strong>
+            </div>
+            <div class="brief-metric-pill">
+              <span>SLA compliance</span>
+              <strong>{{ slaCompliance.compliance_rate }}%</strong>
+            </div>
+            <div class="brief-metric-pill">
+              <span>Offer health</span>
+              <strong>{{ offerAcceptance.acceptance_rate }}%</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="change-strip" *ngIf="analyticsChangeSignals.length">
+          <article class="change-chip" *ngFor="let change of analyticsChangeSignals; trackBy: trackByChange" [ngClass]="[getToneClass(change.tone), getChangeDirectionClass(change.direction)]">
+            <div class="change-top">
+              <span>{{ change.label }}</span>
+              <span class="change-direction">{{ change.direction }}</span>
+            </div>
+            <strong>{{ change.value }}</strong>
+            <small>{{ change.helper }}</small>
+          </article>
+        </div>
+
+        <div class="signal-control-stack">
+          <div class="signal-tabs" *ngIf="analyticsBriefSignals.length">
+            <button
+              type="button"
+              class="signal-tab"
+              *ngFor="let tab of availableSeverityTabs; trackBy: trackByTab"
+              [class.active]="activeSeverityTab === tab.key"
+              [ngClass]="tab.key !== 'all' ? getSignalClass(tab.key) : ''"
+              (click)="setActiveSeverityTab(tab.key)"
+            >
+              <span>{{ tab.label }}</span>
+              <strong>{{ tab.count }}</strong>
             </button>
-            <div class="search-empty" *ngIf="!filteredRecruiterOptions.length">No recruiter found</div>
           </div>
         </div>
-      </div>
-      <div class="filter-item">
-        <label><i class="ph ph-briefcase"></i> Role</label>
-        <div class="search-select">
-          <input
-            type="text"
-            [ngModel]="roleQuery"
-            (ngModelChange)="onRoleInputChange($event)"
-            (focus)="onRoleInputFocus()"
-            (blur)="onRoleInputBlur()"
-            (keydown.enter)="selectFirstRoleMatch()"
-            placeholder="Search role"
-          />
-          <div class="search-select-list" *ngIf="showRoleMenu">
-            <button type="button" *ngFor="let item of filteredRoleOptions" (mousedown)="selectRoleOption(item.id, item.name)">
-              {{ formatRoleWithId(item.name, item.id) }}
+
+        <ng-container *ngIf="visibleAnalyticsBriefSignals.length; else noSignals">
+          <div class="brief-signal-grid">
+            <article class="signal-card signal-card-primary" *ngIf="primaryAnalyticsSignal" [ngClass]="getSignalClass(primaryAnalyticsSignal.severity)">
+              <div class="signal-top">
+                <span class="signal-pill" [ngClass]="getBadgeClass(primaryAnalyticsSignal.severity)">{{ getSeverityLabel(primaryAnalyticsSignal.severity) }}</span>
+                <span class="signal-metric">{{ primaryAnalyticsSignal.metric }}</span>
+              </div>
+              <div class="signal-evidence">
+                <div class="signal-meta">
+                  <span>Confidence</span>
+                  <strong [ngClass]="getToneClass(primaryAnalyticsSignal.confidenceTone)">{{ primaryAnalyticsSignal.confidenceLabel }}</strong>
+                </div>
+                <div class="signal-meta">
+                  <span>Evidence</span>
+                  <strong>{{ primaryAnalyticsSignal.evidenceLabel }}</strong>
+                </div>
+              </div>
+              <h3>Primary Insight: {{ primaryAnalyticsSignal.title }}</h3>
+              <p>{{ primaryAnalyticsSignal.message }}</p>
+              <button type="button" class="signal-cta" *ngIf="primaryAnalyticsSignal.ctaLabel" (click)="handleSignalAction(primaryAnalyticsSignal)">{{ primaryAnalyticsSignal.ctaLabel }}</button>
+            </article>
+
+            <article class="signal-card" *ngFor="let signal of secondaryAnalyticsSignals; trackBy: trackBySignal" [ngClass]="getSignalClass(signal.severity)">
+              <div class="signal-top">
+                <span class="signal-pill" [ngClass]="getBadgeClass(signal.severity)">{{ getSeverityLabel(signal.severity) }}</span>
+                <span class="signal-metric">{{ signal.metric }}</span>
+              </div>
+              <div class="signal-evidence">
+                <div class="signal-meta">
+                  <span>Confidence</span>
+                  <strong [ngClass]="getToneClass(signal.confidenceTone)">{{ signal.confidenceLabel }}</strong>
+                </div>
+                <div class="signal-meta">
+                  <span>Evidence</span>
+                  <strong>{{ signal.evidenceLabel }}</strong>
+                </div>
+              </div>
+              <h3>{{ signal.title }}</h3>
+              <p>{{ signal.message }}</p>
+              <button type="button" class="signal-cta" *ngIf="signal.ctaLabel" (click)="handleSignalAction(signal)">{{ signal.ctaLabel }}</button>
+            </article>
+          </div>
+        </ng-container>
+        <ng-template #noSignals>
+          <div class="empty premium-empty">Derived AI signals will appear as soon as enough analytics evidence is available.</div>
+        </ng-template>
+
+        <div class="actions-strip" *ngIf="executiveActions.length">
+          <div class="actions-copy">
+            <span class="eyebrow"><i class="ph ph-lightning"></i> Recommended Executive Actions</span>
+            <p>Use the highest-confidence signals to decide what leadership should intervene on next.</p>
+          </div>
+          <div class="actions-list">
+            <button type="button" class="action-chip" *ngFor="let action of executiveActions; trackBy: trackByAction" [ngClass]="getToneClass(action.tone)" (click)="handleExecutiveAction(action)">
+              <span>{{ action.label }}</span>
+              <small>{{ action.detail }}</small>
             </button>
-            <div class="search-empty" *ngIf="!filteredRoleOptions.length">No role found</div>
           </div>
+        </div>
+      </article>
+
+      <div class="summary-grid">
+        <article class="summary-card" *ngFor="let card of analyticsSummaryCards; trackBy: trackBySummaryCard" [ngClass]="getToneClass(card.tone)">
+          <div class="summary-card-top">
+            <span class="label"><i class="ph" [ngClass]="card.icon"></i> {{ card.label }}</span>
+            <span class="summary-chip">{{ card.status }}</span>
+          </div>
+          <span class="value">{{ card.value }}</span>
+          <p>{{ card.helper }}</p>
+        </article>
+      </div>
+
+      <section class="section-block">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Core Strategic Analytics</span>
+            <h3>Interpretation first, then proof points.</h3>
+          </div>
+        </div>
+
+        <div class="grid grid-core">
+          <article class="card card-chart" id="analytics-funnel">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-funnel"></i> Hiring Funnel Analytics</h3>
+              </div>
+              <span class="panel-badge" *ngIf="funnel.conversions.length">
+                Weakest {{ weakestFunnelConversionRate }}%
+              </span>
+            </div>
+            <p class="panel-helper">{{ funnelHelperText }}</p>
+            <div class="chart-wrap">
+              <canvas #funnelCanvas *ngIf="hasFunnelData; else noFunnel"></canvas>
+              <ng-template #noFunnel><div class="empty premium-empty">No funnel data for this filter set.</div></ng-template>
+            </div>
+            <div class="conversion-list" *ngIf="funnel.conversions.length">
+              <div class="conversion-row" *ngFor="let c of funnel.conversions">
+                <span>{{ c.from }} → {{ c.to }}</span>
+                <strong>{{ c.rate }}%</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="card card-chart" id="analytics-time-to-hire">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-timer"></i> Time-to-Hire Analytics</h3>
+              </div>
+              <span class="panel-badge">{{ timeToHire.avg_days || summary.avg_time_to_hire_days }}d avg</span>
+            </div>
+            <p class="panel-helper">{{ timeToHireHelperText }}</p>
+            <div class="chart-wrap">
+              <canvas #tthCanvas *ngIf="hasTimeToHireTrend; else noTth"></canvas>
+              <ng-template #noTth><div class="empty premium-empty">No time-to-hire trend available for this selection.</div></ng-template>
+            </div>
+          </article>
+
+          <article class="card card-forecast" id="analytics-forecast">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-target"></i> Forecast vs Target</h3>
+              </div>
+              <span class="panel-badge" [ngClass]="getToneClass(forecastSummary.tone)">{{ forecastSummary.status }}</span>
+            </div>
+            <p class="panel-helper">{{ forecastHelperText }}</p>
+
+            <div class="forecast-hero" [ngClass]="getToneClass(forecastSummary.tone)">
+              <div>
+                <span class="forecast-metric">{{ forecastSummary.metric }}</span>
+                <strong>{{ forecastSummary.headline }}</strong>
+              </div>
+              <div class="forecast-progress">
+                <div class="forecast-progress-bar">
+                  <span [style.width.%]="getForecastProgress()"></span>
+                </div>
+                <small>{{ getForecastProgress() | number:'1.0-0' }}% of active target</small>
+              </div>
+            </div>
+
+            <div class="quality-list compact-list">
+              <div class="quality-row"><span>Current Target</span><strong>{{ forecastVsTarget.current_target }}</strong></div>
+              <div class="quality-row"><span>Current Hired</span><strong>{{ forecastVsTarget.current_hired }}</strong></div>
+              <div class="quality-row"><span>Monthly Target</span><strong>{{ forecastVsTarget.monthly_target }}</strong></div>
+              <div class="quality-row"><span>Expected Gap</span><strong>{{ forecastVsTarget.expected_gap_next_month }}</strong></div>
+            </div>
+
+            <div class="projection-list" *ngIf="hasForecastProjection; else noForecastProjection">
+              <div class="projection-row" *ngFor="let label of forecastVsTarget.next_labels; let i = index">
+                <span>{{ label }}</span>
+                <div class="projection-bar">
+                  <div class="projection-fill" [style.width]="getProjectionWidth(forecastVsTarget.projected_hires[i])"></div>
+                </div>
+                <strong>{{ forecastVsTarget.projected_hires[i] }}</strong>
+              </div>
+            </div>
+            <ng-template #noForecastProjection>
+              <div class="empty premium-empty">No forward projection points are available yet.</div>
+            </ng-template>
+
+            <div class="basis-note" *ngIf="forecastVsTarget.projection_basis">
+              <i class="ph ph-sparkle"></i> {{ forecastVsTarget.projection_basis }}
+            </div>
+          </article>
+
+          <article class="card card-risk" id="analytics-anomalies">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-warning-diamond"></i> Anomaly & Risk Overview</h3>
+              </div>
+              <span class="panel-badge" [ngClass]="getSignalClass(anomalySummary.topSeverity === 'none' ? 'info' : anomalySummary.topSeverity)">{{ anomalySummary.count }} flags</span>
+            </div>
+            <p class="panel-helper">{{ anomalyHelperText }}</p>
+
+            <div class="risk-hero" [ngClass]="getSignalClass(anomalySummary.topSeverity === 'none' ? 'info' : anomalySummary.topSeverity)">
+              <strong>{{ anomalySummary.headline }}</strong>
+              <span>{{ anomalySummary.helper }}</span>
+            </div>
+
+            <div class="anomaly-list" *ngIf="anomalyFlags.length; else noFlags">
+              <article class="anomaly-card" *ngFor="let flag of anomalyFlags | slice:0:5" [ngClass]="getAnomalyClass(flag.severity)">
+                <div class="anomaly-top">
+                  <span class="signal-pill">{{ flag.severity }}</span>
+                </div>
+                <h4>{{ flag.title }}</h4>
+                <p>{{ flag.detail }}</p>
+              </article>
+            </div>
+            <ng-template #noFlags>
+              <div class="empty premium-empty">No anomalies detected for the selected filters.</div>
+            </ng-template>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Operational Deep-Dives</span>
+            <h3>Detailed drivers behind the executive brief.</h3>
+          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card" id="analytics-sources">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-chart-donut"></i> Candidate Origin</h3>
+              </div>
+            </div>
+            <p class="panel-helper">{{ sourceHighlights.note }}</p>
+            <div class="highlight-strip" *ngIf="sourceHighlights.best || sourceHighlights.weakest">
+              <span class="mini-chip positive" *ngIf="sourceHighlights.best">Best {{ sourceHighlights.best.source }} · {{ sourceHighlights.best.conversion }}%</span>
+              <span class="mini-chip warning" *ngIf="sourceHighlights.weakest">Weakest {{ sourceHighlights.weakest.source }} · {{ sourceHighlights.weakest.conversion }}%</span>
+            </div>
+            <div class="table-wrap" *ngIf="sourceEffectiveness.length; else noSource">
+              <table class="table">
+                <thead>
+                  <tr><th>Origin</th><th>Total</th><th>Hired</th><th>Conv</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of sourceEffectiveness | slice:0:8">
+                    <td>{{ row.source }}</td>
+                    <td>{{ row.total }}</td>
+                    <td>{{ row.hired }}</td>
+                    <td>{{ row.conversion }}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ng-template #noSource><div class="empty premium-empty">No source data available.</div></ng-template>
+          </article>
+
+          <article class="card" id="analytics-recruiters">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-identification-card"></i> Recruiter Performance</h3>
+              </div>
+            </div>
+            <p class="panel-helper">{{ recruiterHighlights.note }}</p>
+            <div class="highlight-strip" *ngIf="recruiterHighlights.leader || recruiterHighlights.support">
+              <span class="mini-chip positive" *ngIf="recruiterHighlights.leader">Leader {{ recruiterHighlights.leader.name }} · {{ recruiterHighlights.leader.conversion }}%</span>
+              <span class="mini-chip info" *ngIf="recruiterHighlights.support">Support {{ recruiterHighlights.support.name }} · {{ recruiterHighlights.support.conversion }}%</span>
+            </div>
+            <div class="table-wrap" *ngIf="recruiterPerformance.length; else noRecruiterPerf">
+              <table class="table">
+                <thead>
+                  <tr><th>Recruiter</th><th>Interviews</th><th>Hired</th><th>Conv</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of recruiterPerformance | slice:0:8">
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.interviews }}</td>
+                    <td>{{ row.hired }}</td>
+                    <td>{{ row.conversion }}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ng-template #noRecruiterPerf><div class="empty premium-empty">No recruiter performance data available.</div></ng-template>
+          </article>
+
+          <article class="card" id="analytics-role-health">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-heartbeat"></i> Role Health</h3>
+              </div>
+            </div>
+            <p class="panel-helper">{{ roleRiskHighlights.note }}</p>
+            <div class="highlight-strip" *ngIf="roleRiskHighlights.highestRisk || roleRiskHighlights.strongest">
+              <span class="mini-chip warning" *ngIf="roleRiskHighlights.highestRisk">At risk {{ roleRiskHighlights.highestRisk.role }} · {{ roleRiskHighlights.highestRisk.risk }}%</span>
+              <span class="mini-chip positive" *ngIf="roleRiskHighlights.strongest">Strongest {{ roleRiskHighlights.strongest.role }} · {{ roleRiskHighlights.strongest.filled }}/{{ roleRiskHighlights.strongest.target }}</span>
+            </div>
+            <div class="table-wrap" *ngIf="roleHealth.length; else noRoleHealth">
+              <table class="table">
+                <thead>
+                  <tr><th>Role</th><th>Filled/Target</th><th>Pipeline</th><th>Risk</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of roleHealth | slice:0:8">
+                    <td>{{ row.role }}</td>
+                    <td>{{ row.filled }}/{{ row.target }}</td>
+                    <td>{{ row.pipeline }}</td>
+                    <td>{{ row.risk }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ng-template #noRoleHealth><div class="empty premium-empty">No role health data available.</div></ng-template>
+          </article>
+
+          <article class="card" id="analytics-dropoffs">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-trend-down"></i> Drop-off Analysis</h3>
+              </div>
+              <span class="panel-badge">{{ dropoffAnalysis.total_dropoffs }} total</span>
+            </div>
+            <p class="panel-helper">Shows where candidates are exiting before hire and which roles need a drop-off review.</p>
+            <div class="quality-list">
+              <div class="quality-row"><span>Rejected</span><strong>{{ dropoffAnalysis.rejected }}</strong></div>
+              <div class="quality-row"><span>Cancelled</span><strong>{{ dropoffAnalysis.cancelled }}</strong></div>
+              <div class="quality-row"><span>No Show</span><strong>{{ dropoffAnalysis.no_show }}</strong></div>
+              <div class="quality-row"><span>Screening Timeout</span><strong>{{ dropoffAnalysis.screening_timeout }}</strong></div>
+            </div>
+            <div class="card-actions" *ngIf="dropoffAnalysis.by_role.length">
+              <button type="button" class="clear-btn" (click)="openDropoffDetailsModal()">
+                <i class="ph ph-list-bullets"></i> View role breakdown
+              </button>
+            </div>
+          </article>
+
+          <article class="card" id="analytics-offers">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-seal-check"></i> Offer Stage Progress</h3>
+              </div>
+              <span class="panel-badge">{{ offerAcceptance.acceptance_rate }}% accepted</span>
+            </div>
+            <p class="panel-helper">Tracks shortlist-to-hire progression. Generic rejected candidates are excluded from offer-stage metrics.</p>
+            <div class="quality-list">
+              <div class="quality-row"><span>Offers Made</span><strong>{{ offerAcceptance.offers_made }}</strong></div>
+              <div class="quality-row"><span>Accepted</span><strong>{{ offerAcceptance.offers_accepted }}</strong></div>
+              <div class="quality-row"><span>Pending</span><strong>{{ offerAcceptance.offers_pending }}</strong></div>
+            </div>
+          </article>
+
+          <article class="card" id="analytics-sla">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-shield-check"></i> SLA Compliance</h3>
+              </div>
+              <span class="panel-badge">{{ slaCompliance.compliance_rate }}% compliant</span>
+            </div>
+            <p class="panel-helper">Pipeline SLA pressure indicates whether recruiter response time is threatening throughput.</p>
+            <div class="quality-list">
+              <div class="quality-row"><span>Active Pipeline</span><strong>{{ slaCompliance.active_pipeline }}</strong></div>
+              <div class="quality-row"><span>Breached</span><strong>{{ slaCompliance.breached }}</strong></div>
+              <div class="quality-row" *ngFor="let item of slaCompliance.breakdown">
+                <span>{{ item.label }}</span><strong>{{ item.count }}</strong>
+              </div>
+            </div>
+            <div class="card-actions" *ngIf="slaCompliance.breach_candidates?.length">
+              <button type="button" class="clear-btn" (click)="openSlaDetailsModal()">
+                <i class="ph ph-list-bullets"></i> View breached candidates
+              </button>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-star-four"></i> Interview Quality</h3>
+              </div>
+              <span class="panel-badge">{{ interviewQuality.evaluated }} evaluated</span>
+            </div>
+            <p class="panel-helper">Interview score distribution shows whether evaluation quality is concentrated or uneven.</p>
+            <div class="quality-list" *ngIf="qualityRows.length; else noQuality">
+              <div class="quality-row" *ngFor="let row of qualityRows">
+                <span>{{ row.label }}</span>
+                <strong>{{ row.value }}</strong>
+              </div>
+            </div>
+            <ng-template #noQuality><div class="empty premium-empty">No scored interviews available.</div></ng-template>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block section-supporting">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Supporting Intelligence</span>
+            <h3>AI observations and delivery metadata.</h3>
+          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card card-insights">
+            <div class="card-head">
+              <div>
+                <h3><i class="ph ph-lightbulb"></i> AI Observations</h3>
+              </div>
+              <span class="panel-badge">{{ analystInsightCards.length }}</span>
+            </div>
+            <p class="panel-helper">These observations synthesize existing analytics fields into faster executive interpretation.</p>
+            <div class="insight-header" *ngIf="analystInsightCards.length">
+              <span class="mini-label"><i class="ph ph-brain"></i> Analysis</span>
+              <span class="insight-header-copy">Decision-ready reading of the current hiring picture.</span>
+            </div>
+            <div class="insight-list" *ngIf="analystInsightCards.length; else noInsights">
+              <article class="insight-card" *ngFor="let item of analystInsightCards; let i = index">
+                <div class="insight-card-row">
+                  <span class="insight-index">0{{ i + 1 }}</span>
+                  <p>{{ item }}</p>
+                </div>
+              </article>
+            </div>
+            <ng-template #noInsights><div class="empty premium-empty">No insights generated yet.</div></ng-template>
+          </article>
+
+        </div>
+      </section>
+    </div>
+
+    <div class="analytics-modal-backdrop" *ngIf="showSlaDetailsModal" (click)="closeSlaDetailsModal()">
+      <div class="analytics-modal" role="dialog" aria-modal="true" aria-labelledby="sla-modal-title" (click)="$event.stopPropagation()">
+        <div class="analytics-modal-head">
+          <div>
+            <span class="eyebrow"><i class="ph ph-shield-check"></i> SLA Details</span>
+            <h3 id="sla-modal-title">Breached candidates</h3>
+            <p>{{ slaCompliance.breach_candidates.length }} candidates currently outside pipeline SLA.</p>
+          </div>
+          <button type="button" class="analytics-modal-close" (click)="closeSlaDetailsModal()" aria-label="Close SLA details">
+            <i class="ph ph-x"></i>
+          </button>
+        </div>
+
+        <div class="analytics-modal-summary">
+          <span class="meta-chip"><i class="ph ph-users"></i> Active pipeline {{ slaCompliance.active_pipeline }}</span>
+          <span class="meta-chip"><i class="ph ph-warning-circle"></i> Breached {{ slaCompliance.breached }}</span>
+          <span class="meta-chip"><i class="ph ph-check-circle"></i> Compliance {{ slaCompliance.compliance_rate }}%</span>
+        </div>
+
+        <div class="analytics-modal-table-wrap">
+          <table class="table analytics-modal-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Role</th>
+                <th>Breach Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of slaCompliance.breach_candidates">
+                <td>{{ item.candidate_name }}</td>
+                <td>{{ item.role || 'Unassigned role' }}</td>
+                <td>{{ item.breach_label }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
-      <button type="button" class="clear-btn" (click)="clearFilters()"><i class="ph ph-eraser"></i> Clear</button>
-    </div>
-    <div class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</div>
-    <div class="export-row">
-      <span><i class="ph ph-file-arrow-down"></i> Executive Snapshot</span>
-      <button type="button" class="clear-btn" (click)="exportSnapshot('csv')"><i class="ph ph-file-csv"></i> CSV</button>
-      <button type="button" class="clear-btn" (click)="exportSnapshot('json')"><i class="ph ph-brackets-curly"></i> JSON</button>
     </div>
 
-    <div class="summary-grid">
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-chats-teardrop"></i> Total Interviews</span>
-        <span class="value">{{ summary.total_interviews }}</span>
-      </article>
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-handshake"></i> Hires</span>
-        <span class="value">{{ summary.hires }}</span>
-      </article>
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-percent"></i> Hire Rate</span>
-        <span class="value">{{ summary.hire_rate }}%</span>
-      </article>
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-briefcase-metal"></i> Open Roles</span>
-        <span class="value">{{ summary.open_roles }}</span>
-      </article>
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-timer"></i> Avg Time-to-Hire</span>
-        <span class="value">{{ summary.avg_time_to_hire_days }}d</span>
-      </article>
-      <article class="summary-card">
-        <span class="label"><i class="ph ph-hourglass-medium"></i> Median Time-to-Hire</span>
-        <span class="value">{{ summary.median_time_to_hire_days }}d</span>
-      </article>
-    </div>
-
-    <div class="grid">
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-funnel"></i> Hiring Funnel Analytics</h3>
-        </div>
-        <div class="chart-wrap">
-          <canvas #funnelCanvas *ngIf="hasFunnelData; else noFunnel"></canvas>
-          <ng-template #noFunnel><div class="empty">No funnel data</div></ng-template>
-        </div>
-        <div class="conversion-list" *ngIf="funnel.conversions.length">
-          <div class="conversion-row" *ngFor="let c of funnel.conversions">
-            <span>{{ c.from }} → {{ c.to }}</span>
-            <strong>{{ c.rate }}%</strong>
+    <div class="analytics-modal-backdrop" *ngIf="showDropoffDetailsModal" (click)="closeDropoffDetailsModal()">
+      <div class="analytics-modal" role="dialog" aria-modal="true" aria-labelledby="dropoff-modal-title" (click)="$event.stopPropagation()">
+        <div class="analytics-modal-head">
+          <div>
+            <span class="eyebrow"><i class="ph ph-trend-down"></i> Drop-off Details</span>
+            <h3 id="dropoff-modal-title">Role-wise drop-off breakdown</h3>
+            <p>{{ dropoffAnalysis.by_role.length }} roles currently represented in drop-off analytics.</p>
           </div>
+          <button type="button" class="analytics-modal-close" (click)="closeDropoffDetailsModal()" aria-label="Close drop-off details">
+            <i class="ph ph-x"></i>
+          </button>
         </div>
-      </article>
 
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-timer"></i> Time-to-Hire Analytics</h3>
-          <span>Avg {{ timeToHire.avg_days }}d</span>
+        <div class="analytics-modal-summary">
+          <span class="meta-chip"><i class="ph ph-users-three"></i> Total drop-offs {{ dropoffAnalysis.total_dropoffs }}</span>
+          <span class="meta-chip"><i class="ph ph-x-circle"></i> Rejected {{ dropoffAnalysis.rejected }}</span>
+          <span class="meta-chip"><i class="ph ph-calendar-x"></i> No show {{ dropoffAnalysis.no_show }}</span>
+          <span class="meta-chip"><i class="ph ph-clock-countdown"></i> Timeout {{ dropoffAnalysis.screening_timeout }}</span>
         </div>
-        <div class="chart-wrap">
-          <canvas #tthCanvas *ngIf="hasTimeToHireTrend; else noTth"></canvas>
-          <ng-template #noTth><div class="empty">No time-to-hire trend</div></ng-template>
-        </div>
-      </article>
 
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-chart-donut"></i> Source Effectiveness</h3>
-        </div>
-        <div class="table-wrap" *ngIf="sourceEffectiveness.length; else noSource">
-          <table class="table">
+        <div class="analytics-modal-table-wrap">
+          <table class="table analytics-modal-table">
             <thead>
-              <tr><th>Source</th><th>Total</th><th>Hired</th><th>Conv</th></tr>
+              <tr>
+                <th>Role</th>
+                <th>Drop-offs</th>
+                <th>Drop Rate</th>
+              </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of sourceEffectiveness | slice:0:8">
-                <td>{{ row.source }}</td>
-                <td>{{ row.total }}</td>
-                <td>{{ row.hired }}</td>
-                <td>{{ row.conversion }}%</td>
+              <tr *ngFor="let item of dropoffAnalysis.by_role">
+                <td>{{ item.role }}</td>
+                <td>{{ item.dropoffs }}</td>
+                <td>{{ item.drop_rate }}%</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <ng-template #noSource><div class="empty">No source data</div></ng-template>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-identification-card"></i> Recruiter Performance</h3>
-        </div>
-        <div class="table-wrap" *ngIf="recruiterPerformance.length; else noRecruiterPerf">
-          <table class="table">
-            <thead>
-              <tr><th>Recruiter</th><th>Interviews</th><th>Hired</th><th>Conv</th></tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of recruiterPerformance | slice:0:8">
-                <td>{{ row.name }}</td>
-                <td>{{ row.interviews }}</td>
-                <td>{{ row.hired }}</td>
-                <td>{{ row.conversion }}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <ng-template #noRecruiterPerf><div class="empty">No recruiter performance data</div></ng-template>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-heartbeat"></i> Role Health</h3>
-        </div>
-        <div class="table-wrap" *ngIf="roleHealth.length; else noRoleHealth">
-          <table class="table">
-            <thead>
-              <tr><th>Role</th><th>Filled/Target</th><th>Pipeline</th><th>Risk</th></tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of roleHealth | slice:0:8">
-                <td>{{ row.role }}</td>
-                <td>{{ row.filled }}/{{ row.target }}</td>
-                <td>{{ row.pipeline }}</td>
-                <td>{{ row.risk }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <ng-template #noRoleHealth><div class="empty">No role health data</div></ng-template>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-star-four"></i> Interview Quality</h3>
-          <span>{{ interviewQuality.evaluated }} evaluated</span>
-        </div>
-        <div class="quality-list" *ngIf="qualityRows.length; else noQuality">
-          <div class="quality-row" *ngFor="let row of qualityRows">
-            <span>{{ row.label }}</span>
-            <strong>{{ row.value }}</strong>
-          </div>
-        </div>
-        <ng-template #noQuality><div class="empty">No scored interviews</div></ng-template>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-trend-down"></i> Drop-off Analysis</h3>
-          <span>{{ dropoffAnalysis.total_dropoffs }} total</span>
-        </div>
-        <div class="quality-list">
-          <div class="quality-row"><span>Rejected</span><strong>{{ dropoffAnalysis.rejected }}</strong></div>
-          <div class="quality-row"><span>Cancelled</span><strong>{{ dropoffAnalysis.cancelled }}</strong></div>
-          <div class="quality-row"><span>No Show</span><strong>{{ dropoffAnalysis.no_show }}</strong></div>
-          <div class="quality-row"><span>Screening Timeout</span><strong>{{ dropoffAnalysis.screening_timeout }}</strong></div>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-seal-check"></i> Offer & Acceptance</h3>
-          <span>{{ offerAcceptance.acceptance_rate }}% accepted</span>
-        </div>
-        <div class="quality-list">
-          <div class="quality-row"><span>Offers Made</span><strong>{{ offerAcceptance.offers_made }}</strong></div>
-          <div class="quality-row"><span>Accepted</span><strong>{{ offerAcceptance.offers_accepted }}</strong></div>
-          <div class="quality-row"><span>Pending</span><strong>{{ offerAcceptance.offers_pending }}</strong></div>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-shield-check"></i> SLA Compliance</h3>
-          <span>{{ slaCompliance.compliance_rate }}% compliant</span>
-        </div>
-        <div class="quality-list">
-          <div class="quality-row"><span>Active Pipeline</span><strong>{{ slaCompliance.active_pipeline }}</strong></div>
-          <div class="quality-row"><span>Breached</span><strong>{{ slaCompliance.breached }}</strong></div>
-          <div class="quality-row" *ngFor="let item of slaCompliance.breakdown">
-            <span>{{ item.label }}</span><strong>{{ item.count }}</strong>
-          </div>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-lightbulb"></i> Executive Insights</h3>
-          <span>{{ executiveInsights.length }}</span>
-        </div>
-        <div class="quality-list" *ngIf="executiveInsights.length; else noInsights">
-          <div class="quality-row" *ngFor="let item of executiveInsights">
-            <span>{{ item }}</span>
-          </div>
-        </div>
-        <ng-template #noInsights><div class="empty">No insights generated</div></ng-template>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-target"></i> Forecast vs Target</h3>
-          <span>Gap {{ forecastVsTarget.expected_gap_next_month }}</span>
-        </div>
-        <div class="quality-list">
-          <div class="quality-row"><span>Current Target</span><strong>{{ forecastVsTarget.current_target }}</strong></div>
-          <div class="quality-row"><span>Current Hired</span><strong>{{ forecastVsTarget.current_hired }}</strong></div>
-          <div class="quality-row"><span>Monthly Target</span><strong>{{ forecastVsTarget.monthly_target }}</strong></div>
-          <div class="quality-row" *ngFor="let lbl of forecastVsTarget.next_labels; let i = index">
-            <span>{{ lbl }}</span><strong>{{ forecastVsTarget.projected_hires[i] }}</strong>
-          </div>
-        </div>
-        <div class="empty" *ngIf="forecastVsTarget.projection_basis">{{ forecastVsTarget.projection_basis }}</div>
-      </article>
-
-      <article class="card">
-        <div class="card-head">
-          <h3><i class="ph ph-warning-diamond"></i> Anomaly Flags</h3>
-          <span>{{ anomalyFlags.length }}</span>
-        </div>
-        <div class="quality-list" *ngIf="anomalyFlags.length; else noFlags">
-          <div class="quality-row" *ngFor="let f of anomalyFlags">
-            <span><b>{{ f.title }}</b><br/>{{ f.detail }}</span>
-          </div>
-        </div>
-        <ng-template #noFlags><div class="empty">No anomalies detected</div></ng-template>
-      </article>
+      </div>
     </div>
-  </div>
   </ng-template>
 </section>

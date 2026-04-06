@@ -47,6 +47,10 @@ export class RoleDetail {
     return id ? `${roleName} - ${id}` : roleName;
   }
 
+  get initialRoleLoading(): boolean {
+    return this.loading && !this.roleDetails && !this.errorMessage;
+  }
+
 closeModal() {
     this.dialogRef.close();
   }
