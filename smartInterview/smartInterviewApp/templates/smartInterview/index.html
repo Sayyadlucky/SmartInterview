@@ -14,52 +14,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260407a">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260407g">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
-  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260407a"></script>
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260407f"></script>
 </head>
 <body class="landing-page">
-  <div id="preloader" aria-hidden="true">
-    <div class="loader-mark">
-      <div class="shortlistii-logo" aria-label="shortlistii.com">
-        <span class="logo-text">shortlist</span>
-        <span class="logo-ii" aria-hidden="true">
-          <span class="person">
-            <span class="head"></span>
-            <span class="body"></span>
-            <span class="tie"></span>
-          </span>
-          <span class="person">
-            <span class="head"></span>
-            <span class="body"></span>
-            <span class="tie"></span>
-          </span>
-        </span>
-      </div>
-    </div>
-    <div class="loader-bar"><span></span></div>
-  </div>
-
-  <div id="scene3d" aria-hidden="true"></div>
   <canvas id="particles" aria-hidden="true"></canvas>
   <div class="vignette"></div>
-  <div class="spotlight"></div>
-  <div class="light-beam beam-a"></div>
-  <div class="light-beam beam-b"></div>
-  <div class="atmo haze-1"></div>
-  <div class="atmo haze-2"></div>
-  <div class="noise-layer"></div>
 
   <header id="mainHeader">
     <div class="header-shell">
@@ -115,6 +79,13 @@
 
   <main>
     <section id="hero" class="hero">
+      <div class="hero-backdrop" aria-hidden="true">
+        <span class="hero-glow hero-glow-a"></span>
+        <span class="hero-glow hero-glow-b"></span>
+        <span class="hero-beam hero-beam-a"></span>
+        <span class="hero-beam hero-beam-b"></span>
+        <span class="hero-grid"></span>
+      </div>
       <div class="hero-orbits" aria-hidden="true">
         <span class="orbit orbit-a"></span>
         <span class="orbit orbit-b"></span>
@@ -123,7 +94,7 @@
 
       <div class="hero-layout">
         <div class="hero-copy">
-          <p class="eyebrow">AI Hiring Intelligence Platform</p>
+          <p class="eyebrow">AI Hiring Platform For Recruiters</p>
           <div class="wordmark shortlistii-wordmark hero-wordmark" aria-label="shortlistii.com">
             <span class="logo-text">shortlist</span>
             <span class="logo-ii" aria-hidden="true">
@@ -145,10 +116,10 @@
               <span>m</span>
             </span>
           </div>
-          <h1 class="hero-title">Hire smarter with AI-powered candidate intelligence.</h1>
+          <h1 class="hero-title">Hire faster with AI-powered candidate ranking and recruiter visibility.</h1>
           <p class="subtitle hero-subtitle">
-            Shortlistii helps recruiters and hiring teams shortlist faster, run structured interviews,
-            surface recruiter analytics, and make better hiring decisions from one connected platform.
+            Shortlistii helps hiring teams reduce manual screening, prioritize stronger-fit candidates,
+            streamline interviews, and track hiring performance from one structured workflow.
           </p>
 
           <div class="hero-actions hero-cta">
@@ -158,16 +129,16 @@
               data-scroll-target="#platform-overview"
               class="btn btn-primary"
             >
-              Explore Platform
+              Start Hiring Smarter
             </a>
-            <button type="button" class="btn btn-outline" data-open-login>Open Sign In</button>
+            <a href="{% host_link request 'marketing_jobs' %}" class="btn btn-outline">View Open Roles</a>
           </div>
 
           <div class="hero-link-row">
-            <a href="{% host_link request 'marketing_jobs' %}" class="hero-inline-link">
-              <i class="ph ph-briefcase"></i>
-              Browse Jobs
-            </a>
+            <button type="button" class="hero-inline-link hero-inline-button" data-open-login>
+              <i class="ph ph-sign-in"></i>
+              Recruiter Sign In
+            </button>
             <a href="{% host_link request 'marketing_candidate_login' %}" class="hero-inline-link">
               <i class="ph ph-user-circle"></i>
               Candidate Portal
@@ -182,92 +153,133 @@
           </div>
         </div>
 
-        <article class="hero-panel hero-stats glass-card tilt-card" aria-label="Platform preview">
-          <div class="hero-panel__top">
-            <div>
-              <p class="hero-panel__eyebrow">Platform Snapshot</p>
-              <h2>AI-assisted shortlisting with workflow visibility</h2>
+        <div class="hero-visual" aria-label="Product preview">
+          <article class="hero-visual-window glass-card">
+            <div class="hero-visual-window__bar">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
-            <span class="hero-panel__status">
-              <span class="live-dot"></span>
-              Live workspace
-            </span>
-          </div>
-
-          <div class="hero-panel__signal-grid">
-            <article class="signal-card">
-              <span class="signal-card__label">AI shortlist</span>
-              <strong>Rank candidates by fit, role context, and resume signals</strong>
-              <p>Reduce manual screening and surface stronger-fit profiles faster.</p>
+            <div class="hero-visual-window__top">
+              <div>
+                <p class="hero-panel__eyebrow">AI Recruiter Workspace</p>
+                <h2>Shortlist, interview, and decision signals in one cleaner view.</h2>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Live view
+              </span>
+            </div>
+            <div class="hero-visual-window__metrics">
+              <article class="hero-mini-metric">
+                <span>Top shortlist</span>
+                <strong>5 high-fit candidates</strong>
+              </article>
+              <article class="hero-mini-metric">
+                <span>Interviews this week</span>
+                <strong>4 scheduled</strong>
+              </article>
+              <article class="hero-mini-metric">
+                <span>Decision-ready</span>
+                <strong>2 profiles</strong>
+              </article>
+            </div>
+            <div class="hero-visual-window__board">
+              <section class="hero-mini-panel">
+                <div class="preview-card__header">
+                  <span>Ranking</span>
+                  <span>Live shortlist</span>
+                </div>
+                <div class="hero-mini-list">
+                  <article>
+                    <strong>Aarav Mehta</strong>
+                    <span>94 fit score</span>
+                  </article>
+                  <article>
+                    <strong>Riya Nair</strong>
+                    <span>89 fit score</span>
+                  </article>
+                  <article>
+                    <strong>Neil Thomas</strong>
+                    <span>86 fit score</span>
+                  </article>
+                </div>
+              </section>
+              <section class="hero-mini-panel">
+                <div class="preview-card__header">
+                  <span>Activity</span>
+                  <span>Recruiter feed</span>
+                </div>
+                <div class="hero-mini-timeline">
+                  <div><span class="overlay-activity-dot"></span><strong>Shortlist refreshed</strong></div>
+                  <div><span class="overlay-activity-dot"></span><strong>Panel interviews confirmed</strong></div>
+                  <div><span class="overlay-activity-dot"></span><strong>Analytics updated</strong></div>
+                </div>
+              </section>
+            </div>
+          </article>
+          <div class="hero-floating-row">
+            <article class="hero-floating-card hero-floating-card--ranking preview-card">
+              <p class="hero-overlay-card__label">AI candidate ranking</p>
+              <strong>Prioritize stronger-fit profiles faster</strong>
+              <div class="hero-floating-bar"><span style="width: 82%"></span></div>
             </article>
-            <article class="signal-card">
-              <span class="signal-card__label">Interview flow</span>
-              <strong>Coordinate recruiter, interviewer, and evaluation steps</strong>
-              <p>Keep decisions structured instead of scattered across spreadsheets and messages.</p>
+            <article class="hero-floating-card hero-floating-card--activity preview-card">
+              <p class="hero-overlay-card__label">Recruiter signal</p>
+              <strong>2 profiles are ready for final review</strong>
             </article>
           </div>
-
-          <div class="hero-panel__preview-grid">
-            <section class="preview-card preview-card--pipeline">
-              <div class="preview-card__header">
-                <span>Hiring Pipeline</span>
-                <span>Role intelligence</span>
-              </div>
-              <div class="pipeline-lanes">
-                <div class="pipeline-lane">
-                  <span>Applied</span>
-                  <div class="pipeline-lane__bar"><span style="width: 92%"></span></div>
-                </div>
-                <div class="pipeline-lane">
-                  <span>AI Shortlisted</span>
-                  <div class="pipeline-lane__bar"><span style="width: 68%"></span></div>
-                </div>
-                <div class="pipeline-lane">
-                  <span>Interviews</span>
-                  <div class="pipeline-lane__bar"><span style="width: 52%"></span></div>
-                </div>
-                <div class="pipeline-lane">
-                  <span>Decision Ready</span>
-                  <div class="pipeline-lane__bar"><span style="width: 38%"></span></div>
-                </div>
-              </div>
-            </section>
-
-            <section class="preview-card preview-card--feed">
-              <div class="preview-card__header">
-                <span>Decision Feed</span>
-                <span>Recruiter view</span>
-              </div>
-              <ul class="decision-feed">
-                <li>
-                  <strong>Candidate ranking refreshed</strong>
-                  <span>AI reprioritized the shortlist for the current role.</span>
-                </li>
-                <li>
-                  <strong>Interview feedback consolidated</strong>
-                  <span>Evaluator notes and scores are ready for review.</span>
-                </li>
-                <li>
-                  <strong>Analytics updated</strong>
-                  <span>Pipeline bottlenecks and recruiter visibility surfaced in one view.</span>
-                </li>
-              </ul>
-            </section>
-          </div>
-        </article>
+        </div>
       </div>
 
-      <a href="#positioning-strip" class="scroll-indicator" aria-label="Scroll to platform positioning">
-        <span>Scroll</span>
-        <i class="ph ph-arrow-down"></i>
-      </a>
+    </section>
+
+    <section class="hiring-flow-section reveal-up" aria-label="Hiring flow overview">
+      <div class="hiring-flow-strip glass-card">
+        <div class="hiring-flow-strip__top">
+          <p class="hero-panel__eyebrow">Hiring Flow</p>
+          <span>From intake to hiring intelligence</span>
+        </div>
+        <div class="hiring-flow-track" role="list" aria-label="Shortlistii workflow">
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-file-text"></i>
+            </span>
+            <span class="hiring-flow-label">Resume</span>
+          </div>
+          <div class="hiring-flow-step is-active" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-sparkle"></i>
+            </span>
+            <span class="hiring-flow-label">AI Ranking</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-chats-circle"></i>
+            </span>
+            <span class="hiring-flow-label">Interview</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-check-circle"></i>
+            </span>
+            <span class="hiring-flow-label">Hiring Decision</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-chart-line-up"></i>
+            </span>
+            <span class="hiring-flow-label">Analytics</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="positioning-strip" class="positioning-strip reveal-up">
       <div class="positioning-strip__inner glass-card">
         <div>
           <p class="eyebrow">Built For Serious Hiring Teams</p>
-          <h2>One AI hiring intelligence layer for recruiters, interviewers, and decision-makers.</h2>
+          <h2>AI shortlisting, interview workflows, and recruiter analytics in one hiring workflow.</h2>
         </div>
         <div class="positioning-strip__chips" aria-label="Target users">
           <span>Recruiters</span>
@@ -283,29 +295,29 @@
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
         <p>How It Works</p>
-        <h2>Move from incoming applications to confident hiring decisions in four clear stages.</h2>
+        <h2>Move from applications to shortlist, interviews, and decisions in four clear stages.</h2>
       </div>
 
       <div class="workflow-grid">
         <article class="workflow-card glass-card reveal-up">
           <span class="badge">01</span>
           <h3>Collect candidates and role demand</h3>
-          <p>Bring applications, open roles, recruiter ownership, and candidate context into one operational workflow.</p>
+          <p>Collect applications, role context, and recruiter ownership in one place instead of scattered tools.</p>
         </article>
         <article class="workflow-card glass-card reveal-up">
           <span class="badge">02</span>
           <h3>Let AI prioritize the strongest fits</h3>
-          <p>Use AI-assisted ranking and talent search to reduce resume overload and accelerate shortlisting.</p>
+          <p>Use AI ranking and search to reduce manual screening and surface stronger-fit candidates faster.</p>
         </article>
         <article class="workflow-card glass-card reveal-up">
           <span class="badge">03</span>
           <h3>Run structured interview workflows</h3>
-          <p>Coordinate interviews, evaluations, and feedback with clearer ownership across recruiters and interviewers.</p>
+          <p>Coordinate interviews, evaluations, and feedback with a cleaner process for recruiters and interviewers.</p>
         </article>
         <article class="workflow-card glass-card reveal-up">
           <span class="badge">04</span>
           <h3>Use analytics to guide final decisions</h3>
-          <p>Track pipeline health, recruiter activity, and hiring trends so teams can act with better visibility.</p>
+          <p>Track pipeline health, recruiter activity, and hiring performance to support faster decisions.</p>
         </article>
       </div>
     </section>
@@ -314,7 +326,7 @@
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
         <p>AI Capabilities</p>
-        <h2>Concrete platform capabilities designed for faster, better hiring execution.</h2>
+        <h2>Capabilities that help teams rank candidates faster and improve hiring visibility.</h2>
       </div>
 
       <div class="cards-grid landing-feature-grid">
@@ -336,7 +348,7 @@
         <article class="feature-card glass-card tilt-card reveal-up">
           <i class="ph ph-chart-line-up"></i>
           <h3>Recruiter Analytics</h3>
-          <p>Track hiring momentum, pipeline bottlenecks, and recruiter performance from a central analytics layer.</p>
+          <p>Track recruiter activity, bottlenecks, and hiring progress with clearer pipeline visibility.</p>
         </article>
         <article class="feature-card glass-card tilt-card reveal-up">
           <i class="ph ph-list-checks"></i>
@@ -349,84 +361,395 @@
     <section id="platform-overview" class="section visuals">
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
-        <p>Product Showcase</p>
-        <h2>See the platform as a connected command center for hiring intelligence.</h2>
+        <p>Inside the Platform</p>
+        <h2>Explore a focused product tour across ranking, interviews, recruiter activity, and hiring analytics.</h2>
       </div>
 
-      <div class="showcase-shell" id="ai-visuals">
-        <div class="showcase-copy glass-card reveal-up">
-          <h3>Operational clarity across shortlisting, interviews, and analytics</h3>
-          <p>
-            The platform experience is built to help hiring teams move from candidate intake to final decision
-            without jumping across disconnected tools. Recruiters get ranking and workflow control, while leadership
-            gets a clearer read on pipeline performance.
-          </p>
-          <ul class="showcase-points">
-            <li>Role-level AI shortlists with recruiter-ready prioritization</li>
-            <li>Interview pipeline views with structured evaluation checkpoints</li>
-            <li>Analytics surfaces that expose bottlenecks and recruiter visibility</li>
-            <li>Candidate and public jobs flows connected to the same hiring system</li>
-          </ul>
+      <div class="platform-tour-shell" id="ai-visuals">
+        <div class="platform-tour-nav glass-card reveal-up">
+          <div class="platform-tour-nav__intro">
+            <p class="eyebrow">Platform Snapshot</p>
+            <h3>See one focused hiring workflow at a time.</h3>
+            <p>
+              Move through the platform the way recruiters do: shortlist candidates, coordinate interviews,
+              monitor activity, and review hiring performance with less manual work.
+            </p>
+          </div>
+
+          <div class="platform-tour-tabs" role="tablist" aria-label="Platform tour">
+            <button
+              type="button"
+              class="platform-tour-tab is-active"
+              id="platform-tab-ranking"
+              data-platform-tab="ranking"
+              role="tab"
+              aria-selected="true"
+              aria-controls="platform-panel-ranking"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-stack"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>AI Candidate Ranking</strong>
+                <span>Prioritize stronger-fit profiles faster.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="platform-tour-tab"
+              id="platform-tab-workflow"
+              data-platform-tab="workflow"
+              role="tab"
+              aria-selected="false"
+              aria-controls="platform-panel-workflow"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-flow-arrow"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>Interview Workflow</strong>
+                <span>Keep interviews structured and decision-ready.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="platform-tour-tab"
+              id="platform-tab-activity"
+              data-platform-tab="activity"
+              role="tab"
+              aria-selected="false"
+              aria-controls="platform-panel-activity"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-pulse"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>Recruiter Activity</strong>
+                <span>Track recruiter momentum and follow-up signals.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="platform-tour-tab"
+              id="platform-tab-analytics"
+              data-platform-tab="analytics"
+              role="tab"
+              aria-selected="false"
+              aria-controls="platform-panel-analytics"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-chart-line-up"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>Hiring Analytics</strong>
+                <span>See where pipeline speed and quality are shifting.</span>
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div class="showcase-visual reveal-up">
-          <article class="showcase-window showcase-window--main glass-card tilt-card">
-            <div class="window-bar">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <div class="workspace-header">
+        <div class="platform-tour-stage reveal-up">
+          <article
+            class="platform-tour-panel glass-card is-active"
+            id="platform-panel-ranking"
+            data-platform-panel="ranking"
+            role="tabpanel"
+            aria-labelledby="platform-tab-ranking"
+          >
+            <div class="platform-tour-panel__top">
               <div>
-                <p>Hiring Intelligence Workspace</p>
-                <h3>Recruiter dashboard overview</h3>
+                <p class="hero-panel__eyebrow">AI Candidate Ranking</p>
+                <h3>Shortlist better-fit candidates with clearer ranking signals.</h3>
+                <p>
+                  Surface the strongest profiles faster with fit scoring, shortlist movement, and clear next-stage visibility.
+                </p>
               </div>
-              <span class="workspace-chip">AI-first workflow</span>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Live shortlist
+              </span>
             </div>
 
-            <div class="workspace-grid">
-              <section class="workspace-panel">
-                <div class="workspace-panel__header">
-                  <span>Role pipeline</span>
-                  <strong>Current shortlist</strong>
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Candidate ranking</span>
+                  <span>Top shortlist</span>
                 </div>
-                <div class="candidate-stack">
-                  <article>
-                    <strong>Product Designer</strong>
-                    <span>AI shortlist refreshed for current requirements</span>
+                <div class="ranking-list">
+                  <article class="ranking-item">
+                    <div>
+                      <strong>Aarav Mehta</strong>
+                      <span>Senior Product Designer</span>
+                    </div>
+                    <div class="ranking-item__score">
+                      <span class="ranking-score">94</span>
+                      <small>Fit</small>
+                    </div>
+                    <div class="ranking-item__bar"><span style="width: 94%"></span></div>
                   </article>
-                  <article>
-                    <strong>Data Analyst</strong>
-                    <span>Interview coordination and evaluator notes aligned</span>
+                  <article class="ranking-item">
+                    <div>
+                      <strong>Riya Nair</strong>
+                      <span>Product Designer</span>
+                    </div>
+                    <div class="ranking-item__score">
+                      <span class="ranking-score">89</span>
+                      <small>Fit</small>
+                    </div>
+                    <div class="ranking-item__bar"><span style="width: 89%"></span></div>
                   </article>
-                  <article>
-                    <strong>Backend Engineer</strong>
-                    <span>Decision-ready profiles surfaced with stronger recruiter context</span>
+                  <article class="ranking-item">
+                    <div>
+                      <strong>Neil Thomas</strong>
+                      <span>UX Researcher</span>
+                    </div>
+                    <div class="ranking-item__score">
+                      <span class="ranking-score">86</span>
+                      <small>Fit</small>
+                    </div>
+                    <div class="ranking-item__bar"><span style="width: 86%"></span></div>
                   </article>
+                </div>
+                <div class="pipeline-stage-strip" aria-label="Pipeline stages">
+                  <span class="pipeline-stage pipeline-stage--complete">Applied</span>
+                  <span class="pipeline-stage pipeline-stage--complete">Ranked</span>
+                  <span class="pipeline-stage pipeline-stage--active">Interviews</span>
+                  <span class="pipeline-stage">Decision</span>
                 </div>
               </section>
 
-              <section class="workspace-panel">
-                <div class="workspace-panel__header">
-                  <span>Interview readiness</span>
-                  <strong>Evaluation workflow</strong>
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Ranking confidence</span>
+                  <strong>Top 3 profiles aligned for final review</strong>
                 </div>
-                <div class="insight-lines">
-                  <div><span>Feedback coverage</span><strong>Structured panel input</strong></div>
-                  <div><span>Pending actions</span><strong>Recruiter follow-up queue</strong></div>
-                  <div><span>Decision support</span><strong>Analytics-backed next steps</strong></div>
-                </div>
-              </section>
+                <ul class="platform-tour-bullets">
+                  <li>Reduce manual screening by ranking applicants against role fit.</li>
+                  <li>Highlight shortlist-ready profiles before recruiters lose momentum.</li>
+                  <li>Keep stage movement visible from application through decision.</li>
+                </ul>
+              </aside>
             </div>
           </article>
 
-          <article class="showcase-window showcase-window--side glass-card tilt-card">
-            <p class="showcase-mini-label">Analytics layer</p>
-            <h3>Recruiter visibility, source performance, and pipeline intelligence</h3>
-            <div class="metric-rows">
-              <div><span>Time-to-hire visibility</span><strong>Stage-level tracking</strong></div>
-              <div><span>Recruiter insights</span><strong>Operational performance trends</strong></div>
-              <div><span>Source effectiveness</span><strong>Candidate flow quality signals</strong></div>
+          <article
+            class="platform-tour-panel glass-card"
+            id="platform-panel-workflow"
+            data-platform-panel="workflow"
+            role="tabpanel"
+            aria-labelledby="platform-tab-workflow"
+            hidden
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">Interview Workflow</p>
+                <h3>Move from screening to final review with less coordination overhead.</h3>
+                <p>
+                  Keep each interview stage visible, evaluator coverage clear, and final review steps easier to manage.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                In progress
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Interview workflow</span>
+                  <span>Recruiter view</span>
+                </div>
+                <div class="workflow-status-list">
+                  <article class="workflow-status-item workflow-status-item--active">
+                    <span class="workflow-status-item__dot"></span>
+                    <div>
+                      <strong>Screening complete</strong>
+                      <span>12 candidates reviewed and 5 moved forward</span>
+                    </div>
+                    <span class="workflow-status-tag">Today</span>
+                  </article>
+                  <article class="workflow-status-item">
+                    <span class="workflow-status-item__dot"></span>
+                    <div>
+                      <strong>Panel interviews</strong>
+                      <span>4 interviews scheduled with evaluator coverage</span>
+                    </div>
+                    <span class="workflow-status-tag">Next</span>
+                  </article>
+                  <article class="workflow-status-item">
+                    <span class="workflow-status-item__dot"></span>
+                    <div>
+                      <strong>Evaluation summary</strong>
+                      <span>2 profiles ready for final decision review</span>
+                    </div>
+                    <span class="workflow-status-tag">Ready</span>
+                  </article>
+                </div>
+                <div class="workflow-alert-rail">
+                  <span class="workflow-alert-chip">Evaluator coverage confirmed</span>
+                  <span class="workflow-alert-chip">Feedback sync active</span>
+                  <span class="workflow-alert-chip">Final review queue ready</span>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Interview readiness</span>
+                  <strong>4 interviews scheduled with complete panel coverage</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Structure interviewer handoff without losing stage context.</li>
+                  <li>Keep evaluation checkpoints visible for recruiters and hiring managers.</li>
+                  <li>Reduce back-and-forth before final decision conversations.</li>
+                </ul>
+              </aside>
+            </div>
+          </article>
+
+          <article
+            class="platform-tour-panel glass-card"
+            id="platform-panel-activity"
+            data-platform-panel="activity"
+            role="tabpanel"
+            aria-labelledby="platform-tab-activity"
+            hidden
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">Recruiter Activity</p>
+                <h3>See recruiter follow-through, alerts, and candidate movement in one feed.</h3>
+                <p>
+                  Stay on top of shortlist refreshes, interview readiness, and active follow-up work without jumping across tools.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Team activity
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Recruiter activity</span>
+                  <span>Live feed</span>
+                </div>
+                <div class="overlay-activity-list">
+                  <div>
+                    <span class="overlay-activity-dot"></span>
+                    <div>
+                      <strong>Shortlist refreshed for Product Designer</strong>
+                      <span>2 min ago</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="overlay-activity-dot"></span>
+                    <div>
+                      <strong>2 interview panels confirmed for tomorrow</strong>
+                      <span>18 min ago</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="overlay-activity-dot"></span>
+                    <div>
+                      <strong>Source quality trend updated for current roles</strong>
+                      <span>1 hr ago</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="hero-panel__signal-row">
+                  <span class="hero-signal-chip hero-signal-chip--active">3 live updates</span>
+                  <span class="hero-signal-chip">Follow-up on track</span>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Recruiter momentum</span>
+                  <strong>Follow-up activity is staying ahead of interview demand</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Track recruiter activity without relying on inbox checks and ad hoc updates.</li>
+                  <li>Flag shortlist refreshes and interview confirmations as they happen.</li>
+                  <li>Keep candidate movement visible for the full hiring team.</li>
+                </ul>
+              </aside>
+            </div>
+          </article>
+
+          <article
+            class="platform-tour-panel glass-card"
+            id="platform-panel-analytics"
+            data-platform-panel="analytics"
+            role="tabpanel"
+            aria-labelledby="platform-tab-analytics"
+            hidden
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">Hiring Analytics</p>
+                <h3>Track pipeline speed, recruiter output, and source quality with clearer signals.</h3>
+                <p>
+                  Give recruiters and hiring teams a faster read on where hiring is moving well and where friction is building.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Weekly view
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Hiring analytics</span>
+                  <span>Weekly view</span>
+                </div>
+                <div class="analytics-mini-grid">
+                  <div class="analytics-mini-card">
+                    <span>Pipeline visibility</span>
+                    <strong>Track stage progress by role</strong>
+                    <div class="mini-chart">
+                      <span style="height: 48%"></span>
+                      <span style="height: 68%"></span>
+                      <span style="height: 60%"></span>
+                      <span style="height: 84%"></span>
+                      <span style="height: 72%"></span>
+                    </div>
+                  </div>
+                  <div class="analytics-mini-card">
+                    <span>Recruiter activity</span>
+                    <strong>See follow-up and response momentum</strong>
+                    <div class="mini-chart">
+                      <span style="height: 36%"></span>
+                      <span style="height: 52%"></span>
+                      <span style="height: 74%"></span>
+                      <span style="height: 66%"></span>
+                      <span style="height: 82%"></span>
+                    </div>
+                  </div>
+                  <div class="analytics-mini-card">
+                    <span>Time-to-hire friction</span>
+                    <strong>Spot slowdowns before they impact hiring</strong>
+                    <div class="mini-chart">
+                      <span style="height: 80%"></span>
+                      <span style="height: 64%"></span>
+                      <span style="height: 56%"></span>
+                      <span style="height: 42%"></span>
+                      <span style="height: 34%"></span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Decision support</span>
+                  <strong>Pipeline friction is down while shortlist quality remains stable</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Monitor time-to-hire friction before it slows recruiter throughput.</li>
+                  <li>Compare hiring momentum across roles, stages, and recruiter activity.</li>
+                  <li>Give teams better decision support with clearer performance visibility.</li>
+                </ul>
+              </aside>
             </div>
           </article>
         </div>
@@ -437,16 +760,16 @@
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
         <p>Recruiter Analytics</p>
-        <h2>Give hiring teams the visibility they need to move faster with more confidence.</h2>
+        <h2>Give hiring teams clearer visibility into speed, bottlenecks, and recruiter performance.</h2>
       </div>
 
       <div class="analytics-layout">
         <article class="analytics-spotlight glass-card reveal-up">
           <div class="analytics-spotlight__copy">
-            <h3>Analytics that support recruiter performance and better hiring decisions</h3>
+            <h3>Analytics that help teams reduce time-to-hire friction</h3>
             <p>
-              Shortlistii is positioned as more than an interview workflow tool. It helps hiring teams understand
-              where speed, quality, and conversion are improving or getting blocked across the pipeline.
+              Understand where hiring is slowing down, where recruiters need follow-up support,
+              and which sources are producing stronger-fit candidates.
             </p>
           </div>
           <div class="analytics-spotlight__grid">
@@ -475,7 +798,7 @@
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
         <p>Problem vs Solution</p>
-        <h2>Replace fragmented hiring operations with a more intelligent and structured system.</h2>
+        <h2>Replace fragmented hiring operations with a cleaner and more structured process.</h2>
       </div>
 
       <div class="comparison-grid">
@@ -490,11 +813,11 @@
           </ul>
         </article>
         <article class="comparison-card comparison-card--solution glass-card reveal-up">
-          <h3>SmartInterview with AI-powered hiring intelligence</h3>
+          <h3>SmartInterview with AI-powered hiring workflows</h3>
           <ul>
             <li>AI-assisted ranking helps teams focus on stronger-fit candidates earlier.</li>
             <li>Structured workflows keep recruiter, interviewer, and decision steps aligned.</li>
-            <li>Interview insights and evaluation signals stay in one operating layer.</li>
+            <li>Interview insights and evaluation signals stay in one workflow.</li>
             <li>Analytics expose recruiter performance, source quality, and pipeline health.</li>
             <li>Teams can move faster with clearer context and more consistent decision support.</li>
           </ul>
@@ -507,15 +830,15 @@
       <div class="final-cta glass-card reveal-up">
         <div class="final-cta__copy">
           <p class="eyebrow">Smarter Hiring Starts Here</p>
-          <h2>Upgrade your hiring workflow from interview admin to AI-powered hiring intelligence.</h2>
+          <h2>Reduce screening time, streamline interviews, and improve hiring visibility.</h2>
           <p>
-            Use Shortlistii to shortlist with more confidence, structure interview execution,
-            and give recruiters better visibility into hiring performance.
+            Use Shortlistii to rank candidates faster, keep interview execution structured,
+            and help recruiters act with clearer pipeline visibility.
           </p>
         </div>
         <div class="final-cta__actions">
-          <button type="button" id="contactSignInBtn" class="btn btn-primary">Open Sign In</button>
-          <a href="{% url 'jobs-portal' %}" class="btn btn-outline">Browse Jobs</a>
+          <button type="button" id="contactSignInBtn" class="btn btn-primary">Get Started</button>
+          <a href="{% url 'jobs-portal' %}" class="btn btn-outline">View Open Roles</a>
           <a href="{% host_link request 'marketing_candidate_login' %}" class="btn btn-ghost">Candidate Portal</a>
         </div>
       </div>
