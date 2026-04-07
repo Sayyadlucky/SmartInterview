@@ -59,9 +59,17 @@ def resolve_login_identifier(identifier: str) -> str:
 
 
 def get_post_login_redirect_url(request, user) -> str:
-    profile = getattr(user, 'profile', None)
-    if profile and profile.role == 'candidate':
-        return build_host_link(request, 'candidates')
+    try:
+        profile = getattr(user, 'profile', None)
+    except Exception:
+        profile = None
+
+    try:
+        if profile and profile.role == 'candidate':
+            return build_host_link(request, 'candidates')
+    except Exception:
+        return '/dashboard/'
+
     return '/dashboard/'
 
 
@@ -95,6 +103,91 @@ def home(request):
         form = LoginForm()
     return render(request, 'smartInterview/index.html', {'form': form})
 
+
+def _get_error_page_actions(request) -> tuple[dict[str, str], dict[str, str]]:
+    subdomain = getattr(request, 'subdomain', 'main')
+    home_url = build_host_link(request, 'home')
+    jobs_url = build_host_link(request, 'jobs')
+    candidates_url = build_host_link(request, 'candidates')
+
+    if subdomain == 'jobs':
+        return (
+            {'label': 'Open jobs portal', 'url': jobs_url},
+            {'label': 'Go to homepage', 'url': home_url},
+        )
+
+    if subdomain == 'candidates':
+        return (
+            {'label': 'Open candidate portal', 'url': candidates_url},
+            {'label': 'Go to homepage', 'url': home_url},
+        )
+
+    if request.user.is_authenticated:
+        profile = getattr(request.user, 'profile', None)
+        if profile and getattr(profile, 'role', '') == 'candidate':
+            return (
+                {'label': 'Open candidate portal', 'url': candidates_url},
+                {'label': 'Go to homepage', 'url': home_url},
+            )
+        return (
+            {'label': 'Back to dashboard', 'url': '/dashboard/'},
+            {'label': 'Open jobs portal', 'url': jobs_url},
+        )
+
+    return (
+        {'label': 'Go to homepage', 'url': home_url},
+        {'label': 'Open jobs portal', 'url': jobs_url},
+    )
+
+
+def _build_error_page_context(request, *, variant: str) -> dict:
+    primary_action, secondary_action = _get_error_page_actions(request)
+
+    if variant == 'technical':
+        return {
+            'status_code': '500',
+            'status_label': 'Technical issue',
+            'accent_label': 'Service interruption',
+            'title': 'Something went wrong while processing this request.',
+            'description': 'The application is still online, but this page could not be delivered correctly. Reload the page or return to a stable area of the product.',
+            'icon_class': 'ph-warning-circle',
+            'tips': [
+                'Reload the page to retry the request.',
+                'Return to the dashboard or portal home if you need to continue working immediately.',
+                'If the issue persists, note the failing URL and action for debugging.',
+            ],
+            'page_variant': 'technical',
+            'primary_action': primary_action,
+            'secondary_action': secondary_action,
+            'show_reload_action': True,
+        }
+
+    return {
+        'status_code': '404',
+        'status_label': 'Page not found',
+        'accent_label': 'Route mismatch',
+        'title': 'We could not find the page you were looking for.',
+        'description': 'The link may be outdated, incomplete, or pointing to a route that is no longer available in this workspace.',
+        'icon_class': 'ph-magnifying-glass-minus',
+        'tips': [
+            'Return to a known page and continue from the main navigation.',
+            'If this came from a bookmark or shared link, refresh it after opening the correct page.',
+            'Double-check the path if you typed the address manually.',
+        ],
+        'page_variant': 'not-found',
+        'primary_action': primary_action,
+        'secondary_action': secondary_action,
+        'show_reload_action': False,
+    }
+
+
+def error_404(request, exception):
+    return render(request, '404.html', _build_error_page_context(request, variant='not-found'), status=404)
+
+
+def error_500(request):
+    return render(request, '500.html', _build_error_page_context(request, variant='technical'), status=500)
+
 @login_required(login_url='home')
 def dashboard(request):
     profile = getattr(request.user, 'profile', None)
@@ -103,22 +196,35 @@ def dashboard(request):
     ensure_company_profile_for_user(request.user)
     return render(request, 'smartInterview/dashboard.html')
 
+import traceback
+
 @csrf_exempt
 def ajax_login(request):
-    username = resolve_login_identifier(request.POST.get('username'))
-    password = request.POST.get('password')
+    try:
+        username = resolve_login_identifier(request.POST.get('username'))
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
 
-    user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            redirect_url = get_post_login_redirect_url(request, user)
+            return JsonResponse({
+                'success': True,
+                'message': 'Login successful',
+                'redirect_url': redirect_url,
+            })
 
-    if user is not None:
-        login(request, user)
         return JsonResponse({
-            'success': True,
-            'message': 'Login successful',
-            'redirect_url': get_post_login_redirect_url(request, user),
+            'success': False,
+            'message': 'Invalid username or password'
         })
-    else:
-        return JsonResponse({'success': False, 'message': 'Invalid username or password'})
+    except Exception as e:
+        print("LOGIN ERROR:", repr(e))
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'message': str(e),
+        }, status=500)
 
 class MyLogoutView(View):
     def get(self, request):
