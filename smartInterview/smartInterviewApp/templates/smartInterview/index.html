@@ -6,7 +6,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>shortlistii | AI Candidate Shortlisting</title>
+  <title>Shortlistii | Hiring Operations Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -78,11 +78,11 @@
 
       <nav id="mainMenu" aria-label="Primary navigation">
         <a href="#hero">Home</a>
+        <a href="#platform-overview">Platform</a>
+        <a href="#workspace-surfaces">Workspaces</a>
+        <a href="#candidate-experience">Candidate</a>
+        <a href="#decision-layer">Intelligence</a>
         <a href="{% url 'jobs-portal' %}">Jobs</a>
-        <a href="#features">Features</a>
-        <a href="#new-features">New</a>
-        <a href="#platform">Platform</a>
-        <a href="#contact">Contact</a>
       </nav>
 
       <div class="header-actions">
@@ -100,11 +100,11 @@
     </button>
     <nav class="drawer-nav" aria-label="Mobile navigation">
       <a href="#hero">Home</a>
+      <a href="#platform-overview">Platform</a>
+      <a href="#workspace-surfaces">Workspaces</a>
+      <a href="#candidate-experience">Candidate</a>
+      <a href="#decision-layer">Intelligence</a>
       <a href="{% url 'jobs-portal' %}">Jobs</a>
-      <a href="#features">Features</a>
-      <a href="#new-features">New</a>
-      <a href="#platform">Platform</a>
-      <a href="#contact">Contact</a>
       <button id="drawerSignInBtn" class="btn btn-primary">Sign In</button>
     </nav>
   </aside>
@@ -119,6 +119,7 @@
       </div>
 
       <div class="hero-content">
+        <p class="eyebrow">Hiring Operations Platform</p>
         <h1 class="wordmark shortlistii-wordmark" aria-label="shortlistii.com">
           <span class="logo-text">shortlist</span>
 
@@ -141,16 +142,26 @@
             <span>m</span>
           </span>
         </h1>
-        <h2>We Bring Your Hiring Experiance to Next Level</h2>
+        <h2>Corporate-grade hiring operations for recruiters, evaluators, candidates, and leadership.</h2>
         <p class="subtitle">
-          shortlistii unifies candidate screening, ranking, recruiter workflows,
-          transcript intelligence, and analytics into one hiring command center.
+          Shortlistii brings your real workflow into one operating layer: role and vacancy management,
+          recruiter coordination, evaluator workflows, candidate applications, AI talent pool discovery,
+          resume intelligence, verification, and export-ready analytics.
         </p>
 
         <div class="hero-cta">
-          <a id="getStartedBtn" href="{% host_link request 'litio' %}" class="btn btn-primary">Explore Litio</a>
-          <a href="{% host_link request 'marketing_candidate_login' %}" class="btn btn-outline">Candidate Login</a>
+          <a id="getStartedBtn" href="#platform-overview" data-scroll-target="#platform-overview" class="btn btn-primary">See Platform</a>
           <a href="{% host_link request 'marketing_jobs' %}" class="btn btn-outline">Browse Jobs</a>
+          <a href="{% host_link request 'marketing_candidate_login' %}" class="btn btn-outline">Candidate Login</a>
+        </div>
+
+        <div class="hero-context-strip">
+          <span class="context-chip"><i class="ph ph-buildings"></i>Company Profiles</span>
+          <span class="context-chip"><i class="ph ph-kanban"></i>Role Pipelines</span>
+          <span class="context-chip"><i class="ph ph-users-three"></i>Recruiter + Evaluator Workflows</span>
+          <span class="context-chip"><i class="ph ph-file-text"></i>Resume Intelligence</span>
+          <span class="context-chip"><i class="ph ph-shield-check"></i>Verification</span>
+          <span class="context-chip"><i class="ph ph-sparkle"></i>AI Talent Pool</span>
         </div>
       </div>
 
@@ -161,209 +172,298 @@
         </header>
         <div class="stats-grid">
           <div class="stat-box">
-            <label>Auto Screening</label>
-            <strong class="counter" data-target="88">0</strong>
+            <label>Pipeline Visibility</label>
+            <strong class="counter" data-target="100">0</strong>
           </div>
           <div class="stat-box">
-            <label>SLA Compliance</label>
+            <label>Resume Readiness</label>
+            <strong class="counter" data-target="92">0</strong>
+          </div>
+          <div class="stat-box">
+            <label>SLA Tracking</label>
             <strong class="counter" data-target="94">0</strong>
           </div>
           <div class="stat-box">
-            <label>Voice Integrity</label>
-            <strong class="counter" data-target="97">0</strong>
-          </div>
-          <div class="stat-box">
-            <label>Hiring Velocity</label>
-            <strong class="counter" data-target="73">0</strong>
+            <label>Decision Acceleration</label>
+            <strong class="counter" data-target="88">0</strong>
           </div>
         </div>
       </article>
 
-      <a href="#features" class="scroll-indicator" aria-label="Scroll to features">
+      <a href="#platform-overview" class="scroll-indicator" aria-label="Scroll to platform overview">
         <span>Scroll</span>
         <i class="ph ph-arrow-down"></i>
       </a>
     </section>
 
-    <section id="ai-visuals" class="section visuals">
+    <section id="platform-overview" class="section visuals">
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
-        <h2>From Candidate Signals To Hiring Decisions</h2>
+        <p>Platform Overview</p>
+        <h2>One system for operational hiring, not just a careers page.</h2>
       </div>
       <div class="visuals-layout">
         <div class="visuals-copy glass-card reveal-up">
-          <h3>Shortlistii + Litio Experience</h3>
+          <h3>Built around the workflows already inside this app</h3>
           <p>
-            This platform view reflects your real stack: role pipeline operations, evaluator workflows, live video
-            interviews, voice verification, transcript intelligence, and actionable analytics for faster hiring.
+            The platform already supports distinct surfaces for hiring teams and candidates. The homepage should
+            reflect that operational depth: internal hiring workspace, public jobs portal, candidate dashboard,
+            AI talent pool, company profile controls, resume sharing, verification, and leadership reporting.
           </p>
           <ul>
-            <li>AI-assisted screening with interview readiness signals</li>
-            <li>Realtime interview intelligence with transcript and integrity checks</li>
-            <li>Leadership-ready analytics for SLA, velocity, and conversion tracking</li>
+            <li>Internal dashboard with recruiters, evaluators, candidates, activity, analytics, and role controls</li>
+            <li>Jobs portal with filters, recruiter coverage, bookmarks, applications, and AI jobs pool entry points</li>
+            <li>Candidate workspace with profile updates, resume refresh, verification, recommendations, and public resume sharing</li>
+            <li>AI talent pool, pending recruiter requests, export workflows, and company profile administration</li>
           </ul>
         </div>
 
         <div class="visuals-gallery">
-          <article class="robot-shot shot-a tilt-card reveal-up" data-parallax-speed="0.18">
-            <img src="https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="AI interview assistant and candidate intelligence interface">
+          <article class="robot-shot interface-shot shot-a tilt-card reveal-up" data-parallax-speed="0.18">
+            <span class="interface-shot__kicker">Hiring Workspace</span>
+            <h3 class="interface-shot__title">Dashboard command center</h3>
+            <div class="interface-pill-list">
+              <span>Overview</span>
+              <span>Recruiters</span>
+              <span>Evaluators</span>
+              <span>Candidates</span>
+              <span>Activity</span>
+              <span>Analytics</span>
+            </div>
+            <div class="interface-stack">
+              <div class="interface-row">
+                <span>Open roles</span>
+                <strong>Live role snapshots</strong>
+              </div>
+              <div class="interface-row">
+                <span>Pending requests</span>
+                <strong>Recruiter application review</strong>
+              </div>
+              <div class="interface-row">
+                <span>Workflow actions</span>
+                <strong>Bulk assign and status updates</strong>
+              </div>
+            </div>
           </article>
-          <article class="robot-shot shot-b tilt-card reveal-up" data-parallax-speed="0.24">
-            <img src="https://images.pexels.com/photos/8386422/pexels-photo-8386422.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Futuristic operator dashboard with AI analytics">
+          <article class="robot-shot interface-shot shot-b tilt-card reveal-up" data-parallax-speed="0.24">
+            <span class="interface-shot__kicker">Public Jobs Surface</span>
+            <h3 class="interface-shot__title">Jobs portal with real candidate actions</h3>
+            <div class="interface-metric-grid">
+              <div class="interface-metric">
+                <span>Filters</span>
+                <strong>Role, location, recruiter</strong>
+              </div>
+              <div class="interface-metric">
+                <span>Views</span>
+                <strong>Current, saved, AI jobs pool</strong>
+              </div>
+              <div class="interface-metric">
+                <span>Context</span>
+                <strong>Company, recruiter, highlights</strong>
+              </div>
+              <div class="interface-metric">
+                <span>Actions</span>
+                <strong>Apply, save, hide, withdraw</strong>
+              </div>
+            </div>
           </article>
-          <article class="robot-shot shot-c tilt-card reveal-up" data-parallax-speed="0.3">
-            <img src="https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Robotic AI visualization for hiring automation">
+          <article class="robot-shot interface-shot shot-c tilt-card reveal-up" data-parallax-speed="0.3">
+            <span class="interface-shot__kicker">Candidate Workspace</span>
+            <h3 class="interface-shot__title">Profile, resume, verification, and recommendations</h3>
+            <div class="interface-progress">
+              <div class="interface-progress__row">
+                <span>Profile completion</span>
+                <strong>84%</strong>
+              </div>
+              <div class="interface-progress__bar"><span style="width:84%"></span></div>
+              <div class="interface-progress__row">
+                <span>Verification status</span>
+                <strong>Phone, email, identity</strong>
+              </div>
+              <div class="interface-progress__bar"><span style="width:66%"></span></div>
+              <div class="interface-progress__row">
+                <span>Resume and AI signals</span>
+                <strong>Refreshable insight snapshot</strong>
+              </div>
+              <div class="interface-progress__bar"><span style="width:78%"></span></div>
+            </div>
+            <div class="interface-pill-list interface-pill-list--actions">
+              <span>Share Digital Resume</span>
+              <span>Recommended Matches</span>
+              <span>Application Stages</span>
+            </div>
           </article>
         </div>
       </div>
     </section>
 
-    <section id="features" class="section">
+    <section id="workspace-surfaces" class="section">
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
-        <p>Shortlistii Core</p>
-        <h2>Operational Hiring Engine</h2>
+        <p>Core Modules</p>
+        <h2>Production-ready hiring operations across the entire cycle</h2>
       </div>
 
       <div class="cards-grid">
         <article class="feature-card glass-card tilt-card reveal-up">
           <i class="ph ph-kanban"></i>
-          <h3>Pipeline Command Center</h3>
-          <p>Track every stage from auto screening and assessment to shortlist, hire, rejection, and cancellation.</p>
+          <h3>Role and Vacancy Control</h3>
+          <p>Manage open roles, headcount, hiring status, recruiter assignment, role details, and close-vacancy actions from one workspace.</p>
         </article>
         <article class="feature-card glass-card tilt-card reveal-up">
           <i class="ph ph-users-three"></i>
-          <h3>Evaluator Intelligence</h3>
-          <p>Manage evaluators, open profiles, search remotely, and sync recruiter activity across tabs.</p>
+          <h3>Recruiter and Evaluator Coordination</h3>
+          <p>Review recruiter requests, search evaluator options, open profiles, and run workflow actions including bulk evaluator assignment.</p>
         </article>
         <article class="feature-card glass-card tilt-card reveal-up">
           <i class="ph ph-briefcase"></i>
-          <h3>Role Snapshot</h3>
-          <p>Monitor vacancies, applied candidates, hired ratio, and role fulfillment progress in real time.</p>
+          <h3>Candidate Pipeline Operations</h3>
+          <p>Track candidates across screening, assessment, shortlist, hire, rejection, cancellation, and other role-specific decision stages.</p>
         </article>
         <article class="feature-card glass-card tilt-card reveal-up">
-          <i class="ph ph-chart-pie-slice"></i>
-          <h3>Executive Analytics</h3>
-          <p>Funnel conversion, time-to-hire, source effectiveness, drop-off analysis, SLA and forecast tracking.</p>
+          <i class="ph ph-buildings"></i>
+          <h3>Company and Hiring Identity</h3>
+          <p>Edit company profile, branding, contact details, location, careers links, and workspace context directly from the hiring dashboard.</p>
         </article>
         <article class="feature-card glass-card tilt-card reveal-up">
-          <i class="ph ph-activity"></i>
-          <h3>Activity Intelligence</h3>
-          <p>Role risk, stage movement, daily productivity, target-vs-actual, recruiter workload, recycled candidates.</p>
+          <i class="ph ph-sparkle"></i>
+          <h3>AI Talent Pool and Discovery</h3>
+          <p>Use AI matching and search to move from flat candidate lists into stronger-fit role discovery and targeted talent review.</p>
         </article>
         <article class="feature-card glass-card tilt-card reveal-up">
           <i class="ph ph-file-arrow-down"></i>
-          <h3>Snapshot Exports</h3>
-          <p>Export candidate datasets (XLSX) and analytics/activity snapshots (CSV, JSON) for leadership reporting.</p>
+          <h3>Exports, Auditability, and Reporting</h3>
+          <p>Export candidate data to XLSX, Word, and PDF, surface analytics snapshots, and keep leadership reporting tied to the live pipeline.</p>
         </article>
       </div>
     </section>
 
-    <section id="new-features" class="section">
+    <section id="operations" class="section">
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
-        <p>What’s New</p>
-        <h2>Newly Added Features</h2>
+        <p>Operating Model</p>
+        <h2>From job publishing to candidate decision in one connected flow</h2>
       </div>
 
       <div class="timeline">
         <article class="timeline-item glass-card reveal-up">
-          <span class="badge">NEW</span>
-          <h3>Needs Attention Engine</h3>
-          <p>Automatically flags overdue feedback, unscheduled shortlisted candidates, and pending offer decisions.</p>
+          <span class="badge">01</span>
+          <h3>Publish and structure hiring demand</h3>
+          <p>Create roles, maintain company context, expose public jobs, and keep recruiter coverage attached to each open vacancy.</p>
         </article>
         <article class="timeline-item glass-card reveal-up">
-          <span class="badge">NEW</span>
-          <h3>Monthly Trend Cards</h3>
-          <p>Side-by-side current month vs previous month trends for applicants, interviews, shortlist rate, and hire rate.</p>
+          <span class="badge">02</span>
+          <h3>Capture candidates through multiple surfaces</h3>
+          <p>Let candidates browse jobs, save roles, apply, manage profile data, refresh resume extraction, and monitor application stages.</p>
         </article>
         <article class="timeline-item glass-card reveal-up">
-          <span class="badge">NEW</span>
-          <h3>Risk + Forecast Layer</h3>
-          <p>Open role risk scoring, anomaly flags, and forecast-vs-target tracking for proactive hiring intervention.</p>
+          <span class="badge">03</span>
+          <h3>Run evaluator and workflow operations</h3>
+          <p>Schedule interviews, review pending recruiter requests, assign evaluators, search profiles, and move pipeline decisions forward.</p>
+        </article>
+        <article class="timeline-item glass-card reveal-up">
+          <span class="badge">04</span>
+          <h3>Close the loop with AI and reporting</h3>
+          <p>Use AI talent pool discovery, activity and analytics layers, risk indicators, and export-ready reports to drive decisions with context.</p>
         </article>
       </div>
     </section>
 
-    <section id="platform" class="section">
+    <section id="candidate-experience" class="section">
       <div class="section-divider" aria-hidden="true"></div>
       <div class="section-title reveal-up">
-        <p>Integrated Ecosystem</p>
-        <h2>Shortlistii + SmartVideo</h2>
-      </div>
-
-      <div class="flow-viz glass-card reveal-up">
-        <svg viewBox="0 0 1000 220" role="img" aria-label="Hiring workflow visualization">
-          <defs>
-            <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#5ed6ff"></stop>
-              <stop offset="100%" stop-color="#5f7dff"></stop>
-            </linearGradient>
-          </defs>
-          <path class="flow-path main" d="M 40 112 C 130 10, 260 220, 360 112 S 590 10, 680 112 S 870 220, 960 112"></path>
-          <path class="flow-path alt" d="M 40 112 C 150 210, 270 210, 360 112 S 560 230, 680 112 S 860 -12, 960 112"></path>
-          <g class="flow-point" transform="translate(40 112)">
-            <circle class="pulse" r="8"></circle>
-            <circle r="8"></circle>
-            <text y="-34">Sourcing</text>
-          </g>
-          <g class="flow-point" transform="translate(360 112)">
-            <circle class="pulse" r="8"></circle>
-            <circle r="8"></circle>
-            <text y="-34">Interview</text>
-          </g>
-          <g class="flow-point" transform="translate(680 112)">
-            <circle class="pulse" r="8"></circle>
-            <circle r="8"></circle>
-            <text y="-34">Intelligence</text>
-          </g>
-          <g class="flow-point" transform="translate(960 112)">
-            <circle class="pulse" r="8"></circle>
-            <circle r="8"></circle>
-            <text y="-34">Decision</text>
-          </g>
-        </svg>
+        <p>Candidate Experience</p>
+        <h2>Candidate-facing flows that go beyond simple application tracking</h2>
       </div>
 
       <div class="platform-grid">
         <article class="platform-card glass-card tilt-card reveal-up">
-          <h3><i class="ph ph-gauge"></i> SmartInterview</h3>
+          <h3><i class="ph ph-user-circle"></i> Candidate Dashboard</h3>
           <ul>
-            <li>Candidate operations and evaluator workflows</li>
-            <li>Role, vacancy, and pipeline management</li>
-            <li>Activity and analytics intelligence dashboards</li>
-            <li>Actionable alerts and one-click filters</li>
+            <li>Profile completion, profile settings, and resume replacement</li>
+            <li>Resume refresh, AI profile insights, and recommended job matches</li>
+            <li>Application stage tracking and recent activity visibility</li>
+            <li>Public digital resume sharing for external profile visibility</li>
           </ul>
         </article>
         <article class="platform-card glass-card tilt-card reveal-up">
-          <h3><i class="ph ph-video-camera"></i> SmartVideo</h3>
+          <h3><i class="ph ph-shield-check"></i> Verification Layer</h3>
           <ul>
-            <li>Realtime WebRTC interviews with signaling</li>
-            <li>Voice enrollment and anti-impersonation verification</li>
-            <li>Live transcription, translation, and behavior events</li>
-            <li>AI interview copilot and session intelligence reports</li>
+            <li>Phone verification, email verification, and Aadhaar identity verification</li>
+            <li>Resume freshness and verification status surfaced inside one workspace</li>
+            <li>Operational guidance on what candidates must complete next</li>
+            <li>Candidate-side flows aligned to actual hiring readiness</li>
+          </ul>
+        </article>
+        <article class="platform-card glass-card tilt-card reveal-up">
+          <h3><i class="ph ph-briefcase"></i> Jobs Portal</h3>
+          <ul>
+            <li>Public job browsing with role, location, recruiter, and company context</li>
+            <li>Saved roles, recruiter-aware discovery, and current openings tabs</li>
+            <li>AI jobs pool view for stronger-fit role exploration</li>
+            <li>Candidate actions for apply, save, hide, and withdrawal</li>
+          </ul>
+        </article>
+        <article class="platform-card glass-card tilt-card reveal-up">
+          <h3><i class="ph ph-share-network"></i> Resume Distribution</h3>
+          <ul>
+            <li>Short public resume URLs and public profile access</li>
+            <li>Resume download workflows for word and PDF exports</li>
+            <li>Candidate context kept consistent across private and shared surfaces</li>
+            <li>Useful for recruiter review and candidate self-service sharing</li>
           </ul>
         </article>
       </div>
     </section>
 
-    <section id="contact" class="section">
+    <section id="decision-layer" class="section">
       <div class="section-divider" aria-hidden="true"></div>
-      <div class="contact-connect glass-card reveal-up">
-        <h2 class="connect-title">Let's <span>connect.</span></h2>
-        <form class="connect-form" autocomplete="on">
-          <div class="connect-row">
-            <input type="text" name="name" placeholder="Name" aria-label="Name">
-            <input type="email" name="email" placeholder="E-mail" aria-label="E-mail">
-          </div>
-          <input type="text" name="subject" placeholder="Subject" aria-label="Subject">
-          <textarea name="message" rows="6" placeholder="Message..." aria-label="Message"></textarea>
+      <div class="section-title reveal-up">
+        <p>Decision Intelligence</p>
+        <h2>AI, analytics, activity signals, and reporting for the final decision layer</h2>
+      </div>
 
-          <div class="connect-actions">
-            <button type="button" class="btn-connect">Let's talk</button>
-            <button type="button" id="contactSignInBtn" class="btn btn-ghost">Open Sign In</button>
+      <div class="cards-grid decision-grid">
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-sparkle"></i>
+          <h3>AI Talent Pool</h3>
+          <p>Open AI talent pool views directly from dashboard and jobs surfaces to move faster from role demand to stronger-fit candidates.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-activity"></i>
+          <h3>Activity Intelligence</h3>
+          <p>Surface overdue actions, role pressure, recruiter momentum, and operational alerts before they become hiring bottlenecks.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-chart-pie-slice"></i>
+          <h3>Analytics and Forecasting</h3>
+          <p>Track conversion, time-to-hire, drop-off, SLA pressure, anomaly signals, and forecast-versus-target performance in one layer.</p>
+        </article>
+      </div>
+
+      <div class="contact-connect contact-connect--cta glass-card reveal-up">
+        <div class="cta-grid">
+          <div class="cta-copy">
+            <p class="eyebrow">Open the Workspace</p>
+            <h2 class="connect-title">A sharper homepage for a real hiring product.</h2>
+            <p class="cta-text">
+              Shortlistii is not just a product description page. It is a multi-surface hiring system with recruiter operations,
+              candidate workflows, AI matching, and reporting. The homepage should now position it accordingly.
+            </p>
+            <div class="cta-list">
+              <span><i class="ph ph-check-circle"></i>Hiring dashboard</span>
+              <span><i class="ph ph-check-circle"></i>Jobs portal</span>
+              <span><i class="ph ph-check-circle"></i>Candidate dashboard</span>
+              <span><i class="ph ph-check-circle"></i>AI talent pool</span>
+            </div>
           </div>
-        </form>
+
+          <div class="cta-actions">
+            <button type="button" id="contactSignInBtn" class="btn btn-primary">Open Sign In</button>
+            <a href="{% url 'jobs-portal' %}" class="btn btn-outline">Browse Jobs</a>
+            <a href="{% host_link request 'marketing_candidate_login' %}" class="btn btn-ghost">Candidate Login</a>
+          </div>
+        </div>
       </div>
     </section>
   </main>

@@ -865,6 +865,210 @@ main {
   line-height: 1.66;
 }
 
+.hero-context-strip {
+  margin: 22px auto 0;
+  max-width: 980px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid rgba(119, 197, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(7, 16, 34, 0.52);
+  color: #d7ebff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(183, 230, 255, 0.08);
+}
+
+.context-chip i {
+  color: var(--accent);
+}
+
+.interface-shot {
+  padding: 18px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, rgba(88, 217, 255, 0.18), transparent 40%),
+    linear-gradient(160deg, rgba(9, 21, 42, 0.96), rgba(5, 11, 24, 0.96));
+}
+
+.interface-shot__kicker {
+  color: #8fdcff;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.interface-shot__title {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 1.12rem;
+  line-height: 1.3;
+}
+
+.interface-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interface-pill-list span {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(132, 194, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(10, 28, 56, 0.68);
+  color: #cde4ff;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.interface-pill-list--actions span {
+  color: #e7f5ff;
+  background: rgba(11, 34, 66, 0.74);
+}
+
+.interface-stack,
+.interface-progress {
+  display: grid;
+  gap: 10px;
+}
+
+.interface-row,
+.interface-progress__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #c5dcfa;
+  font-size: 0.79rem;
+}
+
+.interface-row strong,
+.interface-progress__row strong {
+  color: #f2f8ff;
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.interface-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.interface-metric {
+  padding: 12px;
+  border: 1px solid rgba(128, 192, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(8, 21, 42, 0.7);
+}
+
+.interface-metric span {
+  display: block;
+  color: #88a7cc;
+  font-size: 0.72rem;
+  margin-bottom: 4px;
+}
+
+.interface-metric strong {
+  color: #eef6ff;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.interface-progress__bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(126, 180, 236, 0.14);
+  overflow: hidden;
+}
+
+.interface-progress__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #44d8ff, #6887ff);
+  box-shadow: 0 0 18px rgba(90, 180, 255, 0.28);
+}
+
+.timeline {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.decision-grid {
+  margin-bottom: 22px;
+}
+
+.contact-connect--cta {
+  width: 100%;
+}
+
+.cta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 20px;
+  align-items: center;
+}
+
+.cta-copy .eyebrow {
+  margin-bottom: 10px;
+}
+
+.cta-copy .connect-title {
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.cta-text {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.72;
+}
+
+.cta-list {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.cta-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d7ebff;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cta-list i {
+  color: #77e4aa;
+}
+
+.cta-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.cta-actions .btn {
+  justify-content: center;
+  text-align: center;
+}
+
 .contact-card {
   padding: clamp(22px, 5vw, 42px);
   text-align: center;
@@ -1225,6 +1429,14 @@ footer {
   .platform-grid {
     grid-template-columns: 1fr;
   }
+
+  .timeline {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1286,6 +1498,26 @@ footer {
 
   .connect-row {
     grid-template-columns: 1fr;
+  }
+
+  .hero-context-strip {
+    justify-content: flex-start;
+  }
+
+  .interface-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-copy .connect-title {
+    text-align: left;
+  }
+
+  .cta-actions {
+    width: 100%;
+  }
+
+  .cta-actions .btn {
+    width: 100%;
   }
 
   .connect-title {

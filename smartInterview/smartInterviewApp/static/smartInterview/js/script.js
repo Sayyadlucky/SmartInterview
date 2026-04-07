@@ -103,8 +103,12 @@ function initCoreUi() {
     });
   });
 
-  getStartedBtn?.addEventListener("click", () => {
-    byId("features")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  getStartedBtn?.addEventListener("click", (e) => {
+    const targetSelector = getStartedBtn.getAttribute("data-scroll-target");
+    const target = targetSelector ? document.querySelector(targetSelector) : null;
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   mobileMenuBtn?.addEventListener("click", openMobileMenu);
@@ -229,7 +233,7 @@ function initGsapMotion() {
 
     gsap.timeline({
       scrollTrigger: {
-        trigger: "#ai-visuals",
+        trigger: "#platform-overview",
         start: "top 85%",
         end: "bottom 20%",
         scrub: 1,
@@ -573,7 +577,7 @@ function initThreeScene() {
       y: 0.66,
       ease: "none",
       scrollTrigger: {
-        trigger: "#new-features",
+        trigger: "#operations",
         start: "top bottom",
         end: "bottom top",
         scrub: 1.2,
@@ -586,7 +590,7 @@ function initThreeScene() {
       z: 0.44,
       ease: "none",
       scrollTrigger: {
-        trigger: "#platform",
+        trigger: "#decision-layer",
         start: "top bottom",
         end: "bottom top",
         scrub: 1.3,
@@ -598,7 +602,7 @@ function initThreeScene() {
       y: 0.35,
       ease: "none",
       scrollTrigger: {
-        trigger: "#new-features",
+        trigger: "#operations",
         start: "top bottom",
         end: "bottom top",
         scrub: 1.2,
