@@ -96,6 +96,7 @@ function initCoreUi() {
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener("click", (e) => {
       const href = anchor.getAttribute("href");
+      if (!href || href === "#") return;
       const target = href ? document.querySelector(href) : null;
       if (!target) return;
       e.preventDefault();
@@ -127,6 +128,9 @@ function initCoreUi() {
 function initLoginPanel() {
   openLoginBtn?.addEventListener("click", openLogin);
   contactSignInBtn?.addEventListener("click", openLogin);
+  document.querySelectorAll("[data-open-login]").forEach((trigger) => {
+    trigger.addEventListener("click", openLogin);
+  });
   closeLogin?.addEventListener("click", closeLoginPanel);
 
   loginSection?.addEventListener("click", (e) => {
@@ -173,8 +177,13 @@ function initGsapMotion() {
     .from(".brand", { y: -20, opacity: 0, duration: 0.55 })
     .from("#mainMenu a", { y: -16, opacity: 0, stagger: 0.05, duration: 0.35 }, "-=0.34")
     .from("#openLoginBtn", { y: -12, opacity: 0, duration: 0.35 }, "-=0.3")
-    .from("#hero h2", { y: 20, opacity: 0, duration: 0.55 }, "-=0.32")
-    .from(".hero-cta .btn", { y: 10, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.2");
+    .from(".hero-copy .eyebrow", { y: 18, opacity: 0, duration: 0.38 }, "-=0.22")
+    .from(".hero-copy .wordmark", { y: 18, opacity: 0, duration: 0.46 }, "-=0.18")
+    .from(".hero-title", { y: 22, opacity: 0, duration: 0.58 }, "-=0.22")
+    .from(".hero-subtitle", { y: 20, opacity: 0, duration: 0.52 }, "-=0.26")
+    .from(".hero-cta .btn", { y: 10, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.2")
+    .from(".hero-link-row > *", { y: 10, opacity: 0, stagger: 0.06, duration: 0.28 }, "-=0.22")
+    .from(".hero-stats", { x: 24, opacity: 0, duration: 0.58 }, "-=0.34");
 
   gsap.utils.toArray(".reveal-up").forEach((el) => {
     gsap.to(el, {
@@ -189,23 +198,8 @@ function initGsapMotion() {
   });
 
   if (hasScrollTrigger) {
-    gsap.set([".eyebrow", ".wordmark", ".subtitle", ".hero-stats"], { autoAlpha: 0, y: 24 });
-
-    gsap.timeline({
-      scrollTrigger: {
-        trigger: "#hero",
-        start: "top top",
-        end: "+=55%",
-        scrub: 1,
-      },
-    })
-      .to(".eyebrow", { autoAlpha: 1, y: 0, ease: "none" }, 0.05)
-      .to(".wordmark", { autoAlpha: 1, y: 0, ease: "none" }, 0.16)
-      .to(".subtitle", { autoAlpha: 1, y: 0, ease: "none" }, 0.28)
-      .to(".hero-stats", { autoAlpha: 1, y: 0, ease: "none" }, 0.4);
-
     gsap.to(".hero-orbits", {
-      yPercent: 14,
+      yPercent: 10,
       ease: "none",
       scrollTrigger: {
         trigger: "#hero",
@@ -215,22 +209,6 @@ function initGsapMotion() {
       },
     });
 
-    const heroTl = gsap.timeline({
-      scrollTrigger: {
-        trigger: "#hero",
-        start: "top top",
-        end: "+=120%",
-        scrub: 1.1,
-        pin: true,
-      },
-    });
-    heroTl
-      .to(".wordmark", { scale: 0.86, y: -22, ease: "none" }, 0)
-      .to(".subtitle", { y: -16, ease: "none" }, 0)
-      .to(".hero-stats", { y: 14, scale: 0.98, ease: "none" }, 0)
-      .to(".hero-orbits", { scale: 1.12, opacity: 0.66, ease: "none" }, 0)
-      .to(".scroll-indicator", { opacity: 0, y: 20, ease: "none" }, 0);
-
     gsap.timeline({
       scrollTrigger: {
         trigger: "#platform-overview",
@@ -239,11 +217,32 @@ function initGsapMotion() {
         scrub: 1,
       },
     })
-      .fromTo(".visuals-gallery", { y: 96, scale: 0.95, opacity: 0.82 }, { y: 0, scale: 1, opacity: 1, ease: "none" }, 0)
-      .fromTo(".visuals-copy", { y: 64, opacity: 0.72 }, { y: 0, opacity: 1, ease: "none" }, 0)
-      .fromTo(".shot-a", { yPercent: 14, rotate: -7 }, { yPercent: 0, rotate: -5, ease: "none" }, 0)
-      .fromTo(".shot-b", { yPercent: 18, rotate: 7 }, { yPercent: 0, rotate: 4, ease: "none" }, 0)
-      .fromTo(".shot-c", { yPercent: 12, rotate: -3 }, { yPercent: 0, rotate: -1, ease: "none" }, 0);
+      .fromTo(".showcase-copy", { y: 40, opacity: 0.75 }, { y: 0, opacity: 1, ease: "none" }, 0)
+      .fromTo(".showcase-window--main", { y: 72, opacity: 0.78 }, { y: 0, opacity: 1, ease: "none" }, 0)
+      .fromTo(".showcase-window--side", { y: 52, opacity: 0.78 }, { y: 0, opacity: 1, ease: "none" }, 0);
+
+    gsap.to(".hero-panel", {
+      y: 24,
+      ease: "none",
+      scrollTrigger: {
+        trigger: "#hero",
+        start: "top top",
+        end: "bottom top",
+        scrub: 1,
+      },
+    });
+
+    gsap.to(".scroll-indicator", {
+      opacity: 0,
+      y: 18,
+      ease: "none",
+      scrollTrigger: {
+        trigger: "#hero",
+        start: "top top",
+        end: "bottom top",
+        scrub: 1,
+      },
+    });
   }
 }
 
