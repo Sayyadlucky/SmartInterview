@@ -22,6 +22,7 @@ import { getApiBaseUrl } from '../core/api-base';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { writeWorkspaceContext } from '../core/workspace-context';
 import { AppToastService } from '../core/app-toast.service';
+import { DigitsOnlyDirective } from '../core/digits-only.directive';
 
 Chart.register(...registerables);
 
@@ -151,7 +152,7 @@ interface CompanyProfileFormData {
   standalone: true,
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
-  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, FormsModule],
+  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, FormsModule, DigitsOnlyDirective],
 })
 export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);

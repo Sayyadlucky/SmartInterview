@@ -13,7 +13,7 @@ from smartInterviewApp.integrations.providers.contracts import ProviderResult
 from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
-from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT
+from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT, send_existing_candidate_sms
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.integrations.providers.meta_whatsapp import MetaWhatsappProvider
 
@@ -295,6 +295,81 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(payload['Notification']['channels']['whatsapp']['sent'])
         self.assertTrue(send_sms_mock.called)
         self.assertTrue(send_whatsapp_mock.called)
+
+    @patch('smartInterviewApp.commonViews.send_template_message')
+    @patch('smartInterviewApp.commonViews.send_sms')
+    def test_existing_candidate_whatsapp_interview_template_uses_three_body_parameters(self, send_sms_mock, send_whatsapp_mock):
+        send_sms_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='sms-existing')
+        send_whatsapp_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='wa-existing')
+
+        candidate = User.objects.create_user(username='cand-wa', password='pass1234', email='candwa@example.com')
+        candidate.first_name = 'Existing'
+        candidate.last_name = 'Candidate'
+        candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919876543210', gender='female', hr=self.admin)
+
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
+
+        result = send_existing_candidate_sms(candidate, interview)
+
+        self.assertTrue(send_whatsapp_mock.called)
+        interview.refresh_from_db()
+        self.assertTrue(result['interview_token'])
+        self.assertEqual(interview.litio_interview_token, result['interview_token'])
+        self.assertTrue(result['interview_link'].startswith('https://litio.shortlistii.com/i/'))
+        components = send_whatsapp_mock.call_args.kwargs['components']
+        self.assertEqual(len(components), 1)
+        self.assertEqual(components[0]['type'], 'body')
+        parameters = components[0]['parameters']
+        self.assertEqual(len(parameters), 3)
+        self.assertEqual(
+            [item['text'] for item in parameters],
+            ['Existing', 'Python Developer', 'Recruiter One']
+        )
+
+    @patch('smartInterviewApp.commonViews.exotel_voice_provider.connect_agent_to_candidate')
+    def test_candidate_profile_call_connects_workspace_user_and_candidate(self, call_mock):
+        call_mock.return_value = ProviderResult(
+            success=True,
+            status='sent',
+            provider_message_id='call-123',
+            response_payload={'Call': {'Sid': 'call-123'}},
+        )
+
+        candidate = User.objects.create_user(username='cand-call', password='pass1234', email='candcall@example.com')
+        candidate.first_name = 'Call'
+        candidate.last_name = 'Candidate'
+        candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919876543210', gender='female', hr=self.admin)
+
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
+
+        response = self.client.post(reverse('candidate-profile-call', args=[interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['Success'])
+        self.assertEqual(payload['Data']['call_sid'], 'call-123')
+        call_mock.assert_called_once_with(
+            agent_phone='919999999999',
+            candidate_phone='919876543210',
+            interview_id=interview.id,
+            metadata={'TimeLimit': '900'},
+        )
 
     def test_candidate_signup_completes_profile(self):
         candidate = User.objects.create_user(username='cand2', email='signup@example.com')

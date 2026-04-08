@@ -105,7 +105,18 @@
         <span *ngIf="!candidate.profile_picture">{{ initials }}</span>
       </div>
       <div class="hero-text">
-        <h2>{{ candidate.name }}</h2>
+        <div class="hero-title-row">
+          <h2>{{ candidate.name }}</h2>
+          <button
+            type="button"
+            class="hero-call-btn"
+            [disabled]="callingCandidate || !canCallCandidate"
+            (click)="callCandidate()">
+            <span class="hero-call-btn__spinner" *ngIf="callingCandidate"></span>
+            <i class="ph ph-phone-call" *ngIf="!callingCandidate"></i>
+            <span>{{ callingCandidate ? 'Calling...' : 'Call Candidate' }}</span>
+          </button>
+        </div>
         <p>{{ candidate.email }}</p>
         <p class="subline">{{ resumeSubline }}</p>
         <p class="headline" *ngIf="headline">{{ headline }}</p>

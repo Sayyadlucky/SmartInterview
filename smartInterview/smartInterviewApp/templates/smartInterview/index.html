@@ -11,6 +11,9 @@
     name="description"
     content="Shortlistii is an AI-powered hiring intelligence platform for recruiters and hiring teams to shortlist candidates, manage interviews, and act on recruiter analytics."
   />
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -918,7 +921,7 @@
             <label for="workspaceResetPhone">Registered mobile number</label>
             <div class="workspace-reset-input-wrap">
               <i class="ph ph-device-mobile"></i>
-              <input id="workspaceResetPhone" name="phone" type="tel" placeholder="Enter your mobile number" inputmode="numeric" autocomplete="tel" />
+              <input id="workspaceResetPhone" name="phone" type="tel" placeholder="Enter your mobile number" inputmode="numeric" autocomplete="tel" data-digits-only="true" />
             </div>
           </div>
           <div class="workspace-reset-actions">
@@ -932,7 +935,7 @@
             <label for="workspaceResetOtp">OTP</label>
             <div class="workspace-reset-input-wrap">
               <i class="ph ph-password"></i>
-              <input id="workspaceResetOtp" name="otp" type="text" placeholder="Enter OTP" inputmode="numeric" autocomplete="one-time-code" />
+              <input id="workspaceResetOtp" name="otp" type="text" placeholder="Enter OTP" inputmode="numeric" autocomplete="one-time-code" data-digits-only="true" />
             </div>
           </div>
           <div class="workspace-reset-actions">
@@ -1029,7 +1032,7 @@
         </div>
       </div>
     </div>
-    <p class="site-footer__copyright">&copy; <span id="currentYear"></span> shortlistii.com All rights reserved.</p>
+    <p class="site-footer__copyright">&copy; <span id="currentYear"></span> Shortlistii.com Private Limited. All rights reserved.</p>
   </footer>
 </body>
 </html>

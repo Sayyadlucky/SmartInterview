@@ -94,6 +94,7 @@ urlpatterns = [
     path('candidates/signup/', commonViews.candidateSignup, name='candidate-signup'),
     path('candidate/signup/', commonViews.candidateSignup, name='candidate-signup-legacy'),
     path('candidate-profile-data/<int:interview_id>/', commonViews.getCandidateProfileData, name='candidate-profile-data'),
+    path('candidate-profile-data/<int:interview_id>/call/', commonViews.callCandidateProfile, name='candidate-profile-call'),
     path('candidate-profile-data/<int:interview_id>/reprocess/', commonViews.reprocessCandidateResume, name='candidate-profile-reprocess'),
     path('resume-processing-health/', commonViews.resumeProcessingHealth, name='resume-processing-health'),
     path('r/<str:short_code>/', commonViews.publicCandidateResume, name='public-candidate-resume'),

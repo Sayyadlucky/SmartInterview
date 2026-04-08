@@ -8,10 +8,11 @@ import { catchError, of } from 'rxjs';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { QuillModule } from 'ngx-quill';
 import { AppToastService } from '../../core/app-toast.service';
+import { DigitsOnlyDirective } from '../../core/digits-only.directive';
 
 @Component({
   selector: 'app-add-user',
-  imports: [FormsModule, BrowserModule, QuillModule, ReactiveFormsModule],
+  imports: [FormsModule, BrowserModule, QuillModule, ReactiveFormsModule, DigitsOnlyDirective],
   templateUrl: './add-user.html',
   styleUrls: ['./add-user.scss'],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],

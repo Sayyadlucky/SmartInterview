@@ -76,6 +76,9 @@ class ContactForm(forms.Form):
             'class': 'contact-input',
             'placeholder': 'Phone number',
             'autocomplete': 'tel',
+            'inputmode': 'numeric',
+            'pattern': '[0-9]*',
+            'data-digits-only': 'true',
         }),
     )
     team_size = forms.ChoiceField(
@@ -191,7 +194,13 @@ class CandidateProfileUpdateForm(forms.Form):
     )
     phone = forms.CharField(
         max_length=20,
-        widget=forms.TextInput(attrs={'class': 'portal-input', 'placeholder': 'Mobile number'}),
+        widget=forms.TextInput(attrs={
+            'class': 'portal-input',
+            'placeholder': 'Mobile number',
+            'inputmode': 'numeric',
+            'pattern': '[0-9]*',
+            'data-digits-only': 'true',
+        }),
     )
     gender = forms.ChoiceField(
         choices=UserProfile.Gender_CHOICES,
@@ -286,6 +295,8 @@ class CandidateSignupForm(forms.Form):
             'class': 'signup-input',
             'autocomplete': 'tel',
             'inputmode': 'numeric',
+            'pattern': '[0-9]*',
+            'data-digits-only': 'true',
             'placeholder': 'Mobile number',
         }),
     )

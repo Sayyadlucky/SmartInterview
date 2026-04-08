@@ -551,6 +551,7 @@
                     <th>Recruiter</th>
                     <th>Evaluator</th>
                     <th>Role</th>
+                    <th>Interview Link</th>
                   </tr>
                 </thead>
                 <tbody id="candidateTable">
@@ -569,11 +570,22 @@
                         {{ formatRoleWithId(candidate.role, candidate.role_id) }}
                       </span>
                     </td>
+                    <td>
+                      <a
+                        *ngIf="candidate.interview_link"
+                        class="candidate-link interview-link"
+                        [href]="candidate.interview_link"
+                        target="_blank"
+                        rel="noopener">
+                        Interview Link
+                      </a>
+                      <span *ngIf="!candidate.interview_link" class="interview-link-muted">Pending</span>
+                    </td>
                   </tr>
                   }
                   @if (filteredCandidates.length === 0) {
                   <tr>
-                    <td colspan="5" class="text-center py-6">
+                    <td colspan="6" class="text-center py-6">
                       <div class="empty-state">
                         <img src="static/assets/images/dataError.png" alt="No Candidates Found"
                           class="opacity-80 w-[40%] h-auto mx-auto" />
@@ -731,11 +743,11 @@
         </label>
         <label class="company-form-field">
           <span>Employees</span>
-          <input [(ngModel)]="companyForm.employee_count" name="employee_count" type="number" />
+          <input [(ngModel)]="companyForm.employee_count" name="employee_count" type="text" inputmode="numeric" appDigitsOnly />
         </label>
         <label class="company-form-field">
           <span>Founded Year</span>
-          <input [(ngModel)]="companyForm.founded_year" name="founded_year" type="number" />
+          <input [(ngModel)]="companyForm.founded_year" name="founded_year" type="text" inputmode="numeric" appDigitsOnly />
         </label>
         <label class="company-form-field company-form-field--wide">
           <span>Website</span>
@@ -759,11 +771,11 @@
         </label>
         <label class="company-form-field">
           <span>Contact Phone</span>
-          <input [(ngModel)]="companyForm.contact_phone" name="contact_phone" />
+          <input [(ngModel)]="companyForm.contact_phone" name="contact_phone" type="text" inputmode="numeric" appDigitsOnly />
         </label>
         <label class="company-form-field">
           <span>Alternate Phone</span>
-          <input [(ngModel)]="companyForm.alternate_phone" name="alternate_phone" />
+          <input [(ngModel)]="companyForm.alternate_phone" name="alternate_phone" type="text" inputmode="numeric" appDigitsOnly />
         </label>
         <label class="company-form-field company-form-field--wide">
           <span>Address Line 1</span>
@@ -783,7 +795,7 @@
         </label>
         <label class="company-form-field">
           <span>Postal Code</span>
-          <input [(ngModel)]="companyForm.postal_code" name="postal_code" />
+          <input [(ngModel)]="companyForm.postal_code" name="postal_code" type="text" inputmode="numeric" appDigitsOnly />
         </label>
         <label class="company-form-field">
           <span>Country</span>

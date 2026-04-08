@@ -166,7 +166,8 @@ app-root {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 .role-detail-dialog .mat-mdc-dialog-container {
@@ -195,7 +196,8 @@ app-root {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
-  overflow: visible !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   border-radius: 0 !important;
 }
 
@@ -204,6 +206,12 @@ app-root {
 .workflow-action-dialog.cdk-overlay-pane {
   background: transparent !important;
   box-shadow: none !important;
+  max-height: 92vh !important;
+}
+
+.candidate-profile-dialog.cdk-overlay-pane,
+.role-detail-dialog.cdk-overlay-pane {
+  max-height: 92vh !important;
 }
 
 .cdk-overlay-dark-backdrop {

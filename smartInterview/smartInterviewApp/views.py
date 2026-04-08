@@ -23,6 +23,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import CompanyProfile, Interview
 from .commonViews import (
+    build_candidate_details,
     candidateDashboard,
     candidateLogin,
     get_accessible_interviews,
@@ -190,7 +191,7 @@ def privacy_policy(request):
         request,
         template_name='smartInterview/privacy_policy.html',
         page_title='Privacy Policy',
-        meta_description='Read the Shortlistii Privacy Policy for information about how Shortlist.com Private Limited collects, uses, protects, and processes personal data across the Shortlistii and Litio platform ecosystem.',
+        meta_description='Read the Shortlistii Privacy Policy for information about how shortlistii.com Private Limited collects, uses, protects, and processes personal data across the Shortlistii and Litio platform ecosystem.',
     )
 
 
@@ -257,7 +258,7 @@ def contact(request):
             'meta_description': 'Contact Shortlistii for product demos, sales conversations, enterprise hiring workflows, Litio interview intelligence, partnerships, support, and general platform questions.',
             'form': form,
             'support_email': CONTACT_SUPPORT_EMAIL,
-            'company_legal_name': 'Shortlist.com Private Limited',
+            'company_legal_name': 'shortlistii.com Private Limited',
             'company_address_lines': [
                 'Flat No. 1404, Famed Tower',
                 'Sikka Karnam Greens',
@@ -556,28 +557,7 @@ def dashboardData(request):
             return JsonResponse({"Success": False, "Error": "Dashboard access is restricted."}, status=403)
         admin = get_object_or_404(User, username=request.user.username)
         candidates_data = get_accessible_interviews(admin)
-        candidate_list = []
-        for candidate in candidates_data:
-            candidate_details = {}
-            candidate_details['id'] = candidate.id
-            candidate_details['name'] = (candidate.candidate.first_name + " " + candidate.candidate.last_name).title()
-            candidate_details['email'] = candidate.candidate.email
-            candidate_details['phone'] = getattr(getattr(candidate.candidate, 'profile', None), 'phone', '') or ''
-            candidate_details['candidate_id'] = candidate.candidate_id
-            candidate_details['recruiter'] = (candidate.recruiter.first_name + " " + candidate.recruiter.last_name).title() if candidate.recruiter else ''
-            candidate_details['recruiter_id'] = candidate.recruiter_id
-            candidate_details['interviewer'] = (candidate.interviewer.first_name + " " + candidate.interviewer.last_name).title() if candidate.interviewer else ''
-            candidate_details['interviewer_id'] = candidate.interviewer_id
-            candidate_details['interview_type'] = getattr(candidate, 'interview_type', 'manual')
-            candidate_details['status'] = normalize_interview_status(candidate.status)
-            candidate_details['score'] = candidate.score
-            candidate_details['recording_url'] = candidate.recording_url
-            candidate_details['notes'] = candidate.notes
-            candidate_details['date'] = candidate.date
-            candidate_details['role'] = candidate.role.role if candidate.role else ''
-            candidate_details['role_id'] = candidate.role.id if candidate.role else None
-
-            candidate_list.append(candidate_details)
+        candidate_list = [build_candidate_details(candidate, request=request) for candidate in candidates_data]
         # login_user = serializers.serialize("json", [admin])
         company_profile = getattr(admin, 'company_profile', None)
         login_user = {
@@ -904,9 +884,12 @@ def updateInterviewWorkflow(request):
 
             if mode == 'schedule':
                 try:
+                    notification_result = send_existing_candidate_sms(interview.candidate, interview, request=request)
+                    updated_items[-1]["interview_token"] = notification_result.get("interview_token", "")
+                    updated_items[-1]["interview_link"] = notification_result.get("interview_link", "")
                     notifications.append({
                         "interview_id": interview.id,
-                        "result": send_existing_candidate_sms(interview.candidate, interview),
+                        "result": notification_result,
                     })
                 except Exception as exc:
                     notifications.append({

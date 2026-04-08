@@ -5,6 +5,7 @@ import { Chart, registerables } from 'chart.js';
 import { catchError, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { AppToastService } from '../core/app-toast.service';
+import { DigitsOnlyDirective } from '../core/digits-only.directive';
 
 Chart.register(...registerables);
 
@@ -52,7 +53,7 @@ interface RecruiterDirectoryResponse {
 
 @Component({
   selector: 'app-recuiter-profile',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DigitsOnlyDirective],
   templateUrl: './recuiter-profile.html',
   styleUrl: './recuiter-profile.scss'
 })

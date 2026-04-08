@@ -17,8 +17,10 @@ interface CandidateData {
   score?: number | null;
   date: string;
   phone?: string;
+  candidate_phone_masked?: string;
   profile_picture?: string;
   public_resume_downloads?: number;
+  can_call_candidate?: boolean;
 }
 
 interface ResumeSection {
@@ -81,6 +83,16 @@ interface CandidateProfileResponse {
     verification?: VerificationData;
     insights?: InsightData;
     resume?: ResumeData;
+  };
+}
+
+interface CandidateCallResponse {
+  Success: boolean;
+  Error?: string | null;
+  Data?: {
+    call_sid?: string;
+    caller_phone_masked?: string;
+    candidate_phone_masked?: string;
   };
 }
 
@@ -161,6 +173,7 @@ export class CandidateProfile implements OnInit {
   displaySectionViews: ResumeSectionView[] = [];
   skillTags: string[] = [];
   verificationViewItems: Array<{ label: string; verified: boolean; date?: string }> = [];
+  callingCandidate = false;
 
   constructor(
     private http: HttpClient,
@@ -194,6 +207,10 @@ export class CandidateProfile implements OnInit {
 
   get headline(): string {
     return this.resumeData.headline || 'Resume profile';
+  }
+
+  get canCallCandidate(): boolean {
+    return !!this.candidate?.can_call_candidate && !!(this.candidate?.phone || '').trim();
   }
 
   get resumeStatusLabel(): string {
@@ -264,6 +281,40 @@ export class CandidateProfile implements OnInit {
       return;
     }
     window.open(this.resumeData.file_url, '_blank', 'noopener');
+  }
+
+  callCandidate(): void {
+    if (this.callingCandidate || !this.canCallCandidate) {
+      if (!this.canCallCandidate) {
+        this.toast.showError('Call unavailable', 'Candidate phone number is not available for calling.');
+      }
+      return;
+    }
+
+    this.callingCandidate = true;
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http.post<CandidateCallResponse>(
+      `${apiBaseUrl}/candidate-profile-data/${this.candidate.id}/call/`,
+      {}
+    )
+      .pipe(
+        catchError((error) => {
+          console.error('Error starting candidate call', error);
+          this.callingCandidate = false;
+          this.toast.showError('Call failed', 'Unable to connect the Exotel call right now.');
+          return of({ Success: false, Error: 'Request failed' } as CandidateCallResponse);
+        })
+      )
+      .subscribe((response) => {
+        this.callingCandidate = false;
+        if (!response?.Success) {
+          this.toast.showError('Call failed', response?.Error || 'Unable to connect the Exotel call right now.');
+          return;
+        }
+        const callerPhone = response.Data?.caller_phone_masked || 'your registered number';
+        const candidatePhone = response.Data?.candidate_phone_masked || this.candidate.candidate_phone_masked || 'the candidate number';
+        this.toast.showSuccess('Calling candidate', `Connecting ${callerPhone} with ${candidatePhone} via Exotel.`);
+      });
   }
 
   reprocessResume(): void {

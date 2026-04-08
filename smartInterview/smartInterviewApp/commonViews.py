@@ -44,6 +44,7 @@ from django.db import transaction
 from django.db.models import Count, Case, When, CharField, Value, Q, F, Max, Min, DateTimeField
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
+from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
 from smartInterviewApp.notifications.channels import send_sms, send_template_message
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.identity_verification import CandidateIdentityVerificationService
@@ -53,6 +54,7 @@ from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication
+from .templatetags.host_links import build_host_link
 
 
 SIGNUP_TOKEN_SALT = 'candidate-signup'
@@ -66,6 +68,7 @@ PDF_BROWSER_CANDIDATES = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ]
 logger = logging.getLogger(__name__)
+exotel_voice_provider = ExotelVoiceProvider()
 
 
 def normalize_interview_status(value: str) -> str:
@@ -95,6 +98,13 @@ def normalize_phone(value: str) -> str:
     if len(digits) == 10:
         return f'91{digits}'
     return digits
+
+
+def mask_phone_display(value: str) -> str:
+    digits = normalize_phone(value)
+    if len(digits) <= 4:
+        return digits
+    return f"{'•' * max(0, len(digits) - 4)}{digits[-4:]}"
 
 
 def split_name(name: str) -> tuple[str, str]:
@@ -465,7 +475,40 @@ def is_identity_verified(record: CandidateIdentityVerification | None) -> bool:
     }
 
 
-def build_candidate_details(candidate: Interview) -> dict:
+def ensure_litio_interview_token(interview: Interview) -> str:
+    token = (interview.litio_interview_token or '').strip()
+    if token:
+        return token
+
+    while True:
+        token = secrets.token_urlsafe(24)
+        if not Interview.objects.filter(litio_interview_token=token).exists():
+            interview.litio_interview_token = token
+            interview.save(update_fields=['litio_interview_token'])
+            return token
+
+
+def get_litio_interview_by_token(token: str) -> Interview | None:
+    value = (token or '').strip()
+    if not value:
+        return None
+    return (
+        Interview.objects.select_related('candidate', 'recruiter', 'interviewer', 'role')
+        .filter(litio_interview_token=value)
+        .first()
+    )
+
+
+def build_litio_interview_link(request, interview: Interview) -> tuple[str, str]:
+    token = ensure_litio_interview_token(interview)
+    if request is not None:
+        base_url = build_host_link(request, 'litio').rstrip('/')
+    else:
+        base_url = getattr(settings, 'LITIO_PUBLIC_BASE_URL', 'https://litio.shortlistii.com').rstrip('/')
+    return token, f'{base_url}/i/{token}'
+
+
+def build_candidate_details(candidate: Interview, request=None) -> dict:
     recruiter_name = (
         f"{candidate.recruiter.first_name} {candidate.recruiter.last_name}".strip().title()
         if candidate.recruiter else ''
@@ -474,13 +517,18 @@ def build_candidate_details(candidate: Interview) -> dict:
         f"{candidate.interviewer.first_name} {candidate.interviewer.last_name}".strip().title()
         if getattr(candidate, 'interviewer', None) else ''
     )
+    interview_token, interview_link = build_litio_interview_link(request, candidate)
     return {
         'id': candidate.id,
         'name': f"{candidate.candidate.first_name} {candidate.candidate.last_name}".strip().title(),
         'email': candidate.candidate.email,
         'phone': candidate.candidate.profile.phone if hasattr(candidate.candidate, 'profile') else '',
+        'candidate_id': candidate.candidate_id,
         'recruiter': recruiter_name,
+        'recruiter_id': candidate.recruiter_id,
         'interviewer': interviewer_name,
+        'interviewer_id': candidate.interviewer_id,
+        'interview_type': getattr(candidate, 'interview_type', 'manual'),
         'status': candidate.status,
         'score': candidate.score,
         'recording_url': candidate.recording_url,
@@ -488,6 +536,8 @@ def build_candidate_details(candidate: Interview) -> dict:
         'date': candidate.date,
         'role': candidate.role.role if candidate.role else '',
         'role_id': candidate.role.id if candidate.role else None,
+        'interview_token': interview_token,
+        'interview_link': interview_link,
     }
 
 
@@ -1454,11 +1504,17 @@ def load_candidate_signup_token(token: str) -> dict:
     return signing.loads(token, salt=SIGNUP_TOKEN_SALT, max_age=SIGNUP_TOKEN_MAX_AGE_SECONDS)
 
 
-def send_existing_candidate_sms(candidate: User, interview: Interview) -> dict:
+def send_existing_candidate_sms(candidate: User, interview: Interview, request=None) -> dict:
     profile = getattr(candidate, 'profile', None)
     phone = normalize_phone(profile.phone if profile else '')
+    interview_token, interview_link = build_litio_interview_link(request, interview)
     if not phone:
-        return {'sent': False, 'reason': 'Candidate phone number is missing.'}
+        return {
+            'sent': False,
+            'reason': 'Candidate phone number is missing.',
+            'interview_token': interview_token,
+            'interview_link': interview_link,
+        }
 
     recruiter_name = f"{interview.recruiter.first_name} {interview.recruiter.last_name}".strip().title() if interview.recruiter else 'our team'
     role_name = interview.role.role if interview.role else 'the role'
@@ -1482,8 +1538,6 @@ def send_existing_candidate_sms(candidate: User, interview: Interview) -> dict:
             (candidate.first_name or 'Candidate').strip().title(),
             role_name,
             recruiter_name,
-            interview_date,
-            interview_time,
         ],
         metadata={'event_type': 'candidate_interview_created', 'interview_id': interview.id},
     )
@@ -1505,6 +1559,8 @@ def send_existing_candidate_sms(candidate: User, interview: Interview) -> dict:
             'whatsapp': whatsapp_result,
         },
         'message': message,
+        'interview_token': interview_token,
+        'interview_link': interview_link,
     }
 
 
@@ -1736,7 +1792,7 @@ def addUser(request):
                             role=role_obj,
                         )
                         candidate.save()
-                        candidate_details = build_candidate_details(candidate)
+                        candidate_details = build_candidate_details(candidate, request=request)
                         notification_result = send_new_candidate_signup_sms(request, obj, candidate)
                     if normalized_user_type in {'recruiter', 'interviewer'}:
                         recruiter_details = {}
@@ -1805,8 +1861,8 @@ def addUser(request):
                             role=role_obj,
                         )
                         candidate.save()
-                        candidate_details = build_candidate_details(candidate)
-                        notification_result = send_existing_candidate_sms(obj, candidate)
+                        candidate_details = build_candidate_details(candidate, request=request)
+                        notification_result = send_existing_candidate_sms(obj, candidate, request=request)
             else:
                     return JsonResponse({"Success":False, "Error":'Add user failed'})
             return JsonResponse({
@@ -3487,6 +3543,8 @@ def getCandidateProfileData(request, interview_id: int):
         )
         resume_data = compact_resume_payload(ResumeProcessingService().serialize_resume(latest_resume))
         profile = getattr(interview.candidate, 'profile', None)
+        operator_profile = getattr(request.user, 'profile', None)
+        operator_role = getattr(operator_profile, 'role', '')
         prefs = UserNotificationPreference.objects.filter(user=interview.candidate).first()
         identity_record = CandidateIdentityVerification.objects.filter(candidate=interview.candidate).first()
         insight_snapshot = CandidateInsightSnapshot.objects.filter(candidate=interview.candidate).first()
@@ -3504,6 +3562,7 @@ def getCandidateProfileData(request, interview_id: int):
                     'name': candidate_name,
                     'email': interview.candidate.email,
                     'phone': getattr(profile, 'phone', ''),
+                    'candidate_phone_masked': mask_phone_display(getattr(profile, 'phone', '')),
                     'recruiter': get_display_name(interview.recruiter) if interview.recruiter else '',
                     'interviewer': get_display_name(interview.interviewer) if interview.interviewer else '',
                     'role': interview.role.role if interview.role else '',
@@ -3513,6 +3572,12 @@ def getCandidateProfileData(request, interview_id: int):
                     'date': interview.date.isoformat() if interview.date else '',
                     'profile_picture': build_file_url(getattr(profile, 'profile_picture', None)),
                     'public_resume_downloads': public_resume.download_count if public_resume else 0,
+                    'can_call_candidate': bool(
+                        operator_role in {'admin', 'recruiter', 'interviewer'}
+                        and
+                        normalize_phone(getattr(profile, 'phone', ''))
+                        and normalize_phone(getattr(operator_profile, 'phone', ''))
+                    ),
                 },
                 'verification': {
                     'phone_verified': bool(getattr(prefs, 'phone_verified_at', None)),
@@ -3528,6 +3593,73 @@ def getCandidateProfileData(request, interview_id: int):
             }
         })
     except Exception as e:
+        return JsonResponse({'Success': False, 'Error': str(e), 'Data': None}, status=500)
+
+
+@csrf_exempt
+@login_required
+def callCandidateProfile(request, interview_id: int):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    try:
+        operator_profile = getattr(request.user, 'profile', None)
+        if not operator_profile or operator_profile.role not in {'admin', 'recruiter', 'interviewer'}:
+            return JsonResponse({'Success': False, 'Error': 'Calling is restricted to workspace users.', 'Data': None}, status=403)
+
+        interview = (
+            get_accessible_interviews(request.user)
+            .select_related('candidate', 'candidate__profile', 'recruiter', 'interviewer', 'role')
+            .filter(id=interview_id)
+            .first()
+        )
+        if not interview:
+            return JsonResponse({'Success': False, 'Error': 'Candidate interview not found.', 'Data': None}, status=404)
+
+        caller_phone = normalize_phone(getattr(operator_profile, 'phone', '') or '')
+        if len(caller_phone) < 12:
+            return JsonResponse({
+                'Success': False,
+                'Error': 'Add your registered mobile number to place Exotel calls.',
+                'Data': None,
+            }, status=400)
+
+        candidate_profile = getattr(interview.candidate, 'profile', None)
+        candidate_phone = normalize_phone(getattr(candidate_profile, 'phone', '') or '')
+        if len(candidate_phone) < 12:
+            return JsonResponse({
+                'Success': False,
+                'Error': 'Candidate phone number is not available for calling.',
+                'Data': None,
+            }, status=400)
+
+        call_result = exotel_voice_provider.connect_agent_to_candidate(
+            agent_phone=caller_phone,
+            candidate_phone=candidate_phone,
+            interview_id=interview.id,
+            metadata={'TimeLimit': request.POST.get('time_limit') or '900'},
+        )
+        if not call_result.success:
+            return JsonResponse({
+                'Success': False,
+                'Error': call_result.error_message or 'Unable to start the Exotel call right now.',
+                'Data': {
+                    'caller_phone_masked': mask_phone_display(caller_phone),
+                    'candidate_phone_masked': mask_phone_display(candidate_phone),
+                }
+            }, status=502)
+
+        return JsonResponse({
+            'Success': True,
+            'Error': None,
+            'Data': {
+                'call_sid': call_result.provider_message_id,
+                'caller_phone_masked': mask_phone_display(caller_phone),
+                'candidate_phone_masked': mask_phone_display(candidate_phone),
+            }
+        })
+    except Exception as e:
+        logger.exception('Unable to initiate Exotel call for candidate profile')
         return JsonResponse({'Success': False, 'Error': str(e), 'Data': None}, status=500)
 
 

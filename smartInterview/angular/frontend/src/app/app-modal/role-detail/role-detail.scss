@@ -13,6 +13,8 @@
   --accent: #63ddff;
   --accent-strong: #2f8ff0;
   position: relative;
+  width: min(1120px, 96vw);
+  max-height: min(90vh, 960px);
   border: 1px solid rgba(137, 206, 246, 0.24);
   border-radius: 20px;
   background:
@@ -21,7 +23,9 @@
   padding: 22px;
   padding-right: 64px;
   box-shadow: 0 28px 80px rgba(3, 10, 24, 0.42);
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .role-dialog::before {

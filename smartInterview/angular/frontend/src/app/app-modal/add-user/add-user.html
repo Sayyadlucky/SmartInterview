@@ -19,6 +19,8 @@
               id="phone"
               name="phone"
               type="tel"
+              inputmode="numeric"
+              appDigitsOnly
               [(ngModel)]="phone"
               (ngModelChange)="onPhoneInput($event)"
               required
@@ -252,6 +254,8 @@
               id="vacancies"
               name="vacancies"
               type="text"
+              inputmode="numeric"
+              appDigitsOnly
               [(ngModel)]="vacancies"
               required
               placeholder="e.g. 3"

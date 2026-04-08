@@ -130,6 +130,29 @@ function initCoreUi() {
     });
   });
 
+  const sanitizeDigits = (value) => (value || "").replace(/\D/g, "");
+  document.querySelectorAll("input[data-digits-only]").forEach((input) => {
+    if (input.dataset.digitsBound === "true") return;
+    input.dataset.digitsBound = "true";
+
+    input.addEventListener("input", () => {
+      const sanitized = sanitizeDigits(input.value);
+      if (sanitized !== input.value) {
+        input.value = sanitized;
+      }
+    });
+
+    input.addEventListener("paste", (event) => {
+      const pasted = event.clipboardData?.getData("text") || "";
+      if (!/\D/.test(pasted)) return;
+      event.preventDefault();
+      input.value = sanitizeDigits(pasted);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    input.addEventListener("drop", (event) => event.preventDefault());
+  });
+
   syncScrollPadding();
   window.addEventListener("resize", syncScrollPadding);
 

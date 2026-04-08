@@ -192,6 +192,7 @@ class Interview(models.Model):
     )
     date = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='scheduled')
+    litio_interview_token = models.CharField(max_length=80, unique=True, null=True, blank=True, db_index=True)
     hired_at = models.DateTimeField(null=True, blank=True)
     score = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recording_url = models.URLField(blank=True, null=True)
