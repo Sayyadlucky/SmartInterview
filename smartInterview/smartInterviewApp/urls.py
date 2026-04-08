@@ -5,7 +5,15 @@ from . import commonViews
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('about/', views.about, name='about'),
+    path('contact/', views.contact, name='contact'),
+    path('privacy-policy/', views.privacy_policy, name='privacy-policy'),
+    path('terms-of-service/', views.terms_of_service, name='terms-of-service'),
     path('login/', views.ajax_login, name="login"),
+    path('workspace/password-reset/start/', views.workspace_password_reset_start, name='workspace-password-reset-start'),
+    path('workspace/password-reset/verify-phone/', views.workspace_password_reset_verify_phone, name='workspace-password-reset-verify-phone'),
+    path('workspace/password-reset/verify-otp/', views.workspace_password_reset_verify_otp, name='workspace-password-reset-verify-otp'),
+    path('workspace/password-reset/complete/', views.workspace_password_reset_complete, name='workspace-password-reset-complete'),
     path('logout/', views.MyLogoutView.as_view(), name='logout'),
     path('dashboard/', include(('angular.urls','angular'), namespace='dashboard')),
     path('dashboard-data/', views.dashboardData, name='dashboard-data'),

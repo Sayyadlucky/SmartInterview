@@ -72,6 +72,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 12px;
+  align-items: start;
 }
 
 .form-grid--single {
@@ -144,6 +145,23 @@
   color: #e4f3ff;
   font-size: 0.84rem;
   padding: 0 10px 0 0;
+}
+
+.input-shell select:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.input-shell input:disabled,
+.input-shell select:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.input-shell:has(input:disabled),
+.input-shell:has(select:disabled) {
+  background: rgba(10, 30, 56, 0.5);
+  border-color: rgba(127, 198, 240, 0.18);
 }
 
 .input-shell input::placeholder {

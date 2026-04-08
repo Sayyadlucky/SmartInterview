@@ -21,6 +21,7 @@ import { WorkflowAction } from '../app-modal/workflow-action/workflow-action';
 import { getApiBaseUrl } from '../core/api-base';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { writeWorkspaceContext } from '../core/workspace-context';
+import { AppToastService } from '../core/app-toast.service';
 
 Chart.register(...registerables);
 
@@ -154,6 +155,7 @@ interface CompanyProfileFormData {
 })
 export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly toast = inject(AppToastService);
   private readonly apiTimeoutMs = 12000;
   data: any;
   loading = false;
@@ -569,16 +571,22 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
         catchError((error) => {
           console.error(`Error trying to ${action} request`, error);
           application.actionLoading = false;
+          this.toast.showError('Request update failed', `Unable to ${action === 'accept' ? 'approve' : 'reject'} this request right now.`);
           return of(null);
         })
       )
       .subscribe((response) => {
         if (!response?.Success) {
           application.actionLoading = false;
+          this.toast.showError('Request update failed', response?.Error || `Unable to ${action === 'accept' ? 'approve' : 'reject'} this request right now.`);
           return;
         }
 
         application.removing = true;
+        this.toast.showSuccess(
+          action === 'accept' ? 'Request approved' : 'Request rejected',
+          `${application.candidate_name} has been ${action === 'accept' ? 'moved into the hiring workflow' : 'updated successfully'}.`
+        );
         window.setTimeout(() => {
           this.recruiterApplications = this.recruiterApplications.filter((item) => item.id !== application.id);
           this.recruiterApplicationsCount = this.recruiterApplications.length;
@@ -979,12 +987,14 @@ saveCompanyProfile(): void {
       catchError((error) => {
         console.error('Error updating company profile', error);
         this.companySaving = false;
+        this.toast.showError('Company profile update failed', 'Unable to save company details right now.');
         return of(null);
       })
     )
     .subscribe((response) => {
       this.companySaving = false;
       if (!response?.Success || !response?.Data) {
+        this.toast.showError('Company profile update failed', response?.Error || 'Unable to save company details right now.');
         return;
       }
       this.companyProfile = response.Data as CompanyProfileData;
@@ -993,6 +1003,7 @@ saveCompanyProfile(): void {
       this.selectedCompanyLogoFile = null;
       this.selectedCompanyLogoName = '';
       this.lastUpdatedAt = new Date();
+      this.toast.showSuccess('Company profile updated', 'Organization details were saved successfully.');
     });
 }
 
@@ -1859,9 +1870,6 @@ addRRole(): void {
       if (result.action === 'refresh') {
         this.fetchData();
         window.dispatchEvent(new CustomEvent('global-data-refresh'));
-        if (result.message) {
-          this.showApplicationToast(result.message);
-        }
         return;
       }
       if (result.action === 'openProfile' && result.candidate) {

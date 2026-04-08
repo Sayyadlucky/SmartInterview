@@ -1,9 +1,10 @@
-import { AfterViewChecked, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Chart, registerables } from 'chart.js';
 import { catchError, of } from 'rxjs';
 import { FormsModule } from '@angular/forms';
+import { AppToastService } from '../core/app-toast.service';
 
 Chart.register(...registerables);
 
@@ -56,6 +57,7 @@ interface RecruiterDirectoryResponse {
   styleUrl: './recuiter-profile.scss'
 })
 export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
+  private readonly toast = inject(AppToastService);
   @Input() evaluator!: Evaluator;
   @Input() mode: 'evaluator' | 'recruiter' = 'evaluator';
   @ViewChild('performanceChartCanvas') performanceChartCanvas?: ElementRef<HTMLCanvasElement>;
@@ -274,6 +276,7 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
           this.savingProfile = false;
           this.saveSuccessMessage = '';
           this.saveErrorMessage = error?.error?.Error || 'Failed to update profile details.';
+          this.toast.showError('Profile update failed', this.saveErrorMessage);
           return of({ Success: false, Error: this.saveErrorMessage });
         })
       )
@@ -282,6 +285,7 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
           this.savingProfile = false;
           this.saveSuccessMessage = '';
           this.saveErrorMessage = response?.Error || 'Failed to update profile details.';
+          this.toast.showError('Profile update failed', this.saveErrorMessage);
           return;
         }
 
@@ -304,6 +308,7 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
         this.savingProfile = false;
         this.saveErrorMessage = '';
         this.saveSuccessMessage = 'Profile details updated.';
+        this.toast.showSuccess('Profile updated', `${this.evaluator.name} details are now up to date.`);
         window.dispatchEvent(new CustomEvent('global-data-refresh'));
       });
   }

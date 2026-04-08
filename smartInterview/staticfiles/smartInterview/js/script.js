@@ -1,6 +1,6 @@
 const byId = (id) => document.getElementById(id);
 
-const header = byId("mainHeader");
+const header = byId("mainHeader") || document.querySelector(".legal-header");
 const menu = byId("mainMenu");
 const loginSection = byId("loginSection");
 const loginPanel = byId("loginPanel");
@@ -9,14 +9,19 @@ const contactSignInBtn = byId("contactSignInBtn");
 const closeLogin = byId("closeLogin");
 const getStartedBtn = byId("getStartedBtn");
 const loginForm = byId("loginForm");
+const signInBtn = byId("signInBtn");
+const workspaceForgotPasswordTrigger = byId("workspaceForgotPasswordTrigger");
+const workspaceResetOverlay = byId("workspaceResetOverlay");
+const workspaceResetClose = byId("workspaceResetClose");
+const workspaceResetProceed = byId("workspaceResetProceed");
 const errorMsg = byId("errorMsg");
 const mobileMenuBtn = byId("mobileMenuBtn");
 const closeMobileMenu = byId("closeMobileMenu");
 const mobileDrawer = byId("mobileDrawer");
 const mobileDrawerBackdrop = byId("mobileDrawerBackdrop");
 const drawerSignInBtn = byId("drawerSignInBtn");
-const preloader = byId("preloader");
 const heroSection = byId("hero");
+const isLandingPage = document.body?.classList.contains("landing-page");
 
 const hasGsap = typeof window.gsap !== "undefined";
 const hasScrollTrigger = typeof window.ScrollTrigger !== "undefined";
@@ -26,15 +31,17 @@ const isFixedHeaderPage =
   document.body?.classList.contains("candidate-signup-page") ||
   document.body?.classList.contains("jobs-portal-page");
 
-if ("scrollRestoration" in history) {
+if ("scrollRestoration" in history && !window.location.hash) {
   history.scrollRestoration = "manual";
 }
 
 window.addEventListener("beforeunload", () => {
+  if (window.location.hash) return;
   window.scrollTo(0, 0);
 });
 
 window.addEventListener("pageshow", () => {
+  if (window.location.hash) return;
   window.scrollTo(0, 0);
 });
 
@@ -93,18 +100,52 @@ function initCoreUi() {
     document.documentElement.style.setProperty("--my", `${y}%`);
   });
 
+  const getHeaderOffset = () => {
+    if (!header) return 0;
+    return Math.round(header.getBoundingClientRect().height);
+  };
+
+  const syncScrollPadding = () => {
+    document.documentElement.style.scrollPaddingTop = `${getHeaderOffset() + 34}px`;
+  };
+
+  const scrollToTarget = (target, { behavior = "smooth" } = {}) => {
+    if (!target) return;
+    const headerOffset = getHeaderOffset();
+    const top = window.scrollY + target.getBoundingClientRect().top - headerOffset - 34;
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior,
+    });
+  };
+
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener("click", (e) => {
       const href = anchor.getAttribute("href");
+      if (!href || href === "#") return;
       const target = href ? document.querySelector(href) : null;
       if (!target) return;
       e.preventDefault();
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToTarget(target);
     });
   });
 
-  getStartedBtn?.addEventListener("click", () => {
-    byId("features")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  syncScrollPadding();
+  window.addEventListener("resize", syncScrollPadding);
+
+  if (window.location.hash) {
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector(window.location.hash);
+      if (target) scrollToTarget(target, { behavior: "auto" });
+    });
+  }
+
+  getStartedBtn?.addEventListener("click", (e) => {
+    const targetSelector = getStartedBtn.getAttribute("data-scroll-target");
+    const target = targetSelector ? document.querySelector(targetSelector) : null;
+    if (!target) return;
+    e.preventDefault();
+    scrollToTarget(target);
   });
 
   mobileMenuBtn?.addEventListener("click", openMobileMenu);
@@ -120,9 +161,89 @@ function initCoreUi() {
   });
 }
 
+function initLegalToc() {
+  const toc = document.querySelector(".legal-toc");
+  if (!toc) return;
+
+  const links = Array.from(toc.querySelectorAll('a[href^="#"]'));
+  if (!links.length) return;
+
+  const sections = links
+    .map((link) => {
+      const href = link.getAttribute("href");
+      const section = href ? document.querySelector(href) : null;
+      return section ? { link, section } : null;
+    })
+    .filter(Boolean);
+
+  if (!sections.length) return;
+
+  const setActive = (id) => {
+    sections.forEach(({ link, section }) => {
+      const active = section.id === id;
+      link.classList.toggle("is-active", active);
+      if (active) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  };
+
+  const getHeaderOffset = () => {
+    if (!header) return 0;
+    return Math.round(header.getBoundingClientRect().height);
+  };
+
+  const updateActiveSection = () => {
+    const marker = window.scrollY + getHeaderOffset() + 64;
+    let activeId = sections[0].section.id;
+
+    sections.forEach(({ section }) => {
+      const sectionTop = window.scrollY + section.getBoundingClientRect().top;
+      if (sectionTop <= marker) activeId = section.id;
+    });
+
+    setActive(activeId);
+  };
+
+  let ticking = false;
+  const handleScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(() => {
+      updateActiveSection();
+      ticking = false;
+    });
+  };
+
+  updateActiveSection();
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  window.addEventListener("resize", updateActiveSection);
+}
+
 function initLoginPanel() {
+  const defaultSignInMarkup = signInBtn?.innerHTML || "";
+  let loginSubmitting = false;
+
+  const setLoginSubmitting = (submitting) => {
+    if (!signInBtn) return;
+    loginSubmitting = submitting;
+    signInBtn.disabled = submitting;
+    signInBtn.classList.toggle("is-loading", submitting);
+
+    if (submitting) {
+      signInBtn.setAttribute("aria-busy", "true");
+      signInBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Signing in</span>';
+      return;
+    }
+
+    signInBtn.removeAttribute("aria-busy");
+    signInBtn.innerHTML = defaultSignInMarkup;
+  };
+
   openLoginBtn?.addEventListener("click", openLogin);
   contactSignInBtn?.addEventListener("click", openLogin);
+  document.querySelectorAll("[data-open-login]").forEach((trigger) => {
+    trigger.addEventListener("click", openLogin);
+  });
   closeLogin?.addEventListener("click", closeLoginPanel);
 
   loginSection?.addEventListener("click", (e) => {
@@ -138,7 +259,9 @@ function initLoginPanel() {
 
   loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (loginSubmitting) return;
     if (errorMsg) errorMsg.textContent = "";
+    setLoginSubmitting(true);
 
     try {
       const res = await fetch("login/", {
@@ -153,15 +276,568 @@ function initLoginPanel() {
       }
 
       if (errorMsg) errorMsg.textContent = data.message || "Invalid username or password.";
+      setLoginSubmitting(false);
     } catch (_err) {
       if (errorMsg) errorMsg.textContent = "Login request failed. Please try again.";
+      setLoginSubmitting(false);
     }
   });
+}
+
+function initWorkspacePasswordReset() {
+  if (!workspaceResetOverlay || !workspaceForgotPasswordTrigger) return;
+
+  const copy = byId("workspaceResetCopy");
+  const messageBox = byId("workspaceResetMessage");
+  const indicators = Array.from(document.querySelectorAll("[data-workspace-step-indicator]"));
+  const stepMap = {
+    1: byId("workspaceResetEmailStep"),
+    2: byId("workspaceResetPhoneStep"),
+    3: byId("workspaceResetOtpStep"),
+    4: byId("workspaceResetPasswordStep"),
+    5: byId("workspaceResetSuccessStep"),
+  };
+  const state = { step: 1, maskedPhone: "", lastFour: "" };
+
+  const setStep = (step) => {
+    state.step = step;
+    Object.entries(stepMap).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.classList.toggle("is-active", Number(key) === step);
+    });
+    indicators.forEach((indicator, index) => {
+      const value = index + 1;
+      indicator.classList.toggle("is-active", value === Math.min(step, 4));
+      indicator.classList.toggle("is-complete", value < Math.min(step, 5));
+    });
+  };
+
+  const showMessage = (text, type = "") => {
+    if (!messageBox) return;
+    if (!text) {
+      messageBox.textContent = "";
+      messageBox.className = "workspace-reset-message";
+      return;
+    }
+    messageBox.textContent = text;
+    messageBox.className = `workspace-reset-message is-visible ${type ? `is-${type}` : ""}`.trim();
+  };
+
+  const resetFlow = () => {
+    state.step = 1;
+    state.maskedPhone = "";
+    state.lastFour = "";
+    byId("workspaceResetEmailStep")?.reset();
+    byId("workspaceResetPhoneStep")?.reset();
+    byId("workspaceResetOtpStep")?.reset();
+    byId("workspaceResetPasswordStep")?.reset();
+    const lastFour = byId("workspaceResetLastFour");
+    const maskedPhone = byId("workspaceResetMaskedPhone");
+    if (lastFour) lastFour.textContent = "0000";
+    if (maskedPhone) maskedPhone.textContent = "••••";
+    if (copy) copy.textContent = "Verify your admin or recruiter account in a few secure steps and set a new password.";
+    showMessage("");
+    setStep(1);
+  };
+
+  const openModal = () => {
+    resetFlow();
+    workspaceResetOverlay.classList.add("is-open");
+    workspaceResetOverlay.setAttribute("aria-hidden", "false");
+  };
+
+  const closeModal = () => {
+    workspaceResetOverlay.classList.remove("is-open");
+    workspaceResetOverlay.setAttribute("aria-hidden", "true");
+  };
+
+  const getCookie = (name) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  };
+
+  const postForm = async (url, payload) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: payload,
+    });
+
+    const rawText = await response.text();
+    let data = null;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch (_error) {
+      data = null;
+    }
+
+    if (!response.ok || !data?.Success) {
+      throw new Error((data && data.Error) || "Unable to complete this step right now. Please verify your details and try again.");
+    }
+    return data;
+  };
+
+  const setLoadingState = (button, label) => {
+    if (!button) return;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+    button.dataset.originalLabel = button.dataset.originalLabel || button.textContent.trim() || "Continue";
+    button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">${label}</span>`;
+  };
+
+  const resetLoadingState = (button) => {
+    if (!button) return;
+    const originalLabel = button.dataset.originalLabel || "Continue";
+    button.disabled = false;
+    button.classList.remove("is-loading");
+    button.removeAttribute("aria-busy");
+    button.innerHTML = `<span class="btn-label">${originalLabel}</span>`;
+  };
+
+  workspaceForgotPasswordTrigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    closeLoginPanel();
+    window.setTimeout(openModal, hasGsap ? 240 : 0);
+  });
+
+  workspaceResetClose?.addEventListener("click", closeModal);
+  workspaceResetProceed?.addEventListener("click", () => {
+    closeModal();
+    window.setTimeout(openLogin, 120);
+  });
+
+  workspaceResetOverlay.addEventListener("click", (event) => {
+    if (event.target === workspaceResetOverlay) closeModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && workspaceResetOverlay.classList.contains("is-open")) {
+      closeModal();
+    }
+  });
+
+  byId("workspaceResetEmailStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Checking...");
+    try {
+      const data = await postForm("/workspace/password-reset/start/", formData);
+      state.maskedPhone = data.Data.masked_phone || "••••";
+      state.lastFour = data.Data.last_four || "0000";
+      const lastFour = byId("workspaceResetLastFour");
+      const maskedPhone = byId("workspaceResetMaskedPhone");
+      if (lastFour) lastFour.textContent = state.lastFour;
+      if (maskedPhone) maskedPhone.textContent = state.maskedPhone;
+      if (copy) copy.textContent = "Confirm the mobile number linked to your workspace account before we send a one-time password.";
+      showMessage("");
+      setStep(2);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+
+  byId("workspaceResetPhoneStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Sending OTP...");
+    try {
+      const data = await postForm("/workspace/password-reset/verify-phone/", formData);
+      if (copy) copy.textContent = "Enter the OTP sent to your registered mobile number to continue securely.";
+      showMessage(data.Data?.message || "OTP sent successfully.", "success");
+      const maskedPhone = byId("workspaceResetMaskedPhone");
+      if (maskedPhone) maskedPhone.textContent = data.Data?.masked_phone || state.maskedPhone;
+      setStep(3);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+
+  byId("workspaceResetOtpStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Verifying...");
+    try {
+      const data = await postForm("/workspace/password-reset/verify-otp/", formData);
+      if (copy) copy.textContent = "Set a new password for your workspace account.";
+      showMessage(data.Data?.message || "OTP verified successfully.", "success");
+      setStep(4);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+
+  byId("workspaceResetPasswordStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Updating...");
+    try {
+      const data = await postForm("/workspace/password-reset/complete/", formData);
+      showMessage("");
+      if (copy) copy.textContent = data.Data?.message || "Your password has been updated successfully.";
+      setStep(5);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+}
+
+function initRevealOnScroll() {
+  if (hasGsap) return;
+  const elements = document.querySelectorAll(".reveal-up");
+  if (!elements.length) return;
+
+  const reveal = (el) => {
+    el.style.opacity = "1";
+    el.style.transform = "translateY(0)";
+  };
+
+  if (!("IntersectionObserver" in window)) {
+    elements.forEach(reveal);
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        reveal(entry.target);
+        observer.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.14, rootMargin: "0px 0px -8% 0px" }
+  );
+
+  elements.forEach((element) => observer.observe(element));
+}
+
+function initContactPage() {
+  if (!document.body?.classList.contains("contact-page-shell")) return;
+
+  const form = document.querySelector(".contact-form");
+  const submitBtn = form?.querySelector(".contact-submit-btn");
+  const submitLabel = submitBtn?.querySelector(".contact-submit-btn__label");
+  const successModal = byId("contactSuccessModal");
+  const closeButtons = successModal?.querySelectorAll("[data-close-contact-success]");
+
+  if (form && submitBtn && submitLabel) {
+    form.addEventListener("submit", () => {
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
+      submitBtn.classList.add("is-submitting");
+      submitBtn.setAttribute("aria-busy", "true");
+      submitLabel.textContent = submitBtn.getAttribute("data-loading-label") || "Sending Inquiry";
+    });
+  }
+
+  if (!successModal) return;
+
+  const closeModal = () => {
+    successModal.classList.remove("is-open");
+    successModal.setAttribute("aria-hidden", "true");
+  };
+
+  const openModal = () => {
+    successModal.classList.add("is-open");
+    successModal.setAttribute("aria-hidden", "false");
+  };
+
+  closeButtons?.forEach((trigger) => {
+    trigger.addEventListener("click", closeModal);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && successModal.classList.contains("is-open")) closeModal();
+  });
+
+  window.requestAnimationFrame(openModal);
+}
+
+function initLandingMotion() {
+  if (!isLandingPage || !hasGsap || !heroSection) return;
+  if (hasScrollTrigger) gsap.registerPlugin(ScrollTrigger);
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const intro = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+  intro
+    .from(".brand", { y: -18, opacity: 0, duration: 0.48 })
+    .from("#mainMenu a", { y: -12, opacity: 0, stagger: 0.05, duration: 0.28 }, "-=0.3")
+    .from("#openLoginBtn", { y: -12, opacity: 0, duration: 0.28 }, "-=0.26")
+    .from(".hero-glow", { scale: 0.84, opacity: 0, stagger: 0.12, duration: 0.9 }, "-=0.28")
+    .from(".hero-beam", { y: 24, opacity: 0, stagger: 0.1, duration: 0.7 }, "-=0.6")
+    .from(".hero-copy .eyebrow", { y: 16, opacity: 0, duration: 0.34 }, "-=0.52")
+    .from(".hero-wordmark", { y: 20, opacity: 0, duration: 0.48 }, "-=0.18")
+    .from(".hero-title", { y: 28, opacity: 0, duration: 0.62 }, "-=0.28")
+    .from(".hero-subtitle", { y: 20, opacity: 0, duration: 0.52 }, "-=0.32")
+    .from(".hero-actions .btn", { y: 12, opacity: 0, stagger: 0.08, duration: 0.32 }, "-=0.22")
+    .from(".hero-link-row > *", { y: 10, opacity: 0, stagger: 0.05, duration: 0.26 }, "-=0.2")
+    .from(".hero-trust .context-chip", { y: 12, opacity: 0, stagger: 0.05, duration: 0.26 }, "-=0.16")
+    .from(".hiring-flow-strip", { y: 18, opacity: 0, duration: 0.34 }, "-=0.14")
+    .from(".hiring-flow-step", { y: 10, opacity: 0, stagger: 0.05, duration: 0.24 }, "-=0.18")
+    .from(".hero-visual", { x: 28, opacity: 0, scale: 0.98, duration: 0.65 }, "-=0.46")
+    .from(
+      [".hero-visual-window", ".hero-floating-card"],
+      { y: 18, opacity: 0, stagger: 0.08, duration: 0.34 },
+      "-=0.32"
+    );
+
+  if (!reduced) {
+    const heroLayers = gsap.timeline({
+      defaults: { ease: "none" },
+      scrollTrigger: hasScrollTrigger
+        ? {
+            trigger: "#hero",
+            start: "top top",
+            end: "bottom top",
+            scrub: 1,
+          }
+        : undefined,
+    });
+
+    heroLayers
+      .to(".hero-backdrop", { yPercent: 10 }, 0)
+      .to(".hero-orbits", { yPercent: 14, scale: 1.04 }, 0)
+      .to(".hero-copy", { yPercent: -4 }, 0)
+      .to(".hero-visual-window", { yPercent: 6 }, 0)
+      .to(".scroll-indicator", { opacity: 0, y: 16 }, 0);
+
+    window.addEventListener("mousemove", (event) => {
+      const x = (event.clientX / window.innerWidth) - 0.5;
+      const y = (event.clientY / window.innerHeight) - 0.5;
+      gsap.to(".hero-backdrop", {
+        x: x * 16,
+        y: y * 12,
+        duration: 0.8,
+        overwrite: "auto",
+        ease: "power2.out",
+      });
+      gsap.to(".hero-visual-window", {
+        x: x * -10,
+        y: y * -8,
+        duration: 0.8,
+        overwrite: "auto",
+        ease: "power2.out",
+      });
+    });
+  }
+
+  gsap.utils.toArray(".reveal-up").forEach((el) => {
+    gsap.fromTo(
+      el,
+      { y: 28, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.72,
+        ease: "power2.out",
+        scrollTrigger: hasScrollTrigger
+          ? { trigger: el, start: "top 84%", once: true }
+          : undefined,
+      }
+    );
+  });
+
+  [
+    ".workflow-grid",
+    ".landing-feature-grid",
+    ".platform-tour-tabs",
+    ".analytics-spotlight__grid",
+    ".comparison-grid",
+    ".site-footer__nav",
+  ].forEach((selector) => {
+    const group = document.querySelector(selector);
+    if (!group || !hasScrollTrigger) return;
+    const items = group.children;
+    if (!items.length) return;
+
+    gsap.fromTo(
+      items,
+      { y: 18, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: group,
+          start: "top 82%",
+          once: true,
+        },
+      }
+    );
+  });
+}
+
+function initPlatformTour() {
+  if (!isLandingPage) return;
+
+  const root = byId("platform-overview");
+  if (!root) return;
+
+  const tabs = Array.from(root.querySelectorAll("[data-platform-tab]"));
+  const panels = Array.from(root.querySelectorAll("[data-platform-panel]"));
+  if (!tabs.length || !panels.length) return;
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let activeKey = tabs.find((tab) => tab.classList.contains("is-active"))?.dataset.platformTab || tabs[0].dataset.platformTab;
+  let autoRotateId = null;
+  let hasUserInteracted = false;
+
+  const panelByKey = (key) => panels.find((panel) => panel.dataset.platformPanel === key);
+
+  const syncTabState = (key) => {
+    tabs.forEach((tab) => {
+      const active = tab.dataset.platformTab === key;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+      tab.setAttribute("tabindex", active ? "0" : "-1");
+    });
+  };
+
+  const syncPanelState = (key) => {
+    panels.forEach((panel) => {
+      const active = panel.dataset.platformPanel === key;
+      panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
+      panel.setAttribute("aria-hidden", active ? "false" : "true");
+      panel.style.transform = "";
+      panel.style.opacity = "";
+    });
+  };
+
+  const stopAutoRotate = () => {
+    if (!autoRotateId) return;
+    window.clearInterval(autoRotateId);
+    autoRotateId = null;
+  };
+
+  const showPanel = (key, options = {}) => {
+    const { userInitiated = false } = options;
+    const currentPanel = panelByKey(activeKey);
+    const nextPanel = panelByKey(key);
+    if (!nextPanel || key === activeKey) return;
+
+    if (userInitiated) {
+      hasUserInteracted = true;
+      stopAutoRotate();
+    }
+
+    syncTabState(key);
+
+    if (!hasGsap || reduced || !currentPanel) {
+      syncPanelState(key);
+      activeKey = key;
+      return;
+    }
+
+    gsap.killTweensOf([currentPanel, nextPanel]);
+
+    gsap.to(currentPanel, {
+      opacity: 0,
+      y: -16,
+      scale: 0.985,
+      duration: 0.2,
+      ease: "power2.in",
+      onComplete: () => {
+        currentPanel.hidden = true;
+        currentPanel.setAttribute("aria-hidden", "true");
+        currentPanel.classList.remove("is-active");
+        currentPanel.style.transform = "";
+
+        nextPanel.hidden = false;
+        nextPanel.setAttribute("aria-hidden", "false");
+        nextPanel.classList.add("is-active");
+        gsap.fromTo(
+          nextPanel,
+          { opacity: 0, y: 16, scale: 0.988 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.34,
+            ease: "power2.out",
+            clearProps: "transform,opacity",
+          }
+        );
+      },
+    });
+
+    activeKey = key;
+  };
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => showPanel(tab.dataset.platformTab, { userInitiated: true }));
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End", "Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+
+      if (event.key === "Enter" || event.key === " ") {
+        showPanel(tab.dataset.platformTab, { userInitiated: true });
+        return;
+      }
+
+      let nextIndex = index;
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+
+      tabs[nextIndex]?.focus();
+      showPanel(tabs[nextIndex].dataset.platformTab, { userInitiated: true });
+    });
+  });
+
+  syncTabState(activeKey);
+  syncPanelState(activeKey);
+
+  if (reduced) return;
+
+  const startAutoRotate = () => {
+    if (hasUserInteracted || tabs.length < 2 || autoRotateId) return;
+    autoRotateId = window.setInterval(() => {
+      const currentIndex = tabs.findIndex((tab) => tab.dataset.platformTab === activeKey);
+      const nextTab = tabs[(currentIndex + 1) % tabs.length];
+      if (nextTab) showPanel(nextTab.dataset.platformTab);
+    }, 5200);
+  };
+
+  root.addEventListener("mouseenter", stopAutoRotate);
+  root.addEventListener("mouseleave", startAutoRotate);
+  root.addEventListener("focusin", stopAutoRotate);
+  root.addEventListener("focusout", () => {
+    if (!root.contains(document.activeElement)) startAutoRotate();
+  });
+
+  startAutoRotate();
 }
 
 function initGsapMotion() {
   if (!hasGsap) return;
   if (!heroSection) return;
+  if (isLandingPage) return;
   if (hasScrollTrigger) gsap.registerPlugin(ScrollTrigger);
 
   const intro = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -169,8 +845,13 @@ function initGsapMotion() {
     .from(".brand", { y: -20, opacity: 0, duration: 0.55 })
     .from("#mainMenu a", { y: -16, opacity: 0, stagger: 0.05, duration: 0.35 }, "-=0.34")
     .from("#openLoginBtn", { y: -12, opacity: 0, duration: 0.35 }, "-=0.3")
-    .from("#hero h2", { y: 20, opacity: 0, duration: 0.55 }, "-=0.32")
-    .from(".hero-cta .btn", { y: 10, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.2");
+    .from(".hero-copy .eyebrow", { y: 18, opacity: 0, duration: 0.38 }, "-=0.22")
+    .from(".hero-copy .wordmark", { y: 18, opacity: 0, duration: 0.46 }, "-=0.18")
+    .from(".hero-title", { y: 22, opacity: 0, duration: 0.58 }, "-=0.22")
+    .from(".hero-subtitle", { y: 20, opacity: 0, duration: 0.52 }, "-=0.26")
+    .from(".hero-cta .btn", { y: 10, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.2")
+    .from(".hero-link-row > *", { y: 10, opacity: 0, stagger: 0.06, duration: 0.28 }, "-=0.22")
+    .from(".hero-stats", { x: 24, opacity: 0, duration: 0.58 }, "-=0.34");
 
   gsap.utils.toArray(".reveal-up").forEach((el) => {
     gsap.to(el, {
@@ -185,23 +866,8 @@ function initGsapMotion() {
   });
 
   if (hasScrollTrigger) {
-    gsap.set([".eyebrow", ".wordmark", ".subtitle", ".hero-stats"], { autoAlpha: 0, y: 24 });
-
-    gsap.timeline({
-      scrollTrigger: {
-        trigger: "#hero",
-        start: "top top",
-        end: "+=55%",
-        scrub: 1,
-      },
-    })
-      .to(".eyebrow", { autoAlpha: 1, y: 0, ease: "none" }, 0.05)
-      .to(".wordmark", { autoAlpha: 1, y: 0, ease: "none" }, 0.16)
-      .to(".subtitle", { autoAlpha: 1, y: 0, ease: "none" }, 0.28)
-      .to(".hero-stats", { autoAlpha: 1, y: 0, ease: "none" }, 0.4);
-
     gsap.to(".hero-orbits", {
-      yPercent: 14,
+      yPercent: 10,
       ease: "none",
       scrollTrigger: {
         trigger: "#hero",
@@ -211,71 +877,24 @@ function initGsapMotion() {
       },
     });
 
-    const heroTl = gsap.timeline({
+    gsap.to(".scroll-indicator", {
+      opacity: 0,
+      y: 18,
+      ease: "none",
       scrollTrigger: {
         trigger: "#hero",
         start: "top top",
-        end: "+=120%",
-        scrub: 1.1,
-        pin: true,
-      },
-    });
-    heroTl
-      .to(".wordmark", { scale: 0.86, y: -22, ease: "none" }, 0)
-      .to(".subtitle", { y: -16, ease: "none" }, 0)
-      .to(".hero-stats", { y: 14, scale: 0.98, ease: "none" }, 0)
-      .to(".hero-orbits", { scale: 1.12, opacity: 0.66, ease: "none" }, 0)
-      .to(".scroll-indicator", { opacity: 0, y: 20, ease: "none" }, 0);
-
-    gsap.timeline({
-      scrollTrigger: {
-        trigger: "#ai-visuals",
-        start: "top 85%",
-        end: "bottom 20%",
+        end: "bottom top",
         scrub: 1,
       },
-    })
-      .fromTo(".visuals-gallery", { y: 96, scale: 0.95, opacity: 0.82 }, { y: 0, scale: 1, opacity: 1, ease: "none" }, 0)
-      .fromTo(".visuals-copy", { y: 64, opacity: 0.72 }, { y: 0, opacity: 1, ease: "none" }, 0)
-      .fromTo(".shot-a", { yPercent: 14, rotate: -7 }, { yPercent: 0, rotate: -5, ease: "none" }, 0)
-      .fromTo(".shot-b", { yPercent: 18, rotate: 7 }, { yPercent: 0, rotate: 4, ease: "none" }, 0)
-      .fromTo(".shot-c", { yPercent: 12, rotate: -3 }, { yPercent: 0, rotate: -1, ease: "none" }, 0);
+    });
   }
 }
 
-function initCounters() {
-  const counters = document.querySelectorAll(".counter");
-  if (!counters.length || !hasGsap) return;
-
-  counters.forEach((counter) => {
-    const target = Number(counter.getAttribute("data-target") || 0);
-    const run = () => {
-      const obj = { value: 0 };
-      gsap.to(obj, {
-        value: target,
-        duration: 1.3,
-        ease: "power2.out",
-        onUpdate: () => {
-          counter.textContent = `${Math.round(obj.value)}%`;
-        },
-      });
-    };
-
-    if (hasScrollTrigger) {
-      ScrollTrigger.create({
-        trigger: counter,
-        start: "top 92%",
-        once: true,
-        onEnter: run,
-      });
-    } else {
-      run();
-    }
-  });
-}
-
 function initTiltCards() {
-  const cards = document.querySelectorAll(".tilt-card:not(.robot-shot)");
+  const cards = isLandingPage
+    ? document.querySelectorAll(".platform-tour-panel")
+    : document.querySelectorAll(".tilt-card:not(.robot-shot)");
   if (!cards.length) return;
 
   cards.forEach((card) => {
@@ -283,8 +902,9 @@ function initTiltCards() {
       const rect = card.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      const rx = ((y / rect.height) - 0.5) * -7;
-      const ry = ((x / rect.width) - 0.5) * 9;
+      const intensity = isLandingPage ? 4.2 : 7;
+      const rx = ((y / rect.height) - 0.5) * -intensity;
+      const ry = ((x / rect.width) - 0.5) * (intensity + (isLandingPage ? 1 : 2));
       card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`;
     });
     card.addEventListener("mouseleave", () => {
@@ -298,6 +918,7 @@ function initMagneticButtons() {
 }
 
 function initVisualParallax() {
+  if (isLandingPage) return;
   const shots = document.querySelectorAll("[data-parallax-speed]");
   if (!shots.length) return;
 
@@ -573,7 +1194,7 @@ function initThreeScene() {
       y: 0.66,
       ease: "none",
       scrollTrigger: {
-        trigger: "#new-features",
+        trigger: "#operations",
         start: "top bottom",
         end: "bottom top",
         scrub: 1.2,
@@ -586,7 +1207,7 @@ function initThreeScene() {
       z: 0.44,
       ease: "none",
       scrollTrigger: {
-        trigger: "#platform",
+        trigger: "#decision-layer",
         start: "top bottom",
         end: "bottom top",
         scrub: 1.3,
@@ -598,7 +1219,7 @@ function initThreeScene() {
       y: 0.35,
       ease: "none",
       scrollTrigger: {
-        trigger: "#new-features",
+        trigger: "#operations",
         start: "top bottom",
         end: "bottom top",
         scrub: 1.2,
@@ -651,19 +1272,18 @@ function init() {
 
   initCoreUi();
   initLoginPanel();
+  initWorkspacePasswordReset();
+  initLegalToc();
+  initLandingMotion();
+  initPlatformTour();
+  initRevealOnScroll();
+  initContactPage();
   initMagneticButtons();
   initVisualParallax();
   initGsapMotion();
-  initCounters();
   initTiltCards();
   initParticles();
   initThreeScene();
-
-  if (preloader) {
-    setTimeout(() => {
-      preloader.classList.add("hide");
-    }, 700);
-  }
 }
 
 window.addEventListener("DOMContentLoaded", init);

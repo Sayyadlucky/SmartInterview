@@ -4,10 +4,11 @@ import { NavigationEnd, Router, TitleStrategy } from '@angular/router';
 import { RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { ParticleBackgroundComponent } from './particle-background/particle-background';
+import { AppToastStackComponent } from './core/app-toast-stack.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ParticleBackgroundComponent],
+  imports: [RouterOutlet, ParticleBackgroundComponent, AppToastStackComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 }

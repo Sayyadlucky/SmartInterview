@@ -88,11 +88,12 @@
                 name="roleQuery"
                 type="text"
                 [ngModel]="roleQuery"
+                [disabled]="isCandidateRoleInputDisabled"
                 (ngModelChange)="onCandidateRoleInputChange($event)"
                 (focus)="onCandidateRoleInputFocus()"
                 (blur)="onCandidateRoleInputBlur()"
                 required
-                placeholder="Search role title or id"
+                [placeholder]="isRoleListLoading ? 'Loading roles...' : 'Search role title or id'"
                 autocomplete="off"
               />
             </div>
@@ -108,16 +109,42 @@
               <div class="multi-empty" *ngIf="!filteredCandidateRoles.length">No role found</div>
             </div>
           </div>
+          <div class="field-inline-status" *ngIf="isRoleListLoading || roleListMessage">
+            <span class="lookup-spinner" *ngIf="isRoleListLoading"></span>
+            <span>{{ isRoleListLoading ? 'Loading roles...' : roleListMessage }}</span>
+          </div>
         </div>
 
         <div class="field" *ngIf="userType === 'Candidate' || userType === 'Interviewer'">
           <label for="recruiter">{{ userType === 'Interviewer' ? 'Recruiter / HR' : 'Recruiter' }}</label>
           <div class="input-shell">
             <i class="ph ph-user-list"></i>
-            <select id="recruiter" name="recruiter" [(ngModel)]="recruiter" required>
-              <option value="" disabled>{{ userType === 'Interviewer' ? 'Select Recruiter / HR' : 'Select Recruiter' }}</option>
+            <select
+              id="recruiter"
+              name="recruiter"
+              [(ngModel)]="recruiter"
+              [disabled]="isRecruiterSelectDisabled"
+              required
+            >
+              <option value="" disabled>
+                {{
+                  userType === 'Candidate'
+                    ? (isRecruiterListLoading
+                        ? 'Loading recruiters...'
+                        : (!role || isRoleSearchActive ? 'Select a role first' : 'Select Recruiter'))
+                    : 'Select Recruiter / HR'
+                }}
+              </option>
               <option *ngFor="let r of recruiter_list" [value]="r.id">{{ r.name }}</option>
             </select>
+          </div>
+          <div class="field-inline-status" *ngIf="userType === 'Candidate' && (isRecruiterListLoading || recruiterListMessage)">
+            <span class="lookup-spinner" *ngIf="isRecruiterListLoading"></span>
+            <span>{{ isRecruiterListLoading ? 'Loading recruiters...' : recruiterListMessage }}</span>
+          </div>
+          <div class="field-inline-status" *ngIf="userType === 'Interviewer' && (isSharedRecruiterListLoading || sharedRecruiterListMessage)">
+            <span class="lookup-spinner" *ngIf="isSharedRecruiterListLoading"></span>
+            <span>{{ isSharedRecruiterListLoading ? 'Loading recruiter / HR list...' : sharedRecruiterListMessage }}</span>
           </div>
         </div>
 
@@ -307,7 +334,8 @@
                 name="recruiterSearch"
                 type="text"
                 [(ngModel)]="recruiterSearchQuery"
-                placeholder="Type at least 3 characters to search recruiter"
+                [disabled]="isSharedRecruiterListLoading"
+                [placeholder]="isSharedRecruiterListLoading ? 'Loading recruiters...' : 'Type at least 3 characters to search recruiter'"
                 (focus)="openRoleRecruiterMenu()"
                 (blur)="closeRoleRecruiterMenu()"
               />
@@ -331,6 +359,10 @@
                 <button type="button" (click)="removeRoleRecruiter(recruiterId)">×</button>
               </span>
             </div>
+          </div>
+          <div class="field-inline-status" *ngIf="isSharedRecruiterListLoading || sharedRecruiterListMessage">
+            <span class="lookup-spinner" *ngIf="isSharedRecruiterListLoading"></span>
+            <span>{{ isSharedRecruiterListLoading ? 'Loading recruiters...' : sharedRecruiterListMessage }}</span>
           </div>
         </div>
       </section>

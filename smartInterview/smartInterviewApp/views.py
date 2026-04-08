@@ -1,9 +1,16 @@
+import hashlib
 import json
 
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core import serializers
+from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -11,7 +18,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.db import transaction
 
-from .forms import LoginForm
+from .forms import ContactForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import CompanyProfile, Interview
@@ -25,6 +32,14 @@ from .commonViews import (
 )
 from .services.company_enrichment import ensure_company_profile_for_user
 from .templatetags.host_links import build_host_link
+from smartInterviewApp.otp.services import request_otp, verify_otp
+
+LEGAL_LAST_UPDATED = "April 7, 2026"
+CONTACT_SUPPORT_EMAIL = getattr(settings, 'CONTACT_SUPPORT_EMAIL', 'support@shortlistii.com')
+CONTACT_INBOX_EMAIL = getattr(settings, 'CONTACT_INBOX_EMAIL', CONTACT_SUPPORT_EMAIL)
+WORKSPACE_PASSWORD_RESET_SESSION_KEY = 'workspace_password_reset'
+WORKSPACE_PASSWORD_RESET_MAX_AGE_SECONDS = 60 * 15
+WORKSPACE_PASSWORD_RESET_ROLES = {'admin', 'recruiter', 'interviewer'}
 
 
 def normalize_interview_status(value: str) -> str:
@@ -56,6 +71,60 @@ def resolve_login_identifier(identifier: str) -> str:
         if matched_user:
             return matched_user.username
     return value
+
+
+def normalize_phone(value: str) -> str:
+    digits = ''.join(ch for ch in (value or '') if ch.isdigit())
+    if len(digits) == 10:
+        return f'91{digits}'
+    return digits
+
+
+def mask_phone_last_four(value: str) -> str:
+    digits = normalize_phone(value)
+    if not digits:
+        return ''
+    if len(digits) <= 4:
+        return digits
+    return f"{'•' * max(0, len(digits) - 4)}{digits[-4:]}"
+
+
+def workspace_password_reset_rate_limited(request, action: str, identifier: str, limit: int, window_seconds: int) -> bool:
+    ip = (request.META.get('REMOTE_ADDR') or 'unknown').strip()
+    digest = hashlib.sha256(f'{action}:{ip}:{identifier}'.encode('utf-8')).hexdigest()
+    key = f'workspace-password-reset-rate:{digest}'
+    current = cache.get(key, 0)
+    if current >= limit:
+        return True
+    cache.set(key, current + 1, timeout=window_seconds)
+    return False
+
+
+def get_workspace_password_reset_state(request) -> dict | None:
+    state = request.session.get(WORKSPACE_PASSWORD_RESET_SESSION_KEY)
+    if not state:
+        return None
+
+    expires_at = state.get('expires_at')
+    if not expires_at or timezone.now().timestamp() > float(expires_at):
+        request.session.pop(WORKSPACE_PASSWORD_RESET_SESSION_KEY, None)
+        request.session.modified = True
+        return None
+    return state
+
+
+def set_workspace_password_reset_state(request, state: dict) -> None:
+    request.session[WORKSPACE_PASSWORD_RESET_SESSION_KEY] = state
+    request.session.modified = True
+
+
+def clear_workspace_password_reset_state(request) -> None:
+    request.session.pop(WORKSPACE_PASSWORD_RESET_SESSION_KEY, None)
+    request.session.modified = True
+
+
+def _workspace_reset_user_queryset():
+    return User.objects.select_related('profile').filter(profile__role__in=WORKSPACE_PASSWORD_RESET_ROLES)
 
 
 def get_post_login_redirect_url(request, user) -> str:
@@ -102,6 +171,255 @@ def home(request):
             return redirect(get_post_login_redirect_url(request, request.user))
         form = LoginForm()
     return render(request, 'smartInterview/index.html', {'form': form})
+
+
+def _render_legal_page(request, *, template_name: str, page_title: str, meta_description: str):
+    return render(
+        request,
+        template_name,
+        {
+            'page_title': page_title,
+            'meta_description': meta_description,
+            'last_updated': LEGAL_LAST_UPDATED,
+        },
+    )
+
+
+def privacy_policy(request):
+    return _render_legal_page(
+        request,
+        template_name='smartInterview/privacy_policy.html',
+        page_title='Privacy Policy',
+        meta_description='Read the Shortlistii Privacy Policy for information about how Shortlist.com Private Limited collects, uses, protects, and processes personal data across the Shortlistii and Litio platform ecosystem.',
+    )
+
+
+def terms_of_service(request):
+    return _render_legal_page(
+        request,
+        template_name='smartInterview/terms_of_service.html',
+        page_title='Terms of Service',
+        meta_description='Review the Shortlistii Terms of Service governing access to the Shortlistii hiring intelligence platform and Litio AI interview workflows.',
+    )
+
+
+def about(request):
+    return render(
+        request,
+        'smartInterview/about.html',
+        {
+            'page_title': 'About Us',
+            'meta_description': 'Learn about Shortlistii, the hiring intelligence platform built to help teams shortlist candidates, run trusted interviews with Litio, and make better hiring decisions.',
+        },
+    )
+
+
+def contact(request):
+    form = ContactForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        cleaned = form.cleaned_data
+        inquiry_label = dict(ContactForm.INQUIRY_CHOICES).get(cleaned['inquiry_type'], 'General Inquiry')
+        subject = f"[Shortlistii Contact] {inquiry_label} - {cleaned['company_name']}"
+        body = "\n".join(
+            [
+                f"Full Name: {cleaned['full_name']}",
+                f"Work Email: {cleaned['work_email']}",
+                f"Company Name: {cleaned['company_name']}",
+                f"Phone Number: {cleaned.get('phone_number') or 'Not provided'}",
+                f"Team Size: {dict(ContactForm.TEAM_SIZE_CHOICES).get(cleaned.get('team_size') or '', 'Not provided')}",
+                f"Inquiry Type: {inquiry_label}",
+                "",
+                "Message:",
+                cleaned['message'],
+            ]
+        )
+
+        send_mail(
+            subject,
+            body,
+            getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@smartinterview.local'),
+            [CONTACT_INBOX_EMAIL],
+            fail_silently=True,
+            reply_to=[cleaned['work_email']],
+        )
+        messages.success(
+            request,
+            'Your message has been received. Our team will review it and get back to you shortly.',
+        )
+        return redirect('contact')
+
+    return render(
+        request,
+        'smartInterview/contact.html',
+        {
+            'page_title': 'Contact Us',
+            'meta_description': 'Contact Shortlistii for product demos, sales conversations, enterprise hiring workflows, Litio interview intelligence, partnerships, support, and general platform questions.',
+            'form': form,
+            'support_email': CONTACT_SUPPORT_EMAIL,
+            'company_legal_name': 'Shortlist.com Private Limited',
+            'company_address_lines': [
+                'Flat No. 1404, Famed Tower',
+                'Sikka Karnam Greens',
+                'Sector 143',
+                'Noida, Uttar Pradesh – 201304',
+                'India',
+            ],
+        },
+    )
+
+
+@csrf_exempt
+def workspace_password_reset_start(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    email = (request.POST.get('email') or '').strip().lower()
+    if not email:
+        return JsonResponse({'Success': False, 'Error': 'Enter your registered work email address.'})
+
+    if workspace_password_reset_rate_limited(request, 'start', email, limit=5, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many reset attempts. Please try again shortly.'}, status=429)
+
+    user = _workspace_reset_user_queryset().filter(email__iexact=email).first()
+    phone = normalize_phone(getattr(getattr(user, 'profile', None), 'phone', ''))
+    if not user or not phone:
+        clear_workspace_password_reset_state(request)
+        return JsonResponse({'Success': False, 'Error': 'We could not verify those account details.'})
+
+    state = {
+        'user_id': user.id,
+        'email': email,
+        'phone': phone,
+        'masked_phone': mask_phone_last_four(phone),
+        'contact_verified': False,
+        'otp_verified': False,
+        'expires_at': timezone.now().timestamp() + WORKSPACE_PASSWORD_RESET_MAX_AGE_SECONDS,
+    }
+    set_workspace_password_reset_state(request, state)
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'masked_phone': state['masked_phone'],
+            'last_four': phone[-4:],
+        }
+    })
+
+
+@csrf_exempt
+def workspace_password_reset_verify_phone(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    state = get_workspace_password_reset_state(request)
+    if not state:
+        return JsonResponse({'Success': False, 'Error': 'Your reset session has expired. Start again.'})
+
+    phone = normalize_phone(request.POST.get('phone') or '')
+    if len(phone) < 10:
+        return JsonResponse({'Success': False, 'Error': 'Enter your registered mobile number.'})
+
+    if workspace_password_reset_rate_limited(request, 'phone', state.get('email', ''), limit=5, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many verification attempts. Please try again shortly.'}, status=429)
+
+    expected = state.get('phone', '')
+    if not expected or phone[-10:] != expected[-10:]:
+        return JsonResponse({'Success': False, 'Error': 'Mobile number does not match our records.'})
+
+    user = _workspace_reset_user_queryset().filter(id=state.get('user_id')).first()
+    if not user:
+        clear_workspace_password_reset_state(request)
+        return JsonResponse({'Success': False, 'Error': 'We could not verify those account details.'})
+
+    otp_result = request_otp(
+        phone=expected,
+        purpose='password_reset',
+        user=user,
+        metadata={'source': 'workspace_password_reset'},
+    )
+    if not otp_result.get('success'):
+        return JsonResponse({'Success': False, 'Error': otp_result.get('message') or 'Unable to send OTP right now.'})
+
+    state['contact_verified'] = True
+    state['otp_verified'] = False
+    state['expires_at'] = timezone.now().timestamp() + WORKSPACE_PASSWORD_RESET_MAX_AGE_SECONDS
+    set_workspace_password_reset_state(request, state)
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'masked_phone': state['masked_phone'],
+            'message': 'OTP sent to your registered mobile number.',
+        }
+    })
+
+
+@csrf_exempt
+def workspace_password_reset_verify_otp(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    state = get_workspace_password_reset_state(request)
+    if not state or not state.get('contact_verified'):
+        return JsonResponse({'Success': False, 'Error': 'Complete mobile verification first.'})
+
+    otp = (request.POST.get('otp') or '').strip()
+    if not otp:
+        return JsonResponse({'Success': False, 'Error': 'Enter the OTP sent to your mobile number.'})
+
+    if workspace_password_reset_rate_limited(request, 'otp', state.get('email', ''), limit=10, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many OTP attempts. Please try again shortly.'}, status=429)
+
+    otp_result = verify_otp(phone=state['phone'], otp=otp, purpose='password_reset')
+    if not otp_result.get('success'):
+        return JsonResponse({'Success': False, 'Error': otp_result.get('message') or 'Invalid OTP.'})
+
+    state['otp_verified'] = True
+    state['expires_at'] = timezone.now().timestamp() + WORKSPACE_PASSWORD_RESET_MAX_AGE_SECONDS
+    set_workspace_password_reset_state(request, state)
+    return JsonResponse({'Success': True, 'Error': None, 'Data': {'message': 'OTP verified successfully.'}})
+
+
+@csrf_exempt
+def workspace_password_reset_complete(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Method not allowed.'}, status=405)
+
+    state = get_workspace_password_reset_state(request)
+    if not state or not state.get('otp_verified'):
+        return JsonResponse({'Success': False, 'Error': 'Verify the OTP before setting a new password.'})
+
+    password = request.POST.get('password') or ''
+    confirm_password = request.POST.get('confirm_password') or ''
+    if not password or not confirm_password:
+        return JsonResponse({'Success': False, 'Error': 'Enter and confirm your new password.'})
+    if password != confirm_password:
+        return JsonResponse({'Success': False, 'Error': 'Passwords do not match.'})
+
+    if workspace_password_reset_rate_limited(request, 'complete', state.get('email', ''), limit=5, window_seconds=60 * 10):
+        return JsonResponse({'Success': False, 'Error': 'Too many password reset attempts. Please try again shortly.'}, status=429)
+
+    user = _workspace_reset_user_queryset().filter(id=state.get('user_id')).first()
+    if not user:
+        clear_workspace_password_reset_state(request)
+        return JsonResponse({'Success': False, 'Error': 'We could not verify those account details.'})
+
+    try:
+        validate_password(password, user=user)
+    except ValidationError as exc:
+        return JsonResponse({'Success': False, 'Error': ' '.join(exc.messages)})
+
+    user.set_password(password)
+    user.save(update_fields=['password'])
+    clear_workspace_password_reset_state(request)
+    return JsonResponse({
+        'Success': True,
+        'Error': None,
+        'Data': {
+            'message': 'Password updated successfully. Use your new password to sign in.',
+        }
+    })
 
 
 def _get_error_page_actions(request) -> tuple[dict[str, str], dict[str, str]]:

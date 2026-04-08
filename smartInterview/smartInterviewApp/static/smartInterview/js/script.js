@@ -1,6 +1,6 @@
 const byId = (id) => document.getElementById(id);
 
-const header = byId("mainHeader");
+const header = byId("mainHeader") || document.querySelector(".legal-header");
 const menu = byId("mainMenu");
 const loginSection = byId("loginSection");
 const loginPanel = byId("loginPanel");
@@ -9,6 +9,11 @@ const contactSignInBtn = byId("contactSignInBtn");
 const closeLogin = byId("closeLogin");
 const getStartedBtn = byId("getStartedBtn");
 const loginForm = byId("loginForm");
+const signInBtn = byId("signInBtn");
+const workspaceForgotPasswordTrigger = byId("workspaceForgotPasswordTrigger");
+const workspaceResetOverlay = byId("workspaceResetOverlay");
+const workspaceResetClose = byId("workspaceResetClose");
+const workspaceResetProceed = byId("workspaceResetProceed");
 const errorMsg = byId("errorMsg");
 const mobileMenuBtn = byId("mobileMenuBtn");
 const closeMobileMenu = byId("closeMobileMenu");
@@ -26,15 +31,17 @@ const isFixedHeaderPage =
   document.body?.classList.contains("candidate-signup-page") ||
   document.body?.classList.contains("jobs-portal-page");
 
-if ("scrollRestoration" in history) {
+if ("scrollRestoration" in history && !window.location.hash) {
   history.scrollRestoration = "manual";
 }
 
 window.addEventListener("beforeunload", () => {
+  if (window.location.hash) return;
   window.scrollTo(0, 0);
 });
 
 window.addEventListener("pageshow", () => {
+  if (window.location.hash) return;
   window.scrollTo(0, 0);
 });
 
@@ -93,6 +100,25 @@ function initCoreUi() {
     document.documentElement.style.setProperty("--my", `${y}%`);
   });
 
+  const getHeaderOffset = () => {
+    if (!header) return 0;
+    return Math.round(header.getBoundingClientRect().height);
+  };
+
+  const syncScrollPadding = () => {
+    document.documentElement.style.scrollPaddingTop = `${getHeaderOffset() + 34}px`;
+  };
+
+  const scrollToTarget = (target, { behavior = "smooth" } = {}) => {
+    if (!target) return;
+    const headerOffset = getHeaderOffset();
+    const top = window.scrollY + target.getBoundingClientRect().top - headerOffset - 34;
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior,
+    });
+  };
+
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener("click", (e) => {
       const href = anchor.getAttribute("href");
@@ -100,16 +126,26 @@ function initCoreUi() {
       const target = href ? document.querySelector(href) : null;
       if (!target) return;
       e.preventDefault();
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollToTarget(target);
     });
   });
+
+  syncScrollPadding();
+  window.addEventListener("resize", syncScrollPadding);
+
+  if (window.location.hash) {
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector(window.location.hash);
+      if (target) scrollToTarget(target, { behavior: "auto" });
+    });
+  }
 
   getStartedBtn?.addEventListener("click", (e) => {
     const targetSelector = getStartedBtn.getAttribute("data-scroll-target");
     const target = targetSelector ? document.querySelector(targetSelector) : null;
     if (!target) return;
     e.preventDefault();
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToTarget(target);
   });
 
   mobileMenuBtn?.addEventListener("click", openMobileMenu);
@@ -125,7 +161,84 @@ function initCoreUi() {
   });
 }
 
+function initLegalToc() {
+  const toc = document.querySelector(".legal-toc");
+  if (!toc) return;
+
+  const links = Array.from(toc.querySelectorAll('a[href^="#"]'));
+  if (!links.length) return;
+
+  const sections = links
+    .map((link) => {
+      const href = link.getAttribute("href");
+      const section = href ? document.querySelector(href) : null;
+      return section ? { link, section } : null;
+    })
+    .filter(Boolean);
+
+  if (!sections.length) return;
+
+  const setActive = (id) => {
+    sections.forEach(({ link, section }) => {
+      const active = section.id === id;
+      link.classList.toggle("is-active", active);
+      if (active) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  };
+
+  const getHeaderOffset = () => {
+    if (!header) return 0;
+    return Math.round(header.getBoundingClientRect().height);
+  };
+
+  const updateActiveSection = () => {
+    const marker = window.scrollY + getHeaderOffset() + 64;
+    let activeId = sections[0].section.id;
+
+    sections.forEach(({ section }) => {
+      const sectionTop = window.scrollY + section.getBoundingClientRect().top;
+      if (sectionTop <= marker) activeId = section.id;
+    });
+
+    setActive(activeId);
+  };
+
+  let ticking = false;
+  const handleScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(() => {
+      updateActiveSection();
+      ticking = false;
+    });
+  };
+
+  updateActiveSection();
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  window.addEventListener("resize", updateActiveSection);
+}
+
 function initLoginPanel() {
+  const defaultSignInMarkup = signInBtn?.innerHTML || "";
+  let loginSubmitting = false;
+
+  const setLoginSubmitting = (submitting) => {
+    if (!signInBtn) return;
+    loginSubmitting = submitting;
+    signInBtn.disabled = submitting;
+    signInBtn.classList.toggle("is-loading", submitting);
+
+    if (submitting) {
+      signInBtn.setAttribute("aria-busy", "true");
+      signInBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Signing in</span>';
+      return;
+    }
+
+    signInBtn.removeAttribute("aria-busy");
+    signInBtn.innerHTML = defaultSignInMarkup;
+  };
+
   openLoginBtn?.addEventListener("click", openLogin);
   contactSignInBtn?.addEventListener("click", openLogin);
   document.querySelectorAll("[data-open-login]").forEach((trigger) => {
@@ -146,7 +259,9 @@ function initLoginPanel() {
 
   loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (loginSubmitting) return;
     if (errorMsg) errorMsg.textContent = "";
+    setLoginSubmitting(true);
 
     try {
       const res = await fetch("login/", {
@@ -161,8 +276,229 @@ function initLoginPanel() {
       }
 
       if (errorMsg) errorMsg.textContent = data.message || "Invalid username or password.";
+      setLoginSubmitting(false);
     } catch (_err) {
       if (errorMsg) errorMsg.textContent = "Login request failed. Please try again.";
+      setLoginSubmitting(false);
+    }
+  });
+}
+
+function initWorkspacePasswordReset() {
+  if (!workspaceResetOverlay || !workspaceForgotPasswordTrigger) return;
+
+  const copy = byId("workspaceResetCopy");
+  const messageBox = byId("workspaceResetMessage");
+  const indicators = Array.from(document.querySelectorAll("[data-workspace-step-indicator]"));
+  const stepMap = {
+    1: byId("workspaceResetEmailStep"),
+    2: byId("workspaceResetPhoneStep"),
+    3: byId("workspaceResetOtpStep"),
+    4: byId("workspaceResetPasswordStep"),
+    5: byId("workspaceResetSuccessStep"),
+  };
+  const state = { step: 1, maskedPhone: "", lastFour: "" };
+
+  const setStep = (step) => {
+    state.step = step;
+    Object.entries(stepMap).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.classList.toggle("is-active", Number(key) === step);
+    });
+    indicators.forEach((indicator, index) => {
+      const value = index + 1;
+      indicator.classList.toggle("is-active", value === Math.min(step, 4));
+      indicator.classList.toggle("is-complete", value < Math.min(step, 5));
+    });
+  };
+
+  const showMessage = (text, type = "") => {
+    if (!messageBox) return;
+    if (!text) {
+      messageBox.textContent = "";
+      messageBox.className = "workspace-reset-message";
+      return;
+    }
+    messageBox.textContent = text;
+    messageBox.className = `workspace-reset-message is-visible ${type ? `is-${type}` : ""}`.trim();
+  };
+
+  const resetFlow = () => {
+    state.step = 1;
+    state.maskedPhone = "";
+    state.lastFour = "";
+    byId("workspaceResetEmailStep")?.reset();
+    byId("workspaceResetPhoneStep")?.reset();
+    byId("workspaceResetOtpStep")?.reset();
+    byId("workspaceResetPasswordStep")?.reset();
+    const lastFour = byId("workspaceResetLastFour");
+    const maskedPhone = byId("workspaceResetMaskedPhone");
+    if (lastFour) lastFour.textContent = "0000";
+    if (maskedPhone) maskedPhone.textContent = "••••";
+    if (copy) copy.textContent = "Verify your admin or recruiter account in a few secure steps and set a new password.";
+    showMessage("");
+    setStep(1);
+  };
+
+  const openModal = () => {
+    resetFlow();
+    workspaceResetOverlay.classList.add("is-open");
+    workspaceResetOverlay.setAttribute("aria-hidden", "false");
+  };
+
+  const closeModal = () => {
+    workspaceResetOverlay.classList.remove("is-open");
+    workspaceResetOverlay.setAttribute("aria-hidden", "true");
+  };
+
+  const getCookie = (name) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return "";
+  };
+
+  const postForm = async (url, payload) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body: payload,
+    });
+
+    const rawText = await response.text();
+    let data = null;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch (_error) {
+      data = null;
+    }
+
+    if (!response.ok || !data?.Success) {
+      throw new Error((data && data.Error) || "Unable to complete this step right now. Please verify your details and try again.");
+    }
+    return data;
+  };
+
+  const setLoadingState = (button, label) => {
+    if (!button) return;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+    button.dataset.originalLabel = button.dataset.originalLabel || button.textContent.trim() || "Continue";
+    button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">${label}</span>`;
+  };
+
+  const resetLoadingState = (button) => {
+    if (!button) return;
+    const originalLabel = button.dataset.originalLabel || "Continue";
+    button.disabled = false;
+    button.classList.remove("is-loading");
+    button.removeAttribute("aria-busy");
+    button.innerHTML = `<span class="btn-label">${originalLabel}</span>`;
+  };
+
+  workspaceForgotPasswordTrigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    closeLoginPanel();
+    window.setTimeout(openModal, hasGsap ? 240 : 0);
+  });
+
+  workspaceResetClose?.addEventListener("click", closeModal);
+  workspaceResetProceed?.addEventListener("click", () => {
+    closeModal();
+    window.setTimeout(openLogin, 120);
+  });
+
+  workspaceResetOverlay.addEventListener("click", (event) => {
+    if (event.target === workspaceResetOverlay) closeModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && workspaceResetOverlay.classList.contains("is-open")) {
+      closeModal();
+    }
+  });
+
+  byId("workspaceResetEmailStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Checking...");
+    try {
+      const data = await postForm("/workspace/password-reset/start/", formData);
+      state.maskedPhone = data.Data.masked_phone || "••••";
+      state.lastFour = data.Data.last_four || "0000";
+      const lastFour = byId("workspaceResetLastFour");
+      const maskedPhone = byId("workspaceResetMaskedPhone");
+      if (lastFour) lastFour.textContent = state.lastFour;
+      if (maskedPhone) maskedPhone.textContent = state.maskedPhone;
+      if (copy) copy.textContent = "Confirm the mobile number linked to your workspace account before we send a one-time password.";
+      showMessage("");
+      setStep(2);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+
+  byId("workspaceResetPhoneStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Sending OTP...");
+    try {
+      const data = await postForm("/workspace/password-reset/verify-phone/", formData);
+      if (copy) copy.textContent = "Enter the OTP sent to your registered mobile number to continue securely.";
+      showMessage(data.Data?.message || "OTP sent successfully.", "success");
+      const maskedPhone = byId("workspaceResetMaskedPhone");
+      if (maskedPhone) maskedPhone.textContent = data.Data?.masked_phone || state.maskedPhone;
+      setStep(3);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+
+  byId("workspaceResetOtpStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Verifying...");
+    try {
+      const data = await postForm("/workspace/password-reset/verify-otp/", formData);
+      if (copy) copy.textContent = "Set a new password for your workspace account.";
+      showMessage(data.Data?.message || "OTP verified successfully.", "success");
+      setStep(4);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
+    }
+  });
+
+  byId("workspaceResetPasswordStep")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showMessage("");
+    const formData = new FormData(event.currentTarget);
+    const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+    setLoadingState(submitButton, "Updating...");
+    try {
+      const data = await postForm("/workspace/password-reset/complete/", formData);
+      showMessage("");
+      if (copy) copy.textContent = data.Data?.message || "Your password has been updated successfully.";
+      setStep(5);
+      resetLoadingState(submitButton);
+    } catch (error) {
+      resetLoadingState(submitButton);
+      showMessage(error.message, "error");
     }
   });
 }
@@ -194,6 +530,48 @@ function initRevealOnScroll() {
   );
 
   elements.forEach((element) => observer.observe(element));
+}
+
+function initContactPage() {
+  if (!document.body?.classList.contains("contact-page-shell")) return;
+
+  const form = document.querySelector(".contact-form");
+  const submitBtn = form?.querySelector(".contact-submit-btn");
+  const submitLabel = submitBtn?.querySelector(".contact-submit-btn__label");
+  const successModal = byId("contactSuccessModal");
+  const closeButtons = successModal?.querySelectorAll("[data-close-contact-success]");
+
+  if (form && submitBtn && submitLabel) {
+    form.addEventListener("submit", () => {
+      if (submitBtn.disabled) return;
+      submitBtn.disabled = true;
+      submitBtn.classList.add("is-submitting");
+      submitBtn.setAttribute("aria-busy", "true");
+      submitLabel.textContent = submitBtn.getAttribute("data-loading-label") || "Sending Inquiry";
+    });
+  }
+
+  if (!successModal) return;
+
+  const closeModal = () => {
+    successModal.classList.remove("is-open");
+    successModal.setAttribute("aria-hidden", "true");
+  };
+
+  const openModal = () => {
+    successModal.classList.add("is-open");
+    successModal.setAttribute("aria-hidden", "false");
+  };
+
+  closeButtons?.forEach((trigger) => {
+    trigger.addEventListener("click", closeModal);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && successModal.classList.contains("is-open")) closeModal();
+  });
+
+  window.requestAnimationFrame(openModal);
 }
 
 function initLandingMotion() {
@@ -894,9 +1272,12 @@ function init() {
 
   initCoreUi();
   initLoginPanel();
+  initWorkspacePasswordReset();
+  initLegalToc();
   initLandingMotion();
   initPlatformTour();
   initRevealOnScroll();
+  initContactPage();
   initMagneticButtons();
   initVisualParallax();
   initGsapMotion();

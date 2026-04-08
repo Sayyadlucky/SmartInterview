@@ -1,8 +1,9 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { catchError, of } from 'rxjs';
+import { AppToastService } from '../../core/app-toast.service';
 
 interface CandidateData {
   id: number;
@@ -111,6 +112,7 @@ interface InsightData {
   styleUrl: './candidate-profile.scss',
 })
 export class CandidateProfile implements OnInit {
+  private readonly toast = inject(AppToastService);
   candidate: CandidateData;
   loading = false;
   resumeLoading = false;
@@ -274,6 +276,7 @@ export class CandidateProfile implements OnInit {
           console.error('Error reprocessing resume', error);
           this.reprocessingResume = false;
           this.resumeData = { ...this.resumeData, error_message: 'Unable to reprocess resume right now.' };
+          this.toast.showError('Resume update failed', this.resumeData.error_message);
           return of({ Success: false, Error: 'Request failed' });
         })
       )
@@ -281,8 +284,10 @@ export class CandidateProfile implements OnInit {
         this.reprocessingResume = false;
         if (!response?.Success) {
           this.resumeData = { ...this.resumeData, error_message: response?.Error || 'Unable to reprocess resume right now.' };
+          this.toast.showError('Resume update failed', this.resumeData.error_message);
           return;
         }
+        this.toast.showSuccess('Resume reprocessing started', `We are refreshing ${this.candidate.name}'s resume details.`);
         this.loadCandidateProfile();
       });
   }
@@ -301,6 +306,7 @@ export class CandidateProfile implements OnInit {
           console.error('Error updating candidate status', error);
           this.loading = false;
           this.errorMessage = 'Unable to update status. Please try again.';
+          this.toast.showError('Status update failed', this.errorMessage);
           return of({ Success: false, Error: 'Request failed', Data: {} });
         })
       )
@@ -308,6 +314,7 @@ export class CandidateProfile implements OnInit {
         if (!response?.Success) {
           this.errorMessage = response?.Error || 'Unable to update status.';
           this.loading = false;
+          this.toast.showError('Status update failed', this.errorMessage);
           return;
         }
 
@@ -324,6 +331,8 @@ export class CandidateProfile implements OnInit {
             updatedAt: new Date().toISOString(),
           }
         }));
+        const statusLabel = this.normalizeStatus(this.candidate.status).replace(/\b\w/g, (match) => match.toUpperCase());
+        this.toast.showSuccess('Candidate updated', `${this.candidate.name} is now ${statusLabel}.`);
       });
   }
 

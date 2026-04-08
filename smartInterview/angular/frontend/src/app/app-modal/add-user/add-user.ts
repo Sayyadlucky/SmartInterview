@@ -1,4 +1,4 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, Inject } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, Inject, inject } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +7,7 @@ import { HttpClient } from '@angular/common/http';  // Import HttpClient
 import { catchError, of } from 'rxjs';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { QuillModule } from 'ngx-quill';
+import { AppToastService } from '../../core/app-toast.service';
 
 @Component({
   selector: 'app-add-user',
@@ -16,6 +17,7 @@ import { QuillModule } from 'ngx-quill';
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class AddUser {
+  private readonly toast = inject(AppToastService);
   NewRole: any;
   descriptionControl: FormControl = new FormControl('');
   constructor(
@@ -45,6 +47,13 @@ export class AddUser {
   role_list: any[] = [];
   roleQuery = '';
   showCandidateRoleMenu = false;
+  isRoleSearchActive = false;
+  isRoleListLoading = false;
+  roleListMessage = '';
+  isRecruiterListLoading = false;
+  recruiterListMessage = '';
+  isSharedRecruiterListLoading = false;
+  sharedRecruiterListMessage = '';
   gender: string = '';
 
   newCandidate: any = {};
@@ -151,19 +160,27 @@ export class AddUser {
 
   getRoleList() {
         const apiBaseUrl = this.getApiBaseUrl();
-        this.http.get(apiBaseUrl + '/get-role-list/') 
+        this.isRoleListLoading = true;
+        this.roleListMessage = 'Loading role catalog...';
+        this.http.get(apiBaseUrl + '/get-role-list/')
           .pipe(
             catchError(error => {
               console.error('Error fetching data', error);
-              return of([]); // Return empty array on error
+              this.isRoleListLoading = false;
+              this.roleListMessage = 'Unable to load roles right now.';
+              return of(null);
             })
           )
           .subscribe(response => {
+            this.isRoleListLoading = false;
             this.data = response;
             if(this.data?.RoleData){
               this.role_list = this.data.RoleData;
               this.syncCandidateRoleLabel();
             }
+            this.roleListMessage = this.role_list.length
+              ? 'Search and select a role to continue.'
+              : 'No roles are available right now.';
           });
   }
 
@@ -174,22 +191,34 @@ export class AddUser {
     if (!selectedValue) {
       this.recruiter_list = [];
       this.recruiter = '';
+      this.isRecruiterListLoading = false;
+      this.recruiterListMessage = '';
       return;
     }
-        const apiBaseUrl = this.getApiBaseUrl();
-        this.http.get(apiBaseUrl + '/get-vacancy-recruiters/'+selectedValue) 
-          .pipe(
-            catchError(error => {
-              console.error('Error fetching data', error);
-              return of([]); // Return empty array on error
-            })
-          )
-          .subscribe(response => {
-            this.data = response;
-            if(this.data?.RecruiterData){
-              this.recruiter_list = this.data.RecruiterData;
-            }
-          });
+    this.isRecruiterListLoading = true;
+    this.recruiterListMessage = 'Loading recruiters for the selected role...';
+    this.recruiter_list = [];
+    this.recruiter = '';
+    const apiBaseUrl = this.getApiBaseUrl();
+    this.http.get(apiBaseUrl + '/get-vacancy-recruiters/'+selectedValue)
+      .pipe(
+        catchError(error => {
+          console.error('Error fetching data', error);
+          this.isRecruiterListLoading = false;
+          this.recruiterListMessage = 'Unable to load recruiters right now.';
+          return of(null);
+        })
+      )
+      .subscribe(response => {
+        this.isRecruiterListLoading = false;
+        this.data = response;
+        if(this.data?.RecruiterData){
+          this.recruiter_list = this.data.RecruiterData;
+        }
+        this.recruiterListMessage = this.recruiter_list.length
+          ? `${this.recruiter_list.length} recruiter${this.recruiter_list.length === 1 ? '' : 's'} available for this role.`
+          : 'No recruiters are currently mapped to this role.';
+      });
   }
 
   get filteredCandidateRoles(): any[] {
@@ -204,22 +233,33 @@ export class AddUser {
   }
 
   onCandidateRoleInputFocus(): void {
+    this.isRoleSearchActive = true;
     this.showCandidateRoleMenu = true;
   }
 
   onCandidateRoleInputChange(value: string): void {
     this.roleQuery = value;
+    this.isRoleSearchActive = !!value.trim();
     this.showCandidateRoleMenu = true;
     if (!value.trim()) {
       this.role = '';
       this.recruiter_list = [];
       this.recruiter = '';
+      this.isRecruiterListLoading = false;
+      this.recruiterListMessage = '';
+      return;
     }
+    this.role = '';
+    this.recruiter_list = [];
+    this.recruiter = '';
+    this.isRecruiterListLoading = false;
+    this.recruiterListMessage = 'Select a role to load recruiters.';
   }
 
   onCandidateRoleInputBlur(): void {
     setTimeout(() => {
       this.showCandidateRoleMenu = false;
+      this.isRoleSearchActive = false;
       this.syncCandidateRoleLabel();
     }, 120);
   }
@@ -227,6 +267,7 @@ export class AddUser {
   selectCandidateRole(roleId: any, roleName: string): void {
     this.role = String(roleId);
     this.roleQuery = `${roleName} - ${roleId}`;
+    this.isRoleSearchActive = false;
     this.showCandidateRoleMenu = false;
     this.getRecruiters(this.role);
   }
@@ -236,20 +277,44 @@ export class AddUser {
     this.roleQuery = selected ? `${selected.name} - ${selected.id}` : '';
   }
 
+  get isRecruiterSelectDisabled(): boolean {
+    if (this.userType === 'Candidate') {
+      return !this.role || this.isRoleSearchActive || this.isRecruiterListLoading;
+    }
+    if (this.userType === 'Interviewer') {
+      return this.isSharedRecruiterListLoading;
+    }
+    return false;
+  }
+
+  get isCandidateRoleInputDisabled(): boolean {
+    return this.userType === 'Candidate' && this.isRoleListLoading;
+  }
+
   getHrList() {
         const apiBaseUrl = this.getApiBaseUrl();
-        this.http.get(apiBaseUrl + '/get-hr-list/') 
+        this.isSharedRecruiterListLoading = true;
+        this.sharedRecruiterListMessage = this.userType === 'Role'
+          ? 'Loading recruiter list...'
+          : 'Loading recruiter / HR list...';
+        this.http.get(apiBaseUrl + '/get-hr-list/')
           .pipe(
             catchError(error => {
               console.error('Error fetching data', error);
-              return of([]); // Return empty array on error
+              this.isSharedRecruiterListLoading = false;
+              this.sharedRecruiterListMessage = 'Unable to load recruiter options right now.';
+              return of(null);
             })
           )
           .subscribe(response => {
+            this.isSharedRecruiterListLoading = false;
             this.data = response;
             if(this.data?.RecruiterData){
               this.recruiter_list = this.data.RecruiterData;
             }
+            this.sharedRecruiterListMessage = this.recruiter_list.length
+              ? `${this.recruiter_list.length} recruiter${this.recruiter_list.length === 1 ? '' : 's'} available.`
+              : 'No recruiter options are available right now.';
           });
   }
 
@@ -332,6 +397,15 @@ export class AddUser {
               this.newCandidate.signupRequired = !!data.SignupRequired;
               this.newCandidate.candidateExists = !!data.CandidateExists;
             }
+            const addedEntity = this.userType === 'Recruiter'
+              ? 'Recruiter added'
+              : this.userType === 'Interviewer'
+                ? 'Interviewer added'
+                : 'Candidate added';
+            const addedDetail = this.userType === 'Candidate'
+              ? `${this.newCandidate.name || this.name} is now available in ${this.role || 'the hiring workflow'}.`
+              : `${this.newCandidate.name || this.name} is now available in the hiring workspace.`;
+            this.toast.showSuccess(addedEntity, addedDetail);
             window.dispatchEvent(new CustomEvent('global-data-refresh', {
               detail: {
                 entity: this.userType === 'Recruiter' ? 'recruiter' : this.userType === 'Interviewer' ? 'interviewer' : 'candidate',
@@ -342,10 +416,12 @@ export class AddUser {
             this.dialogRef.close(this.newCandidate);
           } else{
             this.errorMessage = data.Error || 'Error adding candidate. Please try again.';
+            this.toast.showError('Unable to save record', this.errorMessage);
           }
         })
         .catch(error => {
           this.errorMessage = error.Message || 'Error adding candidate. Please try again.';
+          this.toast.showError('Unable to save record', this.errorMessage);
         });
   }
   addRole() {
@@ -398,6 +474,7 @@ export class AddUser {
             this.NewRole.experience_required = data.Data.RoleDetails.experience_required;
             this.NewRole.date = data.Data.RoleDetails.date;
             this.NewRole.status = data.Data.RoleDetails.status;
+            this.toast.showSuccess('Role created', `${this.NewRole.name || this.name} is now available for hiring workflows.`);
             window.dispatchEvent(new CustomEvent('global-data-refresh', {
               detail: {
                 entity: 'role',
@@ -409,10 +486,12 @@ export class AddUser {
             this.dialogRef.close(this.NewRole);
           } else{
             this.errorMessage = data.Error || 'Error adding role. Please try again.';
+            this.toast.showError('Unable to create role', this.errorMessage);
           }
         })
         .catch(error => {
           this.errorMessage = error.Message || 'Error adding role. Please try again.';
+          this.toast.showError('Unable to create role', this.errorMessage);
         });
   }
 

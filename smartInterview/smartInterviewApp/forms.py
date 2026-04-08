@@ -27,6 +27,88 @@ class LoginForm(AuthenticationForm):
     )
 
 
+class ContactForm(forms.Form):
+    INQUIRY_CHOICES = (
+        ('', 'Select inquiry type'),
+        ('product_demo', 'Product Demo'),
+        ('sales_inquiry', 'Sales Inquiry'),
+        ('partnerships', 'Partnerships'),
+        ('support', 'Support'),
+        ('general_inquiry', 'General Inquiry'),
+    )
+
+    TEAM_SIZE_CHOICES = (
+        ('', 'Select team size'),
+        ('1_10', '1-10'),
+        ('11_50', '11-50'),
+        ('51_200', '51-200'),
+        ('201_1000', '201-1000'),
+        ('1000_plus', '1000+'),
+    )
+
+    full_name = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'class': 'contact-input',
+            'placeholder': 'Full name',
+            'autocomplete': 'name',
+        }),
+    )
+    work_email = forms.EmailField(
+        widget=forms.EmailInput(attrs={
+            'class': 'contact-input',
+            'placeholder': 'Work email',
+            'autocomplete': 'email',
+        }),
+    )
+    company_name = forms.CharField(
+        max_length=180,
+        widget=forms.TextInput(attrs={
+            'class': 'contact-input',
+            'placeholder': 'Company name',
+            'autocomplete': 'organization',
+        }),
+    )
+    phone_number = forms.CharField(
+        max_length=30,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'contact-input',
+            'placeholder': 'Phone number',
+            'autocomplete': 'tel',
+        }),
+    )
+    team_size = forms.ChoiceField(
+        required=False,
+        choices=TEAM_SIZE_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'contact-input',
+        }),
+    )
+    inquiry_type = forms.ChoiceField(
+        choices=INQUIRY_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'contact-input',
+        }),
+    )
+    message = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'contact-input contact-input--textarea',
+            'placeholder': 'Tell us a bit about your hiring workflow, what you want to explore, or how we can help.',
+            'rows': 6,
+        }),
+    )
+
+    def clean_phone_number(self):
+        phone = (self.cleaned_data.get('phone_number') or '').strip()
+        if not phone:
+            return phone
+        digits = ''.join(ch for ch in phone if ch.isdigit())
+        if len(digits) < 7:
+            raise forms.ValidationError('Enter a valid phone number.')
+        return phone
+
+
 def validate_resume_upload(resume):
     name = (resume.name or '').lower()
     allowed_extensions = ('.pdf', '.docx')
