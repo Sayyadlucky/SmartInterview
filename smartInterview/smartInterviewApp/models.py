@@ -642,6 +642,47 @@ class InterviewReminderDelivery(models.Model):
         return f"Reminder {self.reminder_type}/{self.channel} for interview {self.interview_id} ({self.status})"
 
 
+class InterviewCallSession(models.Model):
+    class Status(models.TextChoices):
+        DIALING_AGENT = 'dialing_agent', 'Dialing Agent'
+        CONNECTING_CANDIDATE = 'connecting_candidate', 'Connecting Candidate'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+        BUSY = 'busy', 'Busy'
+        NO_ANSWER = 'no_answer', 'No Answer'
+        CANCELLED = 'cancelled', 'Cancelled'
+        DISCONNECTED = 'disconnected', 'Disconnected'
+
+    interview = models.ForeignKey('Interview', on_delete=models.CASCADE, related_name='call_sessions')
+    initiated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='initiated_call_sessions')
+    exotel_call_sid = models.CharField(max_length=128, blank=True, default='', db_index=True)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.DIALING_AGENT, db_index=True)
+    caller_phone = models.CharField(max_length=20, blank=True, default='')
+    candidate_phone = models.CharField(max_length=20, blank=True, default='')
+    billing_started_at = models.DateTimeField(null=True, blank=True)
+    candidate_connected_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    billable_seconds = models.PositiveIntegerField(default=0)
+    connected_seconds = models.PositiveIntegerField(default=0)
+    disconnect_requested_at = models.DateTimeField(null=True, blank=True)
+    provider_response = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['interview', 'status']),
+            models.Index(fields=['initiated_by', 'created_at']),
+            models.Index(fields=['exotel_call_sid']),
+        ]
+
+    def __str__(self):
+        return f"Call {self.exotel_call_sid or self.id} for interview {self.interview_id} ({self.status})"
+
+
 class Vacancies(models.Model):
     class JobType(models.TextChoices):
         FULL_TIME = 'full_time', 'Full Time'

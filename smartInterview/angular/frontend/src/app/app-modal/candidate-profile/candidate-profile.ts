@@ -1,9 +1,10 @@
 import { Component, Inject, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { catchError, of } from 'rxjs';
 import { AppToastService } from '../../core/app-toast.service';
+import { CandidateCallTracker } from '../candidate-call-tracker/candidate-call-tracker';
 
 interface CandidateData {
   id: number;
@@ -93,6 +94,23 @@ interface CandidateCallResponse {
     call_sid?: string;
     caller_phone_masked?: string;
     candidate_phone_masked?: string;
+    session?: {
+      id: number;
+      interview_id: number;
+      call_sid?: string;
+      status: string;
+      caller_phone_masked?: string;
+      candidate_phone_masked?: string;
+      billing_started_at?: string;
+      candidate_connected_at?: string;
+      ended_at?: string;
+      billable_seconds?: number;
+      connected_seconds?: number;
+      disconnect_requested_at?: string;
+      error_message?: string;
+      can_close?: boolean;
+      can_disconnect?: boolean;
+    };
   };
 }
 
@@ -177,6 +195,7 @@ export class CandidateProfile implements OnInit {
 
   constructor(
     private http: HttpClient,
+    private dialog: MatDialog,
     public dialogRef: MatDialogRef<CandidateProfile>,
     @Inject(MAT_DIALOG_DATA) public data: { candidate: CandidateData }
   ) {
@@ -313,7 +332,22 @@ export class CandidateProfile implements OnInit {
         }
         const callerPhone = response.Data?.caller_phone_masked || 'your registered number';
         const candidatePhone = response.Data?.candidate_phone_masked || this.candidate.candidate_phone_masked || 'the candidate number';
-        this.toast.showSuccess('Calling candidate', `Connecting ${callerPhone} with ${candidatePhone} via Exotel.`);
+        const session = response.Data?.session;
+        if (!session) {
+          this.toast.showSuccess('Calling candidate', `Connecting ${callerPhone} with ${candidatePhone} via Exotel.`);
+          return;
+        }
+        this.dialog.open(CandidateCallTracker, {
+          disableClose: true,
+          width: 'min(460px, 92vw)',
+          maxWidth: '92vw',
+          panelClass: 'candidate-call-tracker-dialog',
+          autoFocus: false,
+          data: {
+            interviewId: this.candidate.id,
+            session,
+          },
+        });
       });
   }
 

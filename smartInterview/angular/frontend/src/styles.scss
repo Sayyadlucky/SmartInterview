@@ -214,6 +214,17 @@ app-root {
   max-height: 92vh !important;
 }
 
+.candidate-call-tracker-dialog .mat-mdc-dialog-container,
+.candidate-call-tracker-dialog .mat-mdc-dialog-container .mdc-dialog__surface,
+.candidate-call-tracker-dialog .mat-mdc-dialog-surface,
+.candidate-call-tracker-dialog.cdk-overlay-pane {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  max-height: 92vh !important;
+}
+
 .cdk-overlay-dark-backdrop {
   background: rgba(6, 17, 36, 0.72);
 }

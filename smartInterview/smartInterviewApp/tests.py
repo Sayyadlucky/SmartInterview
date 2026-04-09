@@ -9,14 +9,18 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
-from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
+from smartInterviewApp.api.serializers import ExotelWebhookSerializer
+from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
 from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT, build_litio_interview_link, send_existing_candidate_sms
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.integrations.providers.meta_whatsapp import MetaWhatsappProvider
+from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
+from smartInterviewApp.services.interview_calls import InterviewCallService
 from smartInterviewApp.services.interview_reminders import (
     InterviewReminderService,
     build_reminder_message,
@@ -36,6 +40,23 @@ class NotificationSystemTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='ops', password='pass1234', email='ops@example.com')
         self.client.login(username='ops', password='pass1234')
+
+    def test_exotel_error_parser_extracts_rest_exception_message(self):
+        provider = ExotelVoiceProvider()
+        message = provider._extract_error_message(
+            {'RestException': {'Message': 'CallerId is invalid', 'Code': 1234}},
+            'fallback',
+        )
+        self.assertEqual(message, 'CallerId is invalid')
+
+    def test_exotel_webhook_serializer_accepts_answered_event_without_call_status(self):
+        serializer = ExotelWebhookSerializer(data={
+            'CallSid': 'call-123',
+            'EventType': 'answered',
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['provider_message_id'], 'call-123')
+        self.assertEqual(serializer.validated_data['event_status'], 'answered')
 
     @patch('smartInterviewApp.integrations.providers.msg91.Msg91OtpProvider.request_otp')
     def test_otp_request_and_verify_flow(self, request_otp_mock):
@@ -402,12 +423,331 @@ class CandidateOnboardingTests(TestCase):
         payload = response.json()
         self.assertTrue(payload['Success'])
         self.assertEqual(payload['Data']['call_sid'], 'call-123')
+        self.assertTrue(payload['Data']['session']['id'])
+        session = InterviewCallSession.objects.get(id=payload['Data']['session']['id'])
+        self.assertEqual(session.exotel_call_sid, 'call-123')
+        self.assertEqual(session.status, InterviewCallSession.Status.DIALING_AGENT)
         call_mock.assert_called_once_with(
             agent_phone='919999999999',
             candidate_phone='919876543210',
             interview_id=interview.id,
             metadata={'TimeLimit': '900'},
         )
+
+    def test_interview_call_service_create_session_starts_in_dialing_agent(self):
+        candidate = User.objects.create_user(username='cand-call-create', password='pass1234', email='candcallcreate@example.com')
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919876543210', gender='female', hr=self.admin)
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
+
+        session = InterviewCallService().create_session(
+            interview=interview,
+            initiated_by=self.admin,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+            provider_result=ProviderResult(
+                success=True,
+                status='sent',
+                provider_message_id='call-xyz',
+                response_payload={'Call': {'Sid': 'call-xyz', 'Status': 'queued'}},
+            ),
+        )
+
+        self.assertEqual(session.status, InterviewCallSession.Status.DIALING_AGENT)
+        self.assertEqual(session.exotel_call_sid, 'call-xyz')
+        self.assertIsNone(session.billing_started_at)
+        self.assertIsNone(session.candidate_connected_at)
+
+    @override_settings(
+        NOTIFICATION_PROVIDER_MODE='live',
+        EXOTEL_MOCK_MODE=False,
+        EXOTEL_SID='sid-123',
+        EXOTEL_API_KEY='api-key-123',
+        EXOTEL_TOKEN='token-123',
+        EXOTEL_CALLER_ID='0800000000',
+        EXOTEL_SUBDOMAIN="os.getenv('EXOTEL_SUBDOMAIN', 'api.exotel.com')",
+    )
+    def test_candidate_profile_call_invalid_exotel_host_returns_config_error(self):
+        candidate = User.objects.create_user(username='cand-call-bad-host', password='pass1234', email='candcallbadhost@example.com')
+        candidate.first_name = 'Call'
+        candidate.last_name = 'Candidate'
+        candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919876543210', gender='female', hr=self.admin)
+
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
+
+        response = self.client.post(reverse('candidate-profile-call', args=[interview.id]))
+
+        self.assertEqual(response.status_code, 502)
+        payload = response.json()
+        self.assertFalse(payload['Success'])
+        self.assertIn('EXOTEL_SUBDOMAIN is invalid', payload['Error'])
+        self.assertEqual(InterviewCallSession.objects.count(), 0)
+
+    @override_settings(
+        NOTIFICATION_PROVIDER_MODE='live',
+        EXOTEL_MOCK_MODE=False,
+        EXOTEL_SID='sid-123',
+        EXOTEL_API_KEY='',
+        EXOTEL_TOKEN='token-123',
+        EXOTEL_CALLER_ID='0800000000',
+        EXOTEL_SUBDOMAIN='api.in.exotel.com',
+    )
+    def test_candidate_profile_call_requires_exotel_api_key(self):
+        candidate = User.objects.create_user(username='cand-call-missing-key', password='pass1234', email='candcallmissingkey@example.com')
+        candidate.first_name = 'Call'
+        candidate.last_name = 'Candidate'
+        candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919876543210', gender='female', hr=self.admin)
+
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
+
+        response = self.client.post(reverse('candidate-profile-call', args=[interview.id]))
+
+        self.assertEqual(response.status_code, 502)
+        payload = response.json()
+        self.assertFalse(payload['Success'])
+        self.assertIn('EXOTEL_API_KEY', payload['Error'])
+
+    def test_candidate_profile_call_session_status_returns_session(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-123',
+            status=InterviewCallSession.Status.DIALING_AGENT,
+            caller_phone='919999999999',
+            candidate_phone='919111111111',
+        )
+
+        response = self.client.get(reverse('candidate-profile-call-session', args=[self.interview.id, session.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        self.assertEqual(response.json()['Data']['status'], InterviewCallSession.Status.DIALING_AGENT)
+
+    def test_interview_call_sync_uses_top_level_call_detail_durations(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-123',
+            status=InterviewCallSession.Status.DIALING_AGENT,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+        )
+
+        payload = {
+            'Call': {
+                'Sid': 'call-123',
+                'Status': 'completed',
+                'StartTime': '2026-04-09 09:00:00',
+                'EndTime': '2026-04-09 09:05:00',
+                'Duration': '300',
+                'ConversationDuration': '240',
+            }
+        }
+
+        synced = InterviewCallService().sync_session(session, payload=payload)
+
+        self.assertEqual(synced.status, InterviewCallSession.Status.COMPLETED)
+        self.assertEqual(synced.billable_seconds, 300)
+        self.assertEqual(synced.connected_seconds, 240)
+        self.assertIsNotNone(synced.billing_started_at)
+        self.assertIsNotNone(synced.candidate_connected_at)
+
+    def test_interview_call_sync_marks_connecting_candidate_when_first_leg_is_live(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-124',
+            status=InterviewCallSession.Status.DIALING_AGENT,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+        )
+
+        payload = {
+            'Call': {
+                'Sid': 'call-124',
+                'Status': 'in-progress',
+                'StartTime': '2026-04-09 09:00:00',
+                'Duration': '18',
+                'ConversationDuration': '0',
+            }
+        }
+
+        synced = InterviewCallService().sync_session(session, payload=payload)
+
+        self.assertEqual(synced.status, InterviewCallSession.Status.CONNECTING_CANDIDATE)
+        self.assertIsNotNone(synced.billing_started_at)
+        self.assertEqual(synced.connected_seconds, 0)
+
+    @override_settings(EXOTEL_TIMEZONE='Asia/Kolkata')
+    def test_interview_call_sync_treats_exotel_naive_timestamps_as_india_time(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-126',
+            status=InterviewCallSession.Status.DIALING_AGENT,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+        )
+
+        payload = {
+            'Call': {
+                'Sid': 'call-126',
+                'Status': 'in-progress',
+                'StartTime': '2026-04-09 12:00:00',
+                'Duration': '10',
+                'ConversationDuration': '0',
+            }
+        }
+
+        synced = InterviewCallService().sync_session(session, payload=payload)
+
+        self.assertIsNotNone(synced.billing_started_at)
+        self.assertEqual(timezone.localtime(synced.billing_started_at).hour, 12)
+        self.assertEqual(timezone.localtime(synced.billing_started_at).minute, 0)
+
+    def test_interview_call_sync_marks_in_progress_when_candidate_leg_is_live(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-127',
+            status=InterviewCallSession.Status.CONNECTING_CANDIDATE,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+            billing_started_at=timezone.now() - timedelta(seconds=20),
+            billable_seconds=20,
+        )
+
+        payload = {
+            'Call': {
+                'Sid': 'call-127',
+                'Status': 'in-progress',
+                'Leg1Status': 'in-progress',
+                'Leg2Status': 'answered',
+                'Duration': '20',
+                'ConversationDuration': '5',
+            }
+        }
+
+        synced = InterviewCallService().sync_session(session, payload=payload)
+
+        self.assertEqual(synced.status, InterviewCallSession.Status.IN_PROGRESS)
+        self.assertIsNotNone(synced.candidate_connected_at)
+
+    def test_interview_call_webhook_debug_summary_is_serialized(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-128',
+            status=InterviewCallSession.Status.CONNECTING_CANDIDATE,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+            provider_response={
+                'webhook_events': [
+                    {'received_at': '2026-04-09T12:00:00+05:30', 'payload': {'EventType': 'answered', 'CallSid': 'call-128'}},
+                ]
+            },
+        )
+
+        payload = InterviewCallService().serialize_session(session)
+
+        self.assertEqual(payload['webhook_event_count'], 1)
+        self.assertEqual(payload['last_webhook_event_type'], 'answered')
+
+    def test_interview_call_sync_marks_disconnected_after_billable_leg_ends_without_candidate(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-125',
+            status=InterviewCallSession.Status.CONNECTING_CANDIDATE,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+            billing_started_at=timezone.now() - timedelta(seconds=42),
+            billable_seconds=42,
+        )
+
+        payload = {
+            'Call': {
+                'Sid': 'call-125',
+                'Status': 'completed',
+                'StartTime': '2026-04-09 09:00:00',
+                'EndTime': '2026-04-09 09:00:42',
+                'Duration': '42',
+                'ConversationDuration': '0',
+            }
+        }
+
+        synced = InterviewCallService().sync_session(session, payload=payload)
+
+        self.assertEqual(synced.status, InterviewCallSession.Status.DISCONNECTED)
+        self.assertEqual(synced.connected_seconds, 0)
+
+    @patch('smartInterviewApp.commonViews.interview_call_service.provider.disconnect_call')
+    def test_candidate_profile_disconnect_updates_session(self, disconnect_mock):
+        disconnect_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='call-123', response_payload={'Call': {'Sid': 'call-123', 'Status': 'completed'}})
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-123',
+            status=InterviewCallSession.Status.IN_PROGRESS,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+            billing_started_at=timezone.now(),
+        )
+
+        response = self.client.post(reverse('candidate-profile-call-disconnect', args=[self.interview.id, session.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        session.refresh_from_db()
+        self.assertIsNotNone(session.disconnect_requested_at)
+
+    @patch('smartInterviewApp.commonViews.interview_call_service.provider.disconnect_call')
+    def test_candidate_profile_disconnect_failure_does_not_mark_disconnect_requested(self, disconnect_mock):
+        disconnect_mock.return_value = ProviderResult(
+            success=False,
+            status='failed',
+            provider_message_id='call-123',
+            response_payload={'message': 'Method not allowed'},
+            error_message='Method not allowed',
+        )
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-123',
+            status=InterviewCallSession.Status.IN_PROGRESS,
+            caller_phone='919999999999',
+            candidate_phone='919876543210',
+            billing_started_at=timezone.now(),
+        )
+
+        response = self.client.post(reverse('candidate-profile-call-disconnect', args=[self.interview.id, session.id]))
+
+        self.assertEqual(response.status_code, 502)
+        session.refresh_from_db()
+        self.assertIsNone(session.disconnect_requested_at)
+        self.assertIn('does not allow ending this live call', session.error_message)
 
     def test_candidate_signup_completes_profile(self):
         candidate = User.objects.create_user(username='cand2', email='signup@example.com')

@@ -53,7 +53,8 @@ from smartInterviewApp.otp.services import request_email_otp, request_otp, verif
 from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
-from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication
+from smartInterviewApp.services.interview_calls import InterviewCallService
+from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication, InterviewCallSession
 from .templatetags.host_links import build_host_link
 
 
@@ -69,6 +70,7 @@ PDF_BROWSER_CANDIDATES = [
 ]
 logger = logging.getLogger(__name__)
 exotel_voice_provider = ExotelVoiceProvider()
+interview_call_service = InterviewCallService()
 
 
 def normalize_interview_status(value: str) -> str:
@@ -3657,11 +3659,20 @@ def callCandidateProfile(request, interview_id: int):
                 }
             }, status=502)
 
+        session = interview_call_service.create_session(
+            interview=interview,
+            initiated_by=request.user,
+            caller_phone=caller_phone,
+            candidate_phone=candidate_phone,
+            provider_result=call_result,
+        )
+
         return JsonResponse({
             'Success': True,
             'Error': None,
             'Data': {
                 'call_sid': call_result.provider_message_id,
+                'session': interview_call_service.serialize_session(session),
                 'caller_phone_masked': mask_phone_display(caller_phone),
                 'candidate_phone_masked': mask_phone_display(candidate_phone),
             }
@@ -3669,6 +3680,57 @@ def callCandidateProfile(request, interview_id: int):
     except Exception as e:
         logger.exception('Unable to initiate Exotel call for candidate profile')
         return JsonResponse({'Success': False, 'Error': str(e), 'Data': None}, status=500)
+
+
+@login_required
+def getCandidateCallSession(request, interview_id: int, session_id: int):
+    if request.method != 'GET':
+        return JsonResponse({'Success': False, 'Error': 'Only GET is allowed.', 'Data': None}, status=405)
+
+    try:
+        profile = getattr(request.user, 'profile', None)
+        if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+            return JsonResponse({'Success': False, 'Error': 'Calling is restricted to workspace users.', 'Data': None}, status=403)
+
+        session = interview_call_service.get_session(user=request.user, interview_id=interview_id, session_id=session_id)
+        if not session:
+            return JsonResponse({'Success': False, 'Error': 'Call session not found.', 'Data': None}, status=404)
+
+        session = interview_call_service.refresh_session(session)
+        return JsonResponse({'Success': True, 'Error': None, 'Data': interview_call_service.serialize_session(session)})
+    except Exception as exc:
+        logger.exception('Unable to fetch Exotel call session status')
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
+
+
+@csrf_exempt
+@login_required
+def disconnectCandidateCallSession(request, interview_id: int, session_id: int):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    try:
+        profile = getattr(request.user, 'profile', None)
+        if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+            return JsonResponse({'Success': False, 'Error': 'Calling is restricted to workspace users.', 'Data': None}, status=403)
+
+        session = interview_call_service.get_session(user=request.user, interview_id=interview_id, session_id=session_id)
+        if not session:
+            return JsonResponse({'Success': False, 'Error': 'Call session not found.', 'Data': None}, status=404)
+
+        result = interview_call_service.disconnect_session(session)
+        session.refresh_from_db()
+        if not result.success:
+            return JsonResponse({
+                'Success': False,
+                'Error': result.error_message or 'Unable to disconnect the Exotel call right now.',
+                'Data': interview_call_service.serialize_session(session),
+            }, status=502)
+
+        return JsonResponse({'Success': True, 'Error': None, 'Data': interview_call_service.serialize_session(session)})
+    except Exception as exc:
+        logger.exception('Unable to disconnect Exotel call session')
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
 
 
 @login_required
