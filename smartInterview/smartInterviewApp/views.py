@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 
 from django.conf import settings
@@ -23,15 +24,18 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import CompanyProfile, Interview
 from .commonViews import (
+    build_litio_interview_link,
     build_candidate_details,
     candidateDashboard,
     candidateLogin,
     get_accessible_interviews,
     get_accessible_interviewer_profiles,
     publicJobsPortal,
-    send_existing_candidate_sms,
 )
 from .services.company_enrichment import ensure_company_profile_for_user
+from .services.ai_talent_pool.async_indexer import process_candidate_reindex
+from .services.interview_reminders import InterviewReminderService
+from .services.interview_schedule_processing import process_scheduled_interview_batch, queue_scheduled_interview_processing
 from .templatetags.host_links import build_host_link
 from smartInterviewApp.otp.services import request_otp, verify_otp
 
@@ -41,6 +45,7 @@ CONTACT_INBOX_EMAIL = getattr(settings, 'CONTACT_INBOX_EMAIL', CONTACT_SUPPORT_E
 WORKSPACE_PASSWORD_RESET_SESSION_KEY = 'workspace_password_reset'
 WORKSPACE_PASSWORD_RESET_MAX_AGE_SECONDS = 60 * 15
 WORKSPACE_PASSWORD_RESET_ROLES = {'admin', 'recruiter', 'interviewer'}
+INTERVIEW_REMINDER_TASK_HEADER = 'HTTP_X_CLOUD_TASKS_SECRET'
 
 
 def normalize_interview_status(value: str) -> str:
@@ -753,6 +758,14 @@ def updateCandidateStatus(request):
             candidate.hired_at = candidate.date
             update_fields.append('hired_at')
         candidate.save(update_fields=update_fields)
+        if status != 'scheduled':
+            interview_id = candidate.id
+            transaction.on_commit(
+                lambda iid=interview_id, new_status=status: InterviewReminderService().cancel_pending_interview_reminders(
+                    Interview.objects.get(id=iid),
+                    reason=f'Interview marked {new_status}.',
+                )
+            )
         return JsonResponse({
             "Success": True,
             "Error": None,
@@ -841,6 +854,7 @@ def updateInterviewWorkflow(request):
 
     updated_items = []
     notifications = []
+    scheduled_jobs: list[dict] = []
     with transaction.atomic():
         for interview in interviews:
             update_fields: list[str] = []
@@ -883,22 +897,29 @@ def updateInterviewWorkflow(request):
             })
 
             if mode == 'schedule':
-                try:
-                    notification_result = send_existing_candidate_sms(interview.candidate, interview, request=request)
-                    updated_items[-1]["interview_token"] = notification_result.get("interview_token", "")
-                    updated_items[-1]["interview_link"] = notification_result.get("interview_link", "")
-                    notifications.append({
-                        "interview_id": interview.id,
-                        "result": notification_result,
-                    })
-                except Exception as exc:
-                    notifications.append({
-                        "interview_id": interview.id,
-                        "result": {
-                            "sent": False,
-                            "reason": str(exc),
-                        },
-                    })
+                interview_token, interview_link = build_litio_interview_link(None, interview)
+                updated_items[-1]["interview_token"] = interview_token
+                updated_items[-1]["interview_link"] = interview_link
+                scheduled_jobs.append({
+                    'interview_id': interview.id,
+                    'expected_interview_time': interview.date.isoformat() if interview.date else '',
+                })
+                notifications.append({
+                    "interview_id": interview.id,
+                    "result": {
+                        "queued": True,
+                        "sent": False,
+                        "reason": "Candidate notification and reminder scheduling queued.",
+                    },
+                })
+
+    if mode == 'schedule' and scheduled_jobs:
+        queued_jobs = tuple((item['interview_id'], item['expected_interview_time']) for item in scheduled_jobs)
+        transaction.on_commit(
+            lambda jobs=queued_jobs: queue_scheduled_interview_processing(
+                [{'interview_id': interview_id, 'expected_interview_time': expected_time} for interview_id, expected_time in jobs]
+            )
+        )
 
     return JsonResponse({
         "Success": True,
@@ -909,3 +930,84 @@ def updateInterviewWorkflow(request):
             "notifications": notifications,
         }
     })
+
+
+@csrf_exempt
+def internalSendInterviewReminder(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    shared_secret = getattr(settings, 'CLOUD_TASKS_SHARED_SECRET', '').strip()
+    provided_secret = request.META.get(INTERVIEW_REMINDER_TASK_HEADER, '')
+    if not shared_secret or not provided_secret or not hmac.compare_digest(shared_secret, provided_secret):
+        return JsonResponse({'Success': False, 'Error': 'Unauthorized task request.', 'Data': None}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'Success': False, 'Error': 'Invalid request payload.', 'Data': None}, status=400)
+
+    interview_id = payload.get('interview_id')
+    reminder_type = str(payload.get('reminder_type') or '').strip()
+    channel = str(payload.get('channel') or '').strip()
+    expected_interview_time = str(payload.get('expected_interview_time') or '').strip()
+    if not interview_id or not reminder_type or not channel or not expected_interview_time:
+        return JsonResponse({'Success': False, 'Error': 'Reminder payload is incomplete.', 'Data': None}, status=400)
+
+    result = InterviewReminderService().execute_interview_reminder(
+        interview_id=int(interview_id),
+        reminder_type=reminder_type,
+        channel=channel,
+        expected_interview_time=expected_interview_time,
+    )
+    status_code = 200 if result.get('ok') else 500
+    return JsonResponse({'Success': result.get('ok', False), 'Error': None if result.get('ok') else result.get('message'), 'Data': result}, status=status_code)
+
+
+@csrf_exempt
+def internalProcessScheduledInterviews(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    shared_secret = getattr(settings, 'CLOUD_TASKS_SHARED_SECRET', '').strip()
+    provided_secret = request.META.get(INTERVIEW_REMINDER_TASK_HEADER, '')
+    if not shared_secret or not provided_secret or not hmac.compare_digest(shared_secret, provided_secret):
+        return JsonResponse({'Success': False, 'Error': 'Unauthorized task request.', 'Data': None}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'Success': False, 'Error': 'Invalid request payload.', 'Data': None}, status=400)
+
+    items = payload.get('items') or []
+    if not isinstance(items, list) or not items:
+        return JsonResponse({'Success': False, 'Error': 'Interview processing payload is incomplete.', 'Data': None}, status=400)
+
+    results = process_scheduled_interview_batch(items)
+    return JsonResponse({'Success': True, 'Error': None, 'Data': {'count': len(results), 'items': results}}, status=200)
+
+
+@csrf_exempt
+def internalRebuildCandidateSearchProfile(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    shared_secret = getattr(settings, 'CLOUD_TASKS_SHARED_SECRET', '').strip()
+    provided_secret = request.META.get(INTERVIEW_REMINDER_TASK_HEADER, '')
+    if not shared_secret or not provided_secret or not hmac.compare_digest(shared_secret, provided_secret):
+        return JsonResponse({'Success': False, 'Error': 'Unauthorized task request.', 'Data': None}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({'Success': False, 'Error': 'Invalid request payload.', 'Data': None}, status=400)
+
+    candidate_id = payload.get('candidate_id')
+    try:
+        candidate_id = int(candidate_id)
+    except (TypeError, ValueError):
+        return JsonResponse({'Success': False, 'Error': 'Candidate id is invalid.', 'Data': None}, status=400)
+
+    result = process_candidate_reindex(candidate_id)
+    status_code = 200 if result.get('ok') else 500
+    return JsonResponse({'Success': result.get('ok', False), 'Error': None if result.get('ok') else result.get('message'), 'Data': result}, status=status_code)

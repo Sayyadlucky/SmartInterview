@@ -594,6 +594,54 @@ class UserNotificationPreference(models.Model):
         return f"Prefs for {self.user.username}"
 
 
+class InterviewReminderDelivery(models.Model):
+    class ReminderType(models.TextChoices):
+        ONE_HOUR = 'one_hour', '60 Minutes Before'
+        THIRTY_MIN = 'thirty_min', '30 Minutes Before'
+        FIFTEEN_MIN = 'fifteen_min', '15 Minutes Before'
+
+    class Channel(models.TextChoices):
+        SMS = 'sms', 'SMS'
+        WHATSAPP = 'whatsapp', 'WhatsApp'
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        SENT = 'sent', 'Sent'
+        FAILED = 'failed', 'Failed'
+        CANCELLED = 'cancelled', 'Cancelled'
+        SKIPPED = 'skipped', 'Skipped'
+
+    interview = models.ForeignKey('Interview', on_delete=models.CASCADE, related_name='reminder_deliveries')
+    reminder_type = models.CharField(max_length=20, choices=ReminderType.choices)
+    channel = models.CharField(max_length=20, choices=Channel.choices)
+    scheduled_for = models.DateTimeField(db_index=True)
+    expected_interview_time = models.DateTimeField(db_index=True)
+    cloud_task_name = models.CharField(max_length=500, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    provider_response = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['interview', 'reminder_type', 'channel', 'expected_interview_time'],
+                name='uniq_interview_reminder_delivery',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['status', 'scheduled_for']),
+            models.Index(fields=['interview', 'status']),
+            models.Index(fields=['channel', 'status']),
+        ]
+        ordering = ['scheduled_for', 'id']
+
+    def __str__(self):
+        return f"Reminder {self.reminder_type}/{self.channel} for interview {self.interview_id} ({self.status})"
+
+
 class Vacancies(models.Model):
     class JobType(models.TextChoices):
         FULL_TIME = 'full_time', 'Full Time'

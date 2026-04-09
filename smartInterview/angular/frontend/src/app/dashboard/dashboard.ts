@@ -855,10 +855,13 @@ nextPage() {
   return data?.slice(start, start + this.pageSize);
   }
 
-setStatusFilter(status: string | null) {
+setStatusFilter(status: string | null, shouldScroll = false) {
   this.selectedStatus = status;
   this.attentionFilter = null;
   this.currentPage = 1; // reset to first page after filtering
+  if (shouldScroll) {
+    this.scrollToCandidatePipeline();
+  }
 }
 
 clearSearch(): void {
@@ -1415,7 +1418,12 @@ private scrollToCandidatePipeline(): void {
   setTimeout(() => {
     const el = document.getElementById('candidatePipelineSection');
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const top = el.getBoundingClientRect().top + window.scrollY - 84;
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
     }
   }, 50);
 }
@@ -1832,8 +1840,8 @@ addRRole(): void {
 
   openRoldeModal(role_id: any): void {
     const dialogRef = this.dialog.open(RoleDetail, {
-      width: '95vw',
-      maxWidth: '920px',
+      width: 'min(1120px, 96vw)',
+      maxWidth: '96vw',
       maxHeight: '92vh',
       panelClass: 'role-detail-dialog',
       data: { type: 'Role', role_id }

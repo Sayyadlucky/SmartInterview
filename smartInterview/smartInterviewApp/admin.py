@@ -6,6 +6,7 @@ from .models import (
     CompanyProfile,
     UserProfile,
     Interview,
+    InterviewReminderDelivery,
     Notification,
     NotificationAttempt,
     OtpRequest,
@@ -33,6 +34,14 @@ admin.site.register(User, UserAdmin)
 # Register other models
 admin.site.register(Interview)
 admin.site.register(Vacancies)
+
+
+@admin.register(InterviewReminderDelivery)
+class InterviewReminderDeliveryAdmin(admin.ModelAdmin):
+    list_display = ('id', 'interview', 'reminder_type', 'channel', 'status', 'scheduled_for', 'expected_interview_time', 'sent_at')
+    list_filter = ('reminder_type', 'channel', 'status')
+    search_fields = ('interview__id', 'interview__candidate__username', 'interview__candidate__email', 'cloud_task_name')
+    readonly_fields = ('created_at', 'updated_at', 'sent_at')
 
 
 @admin.register(CandidateVacancyApplication)

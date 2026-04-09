@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 import tempfile
 from unittest.mock import patch
 
@@ -10,12 +11,18 @@ from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
-from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, CandidateSavedVacancy, CandidateVacancyApplication
+from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
-from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT, send_existing_candidate_sms
+from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT, build_litio_interview_link, send_existing_candidate_sms
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.integrations.providers.meta_whatsapp import MetaWhatsappProvider
+from smartInterviewApp.services.interview_reminders import (
+    InterviewReminderService,
+    build_reminder_message,
+    build_whatsapp_parameters,
+    clean_value,
+)
 
 
 @override_settings(
@@ -116,6 +123,17 @@ class NotificationSystemTests(TestCase):
         self.assertEqual(attempts[1].status, NotificationAttempt.Status.SENT)
         self.assertEqual(notification.final_channel, NotificationAttempt.Channel.SMS)
         self.assertEqual(sms_mock.call_args.args[1], 'Interview reminder.')
+
+    @patch('smartInterviewApp.signals.queue_candidate_reindex')
+    def test_interview_save_queues_candidate_search_reindex_after_commit(self, queue_reindex_mock):
+        queue_reindex_mock.return_value = {'queued': True, 'mode': 'cloud_tasks'}
+        candidate = User.objects.create_user(username='cand-index', password='pass1234', email='candindex@example.com')
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919812345678', gender='female', hr=self.user)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            Interview.objects.create(candidate=candidate, hr=self.user, status='shortlisted')
+
+        queue_reindex_mock.assert_called_once_with(candidate.id)
 
     @patch('smartInterviewApp.integrations.providers.meta_whatsapp.MetaWhatsappProvider.send_template_message')
     @patch('smartInterviewApp.integrations.providers.msg91.Msg91SmsProvider.send_sms')
@@ -323,6 +341,7 @@ class CandidateOnboardingTests(TestCase):
         interview.refresh_from_db()
         self.assertTrue(result['interview_token'])
         self.assertEqual(interview.litio_interview_token, result['interview_token'])
+        self.assertLessEqual(len(result['interview_token']), 16)
         self.assertTrue(result['interview_link'].startswith('https://litio.shortlistii.com/i/'))
         components = send_whatsapp_mock.call_args.kwargs['components']
         self.assertEqual(len(components), 1)
@@ -333,6 +352,25 @@ class CandidateOnboardingTests(TestCase):
             [item['text'] for item in parameters],
             ['Existing', 'Python Developer', 'Recruiter One']
         )
+
+    def test_build_litio_interview_link_normalizes_old_token_and_uses_public_domain(self):
+        interview = Interview.objects.create(
+            candidate=self.candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+            litio_interview_token='BDF7rdBltZdxYUXPxzrH0DyjvboVqNNr',
+        )
+
+        token, link = build_litio_interview_link(None, interview)
+
+        self.assertNotEqual(token, 'BDF7rdBltZdxYUXPxzrH0DyjvboVqNNr')
+        self.assertLessEqual(len(token), 16)
+        self.assertTrue(link.startswith('https://litio.shortlistii.com/i/'))
+        interview.refresh_from_db()
+        self.assertEqual(interview.litio_interview_token, token)
 
     @patch('smartInterviewApp.commonViews.exotel_voice_provider.connect_agent_to_candidate')
     def test_candidate_profile_call_connects_workspace_user_and_candidate(self, call_mock):
@@ -764,3 +802,368 @@ class PublicJobsPortalTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.json()['Success'])
         self.assertEqual(response.json()['Error'], 'Passwords do not match.')
+
+
+@override_settings(
+    CLOUD_TASKS_SHARED_SECRET='task-secret',
+    GCP_PROJECT_ID='demo-project',
+    GCP_LOCATION='asia-south1',
+    CLOUD_TASKS_QUEUE='interview-reminders',
+    CLOUD_RUN_BASE_URL='https://shortlistii.run.app',
+    MSG91_INTERVIEW_REMINDER_ONE_HOUR_TEMPLATE_ID='sms_template_60',
+    MSG91_INTERVIEW_REMINDER_THIRTY_MIN_TEMPLATE_ID='sms_template_30',
+    MSG91_INTERVIEW_REMINDER_FIFTEEN_MIN_TEMPLATE_ID='sms_template_15',
+    INTERVIEW_REMINDER_ONE_HOUR_WHATSAPP_TEMPLATE='interview_reminder_one_hour',
+    INTERVIEW_REMINDER_THIRTY_MIN_WHATSAPP_TEMPLATE='interview_reminder_thirty_min',
+    INTERVIEW_REMINDER_FIFTEEN_MIN_WHATSAPP_TEMPLATE='interview_reminder_fifteen_min',
+)
+class InterviewReminderTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin-reminder', password='pass1234', email='admin.reminder@example.com')
+        self.admin.first_name = 'Admin'
+        self.admin.last_name = 'Reminder'
+        self.admin.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.admin, role='admin', phone='919999999999', gender='other')
+
+        self.recruiter = User.objects.create_user(username='recruiter-reminder', password='pass1234', email='recruiter.reminder@example.com')
+        self.recruiter.first_name = 'Recruiter'
+        self.recruiter.last_name = 'Reminder'
+        self.recruiter.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.recruiter, role='recruiter', phone='918888888888', gender='male', hr=self.admin)
+
+        self.interviewer = User.objects.create_user(username='interviewer-reminder', password='pass1234', email='interviewer.reminder@example.com')
+        self.interviewer.first_name = 'Evaluator'
+        self.interviewer.last_name = 'Reminder'
+        self.interviewer.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(
+            user=self.interviewer,
+            role='interviewer',
+            phone='917777777777',
+            gender='male',
+            hr=self.admin,
+            recruiter=self.recruiter,
+        )
+
+        self.candidate = User.objects.create_user(username='candidate-reminder', password='pass1234', email='candidate.reminder@example.com')
+        self.candidate.first_name = 'Asha'
+        self.candidate.last_name = 'Verma'
+        self.candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.candidate, role='candidate', phone='919111111111', gender='female', hr=self.admin)
+
+        self.role = Vacancies.objects.create(
+            role='Python Developer',
+            description='Backend role',
+            position='2',
+            status='active',
+            admin=self.admin,
+        )
+        self.role.recruiter.add(self.recruiter)
+        self.interview = Interview.objects.create(
+            candidate=self.candidate,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            hr=self.admin,
+            role=self.role,
+            status='scheduled',
+            date=timezone.now() + timedelta(hours=2),
+        )
+        self.client.login(username='admin-reminder', password='pass1234')
+
+    @patch('smartInterviewApp.services.interview_reminders.cloud_tasks_scheduler.create_http_task')
+    def test_schedule_creates_six_reminder_records_and_tasks(self, create_task_mock):
+        create_task_mock.side_effect = [f'task-{idx}' for idx in range(6)]
+
+        deliveries = InterviewReminderService().schedule_interview_reminders(self.interview)
+
+        self.assertEqual(len(deliveries), 6)
+        self.assertEqual(InterviewReminderDelivery.objects.filter(interview=self.interview).count(), 6)
+        self.assertEqual(create_task_mock.call_count, 6)
+        self.assertEqual(
+            InterviewReminderDelivery.objects.filter(interview=self.interview, status=InterviewReminderDelivery.Status.PENDING).count(),
+            6,
+        )
+
+    @patch('smartInterviewApp.services.interview_reminders.cloud_tasks_scheduler.create_http_task')
+    @patch('smartInterviewApp.services.interview_reminders.cloud_tasks_scheduler.delete_task')
+    def test_reschedule_cancels_old_reminders_and_creates_new_ones(self, delete_task_mock, create_task_mock):
+        create_task_mock.side_effect = [f'task-{idx}' for idx in range(12)]
+        service = InterviewReminderService()
+        service.schedule_interview_reminders(self.interview)
+
+        old_time = self.interview.date
+        self.interview.date = old_time + timedelta(hours=1)
+        self.interview.save(update_fields=['date'])
+
+        service.reschedule_interview_reminders(self.interview)
+
+        self.assertEqual(delete_task_mock.call_count, 6)
+        self.assertEqual(
+            InterviewReminderDelivery.objects.filter(
+                interview=self.interview,
+                expected_interview_time=old_time,
+                status=InterviewReminderDelivery.Status.CANCELLED,
+            ).count(),
+            6,
+        )
+        self.assertEqual(
+            InterviewReminderDelivery.objects.filter(
+                interview=self.interview,
+                expected_interview_time=self.interview.date,
+                status=InterviewReminderDelivery.Status.PENDING,
+            ).count(),
+            6,
+        )
+
+    @patch('smartInterviewApp.services.interview_reminders.send_sms')
+    def test_cancelled_interview_reminder_is_not_sent(self, send_sms_mock):
+        delivery = InterviewReminderDelivery.objects.create(
+            interview=self.interview,
+            reminder_type=InterviewReminderDelivery.ReminderType.ONE_HOUR,
+            channel=InterviewReminderDelivery.Channel.SMS,
+            scheduled_for=self.interview.date - timedelta(hours=1),
+            expected_interview_time=self.interview.date,
+            status=InterviewReminderDelivery.Status.PENDING,
+        )
+        self.interview.status = 'cancelled'
+        self.interview.save(update_fields=['status'])
+
+        result = InterviewReminderService().execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=delivery.reminder_type,
+            channel=delivery.channel,
+            expected_interview_time=self.interview.date.isoformat(),
+        )
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['status'], 'cancelled')
+        send_sms_mock.assert_not_called()
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.status, InterviewReminderDelivery.Status.CANCELLED)
+
+    @patch('smartInterviewApp.services.interview_reminders.send_sms')
+    def test_stale_expected_interview_time_is_skipped(self, send_sms_mock):
+        stale_time = timezone.now() - timedelta(hours=2)
+        self.interview.date = stale_time
+        self.interview.save(update_fields=['date'])
+        delivery = InterviewReminderDelivery.objects.create(
+            interview=self.interview,
+            reminder_type=InterviewReminderDelivery.ReminderType.FIFTEEN_MIN,
+            channel=InterviewReminderDelivery.Channel.SMS,
+            scheduled_for=stale_time - timedelta(minutes=15),
+            expected_interview_time=stale_time,
+            status=InterviewReminderDelivery.Status.PENDING,
+        )
+
+        result = InterviewReminderService().execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=delivery.reminder_type,
+            channel=delivery.channel,
+            expected_interview_time=stale_time.isoformat(),
+        )
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['status'], 'skipped')
+        send_sms_mock.assert_not_called()
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.status, InterviewReminderDelivery.Status.SKIPPED)
+
+    @patch('smartInterviewApp.services.interview_reminders.send_sms')
+    def test_duplicate_task_execution_does_not_duplicate_sends(self, send_sms_mock):
+        send_sms_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='sms-1', response_payload={'ok': True})
+        delivery = InterviewReminderDelivery.objects.create(
+            interview=self.interview,
+            reminder_type=InterviewReminderDelivery.ReminderType.ONE_HOUR,
+            channel=InterviewReminderDelivery.Channel.SMS,
+            scheduled_for=self.interview.date - timedelta(hours=1),
+            expected_interview_time=self.interview.date,
+            status=InterviewReminderDelivery.Status.PENDING,
+        )
+        service = InterviewReminderService()
+
+        first = service.execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=delivery.reminder_type,
+            channel=delivery.channel,
+            expected_interview_time=self.interview.date.isoformat(),
+        )
+        second = service.execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=delivery.reminder_type,
+            channel=delivery.channel,
+            expected_interview_time=self.interview.date.isoformat(),
+        )
+
+        self.assertTrue(first['ok'])
+        self.assertTrue(second['ok'])
+        self.assertEqual(second['status'], 'already_sent')
+        self.assertEqual(send_sms_mock.call_count, 1)
+        self.assertEqual(send_sms_mock.call_args.kwargs['metadata']['msg91_template_id'], 'sms_template_60')
+
+    @patch('smartInterviewApp.services.interview_reminders.send_template_message')
+    @patch('smartInterviewApp.services.interview_reminders.send_sms')
+    def test_sms_and_whatsapp_are_handled_independently(self, send_sms_mock, send_whatsapp_mock):
+        send_sms_mock.return_value = ProviderResult(success=False, status='failed', response_payload={'error': 'sms'}, error_message='SMS failed')
+        send_whatsapp_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='wa-1', response_payload={'messages': [{'id': 'wa-1'}]})
+
+        sms_delivery = InterviewReminderDelivery.objects.create(
+            interview=self.interview,
+            reminder_type=InterviewReminderDelivery.ReminderType.THIRTY_MIN,
+            channel=InterviewReminderDelivery.Channel.SMS,
+            scheduled_for=self.interview.date - timedelta(minutes=30),
+            expected_interview_time=self.interview.date,
+            status=InterviewReminderDelivery.Status.PENDING,
+        )
+        whatsapp_delivery = InterviewReminderDelivery.objects.create(
+            interview=self.interview,
+            reminder_type=InterviewReminderDelivery.ReminderType.THIRTY_MIN,
+            channel=InterviewReminderDelivery.Channel.WHATSAPP,
+            scheduled_for=self.interview.date - timedelta(minutes=30),
+            expected_interview_time=self.interview.date,
+            status=InterviewReminderDelivery.Status.PENDING,
+        )
+
+        sms_result = InterviewReminderService().execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=sms_delivery.reminder_type,
+            channel=sms_delivery.channel,
+            expected_interview_time=self.interview.date.isoformat(),
+        )
+        whatsapp_result = InterviewReminderService().execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=whatsapp_delivery.reminder_type,
+            channel=whatsapp_delivery.channel,
+            expected_interview_time=self.interview.date.isoformat(),
+        )
+
+        self.assertFalse(sms_result['ok'])
+        self.assertTrue(whatsapp_result['ok'])
+        sms_delivery.refresh_from_db()
+        whatsapp_delivery.refresh_from_db()
+        self.assertEqual(sms_delivery.status, InterviewReminderDelivery.Status.FAILED)
+        self.assertEqual(whatsapp_delivery.status, InterviewReminderDelivery.Status.SENT)
+
+    def test_template_rendering_handles_missing_values(self):
+        message = build_reminder_message(
+            InterviewReminderDelivery.ReminderType.ONE_HOUR,
+            clean_value('', 'Candidate'),
+            clean_value('', 'your scheduled role'),
+            '10:00 AM',
+        )
+        self.assertIn('Hello Candidate', message)
+        self.assertIn('your scheduled role', message)
+
+    def test_fifteen_min_template_includes_join_link(self):
+        self.interview.litio_interview_token = 'ab23cd45'
+        self.interview.save(update_fields=['litio_interview_token'])
+
+        message = build_reminder_message(
+            InterviewReminderDelivery.ReminderType.FIFTEEN_MIN,
+            'Asha',
+            'Python Developer',
+            '10:00 AM',
+            'https://litio.shortlistii.com/i/ab23cd45',
+        )
+        parameters = build_whatsapp_parameters(
+            InterviewReminderDelivery.ReminderType.FIFTEEN_MIN,
+            'Asha',
+            'Python Developer',
+            '10:00 AM',
+            'https://litio.shortlistii.com/i/ab23cd45',
+        )
+
+        self.assertIn('https://litio.shortlistii.com/i/ab23cd45', message)
+        self.assertEqual(
+            parameters,
+            ['Asha', 'Python Developer', '10:00 AM', 'https://litio.shortlistii.com/i/ab23cd45'],
+        )
+
+    @patch('smartInterviewApp.services.interview_reminders.send_sms')
+    def test_fifteen_min_sms_uses_msg91_template_id(self, send_sms_mock):
+        send_sms_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='sms-15', response_payload={'ok': True})
+        delivery = InterviewReminderDelivery.objects.create(
+            interview=self.interview,
+            reminder_type=InterviewReminderDelivery.ReminderType.FIFTEEN_MIN,
+            channel=InterviewReminderDelivery.Channel.SMS,
+            scheduled_for=self.interview.date - timedelta(minutes=15),
+            expected_interview_time=self.interview.date,
+            status=InterviewReminderDelivery.Status.PENDING,
+        )
+
+        result = InterviewReminderService().execute_interview_reminder(
+            interview_id=self.interview.id,
+            reminder_type=delivery.reminder_type,
+            channel=delivery.channel,
+            expected_interview_time=self.interview.date.isoformat(),
+        )
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(send_sms_mock.call_args.kwargs['metadata']['msg91_template_id'], 'sms_template_15')
+
+    def test_internal_endpoint_rejects_unauthorized_calls(self):
+        response = self.client.post(
+            reverse('internal-send-interview-reminder'),
+            data=json.dumps({
+                'interview_id': self.interview.id,
+                'reminder_type': InterviewReminderDelivery.ReminderType.ONE_HOUR,
+                'channel': InterviewReminderDelivery.Channel.SMS,
+                'expected_interview_time': self.interview.date.isoformat(),
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_candidate_reindex_internal_endpoint_rejects_unauthorized_calls(self):
+        response = self.client.post(
+            reverse('internal-rebuild-candidate-search-profile'),
+            data=json.dumps({'candidate_id': self.candidate.id}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    @patch('smartInterviewApp.views.process_candidate_reindex')
+    def test_candidate_reindex_internal_endpoint_processes_authorized_call(self, process_mock):
+        process_mock.return_value = {'ok': True, 'status': 'processed', 'candidate_id': self.candidate.id}
+
+        response = self.client.post(
+            reverse('internal-rebuild-candidate-search-profile'),
+            data=json.dumps({'candidate_id': self.candidate.id}),
+            content_type='application/json',
+            HTTP_X_CLOUD_TASKS_SECRET='task-secret',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        process_mock.assert_called_once_with(self.candidate.id)
+
+    @patch('smartInterviewApp.views.queue_scheduled_interview_processing')
+    def test_schedule_workflow_queues_background_processing(self, queue_processing_mock):
+        queue_processing_mock.return_value = {'queued': True, 'count': 1, 'mode': 'cloud_tasks'}
+        response = self.client.post(
+            reverse('update-interview-workflow'),
+            data=json.dumps({
+                'interview_ids': [self.interview.id],
+                'mode': 'schedule',
+                'interview_type': 'manual',
+                'interviewer_id': self.interviewer.id,
+                'scheduled_at': (timezone.now() + timedelta(days=1)).isoformat(),
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        self.assertTrue(queue_processing_mock.called)
+        self.assertTrue(response.json()['Data']['notifications'][0]['result']['queued'])
+
+    @patch('smartInterviewApp.views.InterviewReminderService.cancel_pending_interview_reminders')
+    def test_status_update_cancels_future_reminders(self, cancel_mock):
+        response = self.client.post(reverse('update-candidate-status'), data={
+            'candidateId': self.interview.id,
+            'newStatus': 'cancelled',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        cancel_mock.assert_called_once()

@@ -475,17 +475,28 @@ def is_identity_verified(record: CandidateIdentityVerification | None) -> bool:
     }
 
 
+def generate_litio_interview_code(length: int = 8) -> str:
+    alphabet = '23456789abcdefghjkmnpqrstuvwxyz'
+    while True:
+        code = ''.join(secrets.choice(alphabet) for _ in range(length))
+        if not Interview.objects.filter(litio_interview_token=code).exists():
+            return code
+
+
+def is_compact_litio_interview_code(token: str) -> bool:
+    value = (token or '').strip().lower()
+    return bool(re.fullmatch(r'[23456789abcdefghjkmnpqrstuvwxyz]{6,16}', value))
+
+
 def ensure_litio_interview_token(interview: Interview) -> str:
     token = (interview.litio_interview_token or '').strip()
-    if token:
+    if token and is_compact_litio_interview_code(token):
         return token
 
-    while True:
-        token = secrets.token_urlsafe(24)
-        if not Interview.objects.filter(litio_interview_token=token).exists():
-            interview.litio_interview_token = token
-            interview.save(update_fields=['litio_interview_token'])
-            return token
+    token = generate_litio_interview_code()
+    interview.litio_interview_token = token
+    interview.save(update_fields=['litio_interview_token'])
+    return token
 
 
 def get_litio_interview_by_token(token: str) -> Interview | None:
@@ -501,10 +512,7 @@ def get_litio_interview_by_token(token: str) -> Interview | None:
 
 def build_litio_interview_link(request, interview: Interview) -> tuple[str, str]:
     token = ensure_litio_interview_token(interview)
-    if request is not None:
-        base_url = build_host_link(request, 'litio').rstrip('/')
-    else:
-        base_url = getattr(settings, 'LITIO_PUBLIC_BASE_URL', 'https://litio.shortlistii.com').rstrip('/')
+    base_url = getattr(settings, 'LITIO_PUBLIC_BASE_URL', 'https://litio.shortlistii.com').rstrip('/')
     return token, f'{base_url}/i/{token}'
 
 

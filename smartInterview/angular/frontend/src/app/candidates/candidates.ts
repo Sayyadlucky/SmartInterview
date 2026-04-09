@@ -272,8 +272,8 @@ export class Candidates implements OnInit, OnDestroy {
   openRoleDetail(roleId?: number | null): void {
     if (!roleId) return;
     this.dialog.open(RoleDetail, {
-      width: '95vw',
-      maxWidth: '920px',
+      width: 'min(1120px, 96vw)',
+      maxWidth: '96vw',
       maxHeight: '92vh',
       panelClass: 'role-detail-dialog',
       data: { role_id: roleId }

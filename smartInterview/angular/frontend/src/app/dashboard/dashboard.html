@@ -258,31 +258,31 @@
                 <span>Pipeline</span>
               </h3>
               <ul class="space-y-2">
-                <li class="pipeline-item bg-[#8b5cf6]" (click)="setStatusFilter('auto screening scheduled')">
+                <li class="pipeline-item bg-[#8b5cf6]" (click)="setStatusFilter('auto screening scheduled', true)">
                   <span class="pipeline-label"><i class="ph ph-robot"></i> Auto Screening Scheduled</span>
                   <span class="font-bold">{{ getPipelineCount('auto screening scheduled') }}</span>
                 </li>
-                <li class="pipeline-item bg-[#f59e0b]" (click)="setStatusFilter('assessment pending')">
+                <li class="pipeline-item bg-[#f59e0b]" (click)="setStatusFilter('assessment pending', true)">
                   <span class="pipeline-label"><i class="ph ph-clipboard-text"></i> Assessment Pending</span>
                   <span class="font-bold">{{ getPipelineCount('assessment pending') }}</span>
                 </li>
-                <li class="pipeline-item bg-[#22d3ee]" (click)="setStatusFilter('scheduled')">
+                <li class="pipeline-item bg-[#22d3ee]" (click)="setStatusFilter('scheduled', true)">
                   <span class="pipeline-label"><i class="ph ph-spinner-gap"></i> In Progress</span>
                   <span class="font-bold">{{ getPipelineCount('scheduled') }}</span>
                 </li>
-                <li class="pipeline-item bg-[#3b82f6]" (click)="setStatusFilter('shortlisted')">
+                <li class="pipeline-item bg-[#3b82f6]" (click)="setStatusFilter('shortlisted', true)">
                   <span class="pipeline-label"><i class="ph ph-check-circle"></i> Shortlisted</span>
                   <span class="font-bold">{{ getPipelineCount('shortlisted') }}</span>
                 </li>
-                <li class="pipeline-item bg-[#10b981]" (click)="setStatusFilter('completed')">
+                <li class="pipeline-item bg-[#10b981]" (click)="setStatusFilter('completed', true)">
                   <span class="pipeline-label"><i class="ph ph-handshake"></i> Hired</span>
                   <span class="font-bold">{{ getPipelineCount('completed') }}</span>
                 </li>
-                <li class="pipeline-item bg-[#ef4444]" (click)="setStatusFilter('rejected')">
+                <li class="pipeline-item bg-[#ef4444]" (click)="setStatusFilter('rejected', true)">
                   <span class="pipeline-label"><i class="ph ph-x-circle"></i> Disqualified</span>
                   <span class="font-bold">{{ getPipelineCount('rejected') }}</span>
                 </li>
-                <li class="pipeline-item bg-[#9ca3af]" (click)="setStatusFilter('cancelled')">
+                <li class="pipeline-item bg-[#9ca3af]" (click)="setStatusFilter('cancelled', true)">
                   <span class="pipeline-label"><i class="ph ph-clock-counter-clockwise"></i> Cancelled</span>
                   <span class="font-bold">{{ getPipelineCount('cancelled') }}</span>
                 </li>
