@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -148,7 +148,8 @@ interface RecommendedAction {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './activity.html',
-  styleUrl: './activity.scss'
+  styleUrl: './activity.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Activity implements OnInit, AfterViewInit, OnDestroy {
   loading = false;
@@ -249,6 +250,13 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
   attentionSignals: ActivitySignal[] = [];
   positiveSignals: ActivitySignal[] = [];
   recommendedActions: RecommendedAction[] = [];
+  scoreBandRowsData: Array<{ label: string; value: number }> = [];
+  aiHeadlineText = 'AI activity monitor is ready.';
+  aiAttentionCountValue = 0;
+  aiPositiveCountValue = 0;
+  maxRecruiterCountValue = 1;
+  maxDailyTotalValue = 1;
+  weeklyDeltaValue = 0;
 
   recruiterOptions: Array<{ id: number; name: string }> = [];
   roleOptions: Array<{ id: number; name: string }> = [];
@@ -276,7 +284,7 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
   private viewInitialized = false;
   private readonly statusUpdateListener = () => this.loadActivityData();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
@@ -310,31 +318,27 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get maxRecruiterCount(): number {
-    return this.recruiterBreakdown[0]?.count || 1;
+    return this.maxRecruiterCountValue;
   }
 
   get maxDailyTotal(): number {
-    return Math.max(1, ...this.productivity.daily.map((item) => item.total));
+    return this.maxDailyTotalValue;
   }
 
   get scoreBandRows(): Array<{ label: string; value: number }> {
-    return Object.entries(this.outcomeQuality.score_bands || {})
-      .map(([label, value]) => ({ label, value: Number(value || 0) }))
-      .filter((row) => row.value > 0);
+    return this.scoreBandRowsData;
   }
 
   get aiHeadline(): string {
-    const topSignal = this.aiSignals[0];
-    if (!topSignal) return 'AI activity monitor is ready.';
-    return `${topSignal.title}: ${topSignal.message}`;
+    return this.aiHeadlineText;
   }
 
   get aiAttentionCount(): number {
-    return this.aiSignals.filter((signal) => signal.severity === 'critical' || signal.severity === 'warning').length;
+    return this.aiAttentionCountValue;
   }
 
   get aiPositiveCount(): number {
-    return this.aiSignals.filter((signal) => signal.severity === 'positive').length;
+    return this.aiPositiveCountValue;
   }
 
   recruiterBar(item: { count: number }): number {
@@ -386,7 +390,7 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
   }
 
   weeklyDelta(): number {
-    return (this.productivity.current_week_total || 0) - (this.productivity.previous_week_total || 0);
+    return this.weeklyDeltaValue;
   }
 
   heatCellClass(count: number): string {
@@ -680,6 +684,7 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
           console.error('Error fetching activity data', error);
           this.loading = false;
           this.errorMessage = 'Unable to load activity data.';
+          this.cdr.markForCheck();
           return of({ Success: false, Data: {} } as ActivityResponse);
         })
       )
@@ -687,6 +692,7 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
         if (!response?.Success) {
           this.errorMessage = response?.Error || 'Unable to load activity data.';
           this.loading = false;
+          this.cdr.markForCheck();
           return;
         }
 
@@ -810,6 +816,7 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
 
         this.loading = false;
         this.scheduleChartRender();
+        this.cdr.markForCheck();
       });
   }
 
@@ -819,6 +826,15 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
     this.attentionSignals = this.aiSignals.filter((signal) => signal.severity === 'critical' || signal.severity === 'warning').slice(0, 4);
     this.positiveSignals = this.aiSignals.filter((signal) => signal.severity === 'positive' || signal.severity === 'info').slice(0, 4);
     this.recommendedActions = this.buildRecommendedActions(this.aiSignals);
+    this.scoreBandRowsData = Object.entries(this.outcomeQuality.score_bands || {})
+      .map(([label, value]) => ({ label, value: Number(value || 0) }))
+      .filter((row) => row.value > 0);
+    this.aiHeadlineText = this.aiSignals[0] ? `${this.aiSignals[0].title}: ${this.aiSignals[0].message}` : 'AI activity monitor is ready.';
+    this.aiAttentionCountValue = this.aiSignals.filter((signal) => signal.severity === 'critical' || signal.severity === 'warning').length;
+    this.aiPositiveCountValue = this.aiSignals.filter((signal) => signal.severity === 'positive').length;
+    this.maxRecruiterCountValue = this.recruiterBreakdown[0]?.count || 1;
+    this.maxDailyTotalValue = Math.max(1, ...this.productivity.daily.map((item) => item.total));
+    this.weeklyDeltaValue = (this.productivity.current_week_total || 0) - (this.productivity.previous_week_total || 0);
   }
 
   private buildSummaryCards(): SummaryCard[] {

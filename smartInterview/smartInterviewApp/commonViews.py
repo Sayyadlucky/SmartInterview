@@ -15,7 +15,7 @@ import signal
 import subprocess
 import tempfile
 from urllib.parse import quote
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import timedelta, datetime, time
 from statistics import median
 
@@ -47,6 +47,7 @@ from django.utils import timezone
 from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
 from smartInterviewApp.notifications.channels import send_sms, send_template_message
 from smartInterviewApp.notifications.sms_templates import build_sms_message
+from smartInterviewApp.emailing import send_candidate_interview_email, send_candidate_welcome_email
 from smartInterviewApp.identity_verification import CandidateIdentityVerificationService
 from smartInterviewApp.insights import CandidateInsightService
 from smartInterviewApp.otp.services import request_email_otp, request_otp, verify_email_otp, verify_otp
@@ -1514,18 +1515,17 @@ def load_candidate_signup_token(token: str) -> dict:
     return signing.loads(token, salt=SIGNUP_TOKEN_SALT, max_age=SIGNUP_TOKEN_MAX_AGE_SECONDS)
 
 
-def send_existing_candidate_sms(candidate: User, interview: Interview, request=None) -> dict:
+def send_existing_candidate_sms(
+    candidate: User,
+    interview: Interview,
+    request=None,
+    *,
+    notification_kind: str = 'scheduled',
+    previous_scheduled_at=None,
+) -> dict:
     profile = getattr(candidate, 'profile', None)
     phone = normalize_phone(profile.phone if profile else '')
     interview_token, interview_link = build_litio_interview_link(request, interview)
-    if not phone:
-        return {
-            'sent': False,
-            'reason': 'Candidate phone number is missing.',
-            'interview_token': interview_token,
-            'interview_link': interview_link,
-        }
-
     recruiter_name = f"{interview.recruiter.first_name} {interview.recruiter.last_name}".strip().title() if interview.recruiter else 'our team'
     role_name = interview.role.role if interview.role else 'the role'
     interview_date, interview_time = format_interview_schedule(interview.date)
@@ -1536,29 +1536,57 @@ def send_existing_candidate_sms(candidate: User, interview: Interview, request=N
         'interview_date': interview_date,
         'interview_time': interview_time,
     })
-    sms_result = send_sms(phone, message, metadata={
-        'event_type': 'candidate_interview_created',
-        'interview_id': interview.id,
-        'msg91_template_id': getattr(settings, 'MSG91_INTERVIEW_TEMPLATE_ID', ''),
-    })
-    whatsapp_result = send_candidate_whatsapp_notification(
-        phone=phone,
-        template_name=getattr(settings, 'CANDIDATE_EXISTING_WHATSAPP_TEMPLATE', 'candidate_interview_created'),
-        parameters=[
-            (candidate.first_name or 'Candidate').strip().title(),
-            role_name,
-            recruiter_name,
-        ],
-        metadata={'event_type': 'candidate_interview_created', 'interview_id': interview.id},
+    if phone:
+        sms_result = send_sms(phone, message, metadata={
+            'event_type': 'candidate_interview_created',
+            'interview_id': interview.id,
+            'msg91_template_id': getattr(settings, 'MSG91_INTERVIEW_TEMPLATE_ID', ''),
+            'msg91_flow_variables': {
+                'name': (candidate.first_name or 'Candidate').strip().title(),
+                'role': role_name,
+                'recruiter': recruiter_name,
+            },
+        })
+        whatsapp_result = send_candidate_whatsapp_notification(
+            phone=phone,
+            template_name=getattr(settings, 'CANDIDATE_EXISTING_WHATSAPP_TEMPLATE', 'candidate_interview_created'),
+            parameters=[
+                (candidate.first_name or 'Candidate').strip().title(),
+                role_name,
+                recruiter_name,
+            ],
+            metadata={'event_type': 'candidate_interview_created', 'interview_id': interview.id},
+        )
+    else:
+        sms_result = type('SmsResult', (), {
+            'success': False,
+            'error_message': 'Candidate phone number is missing.',
+            'provider_message_id': '',
+        })()
+        whatsapp_result = {
+            'sent': False,
+            'reason': 'Candidate phone number is missing.',
+            'provider_message_id': '',
+            'template_name': getattr(settings, 'CANDIDATE_EXISTING_WHATSAPP_TEMPLATE', 'candidate_interview_created'),
+        }
+    email_result = send_candidate_interview_email(
+        request,
+        candidate,
+        interview,
+        interview_link,
+        notification_kind=notification_kind,
+        previous_scheduled_at=previous_scheduled_at,
     )
+    failures: list[str] = []
+    if not sms_result.success:
+        failures.append(sms_result.error_message or 'SMS delivery failed.')
+    if not whatsapp_result['sent']:
+        failures.append(whatsapp_result['reason'] or 'WhatsApp delivery failed.')
+    if not email_result['sent']:
+        failures.append(str(email_result.get('reason') or 'Email delivery failed.'))
     return {
-        'sent': sms_result.success or whatsapp_result['sent'],
-        'reason': build_notification_reason(
-            sms_success=sms_result.success,
-            sms_error=sms_result.error_message,
-            whatsapp_success=whatsapp_result['sent'],
-            whatsapp_error=whatsapp_result['reason'],
-        ),
+        'sent': sms_result.success or whatsapp_result['sent'] or bool(email_result['sent']),
+        'reason': ' '.join(part for part in failures if part).strip(),
         'provider_message_id': sms_result.provider_message_id,
         'channels': {
             'sms': {
@@ -1567,6 +1595,7 @@ def send_existing_candidate_sms(candidate: User, interview: Interview, request=N
                 'provider_message_id': sms_result.provider_message_id,
             },
             'whatsapp': whatsapp_result,
+            'email': email_result,
         },
         'message': message,
         'interview_token': interview_token,
@@ -1592,6 +1621,11 @@ def send_new_candidate_signup_sms(request, candidate: User, interview: Interview
         'event_type': 'candidate_signup_invite',
         'interview_id': interview.id,
         'msg91_template_id': getattr(settings, 'MSG91_CANDIDATE_SIGNUP_TEMPLATE_ID', ''),
+        'msg91_flow_variables': {
+            'name': (candidate.first_name or 'Candidate').strip().title(),
+            'role': role_name,
+            'url': signup_url,
+        },
     })
     whatsapp_result = send_candidate_whatsapp_notification(
         phone=phone,
@@ -2082,7 +2116,7 @@ def lookupUserByPhone(request):
 
 
 def candidateSignup(request):
-    token = (request.GET.get('token') or '').strip()
+    token = (request.GET.get('token') or request.POST.get('token') or '').strip()
     signup_context = None
     token_error = ''
     interview = None
@@ -2139,6 +2173,7 @@ def candidateSignup(request):
 
             if profile.resume:
                 ResumeProcessingService().process_profile_resume(user, profile, interview=interview)
+            send_candidate_welcome_email(request, user, profile, interview=interview)
             return render(request, 'smartInterview/candidate_signup.html', {
                 'form': None,
                 'initial_step': 1,
@@ -3325,6 +3360,8 @@ def build_candidate_dashboard_context(
         'insights': insights,
         'recent_job_postings': visible_job_postings,
         'more_job_postings': overflow_job_postings,
+        'session_timeout_seconds': getattr(settings, 'SESSION_COOKIE_AGE', 1800),
+        'session_warning_seconds': getattr(settings, 'SESSION_IDLE_WARNING_SECONDS', 60),
     }
 
 
@@ -4889,12 +4926,276 @@ def activityTabData(request):
         prev_end_dt = current_start_dt - timedelta(seconds=1)
         prev_start_dt = prev_end_dt - timedelta(days=period_days - 1)
 
-        total_interviews = interviews.count()
-        upcoming_count = interviews.filter(status='scheduled', date__gte=now).count()
-        hired_count = interviews.filter(status__in=['hired', 'completed']).count()
-        active_recruiters = interviews.exclude(recruiter__isnull=True).values('recruiter').distinct().count()
+        interview_rows = list(
+            interviews.values(
+                'id',
+                'candidate_id',
+                'candidate__first_name',
+                'candidate__last_name',
+                'candidate__date_joined',
+                'recruiter_id',
+                'recruiter__first_name',
+                'recruiter__last_name',
+                'role_id',
+                'role__role',
+                'date',
+                'status',
+                'score',
+            ).order_by('-date')
+        )
+
+        total_interviews = len(interview_rows)
         open_roles = Vacancies.objects.filter(admin=admin).exclude(status__in=['closed', 'canceled', 'hired']).count() if admin else 0
-        last_30_days = interviews.filter(date__gte=now - timedelta(days=30)).count()
+        last_30_boundary = now - timedelta(days=30)
+        upcoming_heat_window_end = now + timedelta(days=7)
+        assessment_stale_cutoff = now - timedelta(days=7)
+        shortlisted_stale_cutoff = now - timedelta(days=10)
+
+        total_status_counts = Counter()
+        status_buckets = {
+            'Scheduled': 0,
+            'Assessment Pending': 0,
+            'Shortlisted': 0,
+            'Hired': 0,
+            'Rejected': 0,
+            'Cancelled': 0,
+            'Auto Screening': 0,
+        }
+        active_recruiter_ids = set()
+        role_stats_map = {}
+        recruiter_stats_map = {}
+        quality_by_role_map = {}
+        monthly_counts = Counter()
+        monthly_hired_counts = Counter()
+        scored_count = 0
+        evaluated_count = 0
+        score_bands = {
+            'Excellent (8-10)': 0,
+            'Good (6-7.9)': 0,
+            'Average (4-5.9)': 0,
+            'Low (<4)': 0,
+        }
+        role_pipeline_counts = Counter()
+        role_filled_counts = Counter()
+        recent_activity = []
+        upcoming_candidates = []
+        candidate_entries = defaultdict(list)
+        first_touch_by_candidate = {}
+        upcoming_count = 0
+        hired_count = 0
+        last_30_days = 0
+        overdue_scheduled = 0
+        stale_assessment = 0
+        stale_shortlisted = 0
+        unassigned_recruiter = 0
+
+        def increment_stage_bucket(stage_counts, normalized_status):
+            stage_counts['Applied'] += 1
+            if normalized_status in ['assessment_pending', 'auto_screening_scheduled']:
+                stage_counts['Assessment Pending'] += 1
+            elif normalized_status == 'scheduled':
+                stage_counts['Scheduled'] += 1
+            elif normalized_status == 'shortlisted':
+                stage_counts['Shortlisted'] += 1
+            elif normalized_status in ['hired', 'completed']:
+                stage_counts['Hired'] += 1
+            elif normalized_status == 'rejected':
+                stage_counts['Rejected'] += 1
+            elif normalized_status == 'cancelled':
+                stage_counts['Cancelled'] += 1
+
+        current_stage_counts = {
+            'Applied': 0,
+            'Assessment Pending': 0,
+            'Scheduled': 0,
+            'Shortlisted': 0,
+            'Hired': 0,
+            'Rejected': 0,
+            'Cancelled': 0,
+        }
+
+        today_local = timezone.localtime(now, tz).date()
+        daily_totals = {}
+        daily_hired = {}
+        daily_scheduled = {}
+        for idx in range(13, -1, -1):
+            day = today_local - timedelta(days=idx)
+            day_key = day.strftime('%Y-%m-%d')
+            daily_totals[day_key] = 0
+            daily_hired[day_key] = 0
+            daily_scheduled[day_key] = 0
+
+        heat_days = [today_local + timedelta(days=i) for i in range(7)]
+        slot_order = ['Night', 'Morning', 'Afternoon', 'Evening']
+        heat_rows = {
+            day.strftime('%Y-%m-%d'): {slot: 0 for slot in slot_order}
+            for day in heat_days
+        }
+        max_cell = 0
+
+        for row in interview_rows:
+            row_date = row.get('date')
+            normalized_status = normalize_interview_status(row.get('status'))
+            total_status_counts[normalized_status] += 1
+
+            if normalized_status == 'scheduled':
+                status_buckets['Scheduled'] += 1
+            elif normalized_status == 'assessment_pending':
+                status_buckets['Assessment Pending'] += 1
+            elif normalized_status == 'shortlisted':
+                status_buckets['Shortlisted'] += 1
+            elif normalized_status in ['hired', 'completed']:
+                status_buckets['Hired'] += 1
+            elif normalized_status == 'rejected':
+                status_buckets['Rejected'] += 1
+            elif normalized_status == 'cancelled':
+                status_buckets['Cancelled'] += 1
+            elif normalized_status == 'auto_screening_scheduled':
+                status_buckets['Auto Screening'] += 1
+
+            recruiter_id = row.get('recruiter_id')
+            recruiter_name = normalize_recruiter_display(
+                row.get('recruiter__first_name'),
+                row.get('recruiter__last_name'),
+            )
+            role_id = row.get('role_id')
+            role_name = normalize_role_display(row.get('role__role'))
+            candidate_name = f"{(row.get('candidate__first_name') or '').strip()} {(row.get('candidate__last_name') or '').strip()}".strip().title()
+
+            if recruiter_id:
+                active_recruiter_ids.add(recruiter_id)
+                stats = recruiter_stats_map.setdefault(recruiter_id, {
+                    'recruiter_id': recruiter_id,
+                    'name': recruiter_name,
+                    'count': 0,
+                })
+                stats['count'] += 1
+            else:
+                unassigned_recruiter += 1
+
+            if role_id:
+                role_stats = role_stats_map.setdefault(role_id, {
+                    'role_id': role_id,
+                    'role': role_name,
+                    'count': 0,
+                    'hired': 0,
+                })
+                role_stats['count'] += 1
+                if normalized_status in ['hired', 'completed']:
+                    role_stats['hired'] += 1
+
+            if role_id:
+                quality_stats = quality_by_role_map.setdefault(role_id, {
+                    'role': role_name,
+                    'total': 0,
+                    'positive': 0,
+                })
+                quality_stats['total'] += 1
+                if normalized_status in ['hired', 'completed', 'shortlisted']:
+                    quality_stats['positive'] += 1
+
+            if normalized_status in ['scheduled', 'assessment_pending', 'auto_screening_scheduled', 'shortlisted'] and role_id:
+                role_pipeline_counts[role_id] += 1
+            if normalized_status in ['hired', 'completed'] and role_id:
+                role_filled_counts[role_id] += 1
+
+            if row_date:
+                local_dt = timezone.localtime(row_date, tz)
+                month_key = (local_dt.year, local_dt.month)
+                monthly_counts[month_key] += 1
+                if normalized_status in ['hired', 'completed']:
+                    monthly_hired_counts[month_key] += 1
+
+                day_key = local_dt.date().strftime('%Y-%m-%d')
+                if day_key in daily_totals:
+                    daily_totals[day_key] += 1
+                    if normalized_status in ['hired', 'completed']:
+                        daily_hired[day_key] += 1
+                    if normalized_status == 'scheduled':
+                        daily_scheduled[day_key] += 1
+
+                if current_start_dt <= row_date <= current_end_dt:
+                    increment_stage_bucket(current_stage_counts, normalized_status)
+
+                if normalized_status == 'scheduled' and now <= row_date <= upcoming_heat_window_end:
+                    heat_day_key = local_dt.date().strftime('%Y-%m-%d')
+                    if heat_day_key in heat_rows:
+                        if local_dt.hour < 6:
+                            slot = 'Night'
+                        elif local_dt.hour < 12:
+                            slot = 'Morning'
+                        elif local_dt.hour < 18:
+                            slot = 'Afternoon'
+                        else:
+                            slot = 'Evening'
+                        heat_rows[heat_day_key][slot] += 1
+                        max_cell = max(max_cell, heat_rows[heat_day_key][slot])
+
+                if row_date >= last_30_boundary:
+                    last_30_days += 1
+
+            if normalized_status == 'scheduled' and row_date and row_date >= now:
+                upcoming_count += 1
+                upcoming_candidates.append({
+                    'id': row.get('id'),
+                    'candidate': candidate_name,
+                    'role': role_name,
+                    'date': row_date,
+                })
+            if normalized_status in ['hired', 'completed']:
+                hired_count += 1
+            if normalized_status == 'scheduled' and row_date and row_date < now:
+                overdue_scheduled += 1
+            if normalized_status == 'assessment_pending' and row_date and row_date < assessment_stale_cutoff:
+                stale_assessment += 1
+            if normalized_status == 'shortlisted' and row_date and row_date < shortlisted_stale_cutoff:
+                stale_shortlisted += 1
+            if normalized_status in ['completed', 'hired', 'shortlisted', 'rejected', 'cancelled']:
+                evaluated_count += 1
+
+            score = row.get('score')
+            if score is not None:
+                scored_count += 1
+                score_val = float(score)
+                if score_val >= 8:
+                    score_bands['Excellent (8-10)'] += 1
+                elif score_val >= 6:
+                    score_bands['Good (6-7.9)'] += 1
+                elif score_val >= 4:
+                    score_bands['Average (4-5.9)'] += 1
+                else:
+                    score_bands['Low (<4)'] += 1
+
+            candidate_id = row.get('candidate_id')
+            if candidate_id:
+                entry = {
+                    'date': row_date,
+                    'status': normalized_status,
+                    'candidate_name': candidate_name,
+                    'role_name': role_name,
+                    'role_id': role_id,
+                }
+                candidate_entries[candidate_id].append(entry)
+
+                current_first_touch = first_touch_by_candidate.get(candidate_id)
+                candidate_joined_at = row.get('candidate__date_joined')
+                if candidate_joined_at and row_date and (
+                    current_first_touch is None or row_date < current_first_touch['date']
+                ):
+                    first_touch_by_candidate[candidate_id] = {
+                        'date': row_date,
+                        'candidate_joined_at': candidate_joined_at,
+                        'recruiter_id': recruiter_id,
+                        'recruiter_name': recruiter_name,
+                    }
+
+            if len(recent_activity) < 14:
+                recent_activity.append({
+                    'id': row.get('id'),
+                    'title': f"{candidate_name} - {normalized_status.replace('_', ' ').title()}",
+                    'meta': f"{role_name} • {recruiter_name}",
+                    'date': row_date.isoformat() if row_date else '',
+                })
 
         # Trend range (dynamic if date filter applied)
         month_points = []
@@ -4937,44 +5238,13 @@ def activityTabData(request):
         for y, m in month_points:
             label = timezone.datetime(y, m, 1).strftime('%b %Y')
             month_labels.append(label)
-            month_qs = interviews.filter(date__year=y, date__month=m)
-            trend_counts.append(month_qs.count())
-            trend_hired.append(month_qs.filter(status__in=['hired', 'completed']).count())
+            trend_counts.append(monthly_counts.get((y, m), 0))
+            trend_hired.append(monthly_hired_counts.get((y, m), 0))
 
         if month_labels:
             trend_title = f"Interview Trend ({month_labels[0]} - {month_labels[-1]})" if (parsed_start_date or parsed_end_date) else trend_title
 
-        status_buckets = {
-            'Scheduled': 0,
-            'Assessment Pending': 0,
-            'Shortlisted': 0,
-            'Hired': 0,
-            'Rejected': 0,
-            'Cancelled': 0,
-            'Auto Screening': 0,
-        }
-        for item in interviews:
-            normalized = normalize_interview_status(item.status)
-            if normalized == 'scheduled':
-                status_buckets['Scheduled'] += 1
-            elif normalized == 'assessment_pending':
-                status_buckets['Assessment Pending'] += 1
-            elif normalized == 'shortlisted':
-                status_buckets['Shortlisted'] += 1
-            elif normalized in ['hired', 'completed']:
-                status_buckets['Hired'] += 1
-            elif normalized == 'rejected':
-                status_buckets['Rejected'] += 1
-            elif normalized == 'cancelled':
-                status_buckets['Cancelled'] += 1
-            elif normalized == 'auto_screening_scheduled':
-                status_buckets['Auto Screening'] += 1
-
         # Phase 1: SLA alerts
-        overdue_scheduled = interviews.filter(status='scheduled', date__lt=now).count()
-        stale_assessment = interviews.filter(status='assessment_pending', date__lt=now - timedelta(days=7)).count()
-        stale_shortlisted = interviews.filter(status='shortlisted', date__lt=now - timedelta(days=10)).count()
-        unassigned_recruiter = interviews.filter(recruiter__isnull=True).count()
         sla_alerts = []
         if overdue_scheduled:
             sla_alerts.append({
@@ -5010,14 +5280,13 @@ def activityTabData(request):
             })
 
         # Phase 1: Stage movement (current range vs previous range)
-        current_range_qs = interviews.filter(date__gte=current_start_dt, date__lte=current_end_dt)
         previous_range_qs = base_qs.filter(date__gte=prev_start_dt, date__lte=prev_end_dt)
         if recruiter_filter and recruiter_filter != 'all' and recruiter_filter.isdigit():
             previous_range_qs = previous_range_qs.filter(recruiter_id=int(recruiter_filter))
         if role_filter and role_filter != 'all' and role_filter.isdigit():
             previous_range_qs = previous_range_qs.filter(role_id=int(role_filter))
 
-        def build_stage_counts(queryset):
+        def build_stage_counts(statuses):
             stage_counts = {
                 'Applied': 0,
                 'Assessment Pending': 0,
@@ -5027,25 +5296,11 @@ def activityTabData(request):
                 'Rejected': 0,
                 'Cancelled': 0,
             }
-            for x in queryset:
-                n = normalize_interview_status(x.status)
-                if n in ['assessment_pending', 'auto_screening_scheduled']:
-                    stage_counts['Assessment Pending'] += 1
-                elif n == 'scheduled':
-                    stage_counts['Scheduled'] += 1
-                elif n == 'shortlisted':
-                    stage_counts['Shortlisted'] += 1
-                elif n in ['hired', 'completed']:
-                    stage_counts['Hired'] += 1
-                elif n == 'rejected':
-                    stage_counts['Rejected'] += 1
-                elif n == 'cancelled':
-                    stage_counts['Cancelled'] += 1
-                stage_counts['Applied'] += 1
+            for status_value in statuses:
+                increment_stage_bucket(stage_counts, normalize_interview_status(status_value))
             return stage_counts
 
-        current_stage_counts = build_stage_counts(current_range_qs)
-        previous_stage_counts = build_stage_counts(previous_range_qs)
+        previous_stage_counts = build_stage_counts(previous_range_qs.values_list('status', flat=True))
         stage_order = ['Applied', 'Assessment Pending', 'Scheduled', 'Shortlisted', 'Hired', 'Rejected', 'Cancelled']
         stage_movement = []
         for stage in stage_order:
@@ -5059,13 +5314,11 @@ def activityTabData(request):
             })
 
         # Phase 1: Drop-off reasons (status-derived)
-        no_show_count = interviews.filter(status='scheduled', date__lt=now).count()
-        screening_drop = interviews.filter(status='assessment_pending', date__lt=now - timedelta(days=7)).count()
         dropoff_reasons = [
-            {'reason': 'Rejected', 'count': interviews.filter(status='rejected').count()},
-            {'reason': 'Cancelled', 'count': interviews.filter(status='cancelled').count()},
-            {'reason': 'No Show / Missed', 'count': no_show_count},
-            {'reason': 'Screening Timeout', 'count': screening_drop},
+            {'reason': 'Rejected', 'count': total_status_counts.get('rejected', 0)},
+            {'reason': 'Cancelled', 'count': total_status_counts.get('cancelled', 0)},
+            {'reason': 'No Show / Missed', 'count': overdue_scheduled},
+            {'reason': 'Screening Timeout', 'count': stale_assessment},
         ]
         dropoff_reasons = [x for x in dropoff_reasons if x['count'] > 0]
         dropoff_reasons.sort(key=lambda x: x['count'], reverse=True)
@@ -5095,25 +5348,15 @@ def activityTabData(request):
         # inventory or migrated records rather than operational response time.
         lead_time_hours = []
         recruiter_lead = defaultdict(list)
-        first_touch_by_candidate = {}
-        for item in interviews.order_by('candidate_id', 'date'):
-            if not item.candidate_id or item.candidate_id in first_touch_by_candidate:
-                continue
-            first_touch_by_candidate[item.candidate_id] = item
-
         response_time_outlier_limit_hours = 24 * 30
         for item in first_touch_by_candidate.values():
-            if not item.date or not item.candidate or not item.candidate.date_joined:
+            if not item['date'] or not item['candidate_joined_at']:
                 continue
-            diff_hours = (item.date - item.candidate.date_joined).total_seconds() / 3600
+            diff_hours = (item['date'] - item['candidate_joined_at']).total_seconds() / 3600
             if diff_hours < 0 or diff_hours > response_time_outlier_limit_hours:
                 continue
             lead_time_hours.append(diff_hours)
-            recruiter_name = normalize_recruiter_display(
-                item.recruiter.first_name if item.recruiter else '',
-                item.recruiter.last_name if item.recruiter else '',
-            )
-            recruiter_lead[recruiter_name].append(diff_hours)
+            recruiter_lead[item['recruiter_name']].append(diff_hours)
 
         response_time = {
             'avg_hours': round(sum(lead_time_hours) / len(lead_time_hours), 1) if lead_time_hours else 0,
@@ -5131,116 +5374,62 @@ def activityTabData(request):
         response_time['by_recruiter'] = response_time['by_recruiter'][:8]
 
         # Phase 2: Interview outcome quality
-        score_bands = {
-            'Excellent (8-10)': 0,
-            'Good (6-7.9)': 0,
-            'Average (4-5.9)': 0,
-            'Low (<4)': 0,
-        }
-        scored_count = 0
-        for item in interviews:
-            if item.score is None:
-                continue
-            scored_count += 1
-            score_val = float(item.score)
-            if score_val >= 8:
-                score_bands['Excellent (8-10)'] += 1
-            elif score_val >= 6:
-                score_bands['Good (6-7.9)'] += 1
-            elif score_val >= 4:
-                score_bands['Average (4-5.9)'] += 1
-            else:
-                score_bands['Low (<4)'] += 1
-
         quality_by_role = []
-        role_quality_stats = (
-            interviews
-            .values('role__role')
-            .annotate(
-                total=Count('id'),
-                hired=Count('id', filter=Q(status__in=['hired', 'completed'])),
-                shortlisted=Count('id', filter=Q(status='shortlisted')),
-            )
-            .order_by('-total')[:8]
-        )
-        for row in role_quality_stats:
+        for row in sorted(quality_by_role_map.values(), key=lambda x: x['total'], reverse=True)[:8]:
             total = row.get('total') or 0
-            positive = (row.get('hired') or 0) + (row.get('shortlisted') or 0)
+            positive = row.get('positive') or 0
             quality_by_role.append({
-                'role': row.get('role__role') or 'Unassigned',
+                'role': row.get('role') or 'Unassigned',
                 'total': total,
                 'positive': positive,
                 'pass_rate': round((positive / total) * 100) if total else 0,
             })
 
         outcome_quality = {
-            'evaluated': interviews.filter(status__in=['completed', 'hired', 'shortlisted', 'rejected', 'cancelled']).count(),
+            'evaluated': evaluated_count,
             'hired': hired_count,
-            'shortlisted': interviews.filter(status='shortlisted').count(),
-            'rejected': interviews.filter(status='rejected').count(),
+            'shortlisted': total_status_counts.get('shortlisted', 0),
+            'rejected': total_status_counts.get('rejected', 0),
             'score_bands': score_bands,
             'scored_count': scored_count,
             'quality_by_role': quality_by_role,
         }
 
         # Phase 2: Daily/weekly productivity
-        today_local = timezone.localtime(now, tz).date()
         daily_points = []
         for idx in range(13, -1, -1):
             day = today_local - timedelta(days=idx)
-            day_start = timezone.make_aware(datetime.combine(day, time.min), tz)
-            day_end = timezone.make_aware(datetime.combine(day, time.max), tz)
-            day_qs = interviews.filter(date__gte=day_start, date__lte=day_end)
+            day_key = day.strftime('%Y-%m-%d')
             daily_points.append({
-                'key': day.strftime('%Y-%m-%d'),
+                'key': day_key,
                 'label': day.strftime('%d %b'),
-                'total': day_qs.count(),
-                'hired': day_qs.filter(status__in=['hired', 'completed']).count(),
-                'scheduled': day_qs.filter(status='scheduled').count(),
+                'total': daily_totals.get(day_key, 0),
+                'hired': daily_hired.get(day_key, 0),
+                'scheduled': daily_scheduled.get(day_key, 0),
             })
 
         current_week_start = today_local - timedelta(days=today_local.weekday())
-        current_week_start_dt = timezone.make_aware(datetime.combine(current_week_start, time.min), tz)
-        current_week_end_dt = timezone.make_aware(datetime.combine(today_local, time.max), tz)
         prev_week_end = current_week_start - timedelta(days=1)
         prev_week_start = prev_week_end - timedelta(days=6)
-        prev_week_start_dt = timezone.make_aware(datetime.combine(prev_week_start, time.min), tz)
-        prev_week_end_dt = timezone.make_aware(datetime.combine(prev_week_end, time.max), tz)
+        current_week_total = 0
+        previous_week_total = 0
+        current_week_hired = 0
+        for point in daily_points:
+            point_date = datetime.strptime(point['key'], '%Y-%m-%d').date()
+            if current_week_start <= point_date <= today_local:
+                current_week_total += point['total']
+                current_week_hired += point['hired']
+            elif prev_week_start <= point_date <= prev_week_end:
+                previous_week_total += point['total']
 
         productivity = {
             'daily': daily_points,
-            'current_week_total': interviews.filter(date__gte=current_week_start_dt, date__lte=current_week_end_dt).count(),
-            'previous_week_total': interviews.filter(date__gte=prev_week_start_dt, date__lte=prev_week_end_dt).count(),
-            'current_week_hired': interviews.filter(date__gte=current_week_start_dt, date__lte=current_week_end_dt, status__in=['hired', 'completed']).count(),
+            'current_week_total': current_week_total,
+            'previous_week_total': previous_week_total,
+            'current_week_hired': current_week_hired,
         }
 
         # Phase 2: Upcoming load heat (next 7 days x 4 slots)
-        heat_days = []
-        for i in range(7):
-            heat_days.append(today_local + timedelta(days=i))
-        slot_order = ['Night', 'Morning', 'Afternoon', 'Evening']
-        slot_map = {slot: 0 for slot in slot_order}
-        heat_rows = {day.strftime('%Y-%m-%d'): dict(slot_map) for day in heat_days}
-        upcoming_heat_qs = interviews.filter(status='scheduled', date__gte=now, date__lte=now + timedelta(days=7))
-
-        max_cell = 0
-        for item in upcoming_heat_qs:
-            local_dt = timezone.localtime(item.date, tz)
-            day_key = local_dt.date().strftime('%Y-%m-%d')
-            if day_key not in heat_rows:
-                continue
-            hour = local_dt.hour
-            if hour < 6:
-                slot = 'Night'
-            elif hour < 12:
-                slot = 'Morning'
-            elif hour < 18:
-                slot = 'Afternoon'
-            else:
-                slot = 'Evening'
-            heat_rows[day_key][slot] += 1
-            max_cell = max(max_cell, heat_rows[day_key][slot])
-
         upcoming_load_heat = {
             'slots': slot_order,
             'days': [
@@ -5252,7 +5441,11 @@ def activityTabData(request):
                 for day in heat_days
             ],
             'max_cell': max_cell,
-            'total_scheduled': upcoming_heat_qs.count(),
+            'total_scheduled': sum(
+                count
+                for cells in heat_rows.values()
+                for count in cells.values()
+            ),
         }
 
         # Phase 3: Open role risk score
@@ -5272,11 +5465,8 @@ def activityTabData(request):
             except (TypeError, ValueError):
                 target_positions = 0
 
-            role_qs = interviews.filter(role_id=vacancy.id)
-            filled = role_qs.filter(status__in=['hired', 'completed']).count()
-            active_pipeline_count = role_qs.filter(
-                status__in=['scheduled', 'assessment_pending', 'auto_screening_scheduled', 'shortlisted']
-            ).count()
+            filled = role_filled_counts.get(vacancy.id, 0)
+            active_pipeline_count = role_pipeline_counts.get(vacancy.id, 0)
             remaining = max(target_positions - filled, 0)
             progress_pct = round((filled / target_positions) * 100) if target_positions > 0 else 0
             age_days = max((timezone.localtime(now, tz).date() - timezone.localtime(vacancy.date, tz).date()).days, 0) if vacancy.date else 0
@@ -5328,7 +5518,7 @@ def activityTabData(request):
         monthly_target = max(total_target, 0)
         for y, m in month_points_target:
             month_labels_target.append(timezone.datetime(y, m, 1).strftime('%b %Y'))
-            hires_for_month = interviews.filter(date__year=y, date__month=m, status__in=['hired', 'completed']).count()
+            hires_for_month = monthly_hired_counts.get((y, m), 0)
             target_actual_hires.append(hires_for_month)
             target_actual_target.append(monthly_target)
 
@@ -5347,19 +5537,17 @@ def activityTabData(request):
         recycled_candidates = []
         reopened_count = 0
         recycled_total_count = 0
-        candidate_map = defaultdict(list)
-        for item in interviews.order_by('candidate_id', 'date'):
-            candidate_map[item.candidate_id].append(item)
 
         closed_statuses = {'rejected', 'cancelled'}
         active_statuses = {'assessment_pending', 'auto_screening_scheduled', 'scheduled', 'shortlisted', 'hired', 'completed'}
 
-        for _, entries in candidate_map.items():
+        for _, entries in candidate_entries.items():
             if not entries:
                 continue
-            candidate_name = f"{entries[0].candidate.first_name} {entries[0].candidate.last_name}".strip().title()
+            entries.sort(key=lambda item: item['date'] or now)
+            candidate_name = entries[0]['candidate_name']
             latest = entries[-1]
-            normalized_statuses = [normalize_interview_status(x.status) for x in entries]
+            normalized_statuses = [entry['status'] for entry in entries]
             seen_closed = False
             is_reopened = False
             for status in normalized_statuses:
@@ -5374,13 +5562,13 @@ def activityTabData(request):
 
             if len(entries) > 1:
                 recycled_total_count += 1
-                role_names = sorted({(x.role.role if x.role else 'Unassigned') for x in entries})
+                role_names = sorted({entry['role_name'] for entry in entries})
                 recycled_candidates.append({
                     'candidate': candidate_name,
                     'interviews': len(entries),
                     'roles': role_names[:3],
-                    'primary_role_id': latest.role_id if latest.role_id else None,
-                    'latest_status': normalize_interview_status(latest.status).replace('_', ' ').title(),
+                    'primary_role_id': latest['role_id'] if latest['role_id'] else None,
+                    'latest_status': latest['status'].replace('_', ' ').title(),
                     'reopened': is_reopened,
                 })
 
@@ -5402,66 +5590,27 @@ def activityTabData(request):
             }
         }
 
-        recruiter_stats = (
-            interviews
-            .exclude(recruiter__isnull=True)
-            .values('recruiter', 'recruiter__first_name', 'recruiter__last_name')
-            .annotate(count=Count('id'))
-            .order_by('-count')[:8]
-        )
-        recruiter_breakdown = []
-        for r in recruiter_stats:
-            recruiter_breakdown.append({
-                'recruiter_id': r.get('recruiter'),
-                'name': normalize_recruiter_display(
-                    r.get('recruiter__first_name'),
-                    r.get('recruiter__last_name'),
-                ),
-                'count': r.get('count', 0),
-            })
+        recruiter_breakdown = sorted(
+            recruiter_stats_map.values(),
+            key=lambda item: item['count'],
+            reverse=True,
+        )[:8]
 
-        role_stats = (
-            interviews
-            .values('role', 'role__role')
-            .annotate(
-                count=Count('id'),
-                hired=Count('id', filter=Q(status__in=['hired', 'completed']))
-            )
-            .order_by('-count')[:8]
-        )
-        role_breakdown = []
-        for r in role_stats:
-            role_breakdown.append({
-                'role_id': r.get('role'),
-                'role': normalize_role_display(r.get('role__role')),
-                'count': r.get('count', 0),
-                'hired': r.get('hired', 0),
-            })
+        role_breakdown = sorted(
+            role_stats_map.values(),
+            key=lambda item: item['count'],
+            reverse=True,
+        )[:8]
 
-        recent_activity = []
-        for item in interviews[:14]:
-            status = normalize_interview_status(item.status).replace('_', ' ').title()
-            candidate_name = f"{item.candidate.first_name} {item.candidate.last_name}".strip().title()
-            role_name = normalize_role_display(item.role.role if item.role else 'Unassigned')
-            recruiter_name = normalize_recruiter_display(
-                item.recruiter.first_name if item.recruiter else '',
-                item.recruiter.last_name if item.recruiter else '',
-            )
-            recent_activity.append({
-                'id': item.id,
-                'title': f"{candidate_name} - {status}",
-                'meta': f"{role_name} • {recruiter_name}",
-                'date': item.date.isoformat() if item.date else '',
-            })
-
-        upcoming_list = []
-        for item in interviews.filter(status='scheduled', date__gte=now).order_by('date')[:8]:
-            upcoming_list.append({
-                'id': item.id,
-                'candidate': f"{item.candidate.first_name} {item.candidate.last_name}".strip().title(),
-                'role': normalize_role_display(item.role.role if item.role else 'Unassigned'),
-                'date': item.date.isoformat() if item.date else '',
-            })
+        upcoming_list = [
+            {
+                'id': item['id'],
+                'candidate': item['candidate'],
+                'role': item['role'],
+                'date': item['date'].isoformat() if item['date'] else '',
+            }
+            for item in sorted(upcoming_candidates, key=lambda row: row['date'])[:8]
+        ]
 
         return JsonResponse({
             'Success': True,
@@ -5471,7 +5620,7 @@ def activityTabData(request):
                     'total_interviews': total_interviews,
                     'upcoming': upcoming_count,
                     'hired': hired_count,
-                    'active_recruiters': active_recruiters,
+                    'active_recruiters': len(active_recruiter_ids),
                     'open_roles': open_roles,
                     'last_30_days': last_30_days,
                     'hire_rate': round((hired_count / total_interviews) * 100) if total_interviews else 0,

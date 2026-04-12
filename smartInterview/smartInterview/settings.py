@@ -36,6 +36,7 @@ SECRET_KEY = 'django-insecure--o3*fivnd_=lrfz$6(@9$bsiynr(hv1+!#fd+0o@3m*_7#nfj+
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
+    'platform-app-wtf7jctfqq-uc.a.run.app',
     'shortlistii.com',
     '.shortlistii.com',
     '127.0.0.1',
@@ -135,12 +136,6 @@ DATABASES = {
         "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -189,6 +184,28 @@ def env_bool(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+default_shared_cookie_domain = os.getenv('SESSION_COOKIE_DOMAIN', '').strip()
+if not default_shared_cookie_domain and not DEBUG:
+    default_shared_cookie_domain = '.shortlistii.com'
+
+SESSION_COOKIE_DOMAIN = default_shared_cookie_domain or None
+CSRF_COOKIE_DOMAIN = os.getenv('CSRF_COOKIE_DOMAIN', '').strip() or SESSION_COOKIE_DOMAIN
+SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', default=not DEBUG)
+CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', default=not DEBUG)
+SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
+CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
+SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', '1800'))
+SESSION_SAVE_EVERY_REQUEST = env_bool('SESSION_SAVE_EVERY_REQUEST', default=True)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = env_bool('SESSION_EXPIRE_AT_BROWSER_CLOSE', default=False)
+SESSION_IDLE_WARNING_SECONDS = max(
+    1,
+    min(
+        int(os.getenv('SESSION_IDLE_WARNING_SECONDS', '60')),
+        max(1, SESSION_COOKIE_AGE - 1),
+    ),
+)
 
 
 REST_FRAMEWORK = {

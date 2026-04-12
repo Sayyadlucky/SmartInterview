@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.core import signing
@@ -13,6 +14,7 @@ from django.utils import timezone
 
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
 from smartInterviewApp.api.serializers import ExotelWebhookSerializer
+from smartInterviewApp.integrations.providers.msg91 import Msg91OtpProvider, Msg91SmsProvider
 from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
@@ -49,6 +51,17 @@ class NotificationSystemTests(TestCase):
         )
         self.assertEqual(message, 'CallerId is invalid')
 
+    @override_settings(
+        EXOTEL_STATUS_CALLBACK_URL='https://example.com/api/webhooks/exotel/',
+        EXOTEL_WEBHOOK_TOKEN='secret-token',
+    )
+    def test_exotel_status_callback_url_includes_webhook_token_query(self):
+        provider = ExotelVoiceProvider()
+        self.assertEqual(
+            provider._status_callback_url(),
+            'https://example.com/api/webhooks/exotel/?token=secret-token',
+        )
+
     def test_exotel_webhook_serializer_accepts_answered_event_without_call_status(self):
         serializer = ExotelWebhookSerializer(data={
             'CallSid': 'call-123',
@@ -57,6 +70,52 @@ class NotificationSystemTests(TestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['provider_message_id'], 'call-123')
         self.assertEqual(serializer.validated_data['event_status'], 'answered')
+
+    @override_settings(MSG91_AUTH_KEY='auth-key', MSG91_SENDER_ID='SLISTI', MSG91_ROUTE='4')
+    @patch('smartInterviewApp.integrations.providers.msg91.post_json')
+    def test_msg91_flow_sms_uses_recipients_mobiles_payload(self, post_json_mock):
+        post_json_mock.return_value = (200, {'type': 'success', 'message': 'success'})
+
+        provider = Msg91SmsProvider()
+        result = provider.send_sms(
+            to='919876543210',
+            message='Hello test',
+            metadata={
+                'msg91_template_id': 'flow-123',
+                'msg91_flow_variables': {'name': 'Altamash', 'role': 'Python Fullstack', 'recruiter': 'Recruiter'},
+            },
+        )
+
+        self.assertTrue(result.success)
+        called_payload = post_json_mock.call_args.args[1]
+        self.assertEqual(called_payload['flow_id'], 'flow-123')
+        self.assertEqual(called_payload['recipients'][0]['mobiles'], '919876543210')
+        self.assertEqual(called_payload['recipients'][0]['name'], 'Altamash')
+
+    @override_settings(MSG91_AUTH_KEY='auth-key', MSG91_OTP_TEMPLATE_ID='otp-template-1')
+    @patch('smartInterviewApp.integrations.providers.msg91.post_json')
+    def test_msg91_otp_provider_treats_invalid_template_response_as_failure(self, post_json_mock):
+        post_json_mock.return_value = (200, {'type': 'error', 'message': 'Template ID Missing or Invalid Template'})
+
+        provider = Msg91OtpProvider()
+        result = provider.request_otp(phone='919876543210', otp='123456', purpose='verify_phone', expires_in_seconds=300)
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.status, 'failed')
+
+    @override_settings(MSG91_AUTH_KEY='auth-key', MSG91_OTP_TEMPLATE_ID='otp-template-1', MSG91_SENDER_ID='SLISTI', MSG91_ROUTE='4')
+    @patch('smartInterviewApp.integrations.providers.msg91.post_json')
+    def test_msg91_otp_provider_uses_flow_payload_with_otp_variable(self, post_json_mock):
+        post_json_mock.return_value = (200, {'type': 'success', 'message': 'success'})
+
+        provider = Msg91OtpProvider()
+        result = provider.request_otp(phone='919876543210', otp='123456', purpose='verify_phone', expires_in_seconds=300)
+
+        self.assertTrue(result.success)
+        called_payload = post_json_mock.call_args.args[1]
+        self.assertEqual(called_payload['flow_id'], 'otp-template-1')
+        self.assertEqual(called_payload['recipients'][0]['mobiles'], '919876543210')
+        self.assertEqual(called_payload['recipients'][0]['OTP'], '123456')
 
     @patch('smartInterviewApp.integrations.providers.msg91.Msg91OtpProvider.request_otp')
     def test_otp_request_and_verify_flow(self, request_otp_mock):
@@ -238,7 +297,12 @@ class NotificationSystemTests(TestCase):
         self.assertEqual(notification.status, Notification.Status.DELIVERED)
 
 
-@override_settings(MEDIA_ROOT=tempfile.gettempdir())
+@override_settings(
+    MEDIA_ROOT=tempfile.gettempdir(),
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    DEFAULT_FROM_EMAIL='no-reply@example.com',
+    CONTACT_SUPPORT_EMAIL='support@example.com',
+)
 class CandidateOnboardingTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username='admin1', password='pass1234', email='admin@example.com')
@@ -373,6 +437,50 @@ class CandidateOnboardingTests(TestCase):
             [item['text'] for item in parameters],
             ['Existing', 'Python Developer', 'Recruiter One']
         )
+        self.assertEqual(len(mail.outbox), 1)
+        sent_message = mail.outbox[0]
+        self.assertEqual(sent_message.to, ['candwa@example.com'])
+        self.assertEqual(sent_message.subject, 'Interview Scheduled: Python Developer | Shortlistii')
+        self.assertIn('https://litio.shortlistii.com/i/', sent_message.body)
+        self.assertEqual(sent_message.alternatives[0][1], 'text/html')
+        self.assertIn('Open Interview Link', sent_message.alternatives[0][0])
+
+    @patch('smartInterviewApp.commonViews.send_template_message')
+    @patch('smartInterviewApp.commonViews.send_sms')
+    def test_existing_candidate_rescheduled_interview_email_includes_previous_schedule(self, send_sms_mock, send_whatsapp_mock):
+        send_sms_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='sms-existing')
+        send_whatsapp_mock.return_value = ProviderResult(success=True, status='sent', provider_message_id='wa-existing')
+
+        candidate = User.objects.create_user(username='cand-reschedule', password='pass1234', email='candreschedule@example.com')
+        candidate.first_name = 'Existing'
+        candidate.last_name = 'Candidate'
+        candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919876543210', gender='female', hr=self.admin)
+
+        previous_time = timezone.now() + timedelta(days=1)
+        interview = Interview.objects.create(
+            candidate=candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+            date=previous_time + timedelta(hours=2),
+        )
+
+        result = send_existing_candidate_sms(
+            candidate,
+            interview,
+            request=None,
+            notification_kind='rescheduled',
+            previous_scheduled_at=previous_time,
+        )
+
+        self.assertTrue(result['channels']['email']['sent'])
+        self.assertEqual(len(mail.outbox), 1)
+        sent_message = mail.outbox[0]
+        self.assertEqual(sent_message.subject, 'Interview Rescheduled: Python Developer | Shortlistii')
+        self.assertIn('Previous Schedule:', sent_message.body)
 
     def test_build_litio_interview_link_normalizes_old_token_and_uses_public_domain(self):
         interview = Interview.objects.create(
@@ -749,7 +857,8 @@ class CandidateOnboardingTests(TestCase):
         self.assertIsNone(session.disconnect_requested_at)
         self.assertIn('does not allow ending this live call', session.error_message)
 
-    def test_candidate_signup_completes_profile(self):
+    @patch('smartInterviewApp.commonViews.ResumeProcessingService.process_profile_resume')
+    def test_candidate_signup_completes_profile(self, process_resume_mock):
         candidate = User.objects.create_user(username='cand2', email='signup@example.com')
         candidate.set_unusable_password()
         candidate.first_name = 'Signup'
@@ -797,6 +906,14 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(candidate.has_usable_password())
         self.assertTrue(profile.profile_picture.name.endswith('profile.jpg'))
         self.assertTrue(profile.resume.name.endswith('resume.pdf'))
+        process_resume_mock.assert_called_once_with(candidate, profile, interview=interview)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_message = mail.outbox[0]
+        self.assertEqual(sent_message.to, ['signup@example.com'])
+        self.assertEqual(sent_message.subject, 'Welcome to Shortlistii, your Python Developer profile is ready')
+        self.assertIn('Python Developer', sent_message.body)
+        self.assertEqual(sent_message.alternatives[0][1], 'text/html')
+        self.assertIn('Candidate account ready', sent_message.alternatives[0][0])
 
     @patch('smartInterviewApp.commonViews.ResumeProcessingService.process_profile_resume')
     def test_candidate_signup_allows_manual_profile_creation_without_token(self, process_resume_mock):
@@ -839,6 +956,33 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(profile.profile_picture.name.endswith('manual_profile.jpg'))
         self.assertTrue(profile.resume.name.endswith('manual_resume.pdf'))
         process_resume_mock.assert_called_once_with(candidate, profile, interview=None)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_message = mail.outbox[0]
+        self.assertEqual(sent_message.to, ['manual@example.com'])
+        self.assertEqual(sent_message.subject, 'Welcome to Shortlistii')
+        self.assertIn('manual@example.com', candidate.email)
+        self.assertIn('Open your candidate portal', sent_message.body)
+        self.assertEqual(sent_message.alternatives[0][1], 'text/html')
+
+    @patch('smartInterviewApp.emailing.EmailMultiAlternatives.send', side_effect=RuntimeError('mail backend unavailable'))
+    @patch('smartInterviewApp.commonViews.ResumeProcessingService.process_profile_resume')
+    def test_candidate_signup_mail_failure_does_not_block_signup(self, process_resume_mock, email_send_mock):
+        post_response = self.client.post(reverse('candidate-signup'), data={
+            'first_name': 'Email',
+            'last_name': 'Fallback',
+            'email': 'email.fallback@example.com',
+            'phone': '9876543210',
+            'gender': 'female',
+            'password': 'StrongPass123!',
+            'confirm_password': 'StrongPass123!',
+        })
+
+        self.assertEqual(post_response.status_code, 200)
+        candidate = User.objects.get(email='email.fallback@example.com')
+        self.assertTrue(candidate.has_usable_password())
+        process_resume_mock.assert_not_called()
+        email_send_mock.assert_called_once()
+        self.assertEqual(len(mail.outbox), 0)
 
     def test_candidate_signup_reopens_security_step_when_password_validation_fails(self):
         response = self.client.post(reverse('candidate-signup'), data={
@@ -1477,9 +1621,22 @@ class InterviewReminderTests(TestCase):
         self.assertTrue(response.json()['Success'])
         process_mock.assert_called_once_with(self.candidate.id)
 
+    @patch('smartInterviewApp.views.send_existing_candidate_sms')
     @patch('smartInterviewApp.views.queue_scheduled_interview_processing')
-    def test_schedule_workflow_queues_background_processing(self, queue_processing_mock):
+    def test_schedule_workflow_sends_candidate_notification_and_queues_reminders(self, queue_processing_mock, send_existing_mock):
         queue_processing_mock.return_value = {'queued': True, 'count': 1, 'mode': 'cloud_tasks'}
+        send_existing_mock.return_value = {
+            'sent': True,
+            'reason': '',
+            'provider_message_id': 'sms-123',
+            'channels': {
+                'sms': {'sent': True, 'reason': '', 'provider_message_id': 'sms-123'},
+                'whatsapp': {'sent': True, 'reason': '', 'provider_message_id': 'wa-123'},
+            },
+            'message': 'hello',
+            'interview_token': 'abcd1234',
+            'interview_link': 'https://litio.shortlistii.com/i/abcd1234',
+        }
         response = self.client.post(
             reverse('update-interview-workflow'),
             data=json.dumps({
@@ -1495,7 +1652,47 @@ class InterviewReminderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['Success'])
         self.assertTrue(queue_processing_mock.called)
+        self.assertTrue(send_existing_mock.called)
         self.assertTrue(response.json()['Data']['notifications'][0]['result']['queued'])
+        self.assertTrue(response.json()['Data']['notifications'][0]['result']['sent'])
+
+    @patch('smartInterviewApp.views.send_existing_candidate_sms')
+    @patch('smartInterviewApp.views.queue_scheduled_interview_processing')
+    def test_reschedule_workflow_marks_notification_as_rescheduled(self, queue_processing_mock, send_existing_mock):
+        queue_processing_mock.return_value = {'queued': True, 'count': 1, 'mode': 'cloud_tasks'}
+        send_existing_mock.return_value = {
+            'sent': True,
+            'reason': '',
+            'provider_message_id': 'sms-123',
+            'channels': {
+                'sms': {'sent': True, 'reason': '', 'provider_message_id': 'sms-123'},
+                'whatsapp': {'sent': True, 'reason': '', 'provider_message_id': 'wa-123'},
+                'email': {'sent': True, 'reason': '', 'subject': 'Interview Rescheduled: Python Developer | Shortlistii'},
+            },
+            'message': 'hello',
+            'interview_token': 'abcd1234',
+            'interview_link': 'https://litio.shortlistii.com/i/abcd1234',
+        }
+        old_time = self.interview.date
+        new_time = old_time + timedelta(days=1)
+
+        response = self.client.post(
+            reverse('update-interview-workflow'),
+            data=json.dumps({
+                'interview_ids': [self.interview.id],
+                'mode': 'schedule',
+                'interview_type': 'manual',
+                'interviewer_id': self.interviewer.id,
+                'scheduled_at': new_time.isoformat(),
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        send_existing_mock.assert_called_once()
+        self.assertEqual(send_existing_mock.call_args.kwargs['notification_kind'], 'rescheduled')
+        self.assertEqual(send_existing_mock.call_args.kwargs['previous_scheduled_at'], old_time)
 
     @patch('smartInterviewApp.views.InterviewReminderService.cancel_pending_interview_reminders')
     def test_status_update_cancels_future_reminders(self, cancel_mock):
@@ -1507,3 +1704,53 @@ class InterviewReminderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['Success'])
         cancel_mock.assert_called_once()
+
+
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    DEFAULT_FROM_EMAIL='no-reply@example.com',
+)
+class ContactViewTests(TestCase):
+    def _contact_payload(self, **overrides):
+        payload = {
+            'full_name': 'Test User',
+            'work_email': 'person@example.com',
+            'company_name': 'Acme Corp',
+            'inquiry_type': 'support',
+            'phone_number': '1234567890',
+            'team_size': '11_50',
+            'message': 'Need help with the contact form.',
+        }
+        payload.update(overrides)
+        return payload
+
+    @override_settings(CONTACT_INBOX_EMAIL='sales@example.com', CONTACT_SUPPORT_EMAIL='support@example.com')
+    def test_contact_form_sends_to_configured_inbox(self):
+        response = self.client.post(reverse('contact'), data=self._contact_payload())
+
+        self.assertRedirects(response, reverse('contact'))
+        self.assertEqual(len(mail.outbox), 1)
+        sent_message = mail.outbox[0]
+        self.assertEqual(sent_message.to, ['sales@example.com'])
+        self.assertEqual(sent_message.reply_to, ['person@example.com'])
+        self.assertEqual(sent_message.from_email, 'no-reply@example.com')
+
+    @override_settings(CONTACT_SUPPORT_EMAIL='support@example.com')
+    @patch('smartInterviewApp.views.send_mail', side_effect=RuntimeError('mail backend unavailable'))
+    def test_contact_form_mail_failure_returns_form_error(self, send_mail_mock):
+        response = self.client.post(reverse('contact'), data=self._contact_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'We could not send your message right now. Please email support@example.com directly.')
+        self.assertEqual(len(mail.outbox), 0)
+        send_mail_mock.assert_called_once()
+
+    @override_settings(CONTACT_INBOX_EMAIL='sales@example.com')
+    def test_contact_form_strips_newlines_from_subject_values(self):
+        response = self.client.post(
+            reverse('contact'),
+            data=self._contact_payload(company_name='Acme\nCorp'),
+        )
+
+        self.assertRedirects(response, reverse('contact'))
+        self.assertEqual(mail.outbox[0].subject, '[Shortlistii Contact] Support - Acme Corp')

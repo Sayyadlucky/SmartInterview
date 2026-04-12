@@ -23,6 +23,14 @@
     <div>
         <app-root></app-root>
     </div>
+    <script>
+        window.shortlistiiIdleConfig = {
+            timeoutSeconds: {{ session_timeout_seconds|default:1800 }},
+            warningSeconds: {{ session_warning_seconds|default:60 }},
+            pingUrl: "{% url 'session-ping' %}",
+            logoutUrl: "{% url 'logout' %}"
+        };
+    </script>
     <script src="{% static_versioned 'frontend/browser/polyfills.js' %}" type="module"></script>
     <script src="{% static_versioned 'frontend/browser/main.js' %}" type="module"></script>
 </body>

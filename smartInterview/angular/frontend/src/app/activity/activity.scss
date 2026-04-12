@@ -222,6 +222,12 @@
   backdrop-filter: blur(16px);
 }
 
+.main-card,
+.side-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+}
+
 .filters-bar,
 .command-card,
 .main-card,

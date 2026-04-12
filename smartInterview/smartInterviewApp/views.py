@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 
 from django.conf import settings
 from django.contrib import messages
@@ -31,6 +32,7 @@ from .commonViews import (
     get_accessible_interviews,
     get_accessible_interviewer_profiles,
     publicJobsPortal,
+    send_existing_candidate_sms,
 )
 from .services.company_enrichment import ensure_company_profile_for_user
 from .services.ai_talent_pool.async_indexer import process_candidate_reindex
@@ -39,13 +41,26 @@ from .services.interview_schedule_processing import process_scheduled_interview_
 from .templatetags.host_links import build_host_link
 from smartInterviewApp.otp.services import request_otp, verify_otp
 
+logger = logging.getLogger(__name__)
+
 LEGAL_LAST_UPDATED = "April 7, 2026"
-CONTACT_SUPPORT_EMAIL = getattr(settings, 'CONTACT_SUPPORT_EMAIL', 'support@shortlistii.com')
-CONTACT_INBOX_EMAIL = getattr(settings, 'CONTACT_INBOX_EMAIL', CONTACT_SUPPORT_EMAIL)
+CONTACT_SUPPORT_EMAIL_DEFAULT = 'support@shortlistii.com'
 WORKSPACE_PASSWORD_RESET_SESSION_KEY = 'workspace_password_reset'
 WORKSPACE_PASSWORD_RESET_MAX_AGE_SECONDS = 60 * 15
 WORKSPACE_PASSWORD_RESET_ROLES = {'admin', 'recruiter', 'interviewer'}
 INTERVIEW_REMINDER_TASK_HEADER = 'HTTP_X_CLOUD_TASKS_SECRET'
+
+
+def get_contact_support_email() -> str:
+    return getattr(settings, 'CONTACT_SUPPORT_EMAIL', CONTACT_SUPPORT_EMAIL_DEFAULT)
+
+
+def get_contact_inbox_email() -> str:
+    return getattr(settings, 'CONTACT_INBOX_EMAIL', get_contact_support_email())
+
+
+def _single_line_value(value: str) -> str:
+    return ' '.join((value or '').splitlines()).strip()
 
 
 def normalize_interview_status(value: str) -> str:
@@ -222,11 +237,14 @@ def about(request):
 
 def contact(request):
     form = ContactForm(request.POST or None)
+    support_email = get_contact_support_email()
+    inbox_email = get_contact_inbox_email()
 
     if request.method == 'POST' and form.is_valid():
         cleaned = form.cleaned_data
         inquiry_label = dict(ContactForm.INQUIRY_CHOICES).get(cleaned['inquiry_type'], 'General Inquiry')
-        subject = f"[Shortlistii Contact] {inquiry_label} - {cleaned['company_name']}"
+        company_name = _single_line_value(cleaned['company_name']) or 'Unknown company'
+        subject = f"[Shortlistii Contact] {inquiry_label} - {company_name}"
         body = "\n".join(
             [
                 f"Full Name: {cleaned['full_name']}",
@@ -241,19 +259,24 @@ def contact(request):
             ]
         )
 
-        send_mail(
-            subject,
-            body,
-            getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@smartinterview.local'),
-            [CONTACT_INBOX_EMAIL],
-            fail_silently=True,
-            reply_to=[cleaned['work_email']],
-        )
-        messages.success(
-            request,
-            'Your message has been received. Our team will review it and get back to you shortly.',
-        )
-        return redirect('contact')
+        try:
+            send_mail(
+                subject,
+                body,
+                getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@smartinterview.local'),
+                [inbox_email],
+                fail_silently=False,
+                reply_to=[cleaned['work_email']],
+            )
+        except Exception:
+            logger.exception('Failed to send contact form email.')
+            form.add_error(None, f'We could not send your message right now. Please email {support_email} directly.')
+        else:
+            messages.success(
+                request,
+                'Your message has been received. Our team will review it and get back to you shortly.',
+            )
+            return redirect('contact')
 
     return render(
         request,
@@ -262,7 +285,7 @@ def contact(request):
             'page_title': 'Contact Us',
             'meta_description': 'Contact Shortlistii for product demos, sales conversations, enterprise hiring workflows, Litio interview intelligence, partnerships, support, and general platform questions.',
             'form': form,
-            'support_email': CONTACT_SUPPORT_EMAIL,
+            'support_email': support_email,
             'company_legal_name': 'shortlistii.com Private Limited',
             'company_address_lines': [
                 'Flat No. 1404, Famed Tower',
@@ -554,6 +577,18 @@ class MyLogoutView(View):
     def get(self, request):
         logout(request)
         return redirect('home')
+
+
+def session_ping(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'authenticated': False}, status=401)
+    return JsonResponse({
+        'authenticated': True,
+        'session_timeout_seconds': getattr(settings, 'SESSION_COOKIE_AGE', 1800),
+        'warning_seconds': getattr(settings, 'SESSION_IDLE_WARNING_SECONDS', 60),
+    })
+
+
 @login_required
 def dashboardData(request):
     try:
@@ -858,6 +893,8 @@ def updateInterviewWorkflow(request):
     with transaction.atomic():
         for interview in interviews:
             update_fields: list[str] = []
+            previous_status = normalize_interview_status(interview.status)
+            previous_scheduled_at = interview.date
 
             if mode == 'schedule' and interview.interview_type != interview_type:
                 interview.interview_type = interview_type
@@ -900,6 +937,19 @@ def updateInterviewWorkflow(request):
                 interview_token, interview_link = build_litio_interview_link(None, interview)
                 updated_items[-1]["interview_token"] = interview_token
                 updated_items[-1]["interview_link"] = interview_link
+                is_rescheduled = bool(
+                    previous_status == 'scheduled'
+                    and previous_scheduled_at
+                    and scheduled_at
+                    and previous_scheduled_at != scheduled_at
+                )
+                notification_result = send_existing_candidate_sms(
+                    interview.candidate,
+                    interview,
+                    request=request,
+                    notification_kind='rescheduled' if is_rescheduled else 'scheduled',
+                    previous_scheduled_at=previous_scheduled_at if is_rescheduled else None,
+                )
                 scheduled_jobs.append({
                     'interview_id': interview.id,
                     'expected_interview_time': interview.date.isoformat() if interview.date else '',
@@ -907,9 +957,13 @@ def updateInterviewWorkflow(request):
                 notifications.append({
                     "interview_id": interview.id,
                     "result": {
+                        **notification_result,
                         "queued": True,
-                        "sent": False,
-                        "reason": "Candidate notification and reminder scheduling queued.",
+                        "reason": (
+                            f"{notification_result.get('reason', '').strip()} Reminder scheduling queued."
+                            if notification_result.get('reason')
+                            else "Reminder scheduling queued."
+                        ).strip(),
                     },
                 })
 
