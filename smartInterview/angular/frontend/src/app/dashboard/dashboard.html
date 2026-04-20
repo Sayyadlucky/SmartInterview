@@ -562,7 +562,12 @@
                         {{ candidate.name }}
                       </a>
                     </td>
-                    <td>{{ candidate.status | titlecase }}</td>
+                    <td>
+                      <button type="button" class="candidate-status-trigger" (click)="openEvaluationSummary(candidate, $event)">
+                        <span>{{ candidate.status | titlecase }}</span>
+                        <i class="ph ph-info"></i>
+                      </button>
+                    </td>
                     <td>{{ candidate.recruiter }}</td>
                     <td>{{ getEvaluatorDisplayName(candidate) }}</td>
                     <td>
@@ -571,14 +576,38 @@
                       </span>
                     </td>
                     <td>
-                      <a
+                      <div
                         *ngIf="candidate.interview_link"
-                        class="candidate-link interview-link"
-                        [href]="candidate.interview_link"
-                        target="_blank"
-                        rel="noopener">
-                        Interview Link
-                      </a>
+                        class="interview-link-menu"
+                        [class.is-open]="isInterviewLinkMenuOpen(candidate)"
+                        (click)="$event.stopPropagation()">
+                        <button
+                          type="button"
+                          class="candidate-link interview-link-trigger"
+                          [attr.aria-expanded]="isInterviewLinkMenuOpen(candidate)"
+                          (click)="toggleInterviewLinkMenu(candidate, $event)">
+                          <span>Interview Link</span>
+                          <i class="ph" [class.ph-caret-down]="!isInterviewLinkMenuOpen(candidate)" [class.ph-caret-up]="isInterviewLinkMenuOpen(candidate)"></i>
+                        </button>
+                        <div *ngIf="isInterviewLinkMenuOpen(candidate)" class="interview-link-popover" role="menu">
+                          <button type="button" class="interview-link-action" (click)="copyInterviewLink(candidate, $event)">
+                            <i class="ph ph-copy"></i>
+                            <span>Copy Link</span>
+                          </button>
+                          <button type="button" class="interview-link-action" (click)="visitInterviewLink(candidate, $event)">
+                            <i class="ph ph-arrow-square-out"></i>
+                            <span>Visit Link</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="interview-link-action"
+                            [disabled]="resendingInterviewEmailId === candidate.id"
+                            (click)="resendCandidateInterviewEmail(candidate, $event)">
+                            <i class="ph" [class.ph-paper-plane-tilt]="resendingInterviewEmailId !== candidate.id" [class.ph-spinner-gap]="resendingInterviewEmailId === candidate.id"></i>
+                            <span>{{ resendingInterviewEmailId === candidate.id ? 'Sending...' : 'Send Email' }}</span>
+                          </button>
+                        </div>
+                      </div>
                       <span *ngIf="!candidate.interview_link" class="interview-link-muted">Pending</span>
                     </td>
                   </tr>
@@ -913,6 +942,92 @@
     </div>
     </ng-template>
   </div>
+
+<div class="evaluation-summary-modal" *ngIf="evaluationSummaryModalOpen" (click)="closeEvaluationSummaryModal()">
+  <div class="evaluation-summary-dialog" (click)="$event.stopPropagation()">
+    <div class="evaluation-summary-head">
+      <div>
+        <h3>{{ evaluationSummaryCandidate?.name || 'Candidate' }}</h3>
+        <p>Interview evaluation summary</p>
+      </div>
+      <button type="button" class="pending-requests-close" (click)="closeEvaluationSummaryModal()">Close</button>
+    </div>
+
+    <div class="evaluation-summary-state" *ngIf="evaluationSummaryLoading">
+      <i class="ph ph-spinner-gap"></i>
+      <span>Loading evaluation summary...</span>
+    </div>
+
+    <div class="evaluation-summary-state evaluation-summary-state--error" *ngIf="!evaluationSummaryLoading && evaluationSummaryError">
+      {{ evaluationSummaryError }}
+    </div>
+
+    <ng-container *ngIf="!evaluationSummaryLoading && !evaluationSummaryError">
+      <div class="evaluation-summary-meta" *ngIf="evaluationSummary.available; else noEvaluationSummary">
+        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.recommendation">{{ evaluationSummary.recommendation }}</span>
+        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.score !== null">Score {{ evaluationSummary.score }}</span>
+        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.confidence">{{ evaluationSummary.confidence }} Confidence</span>
+        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.updated_at">Updated {{ evaluationSummary.updated_at | date: 'MMM d, y, h:mm a' }}</span>
+      </div>
+
+      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available">
+        <h4>Summary</h4>
+        <p>{{ evaluationSummary.executive_summary || evaluationSummary.summary_verdict }}</p>
+      </section>
+
+      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.summary_verdict && evaluationSummary.summary_verdict !== evaluationSummary.executive_summary">
+        <h4>Verdict</h4>
+        <p>{{ evaluationSummary.summary_verdict }}</p>
+      </section>
+
+      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.hire_recommendation_reason">
+        <h4>Recommendation Reason</h4>
+        <p>{{ evaluationSummary.hire_recommendation_reason }}</p>
+      </section>
+
+      <div class="evaluation-summary-grid" *ngIf="evaluationSummary.available">
+        <section class="evaluation-summary-section" *ngIf="evaluationSummary.strengths.length">
+          <h4>Strengths</h4>
+          <div class="evaluation-summary-list">
+            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.strengths">{{ item }}</span>
+          </div>
+        </section>
+
+        <section class="evaluation-summary-section" *ngIf="evaluationSummary.concerns.length">
+          <h4>Concerns</h4>
+          <div class="evaluation-summary-list">
+            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.concerns">{{ item }}</span>
+          </div>
+        </section>
+
+        <section class="evaluation-summary-section" *ngIf="evaluationSummary.gaps.length">
+          <h4>Gaps</h4>
+          <div class="evaluation-summary-list">
+            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.gaps">{{ item }}</span>
+          </div>
+        </section>
+
+        <section class="evaluation-summary-section" *ngIf="evaluationSummary.follow_up_areas.length">
+          <h4>Follow Up Areas</h4>
+          <div class="evaluation-summary-list">
+            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.follow_up_areas">{{ item }}</span>
+          </div>
+        </section>
+      </div>
+
+      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.early_exit">
+        <h4>Interview Exit</h4>
+        <p>{{ evaluationSummary.early_exit_reason || 'Candidate exited before the interview completed.' }}</p>
+      </section>
+    </ng-container>
+
+    <ng-template #noEvaluationSummary>
+      <div class="evaluation-summary-state">
+        Evaluation summary is not available for this interview yet.
+      </div>
+    </ng-template>
+  </div>
+</div>
 
 <div class="application-toast" *ngIf="applicationToastOpen">
   <div class="application-toast__copy">

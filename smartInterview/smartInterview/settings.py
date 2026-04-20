@@ -341,8 +341,18 @@ AI_TALENT_POOL_SEMANTIC_FLOOR_STRONG_ADJACENT = float(os.getenv('AI_TALENT_POOL_
 
 NOTIFICATION_RETRY_LIMIT = int(os.getenv('NOTIFICATION_RETRY_LIMIT', '2'))
 NOTIFICATION_RETRY_BACKOFF_SECONDS = int(os.getenv('NOTIFICATION_RETRY_BACKOFF_SECONDS', '10'))
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@smartinterview.com')
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend',
+)
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@shortlistii.com')
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', default=False)
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 EMAIL_OTP_EXPIRY_SECONDS = int(os.getenv('EMAIL_OTP_EXPIRY_SECONDS', str(MSG91_OTP_EXPIRY_SECONDS)))
 EMAIL_OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv('EMAIL_OTP_RESEND_COOLDOWN_SECONDS', str(MSG91_OTP_RESEND_COOLDOWN_SECONDS)))
 EMAIL_OTP_MAX_VERIFY_ATTEMPTS = int(os.getenv('EMAIL_OTP_MAX_VERIFY_ATTEMPTS', str(MSG91_OTP_MAX_VERIFY_ATTEMPTS)))

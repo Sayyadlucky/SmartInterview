@@ -5703,6 +5703,33 @@ body.contact-page-shell {
   transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
+select.contact-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  display: block;
+  height: 48px;
+  padding-right: 44px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(220, 236, 255, 0.75) 50%),
+    linear-gradient(135deg, rgba(220, 236, 255, 0.75) 50%, transparent 50%);
+  background-position:
+    calc(100% - 22px) calc(50% - 2px),
+    calc(100% - 16px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+select.contact-input option {
+  color: #eef5ff;
+  background: #091423;
+}
+
+select.contact-input option:disabled {
+  color: #6f85a6;
+  background: #091423;
+}
+
 .contact-input--textarea {
   min-height: 148px;
   padding: 14px;

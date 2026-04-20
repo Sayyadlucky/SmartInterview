@@ -220,6 +220,41 @@
     </div>
   </section>
 
+  <section class="insight-strip" *ngIf="hasEvaluationSummary">
+    <div class="insight-strip__head">
+      <h4>Interview Evaluation</h4>
+      <span>{{ evaluationSummary.updated_at ? ('Updated ' + (evaluationSummary.updated_at | date: 'MMM d, y, h:mm a')) : 'Saved from smartvideo' }}</span>
+    </div>
+    <div class="insight-grid insight-grid--single">
+      <article class="insight-card">
+        <div class="insight-card__top insight-card__top--wrap">
+          <strong>{{ evaluationSummary.recommendation || evaluationSummary.hire_recommendation_action || 'Evaluation Summary' }}</strong>
+          <span class="insight-score" *ngIf="evaluationSummary.score !== null">{{ evaluationSummary.score }}</span>
+        </div>
+        <p>{{ evaluationSummary.executive_summary || evaluationSummary.summary_verdict }}</p>
+        <div class="box-list box-list--dense" *ngIf="evaluationSummary.strengths.length">
+          <div class="box-item box-item--detail" *ngFor="let item of evaluationSummary.strengths">{{ item }}</div>
+        </div>
+      </article>
+      <article class="insight-card" *ngIf="evaluationSummary.concerns.length || evaluationSummary.gaps.length || evaluationSummary.follow_up_areas.length">
+        <div class="insight-card__top insight-card__top--wrap">
+          <strong>Next Review Areas</strong>
+          <span class="insight-score" *ngIf="evaluationSummary.confidence">{{ evaluationSummary.confidence }}</span>
+        </div>
+        <div class="box-list box-list--dense" *ngIf="evaluationSummary.concerns.length">
+          <div class="box-item box-item--detail" *ngFor="let item of evaluationSummary.concerns">{{ item }}</div>
+        </div>
+        <div class="box-list box-list--dense" *ngIf="evaluationSummary.gaps.length">
+          <div class="box-item box-item--detail" *ngFor="let item of evaluationSummary.gaps">{{ item }}</div>
+        </div>
+        <div class="box-list box-list--dense" *ngIf="evaluationSummary.follow_up_areas.length">
+          <div class="box-item box-item--detail" *ngFor="let item of evaluationSummary.follow_up_areas">{{ item }}</div>
+        </div>
+        <p *ngIf="evaluationSummary.hire_recommendation_reason">{{ evaluationSummary.hire_recommendation_reason }}</p>
+      </article>
+    </div>
+  </section>
+
   <div class="resume-mock">
     <div class="resume-state resume-state--loading" *ngIf="resumeLoading">
       <span class="inline-loader-dot"></span>

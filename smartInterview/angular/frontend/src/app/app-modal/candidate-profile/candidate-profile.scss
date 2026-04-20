@@ -635,6 +635,10 @@
   gap: 8px;
 }
 
+.insight-grid--single {
+  grid-template-columns: 1fr;
+}
+
 .insight-card {
   border: 1px solid rgba(118, 194, 239, 0.16);
   border-radius: 10px;
@@ -648,6 +652,10 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 8px;
+}
+
+.insight-card__top--wrap {
+  flex-wrap: wrap;
 }
 
 .insight-card strong {

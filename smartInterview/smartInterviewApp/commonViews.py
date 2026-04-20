@@ -40,7 +40,7 @@ from django.urls import reverse
 
 from .models import Interview
 from .models import UserNotificationPreference, UserProfile, Vacancies
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Count, Case, When, CharField, Value, Q, F, Max, Min, DateTimeField
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
@@ -55,7 +55,7 @@ from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from smartInterviewApp.services.interview_calls import InterviewCallService
-from .models import CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication, InterviewCallSession
+from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication, InterviewCallSession
 from .templatetags.host_links import build_host_link
 
 
@@ -146,6 +146,128 @@ def mask_phone_last_four(value: str) -> str:
     if len(digits) <= 4:
         return digits
     return f"{'•' * max(0, len(digits) - 4)}{digits[-4:]}"
+
+
+def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict:
+    def trim_text(value, limit: int = 600) -> str:
+        text = str(value or '').strip()
+        if len(text) <= limit:
+            return text
+        return f"{text[:limit].rstrip()}..."
+
+    def compact_text_list(values, *, limit: int = 6, item_limit: int = 220) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        items: list[str] = []
+        for value in values[:limit]:
+            if isinstance(value, dict):
+                parts = []
+                for key, item_value in list(value.items())[:4]:
+                    label = humanize_identifier(str(key))
+                    if isinstance(item_value, list):
+                        rendered = ', '.join(trim_text(entry, 80) for entry in item_value[:4] if str(entry or '').strip())
+                    else:
+                        rendered = trim_text(item_value, 120)
+                    if rendered:
+                        parts.append(f"{label}: {rendered}" if label else rendered)
+                text = '; '.join(parts)
+            else:
+                text = trim_text(value, item_limit)
+            if text:
+                items.append(text)
+        return items
+
+    empty_payload = {
+        'available': False,
+        'decision': '',
+        'recommendation': '',
+        'score': None,
+        'executive_summary': '',
+        'summary_verdict': '',
+        'confidence': '',
+        'interview_signal_quality': '',
+        'strengths': [],
+        'concerns': [],
+        'gaps': [],
+        'notes': [],
+        'follow_up_areas': [],
+        'hire_recommendation_action': '',
+        'hire_recommendation_reason': '',
+        'early_exit': False,
+        'early_exit_reason': '',
+        'updated_at': '',
+        'created_at': '',
+    }
+    if not interview:
+        return empty_payload
+
+    try:
+        result = (
+            AutoInterviewEvaluationResult.objects
+            .filter(interview_id=interview.id)
+            .only(
+                'decision',
+                'recommendation',
+                'score',
+                'executive_summary',
+                'summary_verdict',
+                'evaluation_payload',
+                'early_exit',
+                'early_exit_reason',
+                'updated_at',
+                'created_at',
+            )
+            .first()
+        )
+    except DatabaseError:
+        return empty_payload
+
+    if not result:
+        return empty_payload
+
+    evaluation_payload = result.evaluation_payload if isinstance(result.evaluation_payload, dict) else {}
+    hire_recommendation = evaluation_payload.get('hire_recommendation')
+    if not isinstance(hire_recommendation, dict):
+        hire_recommendation = {}
+
+    score_value = None
+    if result.score is not None:
+        try:
+            score_value = float(result.score)
+        except (TypeError, ValueError):
+            score_value = None
+
+    recommendation = trim_text(
+        result.recommendation
+        or hire_recommendation.get('action')
+        or evaluation_payload.get('recommendation'),
+        120,
+    )
+
+    return {
+        'available': True,
+        'decision': trim_text(result.decision, 60),
+        'recommendation': recommendation,
+        'score': score_value,
+        'executive_summary': trim_text(
+            result.executive_summary or evaluation_payload.get('summary') or evaluation_payload.get('overall_summary'),
+            1800,
+        ),
+        'summary_verdict': trim_text(result.summary_verdict or evaluation_payload.get('summary_verdict'), 1200),
+        'confidence': trim_text(evaluation_payload.get('confidence'), 80),
+        'interview_signal_quality': trim_text(evaluation_payload.get('interview_signal_quality'), 80),
+        'strengths': compact_text_list(evaluation_payload.get('strengths') or evaluation_payload.get('top_strengths')),
+        'concerns': compact_text_list(evaluation_payload.get('concerns')),
+        'gaps': compact_text_list(evaluation_payload.get('gaps') or evaluation_payload.get('weaknesses')),
+        'notes': compact_text_list(evaluation_payload.get('notes')),
+        'follow_up_areas': compact_text_list(evaluation_payload.get('follow_up_areas')),
+        'hire_recommendation_action': trim_text(hire_recommendation.get('action'), 80),
+        'hire_recommendation_reason': trim_text(hire_recommendation.get('reason'), 400),
+        'early_exit': bool(result.early_exit),
+        'early_exit_reason': trim_text(result.early_exit_reason, 160),
+        'updated_at': result.updated_at.isoformat() if result.updated_at else '',
+        'created_at': result.created_at.isoformat() if result.created_at else '',
+    }
 
 
 def candidate_password_reset_rate_limited(request, action: str, identifier: str, limit: int, window_seconds: int) -> bool:
@@ -1515,6 +1637,60 @@ def load_candidate_signup_token(token: str) -> dict:
     return signing.loads(token, salt=SIGNUP_TOKEN_SALT, max_age=SIGNUP_TOKEN_MAX_AGE_SECONDS)
 
 
+def generate_candidate_signup_code(length: int = 8) -> str:
+    alphabet = '23456789abcdefghjkmnpqrstuvwxyz'
+    while True:
+        code = ''.join(secrets.choice(alphabet) for _ in range(length))
+        if not Interview.objects.filter(candidate_signup_token=code).exists():
+            return code
+
+
+def is_compact_candidate_signup_code(token: str) -> bool:
+    value = (token or '').strip().lower()
+    return bool(re.fullmatch(r'[23456789abcdefghjkmnpqrstuvwxyz]{6,16}', value))
+
+
+def ensure_candidate_signup_token(interview: Interview) -> str:
+    now = timezone.now()
+    token = (interview.candidate_signup_token or '').strip().lower()
+    created_at = getattr(interview, 'candidate_signup_token_created_at', None)
+    if (
+        token
+        and is_compact_candidate_signup_code(token)
+        and created_at
+        and created_at >= now - timedelta(seconds=SIGNUP_TOKEN_MAX_AGE_SECONDS)
+    ):
+        return token
+
+    token = generate_candidate_signup_code()
+    interview.candidate_signup_token = token
+    interview.candidate_signup_token_created_at = now
+    interview.save(update_fields=['candidate_signup_token', 'candidate_signup_token_created_at'])
+    return token
+
+
+def get_candidate_signup_interview_by_token(token: str) -> Interview | None:
+    value = (token or '').strip().lower()
+    if not is_compact_candidate_signup_code(value):
+        return None
+
+    valid_after = timezone.now() - timedelta(seconds=SIGNUP_TOKEN_MAX_AGE_SECONDS)
+    return (
+        Interview.objects.select_related('candidate', 'recruiter', 'interviewer', 'role')
+        .filter(candidate_signup_token=value, candidate_signup_token_created_at__gte=valid_after)
+        .first()
+    )
+
+
+def build_candidate_signup_link(request, interview: Interview) -> tuple[str, str]:
+    token = ensure_candidate_signup_token(interview)
+    if request is not None:
+        base_url = build_host_link(request, 'candidates').rstrip('/')
+    else:
+        base_url = getattr(settings, 'CANDIDATE_PUBLIC_BASE_URL', 'https://candidates.shortlistii.com').rstrip('/')
+    return token, f'{base_url}/s/{token}/'
+
+
 def send_existing_candidate_sms(
     candidate: User,
     interview: Interview,
@@ -1603,14 +1779,40 @@ def send_existing_candidate_sms(
     }
 
 
+def send_candidate_interview_email_only(
+    request,
+    interview: Interview,
+    *,
+    notification_kind: str = 'scheduled',
+    previous_scheduled_at=None,
+) -> dict:
+    interview_token, interview_link = build_litio_interview_link(request, interview)
+    email_result = send_candidate_interview_email(
+        request,
+        interview.candidate,
+        interview,
+        interview_link,
+        notification_kind=notification_kind,
+        previous_scheduled_at=previous_scheduled_at,
+    )
+    return {
+        'sent': bool(email_result.get('sent')),
+        'reason': '' if email_result.get('sent') else str(email_result.get('reason') or 'Email delivery failed.'),
+        'channels': {
+            'email': email_result,
+        },
+        'interview_token': interview_token,
+        'interview_link': interview_link,
+    }
+
+
 def send_new_candidate_signup_sms(request, candidate: User, interview: Interview) -> dict:
     profile = getattr(candidate, 'profile', None)
     phone = normalize_phone(profile.phone if profile else '')
     if not phone:
         return {'sent': False, 'reason': 'Candidate phone number is missing.'}
 
-    token = build_candidate_signup_token(candidate, interview)
-    signup_url = request.build_absolute_uri(f"{reverse('candidate-signup-root')}?token={token}")
+    signup_token, signup_url = build_candidate_signup_link(request, interview)
     role_name = interview.role.role if interview.role else 'the role'
     message = build_sms_message('candidate_signup_invite', {
         'candidate_name': (candidate.first_name or 'Candidate').strip().title(),
@@ -1650,6 +1852,7 @@ def send_new_candidate_signup_sms(request, candidate: User, interview: Interview
             },
             'whatsapp': whatsapp_result,
         },
+        'signup_token': signup_token,
         'signup_url': signup_url,
         'message': message,
     }
@@ -2115,8 +2318,8 @@ def lookupUserByPhone(request):
         return JsonResponse({"Success": False, "Error": str(e), "Data": {"found": False}})
 
 
-def candidateSignup(request):
-    token = (request.GET.get('token') or request.POST.get('token') or '').strip()
+def candidateSignup(request, token: str = ''):
+    token = (token or request.GET.get('token') or request.POST.get('token') or '').strip()
     signup_context = None
     token_error = ''
     interview = None
@@ -2125,14 +2328,23 @@ def candidateSignup(request):
     initial_step = 1
 
     if token:
-        try:
-            signup_context = load_candidate_signup_token(token)
-        except signing.BadSignature:
-            token_error = 'This signup link is invalid or has expired. You can still sign up by filling the form manually.'
+        if is_compact_candidate_signup_code(token):
+            interview = get_candidate_signup_interview_by_token(token)
+            if not interview:
+                token_error = 'This signup link is invalid or has expired. You can still sign up by filling the form manually.'
+            else:
+                user = interview.candidate
+                profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': 'candidate'})
+                signup_context = build_signup_context_from_user(user, profile, interview)
         else:
-            user = get_object_or_404(User, id=signup_context['user_id'])
-            profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': 'candidate'})
-            interview = Interview.objects.filter(id=signup_context.get('interview_id')).first()
+            try:
+                signup_context = load_candidate_signup_token(token)
+            except signing.BadSignature:
+                token_error = 'This signup link is invalid or has expired. You can still sign up by filling the form manually.'
+            else:
+                user = get_object_or_404(User, id=signup_context['user_id'])
+                profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': 'candidate'})
+                interview = Interview.objects.filter(id=signup_context.get('interview_id')).first()
 
     if request.method == 'POST':
         manual_mode = signup_context is None
@@ -3598,6 +3810,7 @@ def getCandidateProfileData(request, interview_id: int):
         public_resume = CandidatePublicResume.objects.filter(candidate=interview.candidate, is_active=True).first()
         resume_data['file_url'] = build_file_url(getattr(profile, 'resume', None))
         candidate_name = get_display_name(interview.candidate)
+        evaluation_summary = build_auto_interview_evaluation_summary(interview)
 
         return JsonResponse({
             'Success': True,
@@ -3637,7 +3850,26 @@ def getCandidateProfileData(request, interview_id: int):
                 },
                 'insights': CandidateInsightService().serialize_snapshot(insight_snapshot),
                 'resume': resume_data,
+                'evaluation_summary': evaluation_summary,
             }
+        })
+    except Exception as e:
+        return JsonResponse({'Success': False, 'Error': str(e), 'Data': None}, status=500)
+
+
+@login_required
+def getCandidateEvaluationSummary(request, interview_id: int):
+    try:
+        interview = get_accessible_interviews(request.user).filter(id=interview_id).first()
+        if not interview:
+            return JsonResponse({'Success': False, 'Error': 'Candidate interview not found.', 'Data': None}, status=404)
+
+        return JsonResponse({
+            'Success': True,
+            'Error': None,
+            'Data': {
+                'evaluation_summary': build_auto_interview_evaluation_summary(interview),
+            },
         })
     except Exception as e:
         return JsonResponse({'Success': False, 'Error': str(e), 'Data': None}, status=500)

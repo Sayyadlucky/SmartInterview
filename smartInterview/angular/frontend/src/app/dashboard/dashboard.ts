@@ -147,6 +147,28 @@ interface CompanyProfileFormData {
   timezone: string;
 }
 
+interface CandidateEvaluationSummary {
+  available: boolean;
+  decision: string;
+  recommendation: string;
+  score: number | null;
+  executive_summary: string;
+  summary_verdict: string;
+  confidence: string;
+  interview_signal_quality: string;
+  strengths: string[];
+  concerns: string[];
+  gaps: string[];
+  notes: string[];
+  follow_up_areas: string[];
+  hire_recommendation_action: string;
+  hire_recommendation_reason: string;
+  early_exit: boolean;
+  early_exit_reason: string;
+  updated_at: string;
+  created_at: string;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -205,6 +227,13 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   pendingRequestsModalOpen = false;
   pendingRequestsSearch = '';
   talentPoolRoleId: string | null = null;
+  activeInterviewLinkMenuId: number | null = null;
+  resendingInterviewEmailId: number | null = null;
+  evaluationSummaryModalOpen = false;
+  evaluationSummaryLoading = false;
+  evaluationSummaryError = '';
+  evaluationSummaryCandidate: any | null = null;
+  evaluationSummary: CandidateEvaluationSummary = this.createEmptyEvaluationSummary();
   @ViewChild('mobileNavPanel') mobileNavPanelRef?: ElementRef<HTMLElement>;
   @ViewChild('mobileNavToggleButton') mobileNavToggleButtonRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('companyModalCard') companyModalCardRef?: ElementRef<HTMLElement>;
@@ -320,6 +349,16 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('document:keydown', ['$event'])
   handleDocumentKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
+      if (this.evaluationSummaryModalOpen) {
+        event.preventDefault();
+        this.closeEvaluationSummaryModal();
+        return;
+      }
+      if (this.activeInterviewLinkMenuId !== null) {
+        event.preventDefault();
+        this.closeInterviewLinkMenu();
+        return;
+      }
       if (this.companyDetailsModalOpen) {
         event.preventDefault();
         this.closeCompanyDetailsModal();
@@ -344,6 +383,15 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     if (this.mobileNavOpen) {
       this.trapFocus(event, this.mobileNavPanelRef?.nativeElement);
     }
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.interview-link-menu')) {
+      return;
+    }
+    this.closeInterviewLinkMenu();
   }
 
   toggleMobileNav(): void {
@@ -765,7 +813,7 @@ nextPage() {
   }
 
   private updateBodyScrollLock(): void {
-    const shouldLock = this.mobileNavOpen || this.companyDetailsModalOpen;
+    const shouldLock = this.mobileNavOpen || this.companyDetailsModalOpen || this.evaluationSummaryModalOpen;
     if (shouldLock && !this.bodyScrollLocked) {
       document.body.style.overflow = 'hidden';
       this.bodyScrollLocked = true;
@@ -867,6 +915,168 @@ setStatusFilter(status: string | null, shouldScroll = false) {
 clearSearch(): void {
   this.searchQuery = '';
   this.currentPage = 1;
+}
+
+openEvaluationSummary(candidate: any, event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+
+  const candidateId = Number(candidate?.id || 0);
+  if (!candidateId) {
+    return;
+  }
+
+  this.closeInterviewLinkMenu();
+  this.evaluationSummaryCandidate = candidate;
+  this.evaluationSummaryModalOpen = true;
+  this.evaluationSummaryLoading = true;
+  this.evaluationSummaryError = '';
+  this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.updateBodyScrollLock();
+
+  const apiBaseUrl = getApiBaseUrl();
+  this.http.get<any>(`${apiBaseUrl}/candidate-evaluation-summary/${candidateId}/`)
+    .pipe(
+      timeout(this.apiTimeoutMs),
+      takeUntilDestroyed(this.destroyRef),
+      catchError((error) => {
+        console.error('Error loading candidate evaluation summary', error);
+        this.evaluationSummaryLoading = false;
+        this.evaluationSummaryError = 'Unable to load the evaluation summary right now.';
+        return of(null);
+      })
+    )
+    .subscribe((response) => {
+      this.evaluationSummaryLoading = false;
+      if (!response?.Success) {
+        this.evaluationSummaryError = response?.Error || 'Unable to load the evaluation summary right now.';
+        return;
+      }
+      this.evaluationSummary = {
+        ...this.createEmptyEvaluationSummary(),
+        ...(response?.Data?.evaluation_summary || {}),
+      };
+    });
+}
+
+closeEvaluationSummaryModal(): void {
+  if (!this.evaluationSummaryModalOpen) {
+    return;
+  }
+  this.evaluationSummaryModalOpen = false;
+  this.evaluationSummaryLoading = false;
+  this.evaluationSummaryError = '';
+  this.evaluationSummaryCandidate = null;
+  this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.updateBodyScrollLock();
+}
+
+isInterviewLinkMenuOpen(candidate: any): boolean {
+  return this.activeInterviewLinkMenuId === Number(candidate?.id || 0);
+}
+
+toggleInterviewLinkMenu(candidate: any, event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+  if (!candidate?.interview_link) {
+    return;
+  }
+  const candidateId = Number(candidate?.id || 0);
+  if (!candidateId) {
+    return;
+  }
+  this.activeInterviewLinkMenuId = this.activeInterviewLinkMenuId === candidateId ? null : candidateId;
+}
+
+closeInterviewLinkMenu(): void {
+  this.activeInterviewLinkMenuId = null;
+}
+
+copyInterviewLink(candidate: any, event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+  const link = (candidate?.interview_link || '').toString().trim();
+  if (!link) {
+    return;
+  }
+
+  const handleSuccess = () => {
+    this.toast.showSuccess('Interview link copied', `${candidate?.name || 'Candidate'} link copied to clipboard.`);
+    this.closeInterviewLinkMenu();
+  };
+  const handleFailure = () => {
+    this.toast.showError('Copy failed', 'Unable to copy the interview link right now.');
+  };
+
+  if (navigator?.clipboard?.writeText) {
+    navigator.clipboard.writeText(link).then(handleSuccess).catch(() => {
+      if (this.fallbackCopyToClipboard(link)) {
+        handleSuccess();
+        return;
+      }
+      handleFailure();
+    });
+    return;
+  }
+
+  if (this.fallbackCopyToClipboard(link)) {
+    handleSuccess();
+    return;
+  }
+  handleFailure();
+}
+
+visitInterviewLink(candidate: any, event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+  const link = (candidate?.interview_link || '').toString().trim();
+  if (!link) {
+    return;
+  }
+  window.open(link, '_blank', 'noopener');
+  this.closeInterviewLinkMenu();
+}
+
+resendCandidateInterviewEmail(candidate: any, event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+
+  const candidateId = Number(candidate?.id || 0);
+  if (!candidateId || this.resendingInterviewEmailId === candidateId) {
+    return;
+  }
+
+  this.resendingInterviewEmailId = candidateId;
+  const apiBaseUrl = getApiBaseUrl();
+  const body = new URLSearchParams();
+  body.set('interview_id', String(candidateId));
+
+  this.http.post<any>(`${apiBaseUrl}/resend-candidate-interview-email/`, body.toString(), {
+    headers: new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' })
+  })
+    .pipe(
+      timeout(this.apiTimeoutMs),
+      takeUntilDestroyed(this.destroyRef),
+      catchError((error) => {
+        console.error('Error resending candidate interview email', error);
+        this.resendingInterviewEmailId = null;
+        this.toast.showError('Email resend failed', 'Unable to resend the interview email right now.');
+        return of(null);
+      })
+    )
+    .subscribe((response) => {
+      this.resendingInterviewEmailId = null;
+      if (!response?.Success) {
+        this.toast.showError('Email resend failed', response?.Error || 'Unable to resend the interview email right now.');
+        return;
+      }
+
+      this.toast.showSuccess(
+        'Interview email sent',
+        `Interview link email was resent to ${candidate?.email || candidate?.name || 'the candidate'}.`
+      );
+      this.closeInterviewLinkMenu();
+    });
 }
 
 formatRoleWithId(role: any, roleId?: any): string {
@@ -1467,6 +1677,49 @@ private matchesPipelineStatus(candidate: any, normalizedStatus: string): boolean
     return candidateStatus === 'scheduled' && !this.isAutoScreeningCandidate(candidate);
   }
   return candidateStatus === normalizedStatus;
+}
+
+private createEmptyEvaluationSummary(): CandidateEvaluationSummary {
+  return {
+    available: false,
+    decision: '',
+    recommendation: '',
+    score: null,
+    executive_summary: '',
+    summary_verdict: '',
+    confidence: '',
+    interview_signal_quality: '',
+    strengths: [],
+    concerns: [],
+    gaps: [],
+    notes: [],
+    follow_up_areas: [],
+    hire_recommendation_action: '',
+    hire_recommendation_reason: '',
+    early_exit: false,
+    early_exit_reason: '',
+    updated_at: '',
+    created_at: '',
+  };
+}
+
+private fallbackCopyToClipboard(value: string): boolean {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
+  }
 }
   
 private renderChart(): void {

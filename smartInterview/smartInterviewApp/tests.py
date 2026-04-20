@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.db import connection
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -15,10 +16,16 @@ from django.utils import timezone
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
 from smartInterviewApp.api.serializers import ExotelWebhookSerializer
 from smartInterviewApp.integrations.providers.msg91 import Msg91OtpProvider, Msg91SmsProvider
-from smartInterviewApp.models import Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
+from smartInterviewApp.models import AutoInterviewEvaluationResult, Notification, NotificationAttempt, OtpRequest, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
-from smartInterviewApp.commonViews import SIGNUP_TOKEN_SALT, build_litio_interview_link, send_existing_candidate_sms
+from smartInterviewApp.commonViews import (
+    SIGNUP_TOKEN_SALT,
+    build_candidate_signup_link,
+    build_litio_interview_link,
+    ensure_candidate_signup_token,
+    send_existing_candidate_sms,
+)
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.integrations.providers.meta_whatsapp import MetaWhatsappProvider
 from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
@@ -361,7 +368,8 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(payload['Success'])
         self.assertTrue(payload['SignupRequired'])
         self.assertFalse(payload['CandidateExists'])
-        self.assertIn('candidate/signup/?token=', payload['Notification']['signup_url'])
+        self.assertIn('/s/', payload['Notification']['signup_url'])
+        self.assertLessEqual(len(payload['Notification']['signup_token']), 16)
         self.assertTrue(payload['Notification']['channels']['sms']['sent'])
         self.assertTrue(payload['Notification']['channels']['whatsapp']['sent'])
         self.assertTrue(send_sms_mock.called)
@@ -500,6 +508,24 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(link.startswith('https://litio.shortlistii.com/i/'))
         interview.refresh_from_db()
         self.assertEqual(interview.litio_interview_token, token)
+
+    def test_build_candidate_signup_link_uses_short_candidate_domain_path(self):
+        interview = Interview.objects.create(
+            candidate=self.candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='assessment_pending',
+        )
+
+        token, link = build_candidate_signup_link(None, interview)
+
+        self.assertLessEqual(len(token), 16)
+        self.assertTrue(link.startswith('https://candidates.shortlistii.com/s/'))
+        interview.refresh_from_db()
+        self.assertEqual(interview.candidate_signup_token, token)
+        self.assertIsNotNone(interview.candidate_signup_token_created_at)
 
     @patch('smartInterviewApp.commonViews.exotel_voice_provider.connect_agent_to_candidate')
     def test_candidate_profile_call_connects_workspace_user_and_candidate(self, call_mock):
@@ -914,6 +940,47 @@ class CandidateOnboardingTests(TestCase):
         self.assertIn('Python Developer', sent_message.body)
         self.assertEqual(sent_message.alternatives[0][1], 'text/html')
         self.assertIn('Candidate account ready', sent_message.alternatives[0][0])
+
+    @patch('smartInterviewApp.commonViews.ResumeProcessingService.process_profile_resume')
+    def test_candidate_signup_short_link_completes_profile(self, process_resume_mock):
+        candidate = User.objects.create_user(username='cand-short', email='signup.short@example.com')
+        candidate.set_unusable_password()
+        candidate.first_name = 'Short'
+        candidate.last_name = 'Candidate'
+        candidate.save()
+        profile = UserProfile.objects.create(user=candidate, role='candidate', phone='919123456780', gender='female', hr=self.admin)
+        interview = Interview.objects.create(candidate=candidate, recruiter=self.recruiter, hr=self.admin, status='assessment_pending', role=self.role)
+        short_token = ensure_candidate_signup_token(interview)
+
+        get_response = self.client.get(reverse('candidate-signup-short-root', args=[short_token]))
+        self.assertEqual(get_response.status_code, 200)
+        self.assertContains(get_response, 'Short Candidate')
+        self.assertContains(get_response, 'Upload Resume')
+
+        resume = SimpleUploadedFile('resume.pdf', b'%PDF-1.4 fake content', content_type='application/pdf')
+        profile_photo = SimpleUploadedFile(
+            'profile.jpg',
+            (
+                b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00'
+                b'\xff\xdb\x00C\x00'
+            ),
+            content_type='image/jpeg',
+        )
+        post_response = self.client.post(reverse('candidate-signup-short-root', args=[short_token]), data={
+            'token': short_token,
+            'password': 'StrongPass123!',
+            'confirm_password': 'StrongPass123!',
+            'profile_picture': profile_photo,
+            'resume': resume,
+        })
+
+        self.assertEqual(post_response.status_code, 200)
+        candidate.refresh_from_db()
+        profile.refresh_from_db()
+        self.assertTrue(candidate.has_usable_password())
+        self.assertTrue(profile.profile_picture.name.endswith('profile.jpg'))
+        self.assertTrue(profile.resume.name.endswith('resume.pdf'))
+        process_resume_mock.assert_called_once_with(candidate, profile, interview=interview)
 
     @patch('smartInterviewApp.commonViews.ResumeProcessingService.process_profile_resume')
     def test_candidate_signup_allows_manual_profile_creation_without_token(self, process_resume_mock):
@@ -1621,6 +1688,50 @@ class InterviewReminderTests(TestCase):
         self.assertTrue(response.json()['Success'])
         process_mock.assert_called_once_with(self.candidate.id)
 
+    @patch('smartInterviewApp.views.send_candidate_interview_email_only')
+    def test_resend_candidate_interview_email_endpoint_sends_email(self, send_email_only_mock):
+        send_email_only_mock.return_value = {
+            'sent': True,
+            'reason': '',
+            'channels': {
+                'email': {'sent': True, 'reason': '', 'subject': 'Interview Scheduled: Python Developer | Shortlistii'},
+            },
+            'interview_token': 'abcd1234',
+            'interview_link': 'https://litio.shortlistii.com/i/abcd1234',
+        }
+
+        response = self.client.post(reverse('resend-candidate-interview-email'), data={
+            'interview_id': self.interview.id,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['Success'])
+        send_email_only_mock.assert_called_once()
+        self.assertEqual(response.json()['Data']['channels']['email']['subject'], 'Interview Scheduled: Python Developer | Shortlistii')
+
+    @patch('smartInterviewApp.views.send_candidate_interview_email_only')
+    def test_resend_candidate_interview_email_endpoint_rejects_inaccessible_interview(self, send_email_only_mock):
+        other_admin = User.objects.create_user(username='other-admin', password='pass1234', email='other-admin@example.com')
+        UserProfile.objects.create(user=other_admin, role='admin', phone='919111111110', gender='other')
+        other_candidate = User.objects.create_user(username='other-candidate', password='pass1234', email='other-candidate@example.com')
+        UserProfile.objects.create(user=other_candidate, role='candidate', phone='919111111119', gender='female', hr=other_admin)
+        other_interview = Interview.objects.create(
+            candidate=other_candidate,
+            recruiter=self.recruiter,
+            hr=other_admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
+
+        response = self.client.post(reverse('resend-candidate-interview-email'), data={
+            'interview_id': other_interview.id,
+        })
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.json()['Success'])
+        send_email_only_mock.assert_not_called()
+
     @patch('smartInterviewApp.views.send_existing_candidate_sms')
     @patch('smartInterviewApp.views.queue_scheduled_interview_processing')
     def test_schedule_workflow_sends_candidate_notification_and_queues_reminders(self, queue_processing_mock, send_existing_mock):
@@ -1706,6 +1817,116 @@ class InterviewReminderTests(TestCase):
         cancel_mock.assert_called_once()
 
 
+class CandidateEvaluationSummaryTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        existing_tables = set(connection.introspection.table_names())
+        cls._created_evaluation_table = AutoInterviewEvaluationResult._meta.db_table not in existing_tables
+        if cls._created_evaluation_table:
+            with connection.schema_editor() as schema_editor:
+                schema_editor.create_model(AutoInterviewEvaluationResult)
+
+    @classmethod
+    def tearDownClass(cls):
+        if getattr(cls, '_created_evaluation_table', False):
+            with connection.schema_editor() as schema_editor:
+                schema_editor.delete_model(AutoInterviewEvaluationResult)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.admin = User.objects.create_user(username='eval-admin', password='pass1234', email='eval-admin@example.com')
+        self.recruiter = User.objects.create_user(username='eval-recruiter', password='pass1234', email='eval-recruiter@example.com')
+        self.interviewer = User.objects.create_user(username='eval-interviewer', password='pass1234', email='eval-interviewer@example.com')
+        self.candidate = User.objects.create_user(username='eval-candidate', password='pass1234', email='eval-candidate@example.com')
+        UserProfile.objects.create(user=self.admin, role='admin', phone='919111111100', gender='other')
+        UserProfile.objects.create(user=self.recruiter, role='recruiter', phone='919111111101', gender='male', hr=self.admin)
+        UserProfile.objects.create(user=self.interviewer, role='interviewer', phone='919111111102', gender='female', hr=self.admin)
+        UserProfile.objects.create(user=self.candidate, role='candidate', phone='919111111103', gender='female', hr=self.admin)
+        self.role = Vacancies.objects.create(role='Backend Engineer', description='Role description', skills_required='Python')
+        self.interview = Interview.objects.create(
+            candidate=self.candidate,
+            recruiter=self.recruiter,
+            interviewer=self.interviewer,
+            hr=self.admin,
+            role=self.role,
+            interview_type='auto',
+            status='assessment_completed',
+        )
+        self.client.login(username='eval-admin', password='pass1234')
+
+    def test_candidate_evaluation_summary_endpoint_returns_saved_summary(self):
+        AutoInterviewEvaluationResult.objects.create(
+            interview_id=self.interview.id,
+            interview_token='auto-eval-123',
+            room_name='room-1',
+            candidate_name='Eval Candidate',
+            decision='STRONG_HIRE',
+            recommendation='Advance to next round',
+            score=86.50,
+            executive_summary='Strong backend depth with clear ownership on distributed systems.',
+            summary_verdict='Recommended for the next round.',
+            evaluation_payload={
+                'confidence': 'High',
+                'interview_signal_quality': 'Strong',
+                'strengths': ['Python fundamentals', 'System design'],
+                'concerns': ['Could improve testing examples'],
+                'gaps': ['Needs deeper Kubernetes exposure'],
+                'notes': ['Validated production incident handling'],
+                'follow_up_areas': ['Ask about platform observability ownership'],
+                'hire_recommendation': {
+                    'action': 'ADVANCE',
+                    'reason': 'Clear signal for backend ownership and technical depth.',
+                },
+            },
+        )
+
+        response = self.client.get(reverse('candidate-evaluation-summary', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['Data']['evaluation_summary']
+        self.assertTrue(payload['available'])
+        self.assertEqual(payload['decision'], 'STRONG_HIRE')
+        self.assertEqual(payload['recommendation'], 'Advance to next round')
+        self.assertEqual(payload['score'], 86.5)
+        self.assertEqual(payload['strengths'], ['Python fundamentals', 'System design'])
+        self.assertEqual(payload['hire_recommendation_action'], 'ADVANCE')
+
+    def test_candidate_profile_data_includes_evaluation_summary(self):
+        AutoInterviewEvaluationResult.objects.create(
+            interview_id=self.interview.id,
+            decision='HOLD',
+            recommendation='Review with panel',
+            score=71.00,
+            executive_summary='Some positive signals, but deeper validation is still needed.',
+            summary_verdict='Borderline result.',
+            evaluation_payload={
+                'strengths': ['Communication'],
+                'concerns': ['Limited depth on APIs'],
+            },
+        )
+
+        response = self.client.get(reverse('candidate-profile-data', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['Data']['evaluation_summary']
+        self.assertTrue(payload['available'])
+        self.assertEqual(payload['recommendation'], 'Review with panel')
+        self.assertEqual(payload['concerns'], ['Limited depth on APIs'])
+
+    def test_candidate_evaluation_summary_endpoint_rejects_inaccessible_interview(self):
+        other_admin = User.objects.create_user(username='eval-other-admin', password='pass1234', email='eval-other-admin@example.com')
+        other_candidate = User.objects.create_user(username='eval-other-candidate', password='pass1234', email='eval-other-candidate@example.com')
+        UserProfile.objects.create(user=other_admin, role='admin', phone='919111111104', gender='other')
+        UserProfile.objects.create(user=other_candidate, role='candidate', phone='919111111105', gender='female', hr=other_admin)
+        other_interview = Interview.objects.create(candidate=other_candidate, hr=other_admin, status='scheduled')
+
+        response = self.client.get(reverse('candidate-evaluation-summary', args=[other_interview.id]))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.json()['Success'])
+
+
 @override_settings(
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     DEFAULT_FROM_EMAIL='no-reply@example.com',
@@ -1736,14 +1957,14 @@ class ContactViewTests(TestCase):
         self.assertEqual(sent_message.from_email, 'no-reply@example.com')
 
     @override_settings(CONTACT_SUPPORT_EMAIL='support@example.com')
-    @patch('smartInterviewApp.views.send_mail', side_effect=RuntimeError('mail backend unavailable'))
-    def test_contact_form_mail_failure_returns_form_error(self, send_mail_mock):
+    @patch('smartInterviewApp.views.send_contact_notification_email', side_effect=RuntimeError('mail backend unavailable'))
+    def test_contact_form_mail_failure_returns_form_error(self, send_mock):
         response = self.client.post(reverse('contact'), data=self._contact_payload())
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'We could not send your message right now. Please email support@example.com directly.')
         self.assertEqual(len(mail.outbox), 0)
-        send_mail_mock.assert_called_once()
+        send_mock.assert_called_once()
 
     @override_settings(CONTACT_INBOX_EMAIL='sales@example.com')
     def test_contact_form_strips_newlines_from_subject_values(self):
@@ -1754,3 +1975,10 @@ class ContactViewTests(TestCase):
 
         self.assertRedirects(response, reverse('contact'))
         self.assertEqual(mail.outbox[0].subject, '[Shortlistii Contact] Support - Acme Corp')
+
+    @override_settings(CONTACT_INBOX_EMAIL='sales@example.com', DEFAULT_FROM_EMAIL=None)
+    def test_contact_form_uses_fallback_from_email_when_setting_is_none(self):
+        response = self.client.post(reverse('contact'), data=self._contact_payload())
+
+        self.assertRedirects(response, reverse('contact'))
+        self.assertEqual(mail.outbox[0].from_email, 'no-reply@shortlistii.com')

@@ -12,7 +12,6 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core import serializers
-from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -23,6 +22,7 @@ from django.db import transaction
 from .forms import ContactForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 
+from .emailing import send_contact_notification_email
 from .models import CompanyProfile, Interview
 from .commonViews import (
     build_litio_interview_link,
@@ -32,6 +32,7 @@ from .commonViews import (
     get_accessible_interviews,
     get_accessible_interviewer_profiles,
     publicJobsPortal,
+    send_candidate_interview_email_only,
     send_existing_candidate_sms,
 )
 from .services.company_enrichment import ensure_company_profile_for_user
@@ -245,31 +246,19 @@ def contact(request):
         inquiry_label = dict(ContactForm.INQUIRY_CHOICES).get(cleaned['inquiry_type'], 'General Inquiry')
         company_name = _single_line_value(cleaned['company_name']) or 'Unknown company'
         subject = f"[Shortlistii Contact] {inquiry_label} - {company_name}"
-        body = "\n".join(
-            [
-                f"Full Name: {cleaned['full_name']}",
-                f"Work Email: {cleaned['work_email']}",
-                f"Company Name: {cleaned['company_name']}",
-                f"Phone Number: {cleaned.get('phone_number') or 'Not provided'}",
-                f"Team Size: {dict(ContactForm.TEAM_SIZE_CHOICES).get(cleaned.get('team_size') or '', 'Not provided')}",
-                f"Inquiry Type: {inquiry_label}",
-                "",
-                "Message:",
-                cleaned['message'],
-            ]
-        )
-
         try:
-            send_mail(
-                subject,
-                body,
-                getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@smartinterview.local'),
-                [inbox_email],
-                fail_silently=False,
-                reply_to=[cleaned['work_email']],
+            send_contact_notification_email(
+                request,
+                cleaned_data={
+                    **cleaned,
+                    'team_size_label': dict(ContactForm.TEAM_SIZE_CHOICES).get(cleaned.get('team_size') or '', 'Not provided'),
+                },
+                inquiry_label=inquiry_label,
+                company_name=company_name,
+                inbox_email=inbox_email,
+                subject=subject,
             )
         except Exception:
-            logger.exception('Failed to send contact form email.')
             form.add_error(None, f'We could not send your message right now. Please email {support_email} directly.')
         else:
             messages.success(
@@ -984,6 +973,32 @@ def updateInterviewWorkflow(request):
             "notifications": notifications,
         }
     })
+
+
+@csrf_exempt
+@login_required
+def resendCandidateInterviewEmail(request):
+    if request.method != 'POST':
+        return JsonResponse({"Success": False, "Error": "Only POST is allowed."}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+        return JsonResponse({"Success": False, "Error": "Dashboard access is restricted."}, status=403)
+
+    try:
+        interview_id = int(request.POST.get('interview_id') or 0)
+    except (TypeError, ValueError):
+        return JsonResponse({"Success": False, "Error": "Interview selection is invalid."}, status=400)
+
+    interview = get_accessible_interviews(request.user).filter(id=interview_id).first()
+    if not interview:
+        return JsonResponse({"Success": False, "Error": "Candidate interview is not accessible."}, status=403)
+
+    result = send_candidate_interview_email_only(request, interview)
+    if not result.get('sent'):
+        return JsonResponse({"Success": False, "Error": result.get('reason') or 'Email delivery failed.', "Data": result}, status=502)
+
+    return JsonResponse({"Success": True, "Error": None, "Data": result}, status=200)
 
 
 @csrf_exempt

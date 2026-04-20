@@ -193,6 +193,8 @@ class Interview(models.Model):
     date = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='scheduled')
     litio_interview_token = models.CharField(max_length=80, unique=True, null=True, blank=True, db_index=True)
+    candidate_signup_token = models.CharField(max_length=80, unique=True, null=True, blank=True, db_index=True)
+    candidate_signup_token_created_at = models.DateTimeField(null=True, blank=True)
     hired_at = models.DateTimeField(null=True, blank=True)
     score = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recording_url = models.URLField(blank=True, null=True)
@@ -512,6 +514,39 @@ class CandidateInsightSnapshot(models.Model):
 
     def __str__(self):
         return f"Insight snapshot for {self.candidate.username} ({self.status})"
+
+
+class AutoInterviewEvaluationResult(models.Model):
+    interview = models.OneToOneField(
+        'Interview',
+        on_delete=models.DO_NOTHING,
+        related_name='auto_interview_evaluation_result',
+        db_column='interview_id',
+        primary_key=False,
+    )
+    interview_token = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    room_name = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    candidate_name = models.CharField(max_length=160, blank=True, default='')
+    decision = models.CharField(max_length=40, blank=True, default='', db_index=True)
+    recommendation = models.CharField(max_length=80, blank=True, default='')
+    score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    executive_summary = models.TextField(blank=True, default='')
+    summary_verdict = models.TextField(blank=True, default='')
+    evaluation_payload = models.JSONField(default=dict, blank=True)
+    conversation_payload = models.JSONField(default=list, blank=True)
+    early_exit = models.BooleanField(default=False, db_index=True)
+    early_exit_reason = models.CharField(max_length=160, blank=True, default='')
+    trace_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        managed = False
+        db_table = 'conference_autointerviewevaluationresult'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Auto interview evaluation <{self.interview_id}>"
 
 
 # Notification table
