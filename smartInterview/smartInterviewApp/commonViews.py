@@ -1,3 +1,4 @@
+import ast
 import base64
 import csv
 import hashlib
@@ -55,7 +56,7 @@ from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from smartInterviewApp.services.interview_calls import InterviewCallService
-from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateSavedVacancy, CandidateVacancyApplication, InterviewCallSession
+from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, InterviewCallSession
 from .templatetags.host_links import build_host_link
 
 
@@ -968,6 +969,9 @@ def extract_resume_section_text(section: dict) -> str:
 
 def normalize_public_section_item(item):
     if isinstance(item, str):
+        parsed_item = _parse_serialized_section_item(item)
+        if isinstance(parsed_item, dict):
+            return normalize_public_section_item(parsed_item)
         text = item.strip()
         if not text:
             return ''
@@ -994,6 +998,12 @@ def normalize_public_section_item(item):
         }
     if not isinstance(item, dict):
         return ''
+
+    parsed_description = _parse_serialized_section_item(item.get('description'))
+    if isinstance(parsed_description, dict):
+        merged_item = dict(parsed_description)
+        merged_item.update({key: value for key, value in item.items() if key != 'description'})
+        item = merged_item
 
     details = item.get('details') or item.get('bullets') or []
     if not isinstance(details, list):
@@ -1034,6 +1044,22 @@ def normalize_public_section_item(item):
     return normalized
 
 
+def _parse_serialized_section_item(value):
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text or text[0] not in '{[':
+        return None
+    for parser in (json.loads, ast.literal_eval):
+        try:
+            parsed = parser(text)
+        except (ValueError, SyntaxError, TypeError):
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
 def build_public_resume_context(request, candidate: User) -> dict:
     profile = getattr(candidate, 'profile', None)
     latest_resume = (
@@ -1048,8 +1074,8 @@ def build_public_resume_context(request, candidate: User) -> dict:
     profile_picture_data_url = ''
     if profile and profile.profile_picture:
         try:
-            mime_type, _ = mimetypes.guess_type(profile.profile_picture.path)
-            with open(profile.profile_picture.path, 'rb') as image_handle:
+            mime_type, _ = mimetypes.guess_type(profile.profile_picture.name or '')
+            with profile.profile_picture.open('rb') as image_handle:
                 encoded = base64.b64encode(image_handle.read()).decode('ascii')
             profile_picture_data_url = f"data:{mime_type or 'image/jpeg'};base64,{encoded}"
         except Exception:
@@ -1104,6 +1130,273 @@ def build_public_resume_context(request, candidate: User) -> dict:
             'share_url': share_url,
             'word_url': request.build_absolute_uri(reverse('public-candidate-resume-word', args=[public_resume.short_code])),
             'pdf_url': request.build_absolute_uri(reverse('public-candidate-resume-pdf', args=[public_resume.short_code])),
+        },
+    }
+
+
+def _resume_builder_default_payload(user: User, profile: UserProfile) -> dict:
+    return {
+        'basics': {
+            'name': f"{user.first_name} {user.last_name}".strip().title() or user.username,
+            'email': user.email or '',
+            'phone': profile.phone or '',
+            'location': '',
+            'headline': '',
+            'summary': '',
+            'website': '',
+            'linkedin': '',
+            'github': '',
+            'portfolio': '',
+        },
+        'skills': [],
+        'experience': [],
+        'projects': [],
+        'education': [],
+        'certifications': [],
+        'achievements': [],
+        'languages': [],
+    }
+
+
+def _resume_builder_clean_text(value, limit: int = 255) -> str:
+    return str(value or '').strip()[:limit]
+
+
+def _resume_builder_clean_list(values, *, limit: int = 12, item_limit: int = 80) -> list[str]:
+    if isinstance(values, str):
+        source_items = re.split(r'[\n,]+', values)
+    elif isinstance(values, list):
+        source_items = values
+    else:
+        source_items = []
+    cleaned: list[str] = []
+    for value in source_items:
+        text = _resume_builder_clean_text(value, item_limit)
+        if text and text not in cleaned:
+            cleaned.append(text)
+        if len(cleaned) >= limit:
+            break
+    return cleaned
+
+
+def _resume_builder_clean_items(values, *, limit: int = 8) -> list[dict]:
+    if not isinstance(values, list):
+        return []
+    cleaned_items: list[dict] = []
+    for value in values[:limit]:
+        normalized = normalize_public_section_item(value)
+        if not normalized:
+            continue
+        item = {
+            'title': _resume_builder_clean_text(normalized.get('title'), 180),
+            'degree': _resume_builder_clean_text(normalized.get('degree'), 180),
+            'label': _resume_builder_clean_text(normalized.get('label'), 180),
+            'value': _resume_builder_clean_text(normalized.get('value'), 220),
+            'company': _resume_builder_clean_text(normalized.get('company'), 180),
+            'institution': _resume_builder_clean_text(normalized.get('institution'), 180),
+            'issuer': _resume_builder_clean_text(normalized.get('issuer'), 180),
+            'location': _resume_builder_clean_text(normalized.get('location'), 180),
+            'role': _resume_builder_clean_text(normalized.get('role'), 180),
+            'description': _resume_builder_clean_text(normalized.get('description'), 1200),
+            'duration': _resume_builder_clean_text(normalized.get('duration'), 120),
+            'duration_text': _resume_builder_clean_text(normalized.get('duration_text'), 120),
+            'start_date': _resume_builder_clean_text(normalized.get('start_date'), 40),
+            'end_date': _resume_builder_clean_text(normalized.get('end_date'), 40),
+            'employment_type': _resume_builder_clean_text(normalized.get('employment_type'), 80),
+            'is_current': bool(normalized.get('is_current')),
+            'tech_stack': _resume_builder_clean_list(normalized.get('tech_stack'), limit=12, item_limit=60),
+            'details': _resume_builder_clean_list(normalized.get('details'), limit=8, item_limit=240),
+            'notes': _resume_builder_clean_list(normalized.get('notes'), limit=6, item_limit=180),
+        }
+        if any(item.get(key) for key in ('title', 'degree', 'label', 'value', 'company', 'institution', 'issuer', 'location', 'role', 'description', 'duration')) or item['tech_stack'] or item['details'] or item['notes']:
+            cleaned_items.append(item)
+    return cleaned_items
+
+
+def _resume_builder_filter_section_items(items: list[dict], *, section_key: str) -> list[dict]:
+    if section_key == 'projects':
+        return [
+            item for item in items
+            if any(item.get(key) for key in ('title', 'company', 'description', 'value', 'label'))
+        ]
+    if section_key == 'education':
+        return [
+            item for item in items
+            if any(item.get(key) for key in ('degree', 'institution', 'description', 'value', 'label'))
+        ]
+    return items
+
+
+def _resume_builder_extract_items(resume_data: dict, keys: set[str]) -> list[dict]:
+    for section in (resume_data.get('sections') or []):
+        section_key = str(section.get('section_key') or '').strip().lower()
+        if section_key in keys:
+            return _resume_builder_clean_items((section.get('content') or {}).get('items') or section.get('items') or [])
+    return []
+
+
+def _resume_builder_extract_links(contact_links) -> dict[str, str]:
+    resolved = {
+        'website': '',
+        'linkedin': '',
+        'github': '',
+        'portfolio': '',
+    }
+    if not isinstance(contact_links, list):
+        return resolved
+    for entry in contact_links:
+        if isinstance(entry, dict):
+            label = _resume_builder_clean_text(entry.get('label') or entry.get('title') or entry.get('type') or '', 80).lower()
+            value = _resume_builder_clean_text(entry.get('url') or entry.get('value') or entry.get('href') or '', 255)
+        else:
+            label = str(entry or '').strip().lower()
+            value = _resume_builder_clean_text(entry, 255)
+        if not value:
+            continue
+        if 'linkedin' in label or 'linkedin.com' in value.lower():
+            resolved['linkedin'] = resolved['linkedin'] or value
+        elif 'github' in label or 'github.com' in value.lower():
+            resolved['github'] = resolved['github'] or value
+        elif 'portfolio' in label or 'behance' in value.lower() or 'dribbble' in value.lower():
+            resolved['portfolio'] = resolved['portfolio'] or value
+        else:
+            resolved['website'] = resolved['website'] or value
+    return resolved
+
+
+def build_resume_builder_payload(user: User, profile: UserProfile) -> dict:
+    draft = getattr(user, 'resume_builder_draft', None)
+    if draft and isinstance(draft.payload, dict) and draft.payload:
+        return sanitize_resume_builder_payload(draft.payload, user=user, profile=profile)
+
+    payload = _resume_builder_default_payload(user, profile)
+    latest_resume = (
+        CandidateResume.objects
+        .filter(candidate=user, is_active=True)
+        .prefetch_related('sections')
+        .first()
+    )
+    if not latest_resume:
+        return payload
+
+    resume_data = ResumeProcessingService().serialize_resume(latest_resume)
+    contact = resume_data.get('contact') or {}
+    link_values = _resume_builder_extract_links(contact.get('links') or [])
+    payload['basics'].update({
+        'name': _resume_builder_clean_text(contact.get('name') or payload['basics']['name'], 180),
+        'email': _resume_builder_clean_text(contact.get('email') or resume_data.get('email') or payload['basics']['email'], 180),
+        'phone': _resume_builder_clean_text(contact.get('phone') or resume_data.get('phone') or payload['basics']['phone'], 40),
+        'location': _resume_builder_clean_text(contact.get('location') or resume_data.get('location') or '', 180),
+        'headline': _resume_builder_clean_text(resume_data.get('headline'), 180),
+        'summary': _resume_builder_clean_text(resume_data.get('summary') or resume_data.get('objective'), 2000),
+        'website': link_values['website'],
+        'linkedin': link_values['linkedin'],
+        'github': link_values['github'],
+        'portfolio': link_values['portfolio'],
+    })
+    payload['skills'] = _resume_builder_clean_list(resume_data.get('skills'), limit=24, item_limit=80)
+    payload['experience'] = _resume_builder_filter_section_items(_resume_builder_clean_items(
+        resume_data.get('experience') or _resume_builder_extract_items(resume_data, {'experience', 'work_history', 'professional_experience'}),
+        limit=8,
+    ), section_key='experience')
+    payload['projects'] = _resume_builder_filter_section_items(_resume_builder_clean_items(
+        resume_data.get('projects') or _resume_builder_extract_items(resume_data, {'projects', 'project'}),
+        limit=6,
+    ), section_key='projects')
+    payload['education'] = _resume_builder_filter_section_items(_resume_builder_clean_items(
+        resume_data.get('education') or _resume_builder_extract_items(resume_data, {'education', 'academics'}),
+        limit=5,
+    ), section_key='education')
+    payload['certifications'] = _resume_builder_filter_section_items(_resume_builder_clean_items(
+        resume_data.get('certifications') or _resume_builder_extract_items(resume_data, {'certifications', 'licenses'}),
+        limit=6,
+    ), section_key='certifications')
+    payload['achievements'] = _resume_builder_filter_section_items(_resume_builder_clean_items(
+        resume_data.get('achievements') or _resume_builder_extract_items(resume_data, {'achievements', 'awards'}),
+        limit=6,
+    ), section_key='achievements')
+    payload['languages'] = _resume_builder_filter_section_items(_resume_builder_clean_items(
+        resume_data.get('languages') or _resume_builder_extract_items(resume_data, {'languages'}),
+        limit=6,
+    ), section_key='languages')
+    return payload
+
+
+def sanitize_resume_builder_payload(raw_payload, *, user: User, profile: UserProfile) -> dict:
+    if not isinstance(raw_payload, dict):
+        raw_payload = {}
+    defaults = _resume_builder_default_payload(user, profile)
+    basics = raw_payload.get('basics') if isinstance(raw_payload.get('basics'), dict) else {}
+    defaults['basics'].update({
+        'name': _resume_builder_clean_text(basics.get('name') or defaults['basics']['name'], 180),
+        'email': _resume_builder_clean_text(basics.get('email') or defaults['basics']['email'], 180),
+        'phone': _resume_builder_clean_text(basics.get('phone') or defaults['basics']['phone'], 40),
+        'location': _resume_builder_clean_text(basics.get('location'), 180),
+        'headline': _resume_builder_clean_text(basics.get('headline'), 180),
+        'summary': _resume_builder_clean_text(basics.get('summary'), 2000),
+        'website': _resume_builder_clean_text(basics.get('website'), 255),
+        'linkedin': _resume_builder_clean_text(basics.get('linkedin'), 255),
+        'github': _resume_builder_clean_text(basics.get('github'), 255),
+        'portfolio': _resume_builder_clean_text(basics.get('portfolio'), 255),
+    })
+    defaults['skills'] = _resume_builder_clean_list(raw_payload.get('skills'), limit=24, item_limit=80)
+    defaults['experience'] = _resume_builder_filter_section_items(_resume_builder_clean_items(raw_payload.get('experience'), limit=8), section_key='experience')
+    defaults['projects'] = _resume_builder_filter_section_items(_resume_builder_clean_items(raw_payload.get('projects'), limit=6), section_key='projects')
+    defaults['education'] = _resume_builder_filter_section_items(_resume_builder_clean_items(raw_payload.get('education'), limit=5), section_key='education')
+    defaults['certifications'] = _resume_builder_filter_section_items(_resume_builder_clean_items(raw_payload.get('certifications'), limit=6), section_key='certifications')
+    defaults['achievements'] = _resume_builder_filter_section_items(_resume_builder_clean_items(raw_payload.get('achievements'), limit=6), section_key='achievements')
+    defaults['languages'] = _resume_builder_filter_section_items(_resume_builder_clean_items(raw_payload.get('languages'), limit=6), section_key='languages')
+    return defaults
+
+
+def build_resume_builder_export_context(request, user: User, profile: UserProfile, payload: dict) -> dict:
+    basics = payload.get('basics') or {}
+    experience_section = payload.get('experience') or []
+    education_section = payload.get('education') or []
+    sections = [
+        {'title': 'Experience', 'section_key': 'experience', 'text': '', 'items': experience_section},
+        {'title': 'Projects', 'section_key': 'projects', 'text': '', 'items': payload.get('projects') or []},
+        {'title': 'Education', 'section_key': 'education', 'text': '', 'items': education_section},
+        {'title': 'Certifications', 'section_key': 'certifications', 'text': '', 'items': payload.get('certifications') or []},
+        {'title': 'Achievements', 'section_key': 'achievements', 'text': '', 'items': payload.get('achievements') or []},
+        {'title': 'Languages', 'section_key': 'languages', 'text': '', 'items': payload.get('languages') or []},
+    ]
+    sections = [section for section in sections if section['items']]
+    current_title = ''
+    current_company = ''
+    if experience_section:
+        current_title = experience_section[0].get('title') or experience_section[0].get('role') or ''
+        current_company = experience_section[0].get('company') or ''
+
+    return {
+        'candidate': {
+            'name': basics.get('name') or (f"{user.first_name} {user.last_name}".strip().title() or user.username),
+            'email': basics.get('email') or user.email,
+            'phone': basics.get('phone') or profile.phone or '',
+            'gender': (profile.gender or '').title() if profile.gender else '',
+            'profile_picture_url': '',
+            'profile_picture_data_url': '',
+        },
+        'resume': {
+            'headline': basics.get('headline') or '',
+            'summary': basics.get('summary') or '',
+            'skills': payload.get('skills') or [],
+            'sections': sections,
+            'processed_at': timezone.now().isoformat(),
+            'source_file': 'Resume Builder',
+        },
+        'highlights': {
+            'experience_years': None,
+            'current_title': current_title,
+            'current_company': current_company,
+            'experience_preview': sections[0] if sections else None,
+            'education_preview': next((section for section in sections if section.get('section_key') == 'education'), None),
+        },
+        'share': {
+            'short_code': '',
+            'share_url': '',
+            'word_url': '',
+            'pdf_url': '',
         },
     }
 
@@ -2672,6 +2965,104 @@ def candidateDashboard(request):
         profile_saved=profile_saved,
         profile_error=profile_error,
     ))
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilder(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'candidate':
+        logout(request)
+        return redirect('candidate-login')
+
+    draft, _ = CandidateResumeBuilderDraft.objects.get_or_create(candidate=request.user)
+
+    if request.method == 'POST':
+        payload_text = request.POST.get('payload', '')
+        try:
+            raw_payload = json.loads(payload_text or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'Success': False, 'Error': 'Invalid resume builder payload.'}, status=400)
+
+        sanitized_payload = sanitize_resume_builder_payload(raw_payload, user=request.user, profile=profile)
+        draft.payload = sanitized_payload
+        draft.save(update_fields=['payload', 'updated_at'])
+        return JsonResponse({
+            'Success': True,
+            'Error': None,
+            'Data': {
+                'payload': sanitized_payload,
+                'updated_at': draft.updated_at.isoformat(),
+            },
+        })
+
+    builder_payload = build_resume_builder_payload(request.user, profile)
+    if not draft.payload:
+        draft.payload = builder_payload
+        draft.save(update_fields=['payload', 'updated_at'])
+    else:
+        builder_payload = sanitize_resume_builder_payload(draft.payload, user=request.user, profile=profile)
+
+    return render(request, 'smartInterview/resume_builder.html', {
+        'candidate': {
+            'name': f"{request.user.first_name} {request.user.last_name}".strip().title() or request.user.username,
+            'email': request.user.email or '',
+            'profile_picture_url': request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else '',
+            'resume_builder_url': reverse('candidate-resume-builder'),
+        },
+        'resume_builder_payload': builder_payload,
+        'resume_builder_updated_at': draft.updated_at.isoformat() if draft.updated_at else '',
+    })
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilderWord(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'candidate':
+        raise Http404('Candidate profile not found.')
+
+    payload = build_resume_builder_payload(request.user, profile)
+    context = build_resume_builder_export_context(request, request.user, profile, payload)
+    try:
+        document_rtf = build_resume_export_rtf(context)
+        document_bytes = render_word_document_from_rtf(document_rtf)
+    except Exception:
+        fallback_html = build_resume_export_html(context, '')
+        document_bytes = render_word_document_from_html(fallback_html)
+    filename = f"{context['candidate']['name'].replace(' ', '_').lower() or 'candidate'}_builder_resume.doc"
+    response = HttpResponse(document_bytes, content_type='application/msword')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilderPdf(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'candidate':
+        raise Http404('Candidate profile not found.')
+
+    payload = build_resume_builder_payload(request.user, profile)
+    context = build_resume_builder_export_context(request, request.user, profile, payload)
+    title = f"{context['candidate']['name']} Resume".strip()
+    chrome_html = render_to_string(
+        'smartInterview/public_candidate_resume.html',
+        {
+            **context,
+            'export_mode': 'pdf',
+            'print_mode': True,
+        },
+    )
+    renderer = 'fallback-text'
+    try:
+        pdf_bytes, renderer = render_pdf_with_chrome(chrome_html)
+    except Exception:
+        lines = build_resume_export_lines(context)
+        lines.extend(['', 'Renderer hint: fallback-text'])
+        pdf_bytes = render_pdf_from_text(lines, title)
+    filename = f"{context['candidate']['name'].replace(' ', '_').lower() or 'candidate'}_builder_resume.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response['X-Resume-PDF-Renderer'] = renderer
+    return response
 
 
 @login_required(login_url='candidate-login')

@@ -78,7 +78,35 @@ INSTALLED_APPS = [
     'rest_framework',
     'smartInterviewApp',
     'angular',
+    'storages',
 ]
+
+GS_BUCKET_NAME = os.getenv("GS_BUCKET_NAME", "")
+GS_PROJECT_ID = os.getenv("GS_PROJECT_ID", "").strip() or None
+GS_DEFAULT_ACL = None
+GS_QUERYSTRING_AUTH = os.getenv("GS_QUERYSTRING_AUTH", "True").strip().lower() in {'1', 'true', 'yes', 'on'}
+GS_FILE_OVERWRITE = os.getenv("GS_FILE_OVERWRITE", "False").strip().lower() in {'1', 'true', 'yes', 'on'}
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+if GS_BUCKET_NAME:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "OPTIONS": {
+            "bucket_name": GS_BUCKET_NAME,
+            "project_id": GS_PROJECT_ID,
+            "default_acl": GS_DEFAULT_ACL,
+            "file_overwrite": GS_FILE_OVERWRITE,
+            "querystring_auth": GS_QUERYSTRING_AUTH,
+        },
+    }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
