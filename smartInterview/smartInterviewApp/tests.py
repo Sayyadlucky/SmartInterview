@@ -1892,7 +1892,7 @@ class CandidateEvaluationSummaryTests(TestCase):
         self.assertEqual(payload['strengths'], ['Python fundamentals', 'System design'])
         self.assertEqual(payload['hire_recommendation_action'], 'ADVANCE')
 
-    def test_candidate_profile_data_includes_evaluation_summary(self):
+    def test_candidate_profile_data_excludes_interview_evaluation_summary(self):
         AutoInterviewEvaluationResult.objects.create(
             interview_id=self.interview.id,
             decision='HOLD',
@@ -1909,10 +1909,7 @@ class CandidateEvaluationSummaryTests(TestCase):
         response = self.client.get(reverse('candidate-profile-data', args=[self.interview.id]))
 
         self.assertEqual(response.status_code, 200)
-        payload = response.json()['Data']['evaluation_summary']
-        self.assertTrue(payload['available'])
-        self.assertEqual(payload['recommendation'], 'Review with panel')
-        self.assertEqual(payload['concerns'], ['Limited depth on APIs'])
+        self.assertNotIn('evaluation_summary', response.json()['Data'])
 
     def test_candidate_evaluation_summary_endpoint_rejects_inaccessible_interview(self):
         other_admin = User.objects.create_user(username='eval-other-admin', password='pass1234', email='eval-other-admin@example.com')

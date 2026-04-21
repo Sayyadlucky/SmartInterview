@@ -4358,8 +4358,6 @@ def getCandidateProfileData(request, interview_id: int):
         public_resume = CandidatePublicResume.objects.filter(candidate=interview.candidate, is_active=True).first()
         resume_data['file_url'] = build_file_url(getattr(profile, 'resume', None))
         candidate_name = get_display_name(interview.candidate)
-        evaluation_summary = build_auto_interview_evaluation_summary(interview)
-
         return JsonResponse({
             'Success': True,
             'Error': None,
@@ -4398,7 +4396,6 @@ def getCandidateProfileData(request, interview_id: int):
                 },
                 'insights': CandidateInsightService().serialize_snapshot(insight_snapshot),
                 'resume': resume_data,
-                'evaluation_summary': evaluation_summary,
             }
         })
     except Exception as e:

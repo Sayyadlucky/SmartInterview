@@ -169,6 +169,14 @@ interface CandidateEvaluationSummary {
   created_at: string;
 }
 
+interface WorkspaceTourStep {
+  key: string;
+  title: string;
+  description: string;
+  selector?: string;
+  padding?: number;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -234,6 +242,11 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   evaluationSummaryError = '';
   evaluationSummaryCandidate: any | null = null;
   evaluationSummary: CandidateEvaluationSummary = this.createEmptyEvaluationSummary();
+  workspaceTourOpen = false;
+  workspaceTourSteps: WorkspaceTourStep[] = [];
+  workspaceTourIndex = 0;
+  workspaceTourSpotlightStyle: Record<string, string> = {};
+  workspaceTourTooltipStyle: Record<string, string> = {};
   @ViewChild('mobileNavPanel') mobileNavPanelRef?: ElementRef<HTMLElement>;
   @ViewChild('mobileNavToggleButton') mobileNavToggleButtonRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('companyModalCard') companyModalCardRef?: ElementRef<HTMLElement>;
@@ -241,6 +254,9 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private applicationIdsSeen = new Set<number>();
   private applicationPollTimer: ReturnType<typeof setInterval> | null = null;
   private applicationToastTimer: ReturnType<typeof setTimeout> | null = null;
+  private workspaceTourTimer: ReturnType<typeof setTimeout> | null = null;
+  private workspaceTourTargetElement: HTMLElement | null = null;
+  private readonly workspaceTourAutoShowLimit = 5;
   private previousFocusedElement: HTMLElement | null = null;
   private mobileNavPreviousFocusedElement: HTMLElement | null = null;
   private bodyScrollLocked = false;
@@ -343,11 +359,34 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this.applicationToastTimer);
       this.applicationToastTimer = null;
     }
+    if (this.workspaceTourTimer) {
+      clearTimeout(this.workspaceTourTimer);
+      this.workspaceTourTimer = null;
+    }
+    this.clearWorkspaceTourTarget();
     this.unlockBodyScroll();
   }
 
   @HostListener('document:keydown', ['$event'])
   handleDocumentKeydown(event: KeyboardEvent): void {
+    if (this.workspaceTourOpen) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeWorkspaceTour();
+        return;
+      }
+      if (event.key === 'ArrowRight' || event.key === 'Enter') {
+        event.preventDefault();
+        this.nextWorkspaceTourStep();
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.previousWorkspaceTourStep();
+        return;
+      }
+    }
+
     if (event.key === 'Escape') {
       if (this.evaluationSummaryModalOpen) {
         event.preventDefault();
@@ -392,6 +431,20 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     this.closeInterviewLinkMenu();
+  }
+
+  @HostListener('window:resize')
+  handleWindowResize(): void {
+    if (this.workspaceTourOpen) {
+      this.updateWorkspaceTourLayout();
+    }
+  }
+
+  @HostListener('window:scroll')
+  handleWindowScroll(): void {
+    if (this.workspaceTourOpen) {
+      this.updateWorkspaceTourLayout();
+    }
   }
 
   toggleMobileNav(): void {
@@ -451,13 +504,289 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
             loginUserRole: this.loginUserRole,
             companyProfile: this.companyProfile,
           });
-          this.hydrateCompanyViewModel();
-          this.lastUpdatedAt = new Date();
-          this.assign_status();
-          // Render chart after data is loaded and view is initialized
-          setTimeout(() => this.renderChart(), 5);
-        }
-      });
+        this.hydrateCompanyViewModel();
+        this.lastUpdatedAt = new Date();
+        this.assign_status();
+        this.queueWorkspaceTour();
+        // Render chart after data is loaded and view is initialized
+        setTimeout(() => this.renderChart(), 5);
+      }
+    });
+  }
+
+  get currentWorkspaceTourStep(): WorkspaceTourStep | null {
+    return this.workspaceTourSteps[this.workspaceTourIndex] || null;
+  }
+
+  get isWorkspaceTourFirstStep(): boolean {
+    return this.workspaceTourIndex === 0;
+  }
+
+  get isWorkspaceTourLastStep(): boolean {
+    return this.workspaceTourIndex >= this.workspaceTourSteps.length - 1;
+  }
+
+  replayWorkspaceTour(): void {
+    this.startWorkspaceTour(true);
+  }
+
+  private queueWorkspaceTour(): void {
+    if (typeof window === 'undefined' || this.workspaceTourOpen || !this.shouldAutoShowWorkspaceTour()) {
+      return;
+    }
+    if (this.workspaceTourTimer) {
+      clearTimeout(this.workspaceTourTimer);
+    }
+    this.workspaceTourTimer = window.setTimeout(() => {
+      this.workspaceTourTimer = null;
+      this.startWorkspaceTour(false);
+    }, 450);
+  }
+
+  private buildWorkspaceTourSteps(): WorkspaceTourStep[] {
+    return [
+      {
+        key: 'welcome',
+        title: `Getting Started with Shortlistii`,
+        description: `Welcome, ${this.loginUser || 'there'}. This guide walks through the core operating flow for your workspace so your team can move from role creation to candidate review with a clean, consistent process.`
+      },
+      {
+        key: 'post-job',
+        title: '1. Post a Job',
+        description: 'Create the job posting first to establish the hiring requirement, align stakeholders on the role, and anchor every downstream candidate and interview action to the correct opening.',
+        selector: '[data-tour="post-job"]',
+        padding: 10
+      },
+      {
+        key: 'assign-candidate',
+        title: '2. Assign Candidate',
+        description: 'Add candidates into the active workflow and attach them to the appropriate recruiter, evaluator, and role so ownership and pipeline tracking stay clean from the start.',
+        selector: '[data-tour="assign-candidate"]',
+        padding: 10
+      },
+      {
+        key: 'schedule-interview',
+        title: '3. Schedule Interview',
+        description: 'Schedule interviews here to move shortlisted candidates into an execution-ready stage with clear timing, interviewer alignment, and workflow visibility.',
+        selector: '[data-tour="schedule-interview"]',
+        padding: 10
+      },
+      {
+        key: 'candidate-details',
+        title: '4. Review Candidate Summary',
+        description: 'Use the candidate details view to review profile context, role mapping, evaluation signal, and the next recommended action before advancing the candidate.',
+        selector: '[data-tour="candidate-details"]',
+        padding: 12
+      },
+      {
+        key: 'pending-requests',
+        title: '5. Check Pending Requests',
+        description: 'Monitor inbound candidate requests here and review them before they are admitted into the structured hiring workflow.',
+        selector: '[data-tour="pending-requests"]',
+        padding: 10
+      },
+      {
+        key: 'bulk-assign',
+        title: '6. Bulk Assign Evaluators',
+        description: 'Use bulk assignment to distribute evaluators across multiple candidates efficiently when hiring volume increases or a role moves into active review.',
+        selector: '[data-tour="bulk-assign"]',
+        padding: 10
+      },
+      {
+        key: 'export-data',
+        title: '7. Download or Export Data',
+        description: 'Export the current candidate view in a shareable format whenever you need to circulate pipeline status, archive activity, or prepare stakeholder reporting.',
+        selector: '[data-tour="export-data"]',
+        padding: 10
+      }
+    ].filter((step) => !step.selector || !!document.querySelector(step.selector));
+  }
+
+  private startWorkspaceTour(force: boolean): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (!force && !this.shouldAutoShowWorkspaceTour()) {
+      return;
+    }
+    if (this.activeTab !== 'overview') {
+      this.setActiveTab('overview', { updateUrl: false });
+    }
+    this.closePendingRequestsModal();
+    this.closeInterviewLinkMenu();
+    this.workspaceTourSteps = this.buildWorkspaceTourSteps();
+    if (!this.workspaceTourSteps.length) {
+      return;
+    }
+    if (!force) {
+      this.incrementWorkspaceTourAutoShowCount();
+    }
+    this.workspaceTourOpen = true;
+    this.workspaceTourIndex = 0;
+    this.syncWorkspaceTourStep();
+  }
+
+  closeWorkspaceTour(): void {
+    this.workspaceTourOpen = false;
+    this.workspaceTourSpotlightStyle = {};
+    this.workspaceTourTooltipStyle = {};
+    this.clearWorkspaceTourTarget();
+  }
+
+  previousWorkspaceTourStep(): void {
+    if (!this.workspaceTourOpen || this.isWorkspaceTourFirstStep) {
+      return;
+    }
+    this.workspaceTourIndex -= 1;
+    this.syncWorkspaceTourStep();
+  }
+
+  nextWorkspaceTourStep(): void {
+    if (!this.workspaceTourOpen) {
+      return;
+    }
+    if (this.isWorkspaceTourLastStep) {
+      this.closeWorkspaceTour();
+      return;
+    }
+    this.workspaceTourIndex += 1;
+    this.syncWorkspaceTourStep();
+  }
+
+  private syncWorkspaceTourStep(): void {
+    const step = this.currentWorkspaceTourStep;
+    if (!step) {
+      this.closeWorkspaceTour();
+      return;
+    }
+    this.clearWorkspaceTourTarget();
+    if (!step.selector) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.setTimeout(() => this.updateWorkspaceTourLayout(), 80);
+      return;
+    }
+    const target = document.querySelector(step.selector) as HTMLElement | null;
+    if (!target) {
+      this.nextWorkspaceTourStep();
+      return;
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    window.setTimeout(() => this.updateWorkspaceTourLayout(), 220);
+  }
+
+  private updateWorkspaceTourLayout(): void {
+    const step = this.currentWorkspaceTourStep;
+    if (!step) {
+      return;
+    }
+    if (!step.selector) {
+      this.workspaceTourSpotlightStyle = {};
+      this.workspaceTourTooltipStyle = {
+        width: 'min(360px, calc(100vw - 32px))',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)'
+      };
+      return;
+    }
+
+    const target = document.querySelector(step.selector) as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    this.setWorkspaceTourTarget(target);
+
+    const rect = target.getBoundingClientRect();
+    const padding = step.padding ?? 12;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const tooltipWidth = Math.min(360, viewportWidth - 32);
+    const tooltipHeight = viewportWidth <= 720 ? 224 : 212;
+    const spotlightTop = Math.max(8, rect.top - padding);
+    const spotlightLeft = Math.max(8, rect.left - padding);
+    const spotlightWidth = Math.min(viewportWidth - spotlightLeft - 8, rect.width + padding * 2);
+    const spotlightHeight = Math.min(viewportHeight - spotlightTop - 8, rect.height + padding * 2);
+
+    this.workspaceTourSpotlightStyle = {
+      top: `${spotlightTop}px`,
+      left: `${spotlightLeft}px`,
+      width: `${spotlightWidth}px`,
+      height: `${spotlightHeight}px`
+    };
+
+    if (viewportWidth <= 720) {
+      this.workspaceTourTooltipStyle = {
+        width: `${tooltipWidth}px`,
+        left: '50%',
+        bottom: '16px',
+        transform: 'translateX(-50%)'
+      };
+      return;
+    }
+
+    const preferredTop = rect.bottom + 18;
+    const fallbackTop = rect.top - tooltipHeight - 18;
+    const top = preferredTop + tooltipHeight < viewportHeight - 16
+      ? preferredTop
+      : Math.max(16, fallbackTop);
+    const centeredLeft = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+    const left = Math.max(16, Math.min(centeredLeft, viewportWidth - tooltipWidth - 16));
+
+    this.workspaceTourTooltipStyle = {
+      width: `${tooltipWidth}px`,
+      left: `${left}px`,
+      top: `${top}px`
+    };
+  }
+
+  private get workspaceTourStorageKey(): string {
+    const nameKey = (this.loginUser || 'workspace-user')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'workspace-user';
+    const roleKey = (this.loginUserRole || 'workspace').toLowerCase();
+    return `smartInterview.workspaceTour.v2.${roleKey}.${nameKey}`;
+  }
+
+  private getWorkspaceTourAutoShowCount(): number {
+    if (typeof window === 'undefined' || !this.loginUser) {
+      return this.workspaceTourAutoShowLimit;
+    }
+    const rawCount = window.localStorage.getItem(this.workspaceTourStorageKey);
+    const parsedCount = Number.parseInt(rawCount || '0', 10);
+    if (Number.isNaN(parsedCount) || parsedCount < 0) {
+      return 0;
+    }
+    return parsedCount;
+  }
+
+  private shouldAutoShowWorkspaceTour(): boolean {
+    return this.getWorkspaceTourAutoShowCount() < this.workspaceTourAutoShowLimit;
+  }
+
+  private incrementWorkspaceTourAutoShowCount(): void {
+    if (typeof window === 'undefined' || !this.loginUser) {
+      return;
+    }
+    const nextCount = Math.min(this.workspaceTourAutoShowLimit, this.getWorkspaceTourAutoShowCount() + 1);
+    window.localStorage.setItem(this.workspaceTourStorageKey, String(nextCount));
+  }
+
+  private setWorkspaceTourTarget(target: HTMLElement): void {
+    if (this.workspaceTourTargetElement === target) {
+      return;
+    }
+    this.clearWorkspaceTourTarget();
+    this.workspaceTourTargetElement = target;
+    this.workspaceTourTargetElement.classList.add('workspace-tour-target');
+  }
+
+  private clearWorkspaceTourTarget(): void {
+    if (!this.workspaceTourTargetElement) {
+      return;
+    }
+    this.workspaceTourTargetElement.classList.remove('workspace-tour-target');
+    this.workspaceTourTargetElement = null;
   }
 
   fetchRoleCatalog(): void {
@@ -2136,6 +2465,10 @@ addRRole(): void {
       }
       if (result.action === 'openProfile' && result.candidate) {
         this.profileUpdate(result.candidate);
+        return;
+      }
+      if (result.action === 'openEvaluationSummary' && result.candidate) {
+        this.openEvaluationSummary(result.candidate);
         return;
       }
       if (result.action === 'scheduleFurther' && result.candidate) {

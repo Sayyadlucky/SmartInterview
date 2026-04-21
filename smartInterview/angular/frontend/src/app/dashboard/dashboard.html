@@ -66,14 +66,14 @@
             <i class="ph ph-clock-countdown"></i>
             <span>Updated: {{ formattedLastUpdated }}</span>
           </div>
-          <button type="button" class="utility-chip utility-chip-button" *ngIf="companyProfile" (click)="openCompanyDetailsModal()">
-            <i class="ph ph-buildings"></i>
-            <span>{{ companyDisplayName }}</span>
-          </button>
           <div class="utility-chip">
             <i class="ph ph-briefcase"></i>
             <span>Open Roles: {{ openRolesCount }}</span>
           </div>
+          <button type="button" class="utility-chip utility-chip-button utility-chip-button--guide" (click)="replayWorkspaceTour()">
+            <i class="ph ph-compass-tool"></i>
+            <span>Getting Started</span>
+          </button>
         </div>
       </div>
       <button type="button" class="company-identity-card" *ngIf="companyProfile" (click)="openCompanyDetailsModal()">
@@ -368,32 +368,32 @@
             <span>Workflow Actions</span>
           </div>
           <div class="dashboard-card quick-action quick-action--action2">
-            <button class="quick-action-btn" (click)="openPendingRequestsModal()">
+            <button class="quick-action-btn" data-tour="pending-requests" (click)="openPendingRequestsModal()">
               <i class="ph ph-hourglass-medium"></i>
               <span>Pending Requests</span>
               <strong class="quick-action-count">{{ recruiterApplicationsCount }}</strong>
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--role">
-            <button class="quick-action-btn" (click)="addRRole()">
+            <button class="quick-action-btn" data-tour="post-job" (click)="addRRole()">
               <i class="ph ph-briefcase"></i>
               <span>Post Job</span>
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--candidate">
-            <button class="quick-action-btn" (click)="addUser()">
+            <button class="quick-action-btn" data-tour="assign-candidate" (click)="addUser()">
               <i class="ph ph-user-check"></i>
               <span>Assign Candidate</span>
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--schedule">
-            <button class="quick-action-btn" (click)="openWorkflowAction('schedule')">
+            <button class="quick-action-btn" data-tour="schedule-interview" (click)="openWorkflowAction('schedule')">
               <i class="ph ph-calendar-check"></i>
               <span>Schedule Interview</span>
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--action3">
-            <button class="quick-action-btn" (click)="openWorkflowAction('bulk-assign')">
+            <button class="quick-action-btn" data-tour="bulk-assign" (click)="openWorkflowAction('bulk-assign')">
               <i class="ph ph-users-three"></i>
               <span>Bulk Assign Evaluator</span>
             </button>
@@ -405,7 +405,7 @@
             </button>
           </div>
           <div class="dashboard-card quick-action quick-action--export">
-            <button class="quick-action-btn" (click)="openConfirmation()">
+            <button class="quick-action-btn" data-tour="export-data" (click)="openConfirmation()">
               <i class="ph ph-download-simple"></i>
               <span>Export Candidate Data</span>
             </button>
@@ -520,7 +520,7 @@
           </div>
 
           <!-- Candidate Table -->
-          <div class="w-full lg:w-[75%] h-full table-panel">
+          <div class="w-full lg:w-[75%] h-full table-panel" data-tour="candidate-details">
             <div class="table-head">
               <div class="table-head-copy">
                 <h3 class="section-title">
@@ -575,7 +575,7 @@
                         {{ formatRoleWithId(candidate.role, candidate.role_id) }}
                       </span>
                     </td>
-                    <td>
+                    <td class="interview-link-cell" [class.interview-link-cell--open]="isInterviewLinkMenuOpen(candidate)">
                       <div
                         *ngIf="candidate.interview_link"
                         class="interview-link-menu"
@@ -942,6 +942,46 @@
     </div>
     </ng-template>
   </div>
+
+<div class="workspace-tour" *ngIf="workspaceTourOpen" aria-live="polite">
+  <div class="workspace-tour__backdrop" *ngIf="!currentWorkspaceTourStep?.selector"></div>
+  <div class="workspace-tour__spotlight" *ngIf="currentWorkspaceTourStep?.selector" [ngStyle]="workspaceTourSpotlightStyle"></div>
+  <section
+    class="workspace-tour__card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="workspaceTourTitle"
+    aria-describedby="workspaceTourDescription"
+    [ngStyle]="workspaceTourTooltipStyle">
+    <div class="workspace-tour__eyebrow">Getting Started with Shortlistii</div>
+    <h3 id="workspaceTourTitle">{{ currentWorkspaceTourStep?.title }}</h3>
+    <p id="workspaceTourDescription">{{ currentWorkspaceTourStep?.description }}</p>
+    <div class="workspace-tour__progress" aria-hidden="true">
+      <span
+        *ngFor="let step of workspaceTourSteps; let index = index"
+        class="workspace-tour__dot"
+        [class.is-active]="index === workspaceTourIndex"></span>
+    </div>
+    <div class="workspace-tour__meta">Step {{ workspaceTourIndex + 1 }} of {{ workspaceTourSteps.length }}</div>
+    <div class="workspace-tour__actions">
+      <button type="button" class="workspace-tour__btn workspace-tour__btn--ghost" (click)="closeWorkspaceTour()">
+        Skip
+      </button>
+      <div class="workspace-tour__action-group">
+        <button
+          type="button"
+          class="workspace-tour__btn workspace-tour__btn--ghost"
+          (click)="previousWorkspaceTourStep()"
+          [disabled]="isWorkspaceTourFirstStep">
+          Back
+        </button>
+        <button type="button" class="workspace-tour__btn workspace-tour__btn--primary" (click)="nextWorkspaceTourStep()">
+          {{ isWorkspaceTourLastStep ? 'Finish' : 'Next' }}
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
 
 <div class="evaluation-summary-modal" *ngIf="evaluationSummaryModalOpen" (click)="closeEvaluationSummaryModal()">
   <div class="evaluation-summary-dialog" (click)="$event.stopPropagation()">

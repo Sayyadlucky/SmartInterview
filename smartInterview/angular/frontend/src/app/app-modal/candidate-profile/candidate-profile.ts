@@ -42,6 +42,7 @@ interface ResumeSectionView {
     item: Record<string, unknown>;
     primary: string;
     secondary: string[];
+    inlineText: string;
   }>;
   textItems: string[];
   paragraphText: string;
@@ -76,28 +77,6 @@ interface ResumeData {
   fallback_provider?: string;
 }
 
-interface EvaluationSummaryData {
-  available: boolean;
-  decision: string;
-  recommendation: string;
-  score: number | null;
-  executive_summary: string;
-  summary_verdict: string;
-  confidence: string;
-  interview_signal_quality: string;
-  strengths: string[];
-  concerns: string[];
-  gaps: string[];
-  notes: string[];
-  follow_up_areas: string[];
-  hire_recommendation_action: string;
-  hire_recommendation_reason: string;
-  early_exit: boolean;
-  early_exit_reason: string;
-  updated_at: string;
-  created_at: string;
-}
-
 interface CandidateProfileResponse {
   Success: boolean;
   Error?: string | null;
@@ -106,7 +85,6 @@ interface CandidateProfileResponse {
     verification?: VerificationData;
     insights?: InsightData;
     resume?: ResumeData;
-    evaluation_summary?: EvaluationSummaryData;
   };
 }
 
@@ -211,7 +189,6 @@ export class CandidateProfile implements OnInit {
     fallback_used: false,
     fallback_provider: '',
   };
-  evaluationSummary: EvaluationSummaryData = this.createEmptyEvaluationSummary();
   displaySectionViews: ResumeSectionView[] = [];
   skillTags: string[] = [];
   verificationViewItems: Array<{ label: string; verified: boolean; date?: string }> = [];
@@ -300,12 +277,8 @@ export class CandidateProfile implements OnInit {
     return this.skillTags;
   }
 
-  get hasEvaluationSummary(): boolean {
-    return !!this.evaluationSummary.available;
-  }
-
   get displaySections(): ResumeSection[] {
-    return (this.resumeData.sections || []).filter((section) => !['summary', 'objective', 'skills'].includes(section.section_key));
+    return (this.resumeData.sections || []).filter((section) => !['summary', 'objective', 'skills', 'contact'].includes(section.section_key));
   }
 
   formatRoleWithId(role: string, roleId?: number | null): string {
@@ -504,6 +477,31 @@ export class CandidateProfile implements OnInit {
     return rows;
   }
 
+  private getInlineObjectText(item: Record<string, unknown>): string {
+    const primary = this.getObjectPrimary(item);
+    const preferredValue = item['value'];
+    const normalizedValue = Array.isArray(preferredValue)
+      ? preferredValue.map((value) => `${value ?? ''}`.trim()).filter(Boolean).join(', ')
+      : typeof preferredValue === 'string'
+        ? preferredValue.trim()
+        : '';
+
+    if (primary && normalizedValue && normalizedValue.toLowerCase() !== primary.toLowerCase()) {
+      return `${primary}: ${normalizedValue}`;
+    }
+    if (normalizedValue) {
+      return normalizedValue;
+    }
+
+    const secondary = this.getObjectSecondary(item)
+      .map((value) => value.replace(/^[^:]+:\s*/, '').trim())
+      .filter(Boolean);
+    if (primary && secondary.length) {
+      return `${primary}: ${secondary.join(', ')}`;
+    }
+    return primary;
+  }
+
   private loadCandidateProfile(): void {
     this.resumeLoading = true;
     const apiBaseUrl = this.getApiBaseUrl();
@@ -538,12 +536,6 @@ export class CandidateProfile implements OnInit {
           this.skillTags = this.buildSkillTags();
           this.displaySectionViews = this.buildDisplaySectionViews(this.resumeData.sections || []);
         }
-        if (response.Data?.evaluation_summary) {
-          this.evaluationSummary = {
-            ...this.createEmptyEvaluationSummary(),
-            ...response.Data.evaluation_summary,
-          };
-        }
       });
   }
 
@@ -576,7 +568,7 @@ export class CandidateProfile implements OnInit {
 
   private buildDisplaySectionViews(sections: ResumeSection[]): ResumeSectionView[] {
     return sections
-      .filter((section) => !['summary', 'objective', 'skills'].includes(section.section_key))
+      .filter((section) => !['summary', 'objective', 'skills', 'contact'].includes(section.section_key))
       .map((section) => {
         const items = section?.content?.items || [];
         const objectItems = items
@@ -585,6 +577,7 @@ export class CandidateProfile implements OnInit {
             item,
             primary: this.getObjectPrimary(item),
             secondary: this.getObjectSecondary(item),
+            inlineText: this.getInlineObjectText(item),
           }));
         const textItems = items.filter((item): item is string => typeof item === 'string' && !!item.trim());
         return {
@@ -604,30 +597,6 @@ export class CandidateProfile implements OnInit {
       .replace(/_/g, ' ')
       .replace(/\s+/g, ' ')
       .replace(/assesment/g, 'assessment');
-  }
-
-  private createEmptyEvaluationSummary(): EvaluationSummaryData {
-    return {
-      available: false,
-      decision: '',
-      recommendation: '',
-      score: null,
-      executive_summary: '',
-      summary_verdict: '',
-      confidence: '',
-      interview_signal_quality: '',
-      strengths: [],
-      concerns: [],
-      gaps: [],
-      notes: [],
-      follow_up_areas: [],
-      hire_recommendation_action: '',
-      hire_recommendation_reason: '',
-      early_exit: false,
-      early_exit_reason: '',
-      updated_at: '',
-      created_at: '',
-    };
   }
 
   private getStatusActions(statusRaw: string): Array<{ key: string; label: string }> {
