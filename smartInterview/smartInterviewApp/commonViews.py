@@ -56,7 +56,7 @@ from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from smartInterviewApp.services.interview_calls import InterviewCallService
-from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, InterviewCallSession
+from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, CompanyProfile, InterviewCallSession
 from .templatetags.host_links import build_host_link
 
 
@@ -385,13 +385,10 @@ def resolve_company_logo_url(company, *, include_external_logo: bool = True, req
     if not company:
         return ''
     if getattr(company, 'logo', None):
-        try:
-            logo_url = company.logo.url or ''
-            if request and logo_url:
-                return request.build_absolute_uri(logo_url)
-            return logo_url
-        except Exception:
-            pass
+        logo_url = reverse('company-logo-file', args=[company.id])
+        if request:
+            return request.build_absolute_uri(logo_url)
+        return logo_url
     if include_external_logo:
         return company.logo_url or ''
     return ''
@@ -1060,6 +1057,13 @@ def _parse_serialized_section_item(value):
     return None
 
 
+def build_absolute_file_url(request, file_field) -> str:
+    try:
+        return request.build_absolute_uri(file_field.url) if file_field else ''
+    except Exception:
+        return ''
+
+
 def build_public_resume_context(request, candidate: User) -> dict:
     profile = getattr(candidate, 'profile', None)
     latest_resume = (
@@ -1070,7 +1074,7 @@ def build_public_resume_context(request, candidate: User) -> dict:
     )
     resume_data = ResumeProcessingService().serialize_resume(latest_resume)
     public_resume = ensure_public_resume(candidate)
-    profile_picture_url = request.build_absolute_uri(profile.profile_picture.url) if profile and profile.profile_picture else ''
+    profile_picture_url = build_absolute_file_url(request, getattr(profile, 'profile_picture', None))
     profile_picture_data_url = ''
     if profile and profile.profile_picture:
         try:
@@ -1155,6 +1159,89 @@ def _resume_builder_default_payload(user: User, profile: UserProfile) -> dict:
         'certifications': [],
         'achievements': [],
         'languages': [],
+    }
+
+
+def _resume_builder_preview_payload() -> dict:
+    return {
+        'basics': {
+            'name': 'Aarav Mehta',
+            'email': 'aarav.mehta@example.com',
+            'phone': '+91 98765 43210',
+            'location': 'Pune, India',
+            'headline': 'Product Analyst | SaaS | SQL | Stakeholder Reporting',
+            'summary': 'Analytical product and operations professional with experience translating business problems into measurable process and reporting improvements. Builds clear dashboards, streamlines workflows, and partners with cross-functional teams to deliver decisions faster.',
+            'website': '',
+            'linkedin': 'https://linkedin.com/in/aaravmehta',
+            'github': '',
+            'portfolio': '',
+        },
+        'skills': ['SQL', 'Excel', 'Power BI', 'Product Analytics', 'Stakeholder Management', 'Process Improvement'],
+        'experience': [
+            {
+                'title': 'Product Analyst',
+                'company': 'Northstar SaaS',
+                'location': 'Pune',
+                'duration': '2023 - Present',
+                'role': 'Analytics and Business Operations',
+                'description': '',
+                'tech_stack': ['SQL', 'Power BI', 'Excel'],
+                'details': [
+                    'Built weekly reporting that reduced manual status preparation for leadership reviews.',
+                    'Tracked funnel drop-offs and surfaced product insights that improved team prioritization.',
+                    'Partnered with product and operations teams to define cleaner reporting metrics.',
+                ],
+            }
+        ],
+        'projects': [
+            {
+                'title': 'Customer Retention Dashboard',
+                'company': 'Portfolio Project',
+                'duration': '2024',
+                'role': 'Data and Reporting',
+                'description': 'Retention performance dashboard built to surface churn trends, cohort movement, and account health signals.',
+                'tech_stack': ['SQL', 'Power BI'],
+                'details': [
+                    'Mapped account lifecycle metrics into a single review view for weekly reporting.',
+                    'Used cohort-based analysis to highlight retention patterns across customer segments.',
+                ],
+            }
+        ],
+        'education': [
+            {
+                'degree': 'B.Tech in Information Technology',
+                'institution': 'Pune University',
+                'location': 'Pune',
+                'duration': '2022',
+                'details': ['Coursework focused on data analysis, systems design, and software fundamentals.'],
+            }
+        ],
+        'certifications': [
+            {
+                'label': 'Google Data Analytics Certificate',
+                'issuer': 'Google',
+                'duration': '2024',
+                'value': 'Credential available on request',
+            }
+        ],
+        'achievements': [
+            {
+                'label': 'Operations Excellence Recognition',
+                'issuer': 'Northstar SaaS',
+                'duration': '2024',
+                'value': 'Recognized for improving reporting turnaround time',
+            }
+        ],
+        'languages': [
+            {
+                'label': 'English',
+                'value': 'Professional proficiency',
+            },
+            {
+                'label': 'Hindi',
+                'value': 'Native proficiency',
+            }
+        ],
     }
 
 
@@ -2967,12 +3054,33 @@ def candidateDashboard(request):
     ))
 
 
-@login_required(login_url='candidate-login')
 def candidateResumeBuilder(request):
-    profile = getattr(request.user, 'profile', None)
-    if not profile or profile.role != 'candidate':
-        logout(request)
-        return redirect('candidate-login')
+    profile = getattr(request.user, 'profile', None) if request.user.is_authenticated else None
+    is_candidate = bool(request.user.is_authenticated and profile and profile.role == 'candidate')
+
+    if request.method == 'POST' and not is_candidate:
+        return JsonResponse({
+            'Success': False,
+            'Error': 'Please sign in as a candidate to save your resume.',
+            'redirect_url': reverse('candidate-login'),
+        }, status=403)
+
+    if not is_candidate:
+        builder_payload = _resume_builder_preview_payload()
+        return render(request, 'smartInterview/resume_builder.html', {
+            'candidate': {
+                'name': 'Your Name',
+                'email': '',
+                'profile_picture_url': '',
+                'resume_builder_url': reverse('candidate-resume-builder'),
+            },
+            'resume_builder_payload': builder_payload,
+            'resume_builder_updated_at': '',
+            'builder_requires_signup': True,
+            'builder_login_url': reverse('candidate-login'),
+            'builder_signup_url': reverse('candidate-signup'),
+            'builder_back_url': reverse('home'),
+        })
 
     draft, _ = CandidateResumeBuilderDraft.objects.get_or_create(candidate=request.user)
 
@@ -3006,11 +3114,15 @@ def candidateResumeBuilder(request):
         'candidate': {
             'name': f"{request.user.first_name} {request.user.last_name}".strip().title() or request.user.username,
             'email': request.user.email or '',
-            'profile_picture_url': request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else '',
+            'profile_picture_url': request.build_absolute_uri(reverse('candidate-secure-profile-picture')) if profile.profile_picture else '',
             'resume_builder_url': reverse('candidate-resume-builder'),
         },
         'resume_builder_payload': builder_payload,
         'resume_builder_updated_at': draft.updated_at.isoformat() if draft.updated_at else '',
+        'builder_requires_signup': False,
+        'builder_login_url': reverse('candidate-login'),
+        'builder_signup_url': reverse('candidate-signup'),
+        'builder_back_url': reverse('candidate-dashboard'),
     })
 
 
@@ -3086,6 +3198,51 @@ def candidateSecureResume(request):
 
     response['Content-Disposition'] = f'inline; filename="{resume_name}"'
     response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@login_required(login_url='candidate-login')
+def candidateSecureProfilePicture(request):
+    try:
+        profile = request.user.profile
+    except UserProfile.DoesNotExist as exc:
+        raise Http404('Candidate profile not found.') from exc
+
+    if profile.role != 'candidate' or not profile.profile_picture:
+        raise Http404('Profile picture not found.')
+
+    picture_field = profile.profile_picture
+    picture_name = os.path.basename(picture_field.name or '') or f'{request.user.username}-profile-picture'
+    mime_type, _ = mimetypes.guess_type(picture_name)
+
+    try:
+        response = FileResponse(picture_field.open('rb'), content_type=mime_type or 'image/jpeg')
+    except FileNotFoundError as exc:
+        raise Http404('Profile picture file not found.') from exc
+
+    response['Content-Disposition'] = f'inline; filename="{picture_name}"'
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+def companyLogoFile(request, company_id: int):
+    company = get_object_or_404(CompanyProfile, id=company_id)
+    if not company.logo:
+        raise Http404('Company logo not found.')
+
+    logo_field = company.logo
+    logo_name = os.path.basename(logo_field.name or '') or f'company-{company.id}-logo'
+    mime_type, _ = mimetypes.guess_type(logo_name)
+
+    try:
+        response = FileResponse(logo_field.open('rb'), content_type=mime_type or 'image/jpeg')
+    except FileNotFoundError as exc:
+        raise Http404('Company logo file not found.') from exc
+
+    response['Content-Disposition'] = f'inline; filename="{logo_name}"'
+    response['Cache-Control'] = 'public, max-age=3600'
     response['X-Content-Type-Options'] = 'nosniff'
     return response
 
@@ -3763,7 +3920,7 @@ def build_candidate_dashboard_context(
     } for item in interviews[:8]]
 
     resume_skills = (resume_data.get('skills') or [])[:10]
-    profile_picture_url = request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else ''
+    profile_picture_url = request.build_absolute_uri(reverse('candidate-secure-profile-picture')) if profile.profile_picture else ''
     resume_file_url = request.build_absolute_uri(reverse('candidate-secure-resume')) if profile.resume else ''
     resume_sections = []
     career_objective = ''

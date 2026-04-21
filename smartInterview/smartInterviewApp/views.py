@@ -32,6 +32,7 @@ from .commonViews import (
     get_accessible_interviews,
     get_accessible_interviewer_profiles,
     publicJobsPortal,
+    resolve_company_logo_url,
     send_candidate_interview_email_only,
     send_existing_candidate_sms,
 )
@@ -595,12 +596,7 @@ def dashboardData(request):
         }
         company_data = None
         if company_profile:
-            resolved_logo_url = company_profile.logo_url
-            if getattr(company_profile, 'logo', None):
-                try:
-                    resolved_logo_url = request.build_absolute_uri(company_profile.logo.url)
-                except Exception:
-                    resolved_logo_url = company_profile.logo_url
+            resolved_logo_url = resolve_company_logo_url(company_profile, request=request)
             company_data = {
                 'legal_name': company_profile.legal_name,
                 'display_name': company_profile.display_name,
@@ -715,15 +711,10 @@ def updateCompanyProfile(request):
     company_profile.save()
 
     if uploaded_logo and getattr(company_profile, 'logo', None):
-        company_profile.logo_url = request.build_absolute_uri(company_profile.logo.url)
+        company_profile.logo_url = resolve_company_logo_url(company_profile, request=request)
         company_profile.save(update_fields=['logo_url', 'updated_at'])
 
-    resolved_logo_url = company_profile.logo_url
-    if getattr(company_profile, 'logo', None):
-        try:
-            resolved_logo_url = request.build_absolute_uri(company_profile.logo.url)
-        except Exception:
-            resolved_logo_url = company_profile.logo_url
+    resolved_logo_url = resolve_company_logo_url(company_profile, request=request)
 
     return JsonResponse({
         "Success": True,
