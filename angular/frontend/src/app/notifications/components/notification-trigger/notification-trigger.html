@@ -1,0 +1,15 @@
+<div class="notify-card">
+  <h4>Trigger Notification</h4>
+  <input [(ngModel)]="eventType" placeholder="Event type" />
+  <select [(ngModel)]="severity">
+    <option value="low">low</option>
+    <option value="medium">medium</option>
+    <option value="critical">critical</option>
+  </select>
+  <input [(ngModel)]="to" placeholder="Destination phone" inputmode="numeric" appDigitsOnly />
+  <input [(ngModel)]="templateName" placeholder="WhatsApp template" />
+  <input [(ngModel)]="languageCode" placeholder="Language code" />
+  <input [(ngModel)]="smsMessage" placeholder="Fallback SMS message" />
+  <button (click)="submit()" [disabled]="loading">Send</button>
+  <p class="result" *ngIf="result">{{ result }}</p>
+</div>

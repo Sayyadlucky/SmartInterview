@@ -1,0 +1,16 @@
+Django>=4.2,<6
+gunicorn
+djangorestframework
+django-storages[google]>=1.14,<2
+requests
+openai
+whitenoise
+pypdf>=5,<6
+python-docx>=1.1,<2
+sentence-transformers==3.0.1
+torch==2.3.1
+scikit-learn==1.5.1
+numpy==1.26.4
+pgvector==0.3.6
+psycopg[binary]==3.2.1
+google-cloud-tasks>=2.16,<3

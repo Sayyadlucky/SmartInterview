@@ -1,0 +1,19 @@
+{% extends "smartInterview/emails/base.html" %}
+
+{% block title %}{% if is_rescheduled %}Interview Rescheduled{% else %}Interview Scheduled{% endif %}{% endblock %}
+{% block preheader %}{% if is_rescheduled %}Your interview schedule has been updated.{% else %}Your interview has been scheduled.{% endif %}{% endblock %}
+
+{% block content %}
+<h1 class="email-title" style="margin:0 0 12px 0;font-size:34px;line-height:1.15;color:#0f172a;">Hello {{ recipient_name|default:"there" }}</h1>
+<p style="margin:0 0 14px 0;font-size:16px;line-height:1.75;color:#334155;">
+  {% if is_rescheduled %}Your interview schedule has been updated.{% else %}Your interview has been scheduled.{% endif %}
+</p>
+<p style="margin:0 0 24px 0;font-size:16px;line-height:1.75;color:#475569;">
+  Please review the details below and keep this message nearby so you can join with confidence when it is time.
+</p>
+{% include "smartInterview/emails/partials/details_card.html" with details_title=details_title details=details %}
+{% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
+<p style="margin:0;font-size:14px;line-height:1.75;color:#475569;">
+  Join a few minutes early and make sure your device, internet connection, and audio setup are ready before the interview begins.
+</p>
+{% endblock %}

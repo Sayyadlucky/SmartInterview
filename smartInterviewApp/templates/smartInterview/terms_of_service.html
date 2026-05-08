@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+{% load static %}
+{% load host_links %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title }} | Shortlistii</title>
+  <meta name="description" content="{{ meta_description }}" />
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260408c">
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260407f"></script>
+</head>
+<body class="legal-page">
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <header class="legal-header">
+    <div class="legal-header__inner">
+      <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+      <nav class="legal-nav" aria-label="Legal navigation">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}" aria-current="page">Terms of Service</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal-main">
+    <section class="legal-hero">
+      <div class="legal-hero__copy">
+        <p class="eyebrow">Legal</p>
+        <h1>Terms of Service</h1>
+        <p>
+          These Terms of Service govern access to and use of Shortlistii and Litio by organizations, recruiters,
+          hiring teams, interview participants, and candidates. They are designed for a professional hiring platform
+          that combines AI-assisted hiring workflows, interview execution, and recruiter-facing decision support.
+        </p>
+      </div>
+      <aside class="legal-meta-card">
+        <span class="legal-meta-card__label">Last Updated</span>
+        <strong>{{ last_updated }}</strong>
+        <p>shortlistii.com Private Limited</p>
+        <address>
+          Flat No. 1404, Famed Tower<br>
+          Sikka Karnam Greens, Sector 143<br>
+          Noida, Uttar Pradesh – 201304<br>
+          India
+        </address>
+      </aside>
+    </section>
+
+    <section class="legal-content-shell">
+      <aside class="legal-toc">
+        <div class="legal-card">
+          <p class="eyebrow">On This Page</p>
+          <nav aria-label="Terms of service sections">
+            <a href="#terms-introduction"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5"/></svg></span><span>Introduction</span></a>
+            <a href="#terms-acceptance"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><span>Acceptance of Terms</span></a>
+            <a href="#terms-eligibility"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span><span>Eligibility and Authority</span></a>
+            <a href="#terms-services"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9h8"/><path d="M8 13h5"/></svg></span><span>Description of Services</span></a>
+            <a href="#terms-accounts"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 1 1 8 0v3"/></svg></span><span>Account Registration and Security</span></a>
+            <a href="#terms-recruiters"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="2.5"/><circle cx="16" cy="8" r="2.5"/><path d="M3 19a5 5 0 0 1 10 0"/><path d="M11 19a5 5 0 0 1 10 0"/></svg></span><span>Recruiter Responsibilities</span></a>
+            <a href="#terms-candidates"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span><span>Candidate Responsibilities</span></a>
+            <a href="#terms-acceptable-use"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-10V5l-7-2-7 2v6c0 5.65 7 10 7 10Z"/><path d="M9 9l6 6"/><path d="m15 9-6 6"/></svg></span><span>Acceptable Use / Prohibited Conduct</span></a>
+            <a href="#terms-litio"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg></span><span>Platform Rules for Interviews and Litio Sessions</span></a>
+            <a href="#terms-ai"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v6"/><path d="M12 15v6"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M3 12h6"/><path d="M15 12h6"/></svg></span><span>AI Features and Decision Support</span></a>
+            <a href="#terms-recordings"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m10 9 5 3-5 3Z"/></svg></span><span>Recordings, Transcripts, and Interview Integrity</span></a>
+            <a href="#terms-ip"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7h7a4 4 0 1 1 0 8H9"/><path d="M8 7h1"/><path d="M8 15h1"/><path d="M8 4v16"/></svg></span><span>Intellectual Property</span></a>
+            <a href="#terms-content"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/></svg></span><span>Customer / User Content</span></a>
+            <a href="#terms-license"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></span><span>License to Operate the Service</span></a>
+            <a href="#terms-third-party"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="m8 12 8-6"/><path d="m8 12 8 6"/></svg></span><span>Third-Party Services</span></a>
+            <a href="#terms-fees"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span>Fees and Billing</span></a>
+            <a href="#terms-availability"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="m16 5 5 7-5 7"/><path d="M8 5 3 12l5 7"/></svg></span><span>Service Availability and Changes</span></a>
+            <a href="#terms-suspension"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/><circle cx="12" cy="12" r="9"/></svg></span><span>Suspension and Termination</span></a>
+            <a href="#terms-disclaimers"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.73 3h16.94A2 2 0 0 0 22.2 18L13.7 3.3a2 2 0 0 0-3.4 0Z"/></svg></span><span>Disclaimers</span></a>
+            <a href="#terms-liability"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M7 7h10"/><path d="M5 7c0 3 3 5 7 5s7-2 7-5"/></svg></span><span>Limitation of Liability</span></a>
+            <a href="#terms-indemnity"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-10V5l-7-2-7 2v6c0 5.65 7 10 7 10Z"/><path d="m9.5 12 1.75 1.75L15 10"/></svg></span><span>Indemnity</span></a>
+            <a href="#terms-law"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M7 7h10"/><path d="M6 17h12"/></svg></span><span>Governing Law</span></a>
+            <a href="#terms-disputes"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 16 4 12l4-4"/><path d="M16 8l4 4-4 4"/><path d="M14 5 10 19"/></svg></span><span>Dispute Resolution</span></a>
+            <a href="#terms-contact"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 8 8 6 8-6"/></svg></span><span>Contact Information</span></a>
+          </nav>
+        </div>
+      </aside>
+
+      <article class="legal-document legal-card">
+        <section id="terms-introduction" class="legal-section">
+          <h2>Introduction</h2>
+          <p>
+            These Terms of Service (“Terms”) govern the access to and use of the Shortlistii platform, the Litio interview
+            workflow environment, related websites, candidate experiences, recruiter workflows, and associated services
+            provided by shortlistii.com Private Limited (“Company,” “Shortlistii,” “Litio,” “we,” “us,” or “our”).
+          </p>
+          <p>
+            Shortlistii is an AI-powered hiring intelligence platform for recruiters and hiring teams. It supports candidate
+            pipeline management, AI-assisted ranking and analysis, recruiter analytics, structured hiring workflows, and
+            operational visibility across the hiring process. Litio is part of the same platform ecosystem and supports
+            AI-powered interview sessions, real-time interview workflows, voice verification signals, identity verification,
+            suspicious interview behavior indicators, recordings, transcripts, summaries, and recruiter-facing interview
+            intelligence.
+          </p>
+        </section>
+
+        <section id="terms-acceptance" class="legal-section">
+          <h2>Acceptance of Terms</h2>
+          <p>
+            By accessing, using, registering for, or otherwise interacting with the platform, you agree to be bound by these
+            Terms and any applicable policies incorporated by reference, including our Privacy Policy. If you use the service
+            on behalf of an organization, you represent that you are authorized to bind that organization to these Terms.
+          </p>
+          <p>
+            If you do not agree to these Terms, you must not access or use the platform.
+          </p>
+        </section>
+
+        <section id="terms-eligibility" class="legal-section">
+          <h2>Eligibility and Authority to Use the Platform</h2>
+          <p>
+            You may use the platform only if you are legally capable of entering into a binding agreement and, where relevant,
+            are authorized to do so on behalf of the organization you represent. Recruiters, administrators, hiring managers,
+            interviewers, and customer representatives are responsible for ensuring that their use of the platform falls within
+            their internal authority and applicable law.
+          </p>
+          <p>
+            Candidate access to the platform is limited to lawful use of candidate-facing flows, interviews, profiles,
+            applications, and related hiring interactions.
+          </p>
+        </section>
+
+        <section id="terms-services" class="legal-section">
+          <h2>Description of Services</h2>
+          <p>The platform may include, among other capabilities:</p>
+          <ul>
+            <li>Candidate pipeline and application management.</li>
+            <li>AI-assisted candidate ranking, search, filtering, and recruiter analytics.</li>
+            <li>Structured hiring workflows, interviewer coordination, evaluations, and decision support.</li>
+            <li>Litio-powered AI interview sessions, conferencing workflows, recordings, transcripts, summaries, and interview intelligence.</li>
+            <li>Voice verification, candidate identity checks, and suspicious session signal analysis where enabled.</li>
+            <li>Reporting, operational dashboards, and workflow support services.</li>
+          </ul>
+          <p>
+            We may update, enhance, modify, or retire features over time as part of normal product evolution, operational
+            improvement, or legal and security requirements.
+          </p>
+        </section>
+
+        <section id="terms-accounts" class="legal-section">
+          <h2>Account Registration and Security</h2>
+          <p>
+            Users must provide accurate, current, and complete information when creating or maintaining accounts. You are
+            responsible for maintaining the confidentiality of your credentials, controlling access to your devices, and
+            ensuring that account activity is authorized.
+          </p>
+          <p>
+            You must promptly notify us or your organization administrator if you become aware of unauthorized use,
+            compromised credentials, suspicious access, or security incidents relating to your account. We may implement
+            security measures, verification steps, or administrative controls as reasonably necessary to protect the platform.
+          </p>
+        </section>
+
+        <section id="terms-recruiters" class="legal-section">
+          <h2>Recruiter Responsibilities</h2>
+          <p>Recruiters, hiring managers, administrators, and customer organizations agree that they will:</p>
+          <ul>
+            <li>Use the platform only for lawful recruiting, evaluation, interview, and hiring-related purposes.</li>
+            <li>Provide appropriate notices, disclosures, and permissions to candidates and users as required by applicable law.</li>
+            <li>Maintain responsibility for their own employment, hiring, anti-discrimination, privacy, labour, and internal compliance obligations.</li>
+            <li>Review AI outputs, interview summaries, verification signals, and analytics in context rather than treating them as infallible or final.</li>
+            <li>Restrict internal access to data, recordings, transcripts, and interview intelligence to authorized personnel with a legitimate business need.</li>
+            <li>Not use the platform to conduct unlawful surveillance, hidden monitoring, or abusive or unfair recruitment practices.</li>
+          </ul>
+        </section>
+
+        <section id="terms-candidates" class="legal-section">
+          <h2>Candidate Responsibilities</h2>
+          <p>Candidates and interview participants agree that they will:</p>
+          <ul>
+            <li>Provide truthful, current, and non-misleading information in profiles, resumes, applications, and interview interactions.</li>
+            <li>Not impersonate another person, misrepresent identity, falsify qualifications, or interfere with interview integrity workflows.</li>
+            <li>Participate in Litio sessions only in accordance with applicable instructions, notices, and lawful interview requirements.</li>
+            <li>Use candidate-facing features in a respectful and lawful manner and not attempt to disrupt or manipulate platform operations.</li>
+          </ul>
+        </section>
+
+        <section id="terms-acceptable-use" class="legal-section">
+          <h2>Acceptable Use / Prohibited Conduct</h2>
+          <p>You must not:</p>
+          <ul>
+            <li>Use the platform for unlawful discrimination, harassment, retaliation, defamation, abuse, or privacy infringement.</li>
+            <li>Upload malicious code, conduct unauthorized scanning, interfere with the service, or attempt to bypass security controls.</li>
+            <li>Scrape, harvest, or exfiltrate platform data without authorization.</li>
+            <li>Use the platform to commit impersonation, cheating, interview fraud, credential sharing, or other deceptive conduct.</li>
+            <li>Reverse engineer, copy, or create derivative works from the service except to the extent expressly permitted by law or written agreement.</li>
+            <li>Use AI features to make unlawful or fully automated employment decisions without appropriate human review and lawful process.</li>
+            <li>Use recordings, transcripts, summaries, or verification outputs for unrelated purposes that are inconsistent with the recruiting workflow for which they were collected.</li>
+          </ul>
+        </section>
+
+        <section id="terms-litio" class="legal-section">
+          <h2>Platform Rules for Interviews and Litio Sessions</h2>
+          <p>
+            Litio is designed to support AI-powered interviews, real-time interview execution, session coordination, and
+            recruiter-facing interview intelligence. Users of Litio must follow all lawful participation rules, customer
+            instructions, and platform controls applicable to the interview process.
+          </p>
+          <p>
+            Users must not attempt to circumvent identity checks, conceal participation by unauthorized persons, use
+            impersonation techniques, manipulate voice verification, introduce fraudulent interview conditions, or interfere
+            with suspicious-signal monitoring and integrity review mechanisms.
+          </p>
+          <p>
+            Customer organizations remain responsible for how they configure interview workflows, how they communicate with
+            candidates, and how they assess interview outcomes, while we reserve the right to apply service controls needed
+            to maintain platform trust, security, and integrity.
+          </p>
+        </section>
+
+        <section id="terms-ai" class="legal-section">
+          <h2>AI Features and Decision Support Disclaimer</h2>
+          <p>
+            Shortlistii and Litio provide software tools and AI-assisted workflows intended to support hiring teams with
+            organization, prioritization, transcript analysis, summaries, and recruiter visibility. They do not guarantee
+            hiring outcomes, interview quality, candidate performance, fraud-free interactions, or business results.
+          </p>
+          <p>
+            AI-generated rankings, recommendations, summaries, suspicious-signal indicators, and analytics are informational
+            and operational tools. Customer organizations remain solely responsible for their hiring decisions, employment
+            actions, compliance obligations, candidate communications, and review of context before acting on platform outputs.
+          </p>
+        </section>
+
+        <section id="terms-recordings" class="legal-section">
+          <h2>Recordings, Transcripts, and Interview Integrity Features</h2>
+          <p>
+            Where enabled, Litio may support interview recording, transcript generation, session summaries, voice verification,
+            candidate identity checks, and suspicious-signal analysis. By participating in or administering relevant sessions,
+            users acknowledge that such features may be used as part of the recruiting workflow where lawfully disclosed and
+            configured by the customer.
+          </p>
+          <p>
+            Customer organizations are responsible for ensuring that they have appropriate rights, disclosures, notices, and
+            permissions for recordings and interview-related processing. We may process such data to operate the service,
+            support customer workflows, maintain platform security, investigate misuse, and provide recruiter-facing interview
+            intelligence within the scope of the service.
+          </p>
+        </section>
+
+        <section id="terms-ip" class="legal-section">
+          <h2>Intellectual Property</h2>
+          <p>
+            The platform, including its software, user interfaces, design elements, workflows, product text, trademarks,
+            logos, graphics, service architecture, and related content, is owned by or licensed to shortlistii.com Private
+            Limited and is protected by applicable intellectual property laws.
+          </p>
+          <p>
+            Except as expressly permitted in writing, these Terms do not grant you any ownership rights in the platform.
+            “Shortlistii,” “Litio,” and related branding are proprietary brand assets of the Company.
+          </p>
+        </section>
+
+        <section id="terms-content" class="legal-section">
+          <h2>Customer / User Content</h2>
+          <p>
+            Customer and user content may include job descriptions, candidate profiles, resumes, interview recordings,
+            transcripts, interview summaries, recruiter notes, evaluation records, and related materials submitted to or
+            processed through the service.
+          </p>
+          <p>
+            As between the Company and the applicable customer or user, ownership of customer or user content remains with
+            the party that owns or lawfully controls that content. You represent that you have the necessary rights and
+            permissions to submit, use, and process such content through the platform.
+          </p>
+        </section>
+
+        <section id="terms-license" class="legal-section">
+          <h2>License to Operate the Service</h2>
+          <p>
+            You grant us a limited, non-exclusive, worldwide, revocable license to host, store, reproduce, process, analyze,
+            transmit, and display customer and user content solely as necessary to provide, secure, support, improve, and
+            administer the service; generate workflow outputs; perform AI-assisted processing; maintain records; and comply
+            with applicable law and contractual obligations.
+          </p>
+          <p>
+            This license continues only for as long as reasonably necessary for the relevant service purpose, subject to our
+            retention practices, legal obligations, and customer agreements.
+          </p>
+        </section>
+
+        <section id="terms-third-party" class="legal-section">
+          <h2>Third-Party Services</h2>
+          <p>
+            The platform may rely on or interoperate with third-party service providers for hosting, communication,
+            authentication, analytics, transcription, identity-related workflows, integrations, or infrastructure support.
+            Your use of any third-party service connected to or referenced by the platform may also be subject to that
+            provider’s terms and policies.
+          </p>
+          <p>
+            We are not responsible for the independent acts or omissions of third-party services beyond our reasonable
+            control, although we may select and manage such providers as part of the operation of our platform.
+          </p>
+        </section>
+
+        <section id="terms-fees" class="legal-section">
+          <h2>Fees / Billing</h2>
+          <p>
+            Access to certain parts of the platform may be subject to paid plans, subscription terms, enterprise order forms,
+            or commercial arrangements agreed separately with the customer organization. Unless otherwise stated in a specific
+            agreement, fees are payable in accordance with the applicable plan, invoice, or written commercial terms.
+          </p>
+          <p>
+            We may suspend or limit access for material payment default, subject to applicable contractual commitments and
+            reasonable operational steps.
+          </p>
+        </section>
+
+        <section id="terms-availability" class="legal-section">
+          <h2>Service Availability and Changes</h2>
+          <p>
+            We seek to operate the platform in a stable and commercially reasonable manner, but we do not guarantee
+            uninterrupted availability, error-free operation, or universal compatibility across all environments. Maintenance,
+            upgrades, third-party dependencies, security events, or technical issues may affect service availability from time to time.
+          </p>
+          <p>
+            We may modify features, interfaces, workflows, policies, or technical requirements where reasonably necessary for
+            product development, operational improvement, security, legal compliance, or customer support.
+          </p>
+        </section>
+
+        <section id="terms-suspension" class="legal-section">
+          <h2>Suspension and Termination</h2>
+          <p>
+            We may suspend, restrict, or terminate access to the platform, in whole or in part, if we reasonably believe that:
+          </p>
+          <ul>
+            <li>These Terms have been violated.</li>
+            <li>The platform is being used for fraud, abuse, impersonation, unlawful surveillance, discrimination, or other prohibited conduct.</li>
+            <li>Access presents a security threat to the service, other users, or the Company.</li>
+            <li>Suspension is necessary to comply with law, legal process, regulatory direction, or contractual requirements.</li>
+            <li>Required fees remain unpaid under applicable commercial terms.</li>
+          </ul>
+          <p>
+            Customer organizations may also terminate use of the service in accordance with their commercial arrangements.
+            Certain provisions of these Terms survive termination by their nature, including intellectual property, liability,
+            indemnity, dispute, and compliance-related provisions.
+          </p>
+        </section>
+
+        <section id="terms-disclaimers" class="legal-section">
+          <h2>Disclaimers</h2>
+          <p>
+            To the maximum extent permitted by applicable law, the platform is provided on an “as available” and “as is” basis.
+            We do not warrant that the service will meet every customer expectation, be uninterrupted, always detect every risk,
+            or generate outputs that are complete, accurate, or suitable for every hiring context.
+          </p>
+          <p>
+            Customer organizations are responsible for independent review of hiring decisions, compliance obligations, recruiter
+            workflows, interview practices, and the use of AI-assisted features. Candidates and users remain responsible for
+            the accuracy and lawfulness of the information they provide.
+          </p>
+        </section>
+
+        <section id="terms-liability" class="legal-section">
+          <h2>Limitation of Liability</h2>
+          <p>
+            To the maximum extent permitted by applicable law, shortlistii.com Private Limited and its directors, officers,
+            employees, affiliates, and service providers will not be liable for indirect, incidental, special, consequential,
+            exemplary, or punitive damages, or for loss of profits, revenue, goodwill, business opportunity, anticipated
+            savings, or data arising out of or in connection with the use of, or inability to use, the platform.
+          </p>
+          <p>
+            To the extent liability cannot be excluded but may be limited, our aggregate liability arising out of or relating
+            to the service will be limited to the fees paid to us for the relevant service during the twelve months preceding
+            the event giving rise to the claim, or a commercially reasonable amount linked to the specific service use where
+            no paid plan applies, except to the extent a different outcome is required by applicable law.
+          </p>
+        </section>
+
+        <section id="terms-indemnity" class="legal-section">
+          <h2>Indemnity</h2>
+          <p>
+            You agree to indemnify, defend, and hold harmless shortlistii.com Private Limited, its affiliates, officers,
+            directors, employees, and service providers from and against claims, losses, liabilities, damages, costs, and
+            expenses arising out of or relating to your content, your misuse of the platform, your violation of these Terms,
+            your infringement of the rights of another person, or your breach of applicable law or customer obligations.
+          </p>
+        </section>
+
+        <section id="terms-law" class="legal-section">
+          <h2>Governing Law</h2>
+          <p>
+            These Terms are governed by and construed in accordance with the laws of India, without regard to conflict of law principles.
+          </p>
+        </section>
+
+        <section id="terms-disputes" class="legal-section">
+          <h2>Dispute Resolution</h2>
+          <p>
+            The parties will seek to resolve disputes in good faith through discussion before initiating formal proceedings.
+            If a dispute cannot be resolved amicably, the courts located in Noida, Uttar Pradesh, India will have exclusive
+            jurisdiction, subject to any non-waivable rights or remedies available under applicable law.
+          </p>
+        </section>
+
+        <section id="terms-contact" class="legal-section">
+          <h2>Contact Information</h2>
+          <p>For questions about these Terms, you may write to:</p>
+          <address class="legal-address">
+            shortlistii.com Private Limited<br>
+            Flat No. 1404, Famed Tower<br>
+            Sikka Karnam Greens, Sector 143<br>
+            Noida, Uttar Pradesh – 201304<br>
+            India
+          </address>
+          <p>
+            You may also contact us through the support, administrator, or account channels made available within the platform.
+          </p>
+        </section>
+      </article>
+    </section>
+  </main>
+
+  <footer class="legal-footer">
+    <div class="legal-footer__inner">
+      <div>
+        <a href="{% url 'home' %}" class="shortlistii-logo" aria-label="shortlistii.com home">
+          <span class="logo-text">shortlist</span>
+          <span class="logo-ii" aria-hidden="true">
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+          </span>
+        </a>
+        <p>AI-powered hiring intelligence for recruiters, hiring teams, and companies.</p>
+      </div>
+      <div class="legal-footer__links">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

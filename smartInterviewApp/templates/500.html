@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Error | Shortlistii</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'smartInterview/css/error-pages.css' %}">
+</head>
+<body class="error-page-body error-page-body-technical">
+    <header class="error-nav-shell">
+        <nav class="error-nav" aria-label="Primary navigation">
+            <a class="error-brand shortlistii-navbar" href="{{ primary_action.url }}" aria-label="Shortlist home">
+                <span class="logo-text">shortlist</span>
+                <span class="logo-ii" aria-hidden="true">
+                    <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+                    <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+                </span>
+            </a>
+            <div class="error-nav-actions">
+                <a href="{{ primary_action.url }}">{{ primary_action.label }}</a>
+                <a href="{{ secondary_action.url }}">{{ secondary_action.label }}</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="error-layout-shell">
+        <section class="error-glass-card error-glass-card-technical">
+            <div class="error-glow error-glow-technical" aria-hidden="true"></div>
+
+            <div class="error-status-row">
+                <div class="error-status-pill">
+                    <i class="ph {{ icon_class }}" aria-hidden="true"></i>
+                    <span>{{ status_label }}</span>
+                </div>
+                <span class="error-accent-label">{{ accent_label }}</span>
+            </div>
+
+            <div class="error-grid">
+                <div class="error-copy">
+                    <div class="error-code">{{ status_code }}</div>
+                    <h1>{{ title }}</h1>
+                    <p>{{ description }}</p>
+
+                    <div class="error-actions">
+                        <a class="error-action error-action-primary" href="{{ primary_action.url }}">
+                            <i class="ph ph-house-line" aria-hidden="true"></i>
+                            <span>{{ primary_action.label }}</span>
+                        </a>
+                        <button class="error-action error-action-secondary" type="button" onclick="window.location.reload()">
+                            <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+                            <span>Reload page</span>
+                        </button>
+                        <a class="error-action error-action-secondary" href="{{ secondary_action.url }}">
+                            <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
+                            <span>{{ secondary_action.label }}</span>
+                        </a>
+                    </div>
+                </div>
+
+                <aside class="error-side-card" aria-labelledby="errorTipsTitle">
+                    <div class="support-kicker">Recovery steps</div>
+                    <h2 id="errorTipsTitle">What to do next</h2>
+                    <ul class="support-list">
+                        {% for tip in tips %}
+                            <li>
+                                <i class="ph ph-check-circle" aria-hidden="true"></i>
+                                <span>{{ tip }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </aside>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

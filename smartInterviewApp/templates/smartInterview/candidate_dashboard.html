@@ -1,0 +1,4918 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate Dashboard | Shortlistii.com</title>
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260309j">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260331a"></script>
+  <style>
+    :root {
+      --bg-0: #040811;
+      --bg-1: #070f1f;
+      --bg-2: #101c3d;
+      --text: #ecf4ff;
+      --text-strong: #f7fbff;
+      --muted: #9eb0d0;
+      --muted-2: #86a5c5;
+      --muted-3: #6f86a5;
+
+      --accent: #52d5ff;
+      --accent-strong: #5f7cff;
+      --accent-soft: rgba(82, 213, 255, 0.08);
+
+      --violet: #5f7cff;
+      --success: #77e4aa;
+      --danger: #ff8c8c;
+      --warn: #ffd589;
+
+      --input: rgba(11, 22, 44, 0.48);
+      --surface-1: rgba(12, 22, 44, 0.54);
+      --surface-2: rgba(13, 24, 46, 0.66);
+      --surface-3: rgba(15, 27, 52, 0.58);
+      --surface-4: rgba(9, 17, 32, 0.86);
+      --surface-card: rgba(13, 24, 46, 0.68);
+      --surface-card-strong: rgba(12, 22, 42, 0.86);
+      --surface-card-hover: rgba(15, 28, 50, 0.78);
+      --surface-interactive: rgba(255, 255, 255, 0.045);
+      --surface-interactive-hover: rgba(255, 255, 255, 0.07);
+      --border-subtle: rgba(135, 198, 255, 0.1);
+      --border-strong: rgba(135, 198, 255, 0.14);
+      --border-card-hover: rgba(122, 192, 255, 0.18);
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-pill: 999px;
+      --shadow-1: 0 10px 24px rgba(2, 12, 28, 0.18);
+      --shadow-2: 0 18px 42px rgba(3, 8, 18, 0.42);
+      --shadow-3: 0 12px 28px rgba(2, 10, 22, 0.24);
+
+      --header-offset: 104px;
+      --anchor-offset: -100px;
+      --space-1: 8px;
+      --space-2: 16px;
+      --space-3: 24px;
+      --space-4: 32px;
+      --space-5: 40px;
+      --space-6: 48px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Manrope", sans-serif;
+      background: radial-gradient(circle at 18% -18%, #18305f 0%, #07101f 42%, #040811 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body.candidate-dashboard-page {
+      padding: 0;
+      background: radial-gradient(circle at 18% -18%, #18305f 0%, #07101f 42%, #040811 100%);
+      min-height: 100vh;
+    }
+
+    body.candidate-dashboard-page::before,
+    body.candidate-dashboard-page::after {
+      display: none;
+    }
+
+    body.candidate-dashboard-page .noise-layer {
+      opacity: 0.05;
+    }
+
+    body.candidate-dashboard-page .vignette {
+      background: radial-gradient(circle at 50% 50%, transparent 62%, rgba(1, 4, 10, 0.18) 100%);
+    }
+
+    body.candidate-dashboard-page .spotlight {
+      background:
+        radial-gradient(circle at var(--mx, 50%) var(--my, 45%), rgba(116, 225, 255, 0.025), transparent 24%),
+        radial-gradient(circle at calc(var(--mx, 50%) + 8%) calc(var(--my, 45%) - 12%), rgba(107, 133, 255, 0.02), transparent 22%);
+      opacity: 0.72;
+    }
+
+    body.candidate-dashboard-page .light-beam {
+      opacity: 0.025;
+      filter: blur(16px);
+    }
+
+    body.candidate-dashboard-page .atmo {
+      opacity: 0.035;
+      filter: blur(88px);
+    }
+
+    body.candidate-dashboard-page #mainHeader,
+    body.candidate-dashboard-page #mainHeader.scrolled {
+      background: rgba(5, 10, 22, 0.72);
+      border-bottom-color: rgba(142, 203, 255, 0.06);
+      backdrop-filter: blur(8px);
+    }
+
+    body.candidate-dashboard-page .header-shell {
+      max-width: 1360px;
+      padding: var(--space-2) var(--space-3);
+    }
+
+    body.candidate-dashboard-page #mainMenu {
+      gap: var(--space-2);
+    }
+
+    body.candidate-dashboard-page #mainMenu a {
+      font-size: 0.84rem;
+      color: #93aac8;
+    }
+
+    body.candidate-dashboard-page .header-actions .btn {
+      min-height: 40px;
+      padding-inline: var(--space-2);
+      font-size: 0.86rem;
+      opacity: 0.92;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(44px);
+    }
+
+    body::before {
+      inset: 0;
+      width: auto;
+      height: auto;
+      left: auto;
+      top: auto;
+      background: radial-gradient(circle at 40% 20%, rgba(18, 39, 84, 0.5), #050913 55%, transparent 100%);
+      opacity: 0.55;
+      mix-blend-mode: normal;
+    }
+
+    body::after {
+      inset: 0;
+      width: auto;
+      height: auto;
+      right: auto;
+      bottom: auto;
+      background: radial-gradient(circle at 50% 50%, transparent 46%, rgba(1, 4, 10, 0.5) 100%);
+    }
+
+    a,
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid rgba(86, 211, 255, 0.95);
+      outline-offset: 2px;
+    }
+
+    .page {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: var(--space-3);
+      position: relative;
+      z-index: 10;
+      isolation: isolate;
+      padding: var(--header-offset) var(--space-3) var(--space-4);
+    }
+
+    .section-anchor {
+      position: relative;
+      top: var(--anchor-offset);
+      height: 0;
+      visibility: hidden;
+    }
+
+    .panel {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(12, 21, 40, 0.9), rgba(9, 16, 31, 0.94));
+      border: 1px solid rgba(135, 198, 255, 0.12);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-3), inset 0 1px 0 rgba(177, 226, 255, 0.06);
+      backdrop-filter: blur(4px);
+      transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease, transform 0.22s ease;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 18%, transparent 82%, rgba(82, 213, 255, 0.015));
+      pointer-events: none;
+    }
+
+    .panel:hover {
+      border-color: rgba(122, 192, 255, 0.16);
+      box-shadow: var(--shadow-2), inset 0 1px 0 rgba(177, 226, 255, 0.08);
+    }
+
+    .section {
+      padding: var(--space-3);
+    }
+
+    .dashboard-hero {
+      padding: var(--space-3);
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .dashboard-hero::before,
+    .dashboard-hero::after {
+      display: none;
+    }
+
+    .dashboard-hero__top {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
+      gap: var(--space-2);
+      align-items: start;
+    }
+
+    .dashboard-hero__intro {
+      display: grid;
+      gap: var(--space-2);
+      min-width: 0;
+    }
+
+    .dashboard-hero__identity {
+      display: flex;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
+    .dashboard-hero__copy {
+      display: grid;
+      gap: var(--space-1);
+      min-width: 0;
+    }
+
+    .dashboard-hero__title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .dashboard-hero__title-row .btn {
+      min-height: 40px;
+      padding: var(--space-1) 14px;
+      flex: 0 0 auto;
+      box-shadow: none;
+    }
+
+    .dashboard-hero__title-row .btn-primary {
+      background: linear-gradient(92deg, rgba(83, 206, 255, 0.94), rgba(90, 121, 255, 0.88));
+      border: 1px solid rgba(143, 223, 255, 0.14);
+    }
+
+    .dashboard-hero__eyebrow {
+      color: #8fdfff;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .dashboard-hero__status {
+      margin: 0;
+      color: #b8cde5;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      max-width: 58ch;
+    }
+
+    .dashboard-hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+      margin-top: var(--space-1);
+    }
+
+    .dashboard-hero__actions-primary,
+    .dashboard-hero__actions-secondary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .dashboard-hero__actions .btn,
+    .dashboard-hero__actions .btn-link {
+      min-height: 44px;
+      padding: 0 16px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dashboard-hero__side {
+      display: grid;
+      gap: var(--space-2);
+      align-content: start;
+    }
+
+    .dashboard-next-step {
+      display: grid;
+      gap: var(--space-2);
+      align-content: start;
+      border-color: rgba(86, 211, 255, 0.14);
+      background: linear-gradient(180deg, rgba(15, 28, 52, 0.86), rgba(11, 21, 39, 0.92));
+      box-shadow: var(--shadow-3), inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .dashboard-next-step__label {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(var(--space-1) - 2px);
+      width: fit-content;
+      padding: calc(var(--space-1) / 2) var(--space-1);
+      border-radius: var(--radius-pill);
+      color: #dbf6ff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: rgba(86, 211, 255, 0.1);
+      border: 1px solid rgba(86, 211, 255, 0.16);
+    }
+
+    .dashboard-next-step__label i {
+      font-size: 0.84rem;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .dashboard-next-step h3,
+    .dashboard-next-step p {
+      margin: 0;
+    }
+
+    .dashboard-next-step .card-actions {
+      margin-top: var(--space-1);
+    }
+
+    .dashboard-status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .status-card {
+      display: grid;
+      gap: var(--space-1);
+      padding: var(--space-2);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+      min-height: 128px;
+    }
+
+    .status-card span {
+      color: #85abc9;
+      font-size: 0.73rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-card__label,
+    .stat-card__label,
+    .title-with-icon {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .status-card__label i,
+    .stat-card__label i,
+    .title-with-icon i {
+      color: #8fcde9;
+      font-size: 0.95rem;
+      flex: 0 0 auto;
+    }
+
+    .status-card strong {
+      color: #eff8ff;
+      font-size: 1.16rem;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .status-card p {
+      margin: 0;
+      color: #bdd8ee;
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+
+    .section-head__copy {
+      display: grid;
+      gap: calc(var(--space-1) / 2);
+      min-width: 0;
+    }
+
+    .section-head__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      color: #8fcde9;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .section-kicker::before {
+      content: "";
+      width: 18px;
+      height: 1px;
+      background: rgba(86, 211, 255, 0.56);
+      box-shadow: none;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Sora", sans-serif;
+      font-size: clamp(1.85rem, 2.6vw, 2.6rem);
+      line-height: 1.06;
+      letter-spacing: -0.03em;
+      text-shadow: none;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: "Sora", sans-serif;
+      font-size: 1.125rem;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    h3 {
+      margin: 0;
+      font-family: "Sora", sans-serif;
+      font-size: 0.98rem;
+      color: #eef8ff;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    .lead,
+    .subtle,
+    .helper,
+    .meta-label {
+      color: var(--muted);
+    }
+
+    .lead,
+    .subtle,
+    .helper {
+      line-height: 1.65;
+    }
+
+    .helper {
+      font-size: 0.82rem;
+      color: var(--muted-2);
+    }
+
+    .meta-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-3);
+    }
+
+    .last-updated {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      color: #8fb2d0;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .last-updated::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(86, 211, 255, 0.9);
+      box-shadow: none;
+    }
+
+    .divider {
+      height: 1px;
+      margin: 2px 0 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(86, 211, 255, 0.14), rgba(255,255,255,0.02));
+    }
+
+    .card-link,
+    .filter-btn,
+    .sort-select,
+    .tab-btn,
+    .status-pill,
+    .status-badge,
+    .verification-status,
+    .chip,
+    .check-badge,
+    .readiness-card__score,
+    .signal-card__score {
+      border-radius: var(--radius-pill);
+    }
+
+    .card-link,
+    .filter-btn,
+    .sort-select {
+      border: 1px solid var(--border-subtle);
+      background: rgba(12, 22, 44, 0.5);
+      color: #d6ebff;
+      padding: var(--space-1) 12px;
+      font-size: 0.8rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-1);
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    .card-link:hover,
+    .filter-btn:hover,
+    .filter-btn.is-active,
+    .sort-select:hover {
+      transform: translateY(-1px);
+      border-color: var(--border-card-hover);
+      background: var(--surface-interactive-hover);
+      color: #e6f8ff;
+    }
+
+    .avatar {
+      --avatar-radius: 24px;
+      width: 199px;
+      height: 243px;
+      border-radius: var(--avatar-radius);
+      overflow: hidden;
+      position: relative;
+      padding: 2px;
+      background: linear-gradient(145deg, rgba(138, 214, 255, 0.56), rgba(84, 121, 255, 0.28));
+      display: grid;
+      place-items: center;
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #d8f3ff;
+      box-shadow: var(--shadow-1);
+      flex: 0 0 auto;
+    }
+
+    .avatar::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: calc(var(--avatar-radius) - 2px);
+      background:
+        radial-gradient(circle at 30% 30%, rgba(86, 211, 255, 0.08), transparent 42%),
+        linear-gradient(150deg, rgba(12, 32, 56, 0.96), rgba(7, 19, 34, 0.94));
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      position: relative;
+      z-index: 1;
+      border-radius: calc(var(--avatar-radius) - 2px);
+      background: #091423;
+    }
+
+    .avatar-fallback {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      position: relative;
+      z-index: 1;
+      border-radius: calc(var(--avatar-radius) - 2px);
+      background: transparent;
+    }
+
+    .avatar.has-image .avatar-fallback {
+      display: none;
+    }
+
+    .avatar.is-fallback img {
+      display: none !important;
+    }
+
+    .hero-lead {
+      max-width: 60ch;
+      margin: 0;
+      color: #aebfd6;
+      font-size: 0.9rem;
+      line-height: 1.62;
+      padding-right: 0;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-1);
+    }
+
+    .hero-meta-card {
+      border-radius: var(--radius-md);
+      padding: var(--space-2);
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+      min-width: 0;
+    }
+
+    .hero-meta-card span {
+      display: block;
+      margin-bottom: calc(var(--space-1) - 2px);
+      color: #87adcb;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero-meta-card strong {
+      display: block;
+      color: #eef8ff;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .pill-row,
+    .hero-meta-inline,
+    .chip-list,
+    .box-list,
+    .signal-meta,
+    .ops-meta,
+    .posting-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .status-pill,
+    .status-badge,
+    .verification-status,
+    .check-badge,
+    .chip,
+    .box-item,
+    .workspace-tag,
+    .readiness-card__score,
+    .signal-card__score,
+    .experience-meta span {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--surface-interactive);
+      color: #d6ebff;
+    }
+
+    .status-pill,
+    .status-badge,
+    .verification-status,
+    .chip,
+    .readiness-card__score,
+    .signal-card__score {
+      padding: 7px 11px;
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .check-badge {
+      min-width: 74px;
+      text-align: center;
+      padding: calc(var(--space-1) - 2px) 10px;
+      font-size: 0.74rem;
+      line-height: 1.35;
+    }
+
+    .status-pill--accent {
+      border-color: rgba(86, 211, 255, 0.2);
+      background: rgba(86, 211, 255, 0.08);
+      color: #dcf7ff;
+    }
+
+    .surface-card,
+    .workspace-card,
+    .action-card,
+    .insight-card,
+    .mini-panel,
+    .stat-card,
+    .timeline-card,
+    .modal-card,
+    .resume-section,
+    .experience-card,
+    .ops-card,
+    .signal-card,
+    .profile-preview,
+    .readiness-item,
+    .recent-activity__row,
+    .posting-card,
+    .empty-state,
+    .verification-panel,
+    .choice-btn {
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .workspace-card,
+    .action-card,
+    .insight-card,
+    .mini-panel,
+    .stat-card,
+    .timeline-card,
+    .modal-card,
+    .resume-section,
+    .experience-card,
+    .ops-card,
+    .signal-card,
+    .profile-preview,
+    .empty-state,
+    .verification-panel {
+      border-radius: var(--radius-lg);
+      padding: var(--space-2);
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .workspace-card:hover,
+    .action-card:hover,
+    .insight-card:hover,
+    .mini-panel:hover,
+    .stat-card:hover,
+    .timeline-card:hover,
+    .modal-card:hover,
+    .resume-section:hover,
+    .experience-card:hover,
+    .ops-card:hover,
+    .signal-card:hover,
+    .profile-preview:hover {
+      border-color: var(--border-card-hover);
+      background: var(--surface-card-hover);
+    }
+
+    .readiness-card__top,
+    .recent-activity__top,
+    .timeline-top,
+    .signal-head,
+    .posting-head,
+    .verification-head {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .signal-head strong {
+      color: #eef8ff;
+      font-size: 1rem;
+    }
+
+    .workspace-progress,
+    .signal-meter,
+    .stage-bar {
+      height: 10px;
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .workspace-progress span,
+    .signal-meter span,
+    .stage-bar span {
+      display: block;
+      height: 100%;
+      width: var(--fill, 50%);
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(86, 211, 255, 0.88), rgba(125, 156, 255, 0.92));
+      box-shadow: none;
+    }
+
+    .btn-row,
+    .card-actions,
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .btn,
+    .btn-link {
+      border-radius: var(--radius-md);
+      min-height: 42px;
+      padding: var(--space-1) var(--space-2);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      gap: var(--space-1);
+      justify-content: center;
+      align-items: center;
+      border: 0;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+    }
+
+    .btn i,
+    .btn-link i,
+    .card-link i {
+      font-size: 0.95rem;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .btn:hover,
+    .btn-link:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled,
+    .btn-link:disabled,
+    .card-link:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      color: #03111f;
+      background: linear-gradient(92deg, #35c9ff, #5a79ff);
+      box-shadow: var(--shadow-1);
+    }
+
+    .btn-ghost,
+    .btn-link {
+      border: 1px solid var(--border-subtle);
+      color: #d9efff;
+      background: rgba(12, 22, 44, 0.5);
+    }
+
+    .btn-danger {
+      border: 1px solid rgba(255, 140, 140, 0.22);
+      color: #ffe0e0;
+      background: rgba(255, 140, 140, 0.08);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .stat-card strong {
+      display: block;
+      margin-top: var(--space-1);
+      font-size: 1.28rem;
+      color: #eff8ff;
+      letter-spacing: -0.03em;
+    }
+
+    .surface-grid,
+    .metrics-grid,
+    .dashboard-grid {
+      display: grid;
+      gap: var(--space-3);
+    }
+
+    .surface-grid,
+    .dashboard-grid {
+      grid-template-columns: 1.08fr 0.92fr;
+    }
+
+    .metrics-grid {
+      grid-template-columns: 1.08fr 0.92fr;
+    }
+
+    .surface-stack,
+    .signal-board,
+    .ops-grid,
+    .stage-list,
+    .timeline,
+    .insight-stack,
+    .recent-activity,
+    .posting-list,
+    .verification-choices {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .insight-loading {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: var(--space-2);
+      margin-bottom: var(--space-2);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-card);
+      color: #c9e6fb;
+      font-size: 0.84rem;
+    }
+
+    .insight-loading__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), var(--violet));
+      box-shadow: none;
+      animation: insightPulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes insightPulse {
+      0%, 100% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    .signal-card,
+    .ops-card {
+      padding: var(--space-2);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      display: grid;
+      gap: var(--space-1);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .signal-card__score,
+    .readiness-card__score {
+      min-width: 54px;
+      padding: 7px 10px;
+      text-align: center;
+      font-size: 0.76rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .signal-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: calc(var(--space-1) - 2px);
+      color: #bdd8ee;
+      font-size: 0.8rem;
+    }
+
+    .ops-card strong {
+      font-size: 0.96rem;
+      color: #ebf7ff;
+    }
+
+    .ops-card p,
+    .insight-card p,
+    .action-card p {
+      margin: 0;
+      color: #9fc2de;
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .action-card,
+    .insight-card {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .readiness-list {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .verification-compact {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .verification-summary {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .verification-summary__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-1);
+      color: #dff2ff;
+      font-size: 0.82rem;
+    }
+
+    .verification-summary__meta {
+      color: var(--muted-2);
+      font-size: 0.78rem;
+    }
+
+    .verification-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-1);
+    }
+
+    .verification-item {
+      display: grid;
+      gap: var(--space-1);
+      align-content: start;
+      padding: var(--space-2);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-card);
+      color: #dff2ff;
+      text-align: left;
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.04);
+    }
+
+    .verification-item__head {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      min-width: 0;
+    }
+
+    button.verification-item {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    button.verification-item:hover {
+      border-color: var(--border-card-hover);
+      background: var(--surface-card-hover);
+      transform: translateY(-1px);
+    }
+
+    .verification-item__icon {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #dff2ff;
+      font-size: 0.95rem;
+    }
+
+    .verification-item__label {
+      font-size: 0.8rem;
+      line-height: 1.35;
+      color: #eff8ff;
+    }
+
+    .readiness-item,
+    .check-item {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-1);
+      align-items: center;
+      padding: var(--space-2);
+      border-radius: var(--radius-md);
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      color: #dff2ff;
+      font-size: 0.82rem;
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.04);
+    }
+
+    button.readiness-item,
+    button.check-item {
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    button.readiness-item:hover,
+    button.check-item:hover {
+      border-color: var(--border-card-hover);
+      background: var(--surface-card-hover);
+      transform: translateY(-1px);
+    }
+
+    .check-badge--done,
+    .verification-status--done {
+      background: rgba(119, 228, 170, 0.12);
+      border-color: rgba(119, 228, 170, 0.22);
+      color: #dffceb;
+    }
+
+    .check-badge--todo,
+    .verification-status--todo {
+      background: rgba(255, 213, 137, 0.08);
+      border-color: rgba(255, 213, 137, 0.18);
+      color: #ffe8b0;
+    }
+
+    .data-table {
+      display: grid;
+      gap: 0;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-2);
+    }
+
+    .data-table__head,
+    .recent-activity__row {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr 1fr 0.7fr 0.8fr;
+      gap: var(--space-2);
+      align-items: center;
+    }
+
+    .data-table__head {
+      padding: var(--space-2);
+      background: rgba(11, 22, 44, 0.54);
+      color: #8fb2d0;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .recent-activity__row {
+      padding: var(--space-2);
+      border-top: 1px solid rgba(135, 198, 255, 0.08);
+      background: rgba(11, 22, 44, 0.32);
+    }
+
+    .recent-activity__row strong {
+      color: #eef8ff;
+      font-size: 0.88rem;
+    }
+
+    .recent-activity__cell {
+      min-width: 0;
+      color: #c4ddef;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .stage-row {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .stage-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-1);
+      font-size: 0.84rem;
+      color: #d7ecfb;
+    }
+
+    .section-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      margin-bottom: var(--space-2);
+    }
+
+    .tab-btn {
+      border: 1px solid rgba(86, 211, 255, 0.14);
+      background: rgba(255, 255, 255, 0.03);
+      color: #d8efff;
+      border-radius: var(--radius-pill);
+      padding: var(--space-1) 12px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .tab-btn:hover,
+    .tab-btn.is-active {
+      background: rgba(86, 211, 255, 0.12);
+      border-color: rgba(86, 211, 255, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.is-active { display: block; }
+
+    .timeline-card {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .timeline-card::after {
+      content: "";
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(86, 211, 255, 0.24), transparent);
+      margin-top: 2px;
+    }
+
+    .posting-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+
+    .posting-toolbar__filters,
+    .posting-toolbar__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .sort-select {
+      appearance: none;
+      padding-right: 30px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #8fdfff 50%),
+        linear-gradient(135deg, #8fdfff 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+
+    .posting-card {
+      padding: var(--space-2);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 160px;
+      gap: var(--space-2);
+      align-items: center;
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .posting-card:hover {
+      border-color: var(--border-card-hover);
+      background: var(--surface-card-hover);
+    }
+
+    .posting-card[hidden] {
+      display: none !important;
+    }
+
+    .posting-main {
+      display: grid;
+      gap: var(--space-1);
+      min-width: 0;
+    }
+
+    .posting-head {
+      justify-content: flex-start;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
+
+    .posting-title-button {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .posting-title-button:hover strong {
+      color: #8fe4ff;
+    }
+
+    .posting-head strong {
+      display: block;
+      color: #eef8ff;
+      font-size: 0.98rem;
+      line-height: 1.35;
+      transition: color 0.18s ease;
+    }
+
+    .posting-subtitle {
+      color: #9fc2de;
+      font-size: 0.81rem;
+      line-height: 1.5;
+    }
+
+    .posting-desc {
+      margin: 0;
+      color: #c0dcf3;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .posting-desc p,
+    .posting-rich p {
+      margin: 0 0 var(--space-1);
+    }
+
+    .posting-desc p:last-child,
+    .posting-rich p:last-child {
+      margin-bottom: 0;
+    }
+
+    .posting-rich {
+      color: #c0dcf3;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    .posting-rich ul,
+    .posting-rich ol {
+      margin: 0;
+      padding-left: 20px;
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .posting-rich li { color: #d8eeff; }
+    .posting-rich strong,
+    .posting-rich b { color: #eef8ff; }
+
+    .posting-card--recommended {
+      border-color: rgba(86, 211, 255, 0.24);
+      box-shadow: inset 0 0 0 1px rgba(86, 211, 255, 0.05);
+    }
+
+    .posting-side {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .posting-actions {
+      display: grid;
+      gap: var(--space-1);
+      align-content: start;
+      width: 100%;
+    }
+
+    .posting-actions .card-link {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .empty-state {
+      gap: var(--space-1);
+      background: rgba(11, 22, 44, 0.28);
+      border: 1px dashed rgba(123, 198, 242, 0.12);
+      display: grid;
+    }
+
+    .empty-state strong {
+      color: #eef8ff;
+      font-size: 0.96rem;
+    }
+
+    .empty-state p {
+      margin: 0;
+      color: #9dbdd9;
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .profile-preview {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+
+    .profile-preview .avatar {
+      width: 76px;
+      height: 76px;
+      --avatar-radius: 20px;
+      font-size: 1.4rem;
+    }
+
+    .profile-modal-summary {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .profile-modal-summary p {
+      margin: 0;
+      color: #9fc2de;
+      font-size: 0.86rem;
+      line-height: 1.65;
+    }
+
+    .form-grid,
+    .modal-grid,
+    .experience-grid {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .modal-grid,
+    .experience-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-bottom: var(--space-2);
+    }
+
+    .field {
+      display: grid;
+      gap: var(--space-1);
+    }
+
+    .field--full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      font-size: 0.9rem;
+      color: #d6e5ff;
+    }
+
+    .input-with-icon {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .input-with-icon--select::after {
+      content: "";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid rgba(143, 223, 255, 0.8);
+      border-bottom: 2px solid rgba(143, 223, 255, 0.8);
+      transform: translateY(-65%) rotate(45deg);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .input-with-icon--select i {
+      top: 24px;
+      transform: translateY(-50%);
+    }
+
+    .input-with-icon i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #8fcde9;
+      font-size: 0.96rem;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .input-with-icon .portal-input,
+    .input-with-icon input,
+    .input-with-icon select,
+    .input-with-icon textarea {
+      padding-left: 40px;
+    }
+
+    .input-with-icon--file i {
+      top: 18px;
+      transform: none;
+    }
+
+    .input-with-icon--file .portal-input,
+    .input-with-icon--file input[type="file"] {
+      padding-left: 40px;
+    }
+
+    .portal-input {
+      width: 100%;
+      min-height: 48px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: var(--input);
+      color: var(--text);
+      padding: 12px var(--space-2);
+      font-size: 0.96rem;
+      line-height: 1.35;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    select.portal-input {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      height: 48px;
+      padding-top: 12px;
+      padding-bottom: 12px;
+      padding-right: 44px;
+      line-height: 1.35;
+    }
+
+    .portal-input--file {
+      min-height: 0;
+      padding: var(--space-1) 12px;
+    }
+
+    .portal-input--file::file-selector-button {
+      border: 0;
+      border-radius: var(--radius-md);
+      margin-right: 12px;
+      padding: var(--space-1) 12px;
+      background: rgba(86, 211, 255, 0.14);
+      color: #dff6ff;
+      cursor: pointer;
+    }
+
+    .portal-input:focus {
+      border-color: rgba(86, 211, 255, 0.55);
+      box-shadow: 0 0 0 4px rgba(86, 211, 255, 0.12);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .errorlist {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: var(--danger);
+      font-size: 0.84rem;
+    }
+
+    .submit-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-1);
+      margin-top: var(--space-2);
+    }
+
+    .alert {
+      border-radius: var(--radius-md);
+      padding: var(--space-2);
+      margin-bottom: var(--space-2);
+      line-height: 1.5;
+    }
+
+    .alert-success {
+      background: rgba(119, 228, 170, 0.08);
+      border: 1px solid rgba(119, 228, 170, 0.24);
+      color: #dffceb;
+    }
+
+    .alert-error {
+      background: rgba(255, 140, 140, 0.08);
+      border: 1px solid rgba(255, 140, 140, 0.2);
+      color: #ffd4d4;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(1, 7, 18, 0.72);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-3);
+      z-index: 70;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.is-open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .session-idle-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-3);
+      background: rgba(1, 7, 18, 0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    .session-idle-overlay.is-open {
+      display: flex;
+    }
+
+    .session-idle-dialog {
+      width: min(460px, 100%);
+      background: linear-gradient(180deg, rgba(12, 22, 42, 0.96), rgba(9, 17, 32, 0.98));
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      border-radius: 12px;
+      box-shadow: var(--shadow-2), inset 0 1px 0 rgba(177, 226, 255, 0.04);
+      padding: var(--space-3);
+      display: grid;
+      gap: 14px;
+    }
+
+    .session-idle-dialog h2 {
+      margin: 0;
+      font-size: 1.42rem;
+      line-height: 1.2;
+      color: var(--text-strong);
+    }
+
+    .session-idle-kicker {
+      margin: 0;
+      color: #8fdfff;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .session-idle-copy {
+      margin: 0;
+      color: #bdd8ee;
+      font-size: 0.94rem;
+      line-height: 1.6;
+    }
+
+    .session-idle-countdown {
+      margin: 0;
+      color: #ffd589;
+      font-size: 0.94rem;
+      font-weight: 700;
+    }
+
+    .session-idle-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    body.session-idle-open {
+      overflow: hidden;
+    }
+
+    .profile-modal {
+      width: min(1080px, 100%);
+      max-height: min(92vh, 980px);
+      overflow: auto;
+      background: linear-gradient(180deg, rgba(12, 22, 42, 0.94), rgba(9, 17, 32, 0.97));
+      border: 1px solid rgba(135, 198, 255, 0.12);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-2), inset 0 1px 0 rgba(177, 226, 255, 0.04);
+      backdrop-filter: blur(5px);
+      position: relative;
+      padding: var(--space-3);
+      display: grid;
+      gap: var(--space-2);
+      transform: translateY(var(--space-2)) scale(0.985);
+      transition: transform 0.22s ease, opacity 0.22s ease;
+      opacity: 0;
+    }
+
+    .modal-overlay.is-open .profile-modal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .modal-close {
+      position: absolute;
+      right: var(--space-2);
+      top: var(--space-1);
+      border: 0;
+      background: transparent;
+      color: #86dcff;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-hero {
+      display: flex;
+      gap: var(--space-2);
+      align-items: center;
+      margin-bottom: var(--space-1);
+    }
+
+    .modal-card span {
+      display: block;
+      color: #8cb1cf;
+      font-size: 0.72rem;
+      margin-bottom: calc(var(--space-1) / 2);
+    }
+
+    .modal-card strong {
+      color: #e2f3ff;
+      font-size: 0.9rem;
+    }
+
+    .resume-section h4 {
+      margin: 0 0 var(--space-1);
+      color: #8fdfff;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .resume-section p {
+      color: #bdd8ee;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .experience-card {
+      background: var(--surface-2);
+      display: grid;
+      gap: var(--space-1);
+      align-content: start;
+    }
+
+    .experience-head {
+      display: grid;
+      gap: calc(var(--space-1) / 2);
+    }
+
+    .experience-head strong {
+      color: #eff8ff;
+      font-size: 0.96rem;
+      line-height: 1.35;
+    }
+
+    .experience-company,
+    .experience-role {
+      color: #d8efff;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    .experience-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+    }
+
+    .experience-meta span {
+      border-radius: var(--radius-pill);
+      padding: 6px 10px;
+      font-size: 0.73rem;
+      color: #d0e9fb;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: var(--space-1);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .detail-list li {
+      position: relative;
+      padding-left: 14px;
+      color: #bdd8ee;
+      font-size: 0.79rem;
+      line-height: 1.55;
+    }
+
+    .detail-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(86, 211, 255, 0.85);
+      box-shadow: 0 0 12px rgba(86, 211, 255, 0.25);
+    }
+
+    .box-item {
+      border-radius: var(--radius-md);
+      padding: var(--space-1) 12px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .box-item strong {
+      display: block;
+      margin-bottom: calc(var(--space-1) / 2);
+      color: #eff8ff;
+      font-size: 0.84rem;
+    }
+
+    .box-item div {
+      color: #bdd8ee;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .verification-choices {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 2px;
+    }
+
+    .choice-btn {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-card);
+      color: #d8efff;
+      padding: var(--space-2);
+      text-align: left;
+      cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.04);
+    }
+
+    .choice-btn strong {
+      display: block;
+      margin-bottom: calc(var(--space-1) / 2);
+      font-size: 0.95rem;
+      color: #eef8ff;
+    }
+
+    .choice-btn span {
+      display: block;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #9ec1df;
+    }
+
+    .choice-btn:hover,
+    .choice-btn.is-active {
+      border-color: rgba(86, 211, 255, 0.22);
+      background: var(--surface-card-hover);
+      transform: translateY(-1px);
+    }
+
+    .verification-panel {
+      display: none;
+      gap: var(--space-2);
+      padding: var(--space-2);
+    }
+
+    .verification-panel.is-open {
+      display: grid;
+    }
+
+    .verification-note {
+      margin: 0;
+      color: #c8e4fb;
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .verification-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #aac9e4;
+      display: grid;
+      gap: var(--space-1);
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .inline-form {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .inline-message {
+      min-height: 20px;
+      font-size: 0.82rem;
+      color: #cdeaff;
+    }
+
+    .inline-message.is-error { color: #ffd4d4; }
+    .inline-message.is-success { color: #dffceb; }
+
+    .u-m-0 { margin: 0 !important; }
+    .u-mt-1 { margin-top: var(--space-1) !important; }
+    .u-mt-2 { margin-top: var(--space-2) !important; }
+    .u-mb-1 { margin-bottom: var(--space-1) !important; }
+
+    .inline-alert-row {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast-region {
+      position: fixed;
+      right: var(--space-3);
+      bottom: var(--space-3);
+      z-index: 90;
+      display: grid;
+      gap: var(--space-1);
+      max-width: min(360px, calc(100vw - 32px));
+    }
+
+    .toast {
+      border-radius: var(--radius-lg);
+      padding: var(--space-2);
+      background: rgba(8, 18, 34, 0.97);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-1);
+      color: #eaf2ff;
+      display: grid;
+      gap: calc(var(--space-1) / 2);
+      animation: toastIn 0.22s ease;
+    }
+
+    .toast--success {
+      border-color: rgba(119, 228, 170, 0.25);
+    }
+
+    .toast--error {
+      border-color: rgba(255, 140, 140, 0.25);
+    }
+
+    .toast strong {
+      font-size: 0.88rem;
+    }
+
+    .toast span {
+      color: #bdd8ee;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    @media (max-width: 1180px) {
+      .dashboard-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dashboard-hero__top,
+      .surface-grid,
+      .metrics-grid,
+      .dashboard-grid,
+      .modal-grid,
+      .experience-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .stats-grid,
+      .hero-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 860px) {
+      .dashboard-status-grid,
+      .stats-grid,
+      .form-grid,
+      .verification-choices {
+        grid-template-columns: 1fr;
+      }
+
+      .verification-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .data-table__head,
+      .recent-activity__row {
+        grid-template-columns: 1fr;
+      }
+
+      .data-table__head {
+        display: none;
+      }
+
+      .recent-activity__row {
+        gap: var(--space-1);
+      }
+    }
+
+    @media (max-width: 760px) {
+      body.candidate-dashboard-page .header-shell {
+        grid-template-columns: auto 1fr auto;
+        gap: var(--space-2);
+        align-items: center;
+      }
+
+      body.candidate-dashboard-page .brand {
+        grid-column: 1;
+      }
+
+      body.candidate-dashboard-page #mainMenu {
+        display: none;
+      }
+
+      body.candidate-dashboard-page .header-actions {
+        grid-column: 3;
+        justify-self: end;
+      }
+
+      body.candidate-dashboard-page .header-actions .btn {
+        min-width: auto;
+        white-space: nowrap;
+      }
+
+      .page { padding: calc(var(--header-offset) - var(--space-1)) var(--space-2) var(--space-3); }
+
+      .posting-toolbar,
+      .posting-toolbar__filters,
+      .posting-toolbar__actions,
+      .section-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .section-head__meta {
+        justify-content: flex-start;
+      }
+
+      .dashboard-hero,
+      .section,
+      .profile-modal {
+        padding: var(--space-2);
+      }
+
+      .session-idle-dialog {
+        padding: var(--space-2);
+      }
+
+      .session-idle-actions {
+        flex-direction: column;
+      }
+
+      .session-idle-actions .btn {
+        width: 100%;
+      }
+
+      .dashboard-hero__identity {
+        flex-direction: column;
+      }
+
+      .dashboard-hero__title-row {
+        align-items: stretch;
+      }
+
+      .dashboard-hero__title-row .btn {
+        width: 100%;
+      }
+
+      .inline-form,
+      .submit-row,
+      .btn-row {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+      }
+
+      .submit-row .btn,
+      .submit-row .btn-link,
+      .btn-row .btn,
+      .btn-row .btn-link,
+      .card-link,
+      .filter-btn,
+      .sort-select {
+        width: 100%;
+      }
+
+      .dashboard-hero__actions-primary,
+      .dashboard-hero__actions-secondary {
+        width: 100%;
+      }
+
+      .dashboard-hero__actions-primary > .btn,
+      .dashboard-hero__actions-secondary > .btn,
+      .dashboard-hero__actions-secondary > .btn-link {
+        width: 100%;
+      }
+
+      .hero-meta,
+      .posting-card {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-hero {
+        align-items: flex-start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+
+      .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="candidate-dashboard-page">
+  <div id="scene3d" aria-hidden="true"></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <div class="spotlight"></div>
+  <div class="light-beam beam-a"></div>
+  <div class="light-beam beam-b"></div>
+  <div class="atmo haze-1"></div>
+  <div class="atmo haze-2"></div>
+  <div class="noise-layer"></div>
+
+  <header id="mainHeader" class="scrolled">
+    <div class="header-shell">
+      <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+
+      <nav id="mainMenu" aria-label="Primary navigation">
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="#overview">Dashboard</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="{% url 'logout' %}" class="btn btn-ghost">Logout</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="page">
+    <span class="section-anchor" id="overview"></span>
+
+    <section class="panel dashboard-hero reveal" aria-label="Workspace overview">
+      <div class="dashboard-hero__top">
+        <div class="dashboard-hero__intro">
+          <div class="dashboard-hero__identity">
+          <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}" id="dashboardAvatar">
+            {% if candidate.profile_picture_url %}
+              <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+            {% endif %}
+            <span class="avatar-fallback">{{ candidate.initials }}</span>
+          </div>
+
+            <div class="dashboard-hero__copy">
+              <span class="dashboard-hero__eyebrow">Welcome back</span>
+              <div class="dashboard-hero__title-row">
+                <h1>{{ candidate.name }}</h1>
+                <button class="btn btn-primary" type="button" data-open-update-profile><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Edit Profile</button>
+              </div>
+              <p class="dashboard-hero__status">
+                {{ analytics.active_roles }} active opportunities, resume status {{ analytics.resume_status|title }}, and {{ analytics.profile_completion }}% of your profile is complete.
+              </p>
+              <p class="hero-lead">
+              {% if resume.career_objective %}
+                {{ resume.career_objective }}
+              {% else %}
+                Keep your profile, resume, verification, and applications in one clear workspace.
+              {% endif %}
+            </p>
+
+            <div class="pill-row">
+                <span class="status-pill status-pill--accent">Profile {{ analytics.profile_completion }}% complete</span>
+	              <span class="status-pill" id="heroResumeStatusPill">Resume {{ analytics.resume_status|title }}</span>
+              <span class="status-pill">Contact {{ analytics.current_recruiter }}</span>
+              {% if analytics.next_interview %}
+                <span class="status-pill">Next interview {{ analytics.next_interview|date:"M d, Y h:i A" }}</span>
+              {% endif %}
+            </div>
+
+              <div class="dashboard-hero__actions">
+                <div class="dashboard-hero__actions-secondary">
+                  <button class="btn btn-ghost" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>View Profile</button>
+                  <a class="btn btn-ghost" href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</a>
+                  <button class="btn btn-ghost" type="button" data-open-share-resume><i class="ph ph-share-network" aria-hidden="true"></i>Share Resume</button>
+                  {% if candidate.resume_file_url %}
+                    <a class="btn-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener"><i class="ph ph-file-arrow-up" aria-hidden="true"></i>Open Resume</a>
+                  {% endif %}
+                  <a class="btn-link" href="#activity"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>Recent Activity</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        <div class="hero-meta">
+          <div class="hero-meta-card">
+            <span>Email</span>
+            <strong>{{ candidate.email }}</strong>
+          </div>
+          <div class="hero-meta-card">
+            <span>Mobile</span>
+            <strong>{{ candidate.phone }}</strong>
+          </div>
+          <div class="hero-meta-card">
+            <span>Gender</span>
+            <strong>{{ candidate.gender|title }}</strong>
+          </div>
+        </div>
+        </div>
+
+        <aside class="dashboard-hero__side">
+          <div class="workspace-card dashboard-next-step">
+            <span class="dashboard-next-step__label"><i class="ph ph-arrow-circle-right" aria-hidden="true"></i>Next step</span>
+          <h3>
+            {% if analytics.next_interview %}
+              Prepare for your next interview
+            {% elif not verification.phone_verified_at %}
+              Verify your phone number
+            {% elif not verification.email_verified_at %}
+              Verify your email address
+            {% elif not verification.identity_verified %}
+              Complete identity verification
+	            {% elif analytics.has_missing_profile_uploads %}
+	              Upload profile assets
+	            {% elif analytics.profile_completion < 100 %}
+	              Complete remaining profile fields
+	            {% else %}
+	              Review matched opportunities
+            {% endif %}
+          </h3>
+          <p>
+            {% if analytics.next_interview %}
+              Your next interview is scheduled for {{ analytics.next_interview|date:"M d, Y h:i A" }}. Review your resume, recent activity, and open roles before the discussion.
+            {% elif not verification.phone_verified_at %}
+              Phone verification helps you complete your account and receive updates reliably.
+            {% elif not verification.email_verified_at %}
+              Email verification helps ensure interview updates and messages reach you.
+            {% elif not verification.identity_verified %}
+              Identity verification helps complete your account setup.
+	            {% elif analytics.has_missing_profile_uploads %}
+	              Uploading your {{ analytics.missing_profile_uploads|join:" and " }} completes your profile and improves your application context.
+	            {% elif analytics.profile_completion < 100 %}
+	              Completing the remaining fields gives you a stronger and more complete profile.
+	            {% else %}
+              Your profile is in good shape. Review your active opportunities and keep an eye on updates.
+	            {% endif %}
+	          </p>
+            <div class="card-actions">
+            {% if analytics.next_interview %}
+              <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>Review Profile</button>
+            {% elif not verification.phone_verified_at %}
+              <button class="card-link" type="button" data-open-verification="phone"><i class="ph ph-phone" aria-hidden="true"></i>Verify Phone</button>
+            {% elif not verification.email_verified_at %}
+              <button class="card-link" type="button" data-open-verification="email"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Verify Email</button>
+            {% elif not verification.identity_verified %}
+              <button class="card-link" type="button" data-open-verification="identity"><i class="ph ph-identification-card" aria-hidden="true"></i>Verify Identity</button>
+	            {% elif analytics.has_missing_profile_uploads %}
+	              <button class="card-link" type="button" data-open-update-profile><i class="ph ph-upload-simple" aria-hidden="true"></i>Upload Now</button>
+	            {% else %}
+	              <a class="card-link" href="#activity"><i class="ph ph-binoculars" aria-hidden="true"></i>Review Matches</a>
+	            {% endif %}
+	          </div>
+          </div>
+
+          <div class="workspace-card">
+            <div class="readiness-card__top">
+              <strong>Verification</strong>
+              <span class="readiness-card__score">
+                {% if verification.phone_verified_at and verification.email_verified_at and verification.identity_verified %}
+                  3/3
+                {% elif verification.phone_verified_at and verification.email_verified_at %}
+                  2/3
+                {% elif verification.phone_verified_at and verification.identity_verified %}
+                  2/3
+                {% elif verification.email_verified_at and verification.identity_verified %}
+                  2/3
+                {% elif verification.phone_verified_at or verification.email_verified_at or verification.identity_verified %}
+                  1/3
+                {% else %}
+                  0/3
+                {% endif %}
+              </span>
+            </div>
+
+            <div class="verification-compact">
+              <div class="verification-summary">
+                <div class="verification-summary__row">
+                  <span>Account checks</span>
+                  <span class="verification-summary__meta">
+                    {% if verification.phone_verified_at and verification.email_verified_at and verification.identity_verified %}
+                      Fully verified
+                    {% elif verification.phone_verified_at or verification.email_verified_at or verification.identity_verified %}
+                      Partially verified
+                    {% else %}
+                      Verification pending
+                    {% endif %}
+                  </span>
+                </div>
+                <div
+                  class="workspace-progress"
+                  style="--fill:
+                    {% if verification.phone_verified_at and verification.email_verified_at and verification.identity_verified %}100%
+                    {% elif verification.phone_verified_at and verification.email_verified_at %}66%
+                    {% elif verification.phone_verified_at and verification.identity_verified %}66%
+                    {% elif verification.email_verified_at and verification.identity_verified %}66%
+                    {% elif verification.phone_verified_at or verification.email_verified_at or verification.identity_verified %}33%
+                    {% else %}8%
+                    {% endif %};"
+                >
+                  <span></span>
+                </div>
+              </div>
+
+              <div class="verification-grid">
+                <button class="verification-item" type="button" data-open-verification="phone">
+                  <span class="verification-item__head">
+                    <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-phone"></i></span>
+                    <span class="verification-item__label">Phone</span>
+                  </span>
+                  <span
+                    class="check-badge {% if verification.phone_verified_at %}check-badge--done{% else %}check-badge--todo{% endif %}"
+                    id="phoneChecklistBadge"
+                  >
+                    {% if verification.phone_verified_at %}Done{% else %}Verify{% endif %}
+                  </span>
+                </button>
+
+                <button class="verification-item" type="button" data-open-verification="email">
+                  <span class="verification-item__head">
+                    <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-envelope-simple"></i></span>
+                    <span class="verification-item__label">Email</span>
+                  </span>
+                  <span
+                    class="check-badge {% if verification.email_verified_at %}check-badge--done{% else %}check-badge--todo{% endif %}"
+                    id="emailChecklistBadge"
+                  >
+                    {% if verification.email_verified_at %}Done{% else %}Verify{% endif %}
+                  </span>
+                </button>
+
+                <button class="verification-item" type="button" data-open-verification="identity">
+                  <span class="verification-item__head">
+                    <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-identification-card"></i></span>
+                    <span class="verification-item__label">Identity</span>
+                  </span>
+                  <span
+                    class="check-badge {% if verification.identity_verified %}check-badge--done{% else %}check-badge--todo{% endif %}"
+                    id="identityChecklistBadge"
+                  >
+                    {% if verification.identity_verified %}Done{% else %}Verify{% endif %}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="dashboard-status-grid">
+        <article class="status-card">
+          <span class="status-card__label"><i class="ph ph-user-check" aria-hidden="true"></i>Profile status</span>
+          <strong>{{ analytics.profile_completion }}%</strong>
+          <p>Complete details and uploads make your profile easier to review.</p>
+          <div class="workspace-progress" style="--fill: {{ analytics.profile_completion }}%;">
+            <span></span>
+          </div>
+        </article>
+
+        <article class="status-card">
+          <span class="status-card__label"><i class="ph ph-file-text" aria-hidden="true"></i>Resume</span>
+          <strong id="resumeStatusSummaryValue">{{ analytics.resume_status|title }}</strong>
+          <p id="resumeProcessedSummaryText">{% if resume.processed_at %}Processed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting structured extraction{% endif %}</p>
+          <div class="card-actions">
+            <button class="card-link" type="button" id="refreshResumeDetailsBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Refresh Resume Details</button>
+            <span class="status-pill" id="workspaceResumeStatusValue">{{ analytics.resume_status|title }}</span>
+          </div>
+        </article>
+
+        <article class="status-card">
+          <span class="status-card__label"><i class="ph ph-shield-check" aria-hidden="true"></i>Verification</span>
+          <strong>
+            {% if verification.phone_verified_at %}1{% else %}0{% endif %}/{% if verification.email_verified_at %}1{% else %}0{% endif %}/{% if verification.identity_verified %}1{% else %}0{% endif %}
+          </strong>
+          <p>Phone, email, and identity checks help complete your account setup.</p>
+        </article>
+
+        <article class="status-card">
+          <span class="status-card__label"><i class="ph ph-briefcase" aria-hidden="true"></i>Applications</span>
+          <strong>{{ analytics.active_roles }}</strong>
+          <p>{{ analytics.total_roles }} total assigned roles across your current hiring pipeline.</p>
+        </article>
+      </div>
+
+      {% if analytics.has_missing_profile_uploads %}
+        <div class="alert alert-error inline-alert-row">
+          <span>
+            Upload your {{ analytics.missing_profile_uploads|join:" and " }} to complete your profile and keep your dashboard up to date.
+          </span>
+          <button class="card-link" type="button" data-open-update-profile>Upload Now</button>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel section reveal" aria-label="Candidate analytics">
+      <div class="section-head">
+        <div class="section-head__copy">
+          <h2 class="title-with-icon"><i class="ph ph-chart-bar" aria-hidden="true"></i>Your Progress</h2>
+          <p class="subtle u-m-0">A simple view of the key metrics that matter most on your dashboard.</p>
+        </div>
+        <div class="section-head__meta">
+          <span class="last-updated">Live dashboard view</span>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="meta-label stat-card__label"><i class="ph ph-user-circle-plus" aria-hidden="true"></i>Profile Completion</span>
+          <strong data-count="{{ analytics.profile_completion }}">{{ analytics.profile_completion }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="meta-label stat-card__label"><i class="ph ph-briefcase-metal" aria-hidden="true"></i>Roles Assigned</span>
+          <strong data-count="{{ analytics.total_roles }}">{{ analytics.total_roles }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="meta-label stat-card__label"><i class="ph ph-lightning" aria-hidden="true"></i>Active Opportunities</span>
+          <strong data-count="{{ analytics.active_roles }}">{{ analytics.active_roles }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="meta-label stat-card__label"><i class="ph ph-gauge" aria-hidden="true"></i>Average Score</span>
+          <strong {% if analytics.average_score is not None %}data-count="{{ analytics.average_score }}"{% endif %}>
+            {% if analytics.average_score is not None %}{{ analytics.average_score }}{% else %}N/A{% endif %}
+          </strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="surface-grid reveal">
+      <div class="panel section">
+        <div class="section-head">
+          <div class="section-head__copy">
+            <span class="section-kicker">Profile & Resume</span>
+            <h2 class="title-with-icon"><i class="ph ph-brain" aria-hidden="true"></i>Profile Insights</h2>
+            <p class="subtle u-m-0">Helpful summaries based on your profile, resume, and current opportunities.</p>
+          </div>
+          <div class="section-head__meta">
+            <span class="last-updated" id="insightsFreshnessLabel">
+              {% if resume.processed_at %}Context refreshed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting latest insight refresh{% endif %}
+            </span>
+          </div>
+        </div>
+
+        <div
+          class="insight-loading"
+          id="aiInsightsLoading"
+          data-insights-loading="{{ insights.loading|yesno:'true,false' }}"
+          data-insights-stale="{{ insights.stale|yesno:'true,false' }}"
+          data-insights-available="{{ insights.available|yesno:'true,false' }}"
+          {% if not insights.loading and insights.available and not insights.stale %}style="display:none;"{% endif %}
+        >
+          <span class="insight-loading__dot"></span>
+          <span id="aiInsightsLoadingText">
+            {% if insights.loading %}
+              Refreshing AI insight snapshot...
+            {% else %}
+              AI insight snapshot will be generated after your profile and resume context are ready.
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="signal-board" id="aiInsightsBoard">
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-chart-line-up" aria-hidden="true"></i>Profile Strength</strong>
+              <span class="signal-card__score" id="resumeScoreValue">{% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}--{% endif %}</span>
+            </div>
+            <div class="signal-meter"><span id="resumeScoreBar" style="width: {% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}{{ analytics.profile_completion }}{% endif %}%"></span></div>
+            <p class="subtle u-m-0" id="executiveSummaryText">
+              {% if insights.executive_summary %}
+                {{ insights.executive_summary }}
+              {% else %}
+                Your profile completion, verification status, and resume freshness shape how complete your dashboard looks today.
+              {% endif %}
+            </p>
+            <div class="card-actions">
+              <button class="card-link" type="button" data-open-profile>View Profile</button>
+              <button class="card-link" type="button" data-open-verification="phone">Complete Setup</button>
+            </div>
+          </article>
+
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-lightning-charge" aria-hidden="true"></i>Current Demand</strong>
+              <span class="signal-card__score" id="marketDemandScoreValue">{% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}--{% endif %}</span>
+            </div>
+            <div class="signal-meter"><span id="marketDemandBar" style="width: {% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}52{% endif %}%"></span></div>
+            <p class="subtle u-m-0" id="marketDemandSummaryText">
+              {% if insights.market_demand_summary %}
+                {{ insights.market_demand_summary }}
+              {% else %}
+                Market demand insight will appear here after your first AI snapshot is generated.
+              {% endif %}
+            </p>
+          </article>
+
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-stack" aria-hidden="true"></i>Skills Snapshot</strong>
+              <span class="signal-card__score" id="skillsImpactScoreValue">{% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}--{% endif %}</span>
+            </div>
+            <div class="signal-meter"><span id="skillsImpactBar" style="width: {% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}48{% endif %}%"></span></div>
+            <p class="subtle u-m-0" id="skillsImpactSummaryText">
+              {% if insights.current_skills_impact_summary %}
+                {{ insights.current_skills_impact_summary }}
+              {% else %}
+                Skill impact insight will appear here after AI analysis completes.
+              {% endif %}
+            </p>
+            <div class="card-actions">
+              <button class="card-link" type="button" data-open-profile>View Profile</button>
+              {% if candidate.resume_file_url %}
+                <a class="card-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener">Resume Context</a>
+              {% endif %}
+            </div>
+          </article>
+
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-target" aria-hidden="true"></i>Role Fit</strong>
+              <span class="signal-card__score" id="roleFitScoreValue">{% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}--{% endif %}</span>
+            </div>
+            <div class="signal-meter"><span id="roleFitBar" style="width: {% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}54{% endif %}%"></span></div>
+            <p class="subtle u-m-0" id="roleFitSummaryText">
+              {% if insights.executive_summary %}
+                {{ insights.executive_summary }}
+              {% else %}
+                Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.
+              {% endif %}
+            </p>
+          </article>
+
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-trend-up" aria-hidden="true"></i>Market Trend</strong>
+              <span class="signal-card__score" id="marketDemandLabelValue">{% if insights.market_demand_label %}{{ insights.market_demand_label }}{% else %}Pending{% endif %}</span>
+            </div>
+            <p class="subtle u-m-0" id="marketTrendSummaryText">
+              {% if insights.market_demand_summary %}
+                {{ insights.market_demand_summary }}
+              {% else %}
+                Current market trend for your skill profile will appear here after AI analysis completes.
+              {% endif %}
+            </p>
+            <div class="signal-meta">
+              <span class="chip" id="marketTrendMetric1">{% if insights.market_demand_score is not None %}Demand {{ insights.market_demand_score }}/100{% else %}Awaiting score{% endif %}</span>
+              <span class="chip" id="marketTrendMetric2">{% if insights.current_skills_impact_score is not None %}Impact {{ insights.current_skills_impact_score }}/100{% else %}Awaiting impact{% endif %}</span>
+            </div>
+          </article>
+
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-currency-inr" aria-hidden="true"></i>Salary Trend</strong>
+              <span class="signal-card__score" id="salaryRangeInsightValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Pending{% endif %}</span>
+            </div>
+            <p class="subtle u-m-0" id="salaryTrendInsightText">
+              {% if insights.salary_trend_summary %}
+                {{ insights.salary_trend_summary }}
+              {% else %}
+                Salary trend insight will appear here after AI analysis completes. It will be shown as directional guidance only.
+              {% endif %}
+            </p>
+          </article>
+
+          <article class="signal-card">
+            <div class="signal-head">
+              <strong class="title-with-icon"><i class="ph ph-sparkle" aria-hidden="true"></i>Recommended Roles</strong>
+              <span class="signal-card__score">AI</span>
+            </div>
+            <p class="subtle u-m-0">Adjacent roles inferred from your current resume signals and experience footprint.</p>
+            <div class="signal-meta">
+              <span class="chip" id="recommendedRole1">{% if insights.recommended_roles|length > 0 %}{{ insights.recommended_roles.0 }}{% else %}Pending{% endif %}</span>
+              <span class="chip" id="recommendedRole2">{% if insights.recommended_roles|length > 1 %}{{ insights.recommended_roles.1 }}{% else %}Pending{% endif %}</span>
+              <span class="chip" id="recommendedRole3">{% if insights.recommended_roles|length > 2 %}{{ insights.recommended_roles.2 }}{% else %}Pending{% endif %}</span>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="surface-stack">
+        <div class="panel section">
+          <div class="section-head">
+            <div class="section-head__copy">
+            <span class="section-kicker">Next Steps</span>
+            <h2 class="title-with-icon"><i class="ph ph-compass" aria-hidden="true"></i>Recommendations</h2>
+            <p class="subtle u-m-0">Suggested areas to improve your profile and explore stronger-fit opportunities.</p>
+            </div>
+          </div>
+
+          <div class="ops-grid">
+            <article class="ops-card">
+              <strong class="title-with-icon"><i class="ph ph-currency-inr" aria-hidden="true"></i>Estimated Salary Trend</strong>
+              <p id="salaryTrendSummaryText">
+                {% if insights.salary_trend_summary %}
+                  {{ insights.salary_trend_summary }}
+                {% else %}
+                  Salary trend insight will appear here after AI analysis completes. It will be positioned as directional guidance, not an authoritative benchmark.
+                {% endif %}
+              </p>
+              <div class="ops-meta">
+                <span class="chip" id="salaryRangeValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Awaiting snapshot{% endif %}</span>
+                <span class="chip">{% if analytics.current_recruiter %}{{ analytics.current_recruiter }}{% else %}Contact pending{% endif %}</span>
+              </div>
+            </article>
+
+            <article class="ops-card">
+              <strong class="title-with-icon"><i class="ph ph-star-four" aria-hidden="true"></i>Top Strengths</strong>
+              <p>These are the strongest signals currently inferred from your profile and resume context.</p>
+              <div class="ops-meta">
+                <span class="chip" id="strengthChip1">{% if insights.top_strengths|length > 0 %}{{ insights.top_strengths.0 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="strengthChip2">{% if insights.top_strengths|length > 1 %}{{ insights.top_strengths.1 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="strengthChip3">{% if insights.top_strengths|length > 2 %}{{ insights.top_strengths.2 }}{% else %}Pending{% endif %}</span>
+              </div>
+            </article>
+
+            <article class="ops-card">
+              <strong class="title-with-icon"><i class="ph ph-graduation-cap" aria-hidden="true"></i>Recommended Next Skills</strong>
+              <p>Suggested areas that can improve role fit, strengthen your profile, and open up more relevant opportunities.</p>
+              <div class="ops-meta">
+                <span class="chip" id="recommendedSkill1">{% if insights.recommended_skills|length > 0 %}{{ insights.recommended_skills.0 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedSkill2">{% if insights.recommended_skills|length > 1 %}{{ insights.recommended_skills.1 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedSkill3">{% if insights.recommended_skills|length > 2 %}{{ insights.recommended_skills.2 }}{% else %}Pending{% endif %}</span>
+              </div>
+            </article>
+
+            <article class="ops-card">
+              <strong class="title-with-icon"><i class="ph ph-rocket-launch" aria-hidden="true"></i>Growth Areas</strong>
+              <p>Use these guidance points to improve how your current profile reads against hiring demand.</p>
+              <div class="ops-meta">
+                <span class="chip" id="growthArea1">{% if insights.growth_areas|length > 0 %}{{ insights.growth_areas.0 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="growthArea2">{% if insights.growth_areas|length > 1 %}{{ insights.growth_areas.1 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="growthArea3">{% if insights.growth_areas|length > 2 %}{{ insights.growth_areas.2 }}{% else %}Pending{% endif %}</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="panel section">
+          <div class="section-head">
+            <div class="section-head__copy">
+              <span class="section-kicker">Opportunities</span>
+              <h2 class="title-with-icon"><i class="ph ph-briefcase" aria-hidden="true"></i>Recommended Job Matches</h2>
+              <p class="subtle u-m-0">Browse your current role matches and focus on the opportunities that fit best.</p>
+            </div>
+            <div class="section-head__meta">
+              <span class="last-updated">Latest updates</span>
+            </div>
+          </div>
+
+          {% if recent_job_postings %}
+            <div class="posting-toolbar">
+              <div class="posting-toolbar__filters">
+                <button class="filter-btn is-active" type="button" data-posting-filter="all">All</button>
+                <button class="filter-btn" type="button" data-posting-filter="recommended">Recommended</button>
+                <button class="filter-btn" type="button" data-posting-filter="applied">Applied</button>
+                <button class="filter-btn" type="button" data-posting-filter="new">New</button>
+              </div>
+
+              <div class="posting-toolbar__actions">
+                <label class="visually-hidden" for="jobSortSelect">Sort jobs</label>
+                <select class="sort-select" id="jobSortSelect" aria-label="Sort job postings">
+                  <option value="recommended">Sort: Best Match</option>
+                  <option value="recent">Sort: Most Recent</option>
+                  <option value="status">Sort: Status</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="posting-list" id="jobPostingList">
+              {% for posting in recent_job_postings %}
+                <article
+                  class="posting-card {% if posting.is_recommended %}posting-card--recommended{% endif %}"
+                  data-vacancy-card="{{ posting.id }}"
+                  data-posting-status="{{ posting.status|lower }}"
+                  data-posting-date="{{ posting.date|date:'Y-m-d' }}"
+                  data-posting-match="{% if posting.match_score %}{{ posting.match_score }}{% else %}0{% endif %}"
+                  data-posting-recommended="{% if posting.is_recommended %}true{% else %}false{% endif %}"
+                  data-posting-applied="{% if posting.has_applied %}true{% else %}false{% endif %}"
+                >
+                  <div class="posting-main">
+                    <div class="posting-head">
+                      <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
+                        <strong>{{ posting.role|safe }}</strong>
+                      </button>
+                      <span class="status-badge">{{ posting.status|title }}</span>
+                    </div>
+
+                    <div class="posting-subtitle">
+                      {{ posting.position }} openings · Posted {{ posting.date|date:"M d, Y" }}
+                    </div>
+
+                    {% if posting.description %}
+                      <div class="posting-desc">{{ posting.description|safe }}</div>
+                    {% else %}
+                      <p class="posting-desc">New role added to the hiring pipeline. Open details to review fit and current application options.</p>
+                    {% endif %}
+
+                    <div class="posting-meta">
+                      {% if posting.is_recommended %}
+                        <span class="chip">AI Match {{ posting.match_score }}%</span>
+                      {% endif %}
+                      {% if posting.recruiters %}
+                        <span class="chip">Contacts {{ posting.recruiters|join:", " }}</span>
+                      {% else %}
+                        <span class="chip">Contact assignment in progress</span>
+                      {% endif %}
+                      {% if posting.has_applied %}
+                        <span class="chip">Applied</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  <div class="posting-side">
+                    <div class="posting-actions">
+                      <button class="card-link" type="button" data-open-vacancy="{{ posting.modal_id }}">View Details</button>
+
+                      <button
+                        class="card-link"
+                        type="button"
+                        data-apply-vacancy="{{ posting.id }}"
+                        {% if posting.has_applied %}style="display:none;"{% endif %}
+                      >
+                        Apply
+                      </button>
+
+                      <button
+                        class="card-link"
+                        type="button"
+                        data-cancel-vacancy="{{ posting.id }}"
+                        {% if not posting.can_cancel_application %}style="display:none;"{% endif %}
+                      >
+                        Withdraw
+                      </button>
+
+                      <button
+                        class="card-link"
+                        type="button"
+                        data-vacancy-not-interested="{{ posting.id }}"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+
+            {% if more_job_postings %}
+              <div class="card-actions u-mt-2">
+                <button class="card-link" type="button" data-open-vacancy-list="vacancyListModal">View More Jobs ({{ more_job_postings|length }})</button>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="empty-state">
+              <strong>No recent postings available</strong>
+              <p>As new vacancies are added by your hiring team, the latest role postings will appear here for quick visibility.</p>
+              <div class="card-actions">
+                <button class="card-link" type="button" data-open-profile>Review Profile</button>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div class="metrics-grid reveal">
+      <section class="panel section">
+        <div class="section-head">
+          <div class="section-head__copy">
+          <h2 class="title-with-icon"><i class="ph ph-activity" aria-hidden="true"></i>Recent Activity</h2>
+          <p class="subtle u-m-0">See the latest updates across your applications and profile activity.</p>
+          </div>
+          <div class="section-head__meta">
+            <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>View Profile</button>
+            {% if candidate.resume_file_url %}
+              <a class="card-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener"><i class="ph ph-file-arrow-up" aria-hidden="true"></i>Open Resume</a>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if timeline %}
+          <div class="data-table">
+            <div class="data-table__head">
+              <div>Role</div>
+              <div>Contact</div>
+              <div>Updated</div>
+              <div>Score</div>
+              <div>Status</div>
+            </div>
+
+            {% for item in timeline|slice:":4" %}
+              <div class="recent-activity__row">
+                <div class="recent-activity__cell"><strong>{{ item.role }}</strong></div>
+                <div class="recent-activity__cell">{{ item.recruiter }}</div>
+                <div class="recent-activity__cell">{{ item.date|date:"M d, Y h:i A" }}</div>
+                <div class="recent-activity__cell">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
+                <div class="recent-activity__cell"><span class="status-badge">{{ item.status|title }}</span></div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <strong>No recent activity yet</strong>
+            <p>Your latest recruiter movement, role updates, and recent pipeline changes will appear here once the profile starts moving through the hiring flow.</p>
+            <div class="card-actions">
+              <button class="card-link" type="button" data-open-update-profile>Complete Profile</button>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="panel section">
+        <div class="section-head">
+          <div class="section-head__copy">
+            <h2 class="title-with-icon"><i class="ph ph-kanban" aria-hidden="true"></i>Application Stages</h2>
+            <p class="subtle u-m-0">See where your current opportunities sit in the process.</p>
+          </div>
+        </div>
+
+        {% if stage_breakdown %}
+          <div class="stage-list">
+            {% for item in stage_breakdown %}
+              <div class="stage-row">
+                <div class="stage-meta">
+                  <span>{{ item.label }}</span>
+                  <span>{{ item.count }} roles · {{ item.share }}%</span>
+                </div>
+                <div class="stage-bar"><span style="width: {{ item.share }}%"></span></div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <strong>No stage data yet</strong>
+            <p>Once a recruiter assigns roles or moves your profile through the pipeline, stage analytics will appear here with a clearer distribution of progress.</p>
+            <div class="card-actions">
+              <button class="card-link" type="button" data-open-profile>View Profile</button>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <span class="section-anchor" id="activity"></span>
+
+    <div class="dashboard-grid reveal">
+      <section class="panel section">
+        <div class="section-head">
+          <div class="section-head__copy">
+            <h2 class="title-with-icon"><i class="ph ph-identification-card" aria-hidden="true"></i>Profile & Resume</h2>
+            <p class="subtle u-m-0">Review your timeline, resume highlights, and profile context in one place.</p>
+          </div>
+        </div>
+
+        <div class="section-tabs" role="tablist" aria-label="Activity tabs">
+          <button class="tab-btn is-active" type="button" role="tab" aria-selected="true" aria-controls="timelineTab" id="timelineTabButton" data-tab-target="timelineTab">Timeline</button>
+          <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="resumeTab" id="resumeTabButton" data-tab-target="resumeTab">Resume Signals</button>
+          <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="insightsTab" id="insightsTabButton" data-tab-target="insightsTab">Insights</button>
+        </div>
+
+        <div class="tab-panel is-active" id="timelineTab" role="tabpanel" aria-labelledby="timelineTabButton">
+          {% if timeline %}
+            <div class="timeline">
+              {% for item in timeline %}
+                <article class="timeline-card">
+                  <div class="timeline-top">
+                    <strong>{{ item.role }}</strong>
+                    <span class="status-badge">{{ item.status|title }}</span>
+                  </div>
+                  <span class="subtle">Contact: {{ item.recruiter }}</span>
+                  <span class="subtle">Updated: {{ item.date|date:"M d, Y h:i A" }}</span>
+                  <span class="subtle">Score: {% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</span>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty-state">
+              <strong>No pipeline activity yet</strong>
+              <p>Your role assignments and recruiter updates will appear here. As soon as a vacancy is mapped to your profile, this stream becomes your live hiring timeline.</p>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="tab-panel" id="resumeTab" role="tabpanel" aria-labelledby="resumeTabButton">
+          {% if resume.headline %}
+            <strong>{{ resume.headline }}</strong>
+          {% endif %}
+
+          {% if resume.summary %}
+            <p class="subtle u-mt-1">{{ resume.summary }}</p>
+          {% else %}
+            <div class="empty-state u-mt-1">
+              <strong>Resume intelligence pending</strong>
+              <p>Your structured summary will appear here after the latest resume is processed. Keeping resume data fresh improves the signal quality recruiters see.</p>
+            </div>
+          {% endif %}
+
+	          <div class="pill-row u-mt-2">
+	            <span class="status-pill" id="resumeStatusDetailPill">Status: {{ resume.status|title }}</span>
+	            {% if resume.source_file %}<span class="status-pill">{{ resume.source_file }}</span>{% endif %}
+	            <span class="status-pill" id="resumeProcessedDetailPill">{% if resume.processed_at %}Processed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting structured extraction{% endif %}</span>
+	          </div>
+
+          {% if resume.skills %}
+            <div class="chip-list u-mt-2">
+              {% for skill in resume.skills %}
+                <span class="chip">{{ skill }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="tab-panel" id="insightsTab" role="tabpanel" aria-labelledby="insightsTabButton">
+          <div class="insight-stack">
+            <div class="insight-card">
+              <strong>Current Contact</strong>
+              <p>Your current contact is {{ analytics.current_recruiter }}. Keeping your profile complete helps make every review more useful.</p>
+            </div>
+            <div class="insight-card">
+              <strong>Resume Signal</strong>
+              <p>Resume status is {{ resume.status|title }}{% if resume.source_file %}, sourced from {{ resume.source_file }}{% endif %}. Uploading a better version will refresh extracted data automatically.</p>
+            </div>
+            <div class="insight-card">
+              <strong>Application Progress</strong>
+              <p>{{ analytics.active_roles }} of {{ analytics.total_roles }} assigned roles are still active. {% if analytics.average_score is not None %}Your average evaluated score is {{ analytics.average_score }}.{% else %}Scoring data is still pending.{% endif %}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section" id="profile-edit">
+        <div class="section-head">
+          <div class="section-head__copy">
+            <span class="section-kicker">Manage Profile</span>
+            <h2 class="title-with-icon"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i>Profile Settings</h2>
+            <p class="subtle u-m-0">Update your contact details, photo, and resume without leaving your dashboard.</p>
+          </div>
+        </div>
+
+        <div class="profile-modal-summary">
+          <div class="card-actions">
+            <button class="card-link" type="button" data-open-update-profile><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Edit Profile</button>
+            <a class="card-link" href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</a>
+            <button class="card-link" type="button" data-open-share-resume><i class="ph ph-share-network" aria-hidden="true"></i>Share Resume</button>
+            {% if candidate.resume_file_url %}
+              <a class="card-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener"><i class="ph ph-file-arrow-up" aria-hidden="true"></i>Open Current Resume</a>
+            {% endif %}
+            <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>View Profile</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="modal-overlay" id="shareResumeModal" data-modal-overlay>
+    <div class="profile-modal" role="dialog" aria-modal="true" aria-labelledby="shareResumeTitle">
+      <button class="modal-close" type="button" data-close-modal="shareResumeModal" aria-label="Close share resume modal">&times;</button>
+      <h2 id="shareResumeTitle" class="title-with-icon" style="font-size:1.4rem; margin:0;"><i class="ph ph-share-network" aria-hidden="true"></i>Share Digital Resume</h2>
+      <p class="subtle" style="margin:0;">Use this short public resume link when you want to share your digital profile as a resume. The same page also supports PDF and Word downloads.</p>
+
+      <div class="field u-mt-2">
+        <label for="publicResumeLink">Short Resume URL</label>
+        <div class="input-with-icon">
+          <i class="ph ph-link" aria-hidden="true"></i>
+          <input class="portal-input" id="publicResumeLink" type="text" value="{{ candidate.public_resume_url }}" readonly>
+        </div>
+      </div>
+
+      <div class="btn-row u-mt-2">
+        <button class="btn btn-primary" type="button" id="copyPublicResumeLinkBtn"><i class="ph ph-copy" aria-hidden="true"></i>Copy Link</button>
+        <a class="btn-link" href="{{ candidate.public_resume_url }}" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out" aria-hidden="true"></i>Open Public Resume</a>
+        <a class="btn-link" href="{{ candidate.public_resume_pdf_url }}"><i class="ph ph-file-pdf" aria-hidden="true"></i>Download PDF</a>
+        <a class="btn-link" href="{{ candidate.public_resume_word_url }}"><i class="ph ph-file-doc" aria-hidden="true"></i>Download Word</a>
+      </div>
+
+      <div class="inline-message" id="shareResumeMessage"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="updateProfileModal" data-modal-overlay>
+    <div class="profile-modal" role="dialog" aria-modal="true" aria-labelledby="updateProfileTitle">
+      <button class="modal-close" type="button" data-close-modal="updateProfileModal" aria-label="Close update profile modal">&times;</button>
+      <h2 id="updateProfileTitle" class="title-with-icon" style="font-size:1.4rem; margin:0;"><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Update Profile</h2>
+
+      {% if profile_saved %}
+        <div class="alert alert-success">Profile updated successfully. If you uploaded a new resume, extraction has been triggered again.</div>
+      {% endif %}
+      {% if profile_error %}
+        <div class="alert alert-error">{{ profile_error }}</div>
+      {% endif %}
+
+      <div class="profile-preview">
+        <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}" id="profilePreviewCard">
+          {% if candidate.profile_picture_url %}
+            <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}" id="profilePreviewImage">
+          {% else %}
+            <img id="profilePreviewImage" alt="{{ candidate.name }}" style="display:none;">
+          {% endif %}
+          <span class="avatar-fallback" id="profilePreviewInitial">{{ candidate.initials }}</span>
+        </div>
+        <div>
+          <strong>{{ candidate.name }}</strong>
+          <p class="helper">Keep your email, phone, profile photo, and resume current so recruiters always review your latest profile snapshot.</p>
+        </div>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" id="candidateProfileForm">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div class="field">
+            <label for="{{ form.first_name.id_for_label }}">First Name</label>
+            <div class="input-with-icon">
+              <i class="ph ph-user" aria-hidden="true"></i>
+              {{ form.first_name }}
+            </div>
+            {{ form.first_name.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.last_name.id_for_label }}">Last Name</label>
+            <div class="input-with-icon">
+              <i class="ph ph-user" aria-hidden="true"></i>
+              {{ form.last_name }}
+            </div>
+            {{ form.last_name.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.email.id_for_label }}">Email</label>
+            <div class="input-with-icon">
+              <i class="ph ph-envelope-simple" aria-hidden="true"></i>
+              {{ form.email }}
+            </div>
+            {{ form.email.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.phone.id_for_label }}">Mobile Number</label>
+            <div class="input-with-icon">
+              <i class="ph ph-phone" aria-hidden="true"></i>
+              {{ form.phone }}
+            </div>
+            {{ form.phone.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.gender.id_for_label }}">Gender</label>
+            <div class="input-with-icon input-with-icon--select">
+              <i class="ph ph-user-switch" aria-hidden="true"></i>
+              {{ form.gender }}
+            </div>
+            {{ form.gender.errors }}
+          </div>
+          <div class="field">
+            <label for="{{ form.profile_picture.id_for_label }}">Profile Photo</label>
+            <div class="input-with-icon input-with-icon--file">
+              <i class="ph ph-image-square" aria-hidden="true"></i>
+              {{ form.profile_picture }}
+            </div>
+            <span class="helper">PNG, JPG, JPEG, or WEBP up to 3 MB.</span>
+            {{ form.profile_picture.errors }}
+          </div>
+          <div class="field field--full">
+            <label for="{{ form.resume.id_for_label }}">Replace Resume</label>
+            <div class="input-with-icon input-with-icon--file">
+              <i class="ph ph-file-arrow-up" aria-hidden="true"></i>
+              {{ form.resume }}
+            </div>
+            <span class="helper">PDF or DOCX only. Uploading a new file triggers fresh resume extraction automatically.</span>
+            {{ form.resume.errors }}
+          </div>
+        </div>
+
+        <div class="submit-row">
+          {% if candidate.resume_file_url %}
+            <a class="btn-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener"><i class="ph ph-file-arrow-up" aria-hidden="true"></i>Open Current Resume</a>
+          {% endif %}
+          <button class="btn btn-primary" type="submit" id="candidateProfileSubmit"><i class="ph ph-floppy-disk" aria-hidden="true"></i>Save Profile Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="profileModal" data-modal-overlay>
+    <div class="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+      <button class="modal-close" type="button" data-close-modal="profileModal" aria-label="Close profile modal">&times;</button>
+
+      <div class="modal-hero">
+        <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}">
+          {% if candidate.profile_picture_url %}
+            <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+          {% endif %}
+          <span class="avatar-fallback">{{ candidate.initials }}</span>
+        </div>
+        <div>
+          <h2 id="profileModalTitle" class="title-with-icon" style="font-size:1.5rem; margin:0 0 8px;"><i class="ph ph-user-circle" aria-hidden="true"></i>{{ candidate.name }}</h2>
+          <p class="subtle" style="margin:0;">{{ candidate.email }} | {{ candidate.phone }} | {{ candidate.gender|title }}</p>
+          <div class="pill-row u-mt-1">
+            <span class="status-pill">{{ analytics.readiness_label }}</span>
+            <span class="status-pill">Resume {{ resume.status|title }}</span>
+            <span class="status-pill">Roles {{ analytics.total_roles }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-grid">
+        <div class="modal-card">
+          <span>Current Recruiter</span>
+          <strong>{{ analytics.current_recruiter }}</strong>
+        </div>
+        <div class="modal-card">
+          <span>Next Interview</span>
+          <strong>{% if analytics.next_interview %}{{ analytics.next_interview|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</strong>
+        </div>
+        <div class="modal-card">
+          <span>Average Score</span>
+          <strong>{% if analytics.average_score is not None %}{{ analytics.average_score }}{% else %}N/A{% endif %}</strong>
+        </div>
+        <div class="modal-card">
+          <span>Profile Completion</span>
+          <strong>{{ analytics.profile_completion }}%</strong>
+        </div>
+      </div>
+
+      <section class="resume-section">
+        <h4 class="title-with-icon"><i class="ph ph-notebook" aria-hidden="true"></i>Professional Summary</h4>
+        <p>{% if resume.summary %}{{ resume.summary }}{% else %}A structured profile summary will appear here when resume extraction is available.{% endif %}</p>
+      </section>
+
+      {% if resume.skills %}
+        <section class="resume-section">
+          <h4 class="title-with-icon"><i class="ph ph-stack" aria-hidden="true"></i>Skills</h4>
+          <div class="box-list">
+            {% for skill in resume.skills %}
+              <div class="box-item">{{ skill }}</div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% for section in resume.sections %}
+        {% if section.text or section.items %}
+          <section class="resume-section">
+            <h4 class="title-with-icon"><i class="ph ph-folder-notch-open" aria-hidden="true"></i>{{ section.title }}</h4>
+            {% if section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+              <div class="experience-grid">
+                {% for item in section.items %}
+                  <article class="experience-card">
+                    <div class="experience-head">
+                      <strong>{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</strong>
+                      {% if item.company %}<span class="experience-company">{{ item.company }}</span>{% endif %}
+                    </div>
+                    <div class="experience-meta">
+                      {% if item.duration %}<span>{{ item.duration }}</span>{% endif %}
+                      {% if item.location %}<span>{{ item.location }}</span>{% endif %}
+                    </div>
+                    {% if item.role %}<div class="experience-role">{{ item.role }}</div>{% endif %}
+                    {% if item.tech_stack %}
+                      <div class="box-list">
+                        {% for tech in item.tech_stack %}
+                          <div class="box-item">{{ tech }}</div>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                    {% if item.details %}
+                      <ul class="detail-list">
+                        {% for detail in item.details %}
+                          <li>{{ detail }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% elif item.description %}
+                      <p>{{ item.description }}</p>
+                    {% endif %}
+                  </article>
+                {% endfor %}
+              </div>
+            {% elif section.items %}
+              <div class="box-list">
+                {% for item in section.items %}
+                  <div class="box-item">
+                    {% if item.title %}
+                      <strong>{{ item.title }}</strong>
+                      {% if item.company %}<div>{{ item.company }}</div>{% endif %}
+                      {% if item.duration %}<div>{{ item.duration }}</div>{% endif %}
+                      {% if item.location %}<div>{{ item.location }}</div>{% endif %}
+                      {% if item.role %}<div>{{ item.role }}</div>{% endif %}
+                    {% elif item.degree or item.institution %}
+                      {% if item.degree %}<strong>{{ item.degree }}</strong>{% endif %}
+                      {% if item.institution %}<div>{{ item.institution }}</div>{% endif %}
+                      {% if item.duration %}<div>{{ item.duration }}</div>{% endif %}
+                    {% elif item.label or item.value %}
+                      {% if item.label %}<strong>{{ item.label }}</strong>{% endif %}
+                      {% if item.value %}<div>{{ item.value }}</div>{% endif %}
+                    {% elif item.description %}
+                      <div>{{ item.description }}</div>
+                    {% else %}
+                      {{ item }}
+                    {% endif %}
+                    {% if item.issuer %}<div>{{ item.issuer }}</div>{% endif %}
+                    {% if item.tech_stack %}
+                      <div>Tech: {{ item.tech_stack|join:", " }}</div>
+                    {% endif %}
+                    {% if item.details %}
+                      {% for detail in item.details %}
+                        <div>{{ detail }}</div>
+                      {% endfor %}
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% elif section.text %}
+              <p>{{ section.text }}</p>
+            {% endif %}
+          </section>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="phoneVerificationModal" data-modal-overlay>
+    <div class="profile-modal" style="max-width: 520px;" role="dialog" aria-modal="true" aria-labelledby="phoneVerificationTitle">
+      <button class="modal-close" type="button" data-close-modal="phoneVerificationModal" aria-label="Close phone verification modal">&times;</button>
+      <h2 id="phoneVerificationTitle" class="title-with-icon" style="font-size:1.32rem; margin:0;"><i class="ph ph-phone" aria-hidden="true"></i>Verify Phone</h2>
+      <p class="subtle" style="margin:0;">OTP will be delivered on both SMS and WhatsApp for {{ candidate.phone }}.</p>
+      <div class="btn-row">
+        <button class="btn btn-ghost" type="button" id="requestPhoneOtpBtn"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Send Phone OTP</button>
+      </div>
+      <div class="inline-form">
+        <div class="input-with-icon">
+          <i class="ph ph-password" aria-hidden="true"></i>
+          <input class="portal-input" type="text" id="phoneOtpInput" placeholder="Enter phone OTP" inputmode="numeric" data-digits-only="true">
+        </div>
+        <button class="btn btn-primary" type="button" id="verifyPhoneOtpBtn"><i class="ph ph-shield-check" aria-hidden="true"></i>Verify Phone</button>
+      </div>
+      <div class="inline-message" id="phoneOtpMessage">
+        {% if verification.phone_verified_at %}Verified on {{ verification.phone_verified_at|date:"M d, Y h:i A" }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="emailVerificationModal" data-modal-overlay>
+    <div class="profile-modal" style="max-width: 520px;" role="dialog" aria-modal="true" aria-labelledby="emailVerificationTitle">
+      <button class="modal-close" type="button" data-close-modal="emailVerificationModal" aria-label="Close email verification modal">&times;</button>
+      <h2 id="emailVerificationTitle" class="title-with-icon" style="font-size:1.32rem; margin:0;"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Verify Email</h2>
+      <p class="subtle" style="margin:0;">OTP will be sent to {{ candidate.email }}.</p>
+      <div class="btn-row">
+        <button class="btn btn-ghost" type="button" id="requestEmailOtpBtn"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Send Email OTP</button>
+      </div>
+      <div class="inline-form">
+        <div class="input-with-icon">
+          <i class="ph ph-password" aria-hidden="true"></i>
+          <input class="portal-input" type="text" id="emailOtpInput" placeholder="Enter email OTP" inputmode="numeric" data-digits-only="true">
+        </div>
+        <button class="btn btn-primary" type="button" id="verifyEmailOtpBtn"><i class="ph ph-shield-check" aria-hidden="true"></i>Verify Email</button>
+      </div>
+      <div class="inline-message" id="emailOtpMessage">
+        {% if verification.email_verified_at %}Verified on {{ verification.email_verified_at|date:"M d, Y h:i A" }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="identityVerificationModal" data-modal-overlay>
+    <div class="profile-modal" style="max-width: 720px;" role="dialog" aria-modal="true" aria-labelledby="identityVerificationTitle">
+      <button class="modal-close" type="button" data-close-modal="identityVerificationModal" aria-label="Close identity verification modal">&times;</button>
+      <h2 id="identityVerificationTitle" class="title-with-icon" style="font-size:1.32rem; margin:0;"><i class="ph ph-identification-card" aria-hidden="true"></i>Aadhaar Verification</h2>
+      <p class="subtle" style="margin:0;">Choose the verification path that matches your Aadhaar access. Uploaded files are used only for your verification workflow.</p>
+
+      <div class="verification-choices">
+        <button class="choice-btn is-active" type="button" data-identity-mode="xml">
+          <strong class="title-with-icon"><i class="ph ph-device-mobile-camera" aria-hidden="true"></i>Yes, mobile is linked</strong>
+          <span>Upload the extracted offline Aadhaar XML for the fastest verification path.</span>
+        </button>
+        <button class="choice-btn" type="button" data-identity-mode="documents">
+          <strong class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>No, mobile is not linked</strong>
+          <span>Upload an Aadhaar PDF or both front and back images for document-based matching.</span>
+        </button>
+      </div>
+
+      <div class="verification-panel is-open" id="identityXmlPanel">
+        <p class="verification-note">Offline XML flow</p>
+        <ol class="verification-list">
+          <li>Download your Offline e-Aadhaar ZIP from the official myAadhaar portal: <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" style="color:#8fdfff;">https://myaadhaar.uidai.gov.in/offline-ekyc</a></li>
+          <li>Extract the ZIP locally and select the XML file from the extracted folder.</li>
+          <li>Upload the XML here to match your Aadhaar name and gender with your profile.</li>
+        </ol>
+        <div class="input-with-icon input-with-icon--file">
+          <i class="ph ph-file-code" aria-hidden="true"></i>
+          <input class="portal-input portal-input--file" type="file" id="aadhaarXmlInput" accept=".xml,text/xml,application/xml">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" id="submitAadhaarXmlBtn"><i class="ph ph-file-code" aria-hidden="true"></i>Verify with XML</button>
+        </div>
+      </div>
+
+      <div class="verification-panel" id="identityDocumentPanel">
+        <p class="verification-note">Document upload flow</p>
+        <ol class="verification-list">
+          <li>Upload either one Aadhaar PDF file.</li>
+          <li>Or upload both the front and back Aadhaar images together.</li>
+          <li>We will extract the details and compare them with your current profile.</li>
+        </ol>
+        <div class="input-with-icon input-with-icon--file">
+          <i class="ph ph-file-pdf" aria-hidden="true"></i>
+          <input class="portal-input portal-input--file" type="file" id="aadhaarPdfInput" accept=".pdf,application/pdf">
+        </div>
+        <div class="input-with-icon input-with-icon--file">
+          <i class="ph ph-image" aria-hidden="true"></i>
+          <input class="portal-input portal-input--file" type="file" id="aadhaarFrontInput" accept="image/png,image/jpeg,image/jpg,image/webp">
+        </div>
+        <div class="input-with-icon input-with-icon--file">
+          <i class="ph ph-image" aria-hidden="true"></i>
+          <input class="portal-input portal-input--file" type="file" id="aadhaarBackInput" accept="image/png,image/jpeg,image/jpg,image/webp">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" id="submitAadhaarDocsBtn"><i class="ph ph-files" aria-hidden="true"></i>Verify with Documents</button>
+        </div>
+      </div>
+
+      <div class="inline-message" id="identityVerificationMessage">
+        {% if verification.identity_verified and verification.identity_processed_at %}
+          Verified on {{ verification.identity_processed_at|date:"M d, Y h:i A" }}
+        {% elif verification.identity_error %}
+          {{ verification.identity_error }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if more_job_postings %}
+    <div class="modal-overlay" id="vacancyListModal" data-modal-overlay>
+      <div class="profile-modal" style="max-width: 880px;" role="dialog" aria-modal="true" aria-labelledby="vacancyListTitle">
+        <button class="modal-close" type="button" data-close-modal="vacancyListModal" aria-label="Close vacancy list modal">&times;</button>
+        <div class="section-head u-mb-1">
+          <div class="section-head__copy">
+            <h2 id="vacancyListTitle" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>More Matching Vacancies</h2>
+            <p class="subtle u-m-0">Sorted by AI fit and posting freshness.</p>
+          </div>
+          <div class="section-head__meta">
+            <span class="status-pill">{{ more_job_postings|length }} additional jobs</span>
+          </div>
+        </div>
+
+        <div class="posting-list">
+          {% for posting in more_job_postings %}
+            <article class="posting-card {% if posting.is_recommended %}posting-card--recommended{% endif %}" data-vacancy-card="{{ posting.id }}">
+              <div class="posting-main">
+                <div class="posting-head">
+                  <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
+                    <strong>{{ posting.role|safe }}</strong>
+                  </button>
+                  <span class="status-badge">{{ posting.status|title }}</span>
+                </div>
+
+                <div class="posting-subtitle">
+                  {{ posting.position }} openings
+                  {% if posting.job_type %} · {{ posting.job_type }}{% endif %}
+                  {% if posting.location %} · {{ posting.location }}{% endif %}
+                  · Posted {{ posting.date|date:"M d, Y" }}
+                </div>
+                {% if posting.experience_required or posting.salary_range %}
+                  <div class="posting-subtitle">
+                    {% if posting.experience_required %}{{ posting.experience_required }}{% endif %}
+                    {% if posting.experience_required and posting.salary_range %} · {% endif %}
+                    {% if posting.salary_range %}{{ posting.salary_range }}{% endif %}
+                  </div>
+                {% endif %}
+
+                {% if posting.description %}
+                  <div class="posting-desc">{{ posting.description|safe }}</div>
+                {% else %}
+                  <p class="posting-desc">Detailed vacancy description is not available yet for this role.</p>
+                {% endif %}
+
+                <div class="posting-meta">
+                  {% if posting.is_recommended %}
+                    <span class="chip">AI Match {{ posting.match_score }}%</span>
+                  {% endif %}
+                  {% if posting.recruiters %}
+                    <span class="chip">Contacts {{ posting.recruiters|join:", " }}</span>
+                  {% else %}
+                    <span class="chip">Contact assignment in progress</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="posting-side">
+                <div class="posting-actions">
+                  <button class="card-link" type="button" data-open-vacancy="{{ posting.modal_id }}"><i class="ph ph-arrow-square-out" aria-hidden="true"></i>View Details</button>
+                  <button class="card-link" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Apply</button>
+                  <button class="card-link" type="button" data-cancel-vacancy="{{ posting.id }}" {% if not posting.can_cancel_application %}style="display:none;"{% endif %}><i class="ph ph-arrow-u-up-left" aria-hidden="true"></i>Withdraw</button>
+                  <button class="card-link" type="button" data-vacancy-not-interested="{{ posting.id }}"><i class="ph ph-eye-slash" aria-hidden="true"></i>Hide</button>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% for posting in recent_job_postings %}
+    <div class="modal-overlay" id="{{ posting.modal_id }}" data-modal-overlay>
+      <div class="profile-modal" style="max-width: 760px;" role="dialog" aria-modal="true" aria-labelledby="{{ posting.modal_id }}Title">
+        <button class="modal-close" type="button" data-close-modal="{{ posting.modal_id }}" aria-label="Close vacancy details">&times;</button>
+
+        <div class="section-head u-mb-1">
+          <div class="section-head__copy">
+            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{{ posting.role|safe }}</h2>
+            <div class="pill-row">
+              <span class="status-pill">{{ posting.position }} openings</span>
+              {% if posting.job_type %}<span class="status-pill">{{ posting.job_type }}</span>{% endif %}
+              {% if posting.location %}<span class="status-pill">{{ posting.location }}</span>{% endif %}
+              {% if posting.experience_required %}<span class="status-pill">{{ posting.experience_required }}</span>{% endif %}
+              {% if posting.salary_range %}<span class="status-pill">{{ posting.salary_range }}</span>{% endif %}
+              <span class="status-pill">Posted {{ posting.date|date:"M d, Y" }}</span>
+              <span class="status-pill">{{ posting.status|title }}</span>
+              {% if posting.is_recommended %}<span class="status-pill">AI Match {{ posting.match_score }}%</span>{% endif %}
+            </div>
+          </div>
+          <div class="section-head__meta">
+            {% if posting.recruiters %}
+              <span class="status-pill">Contacts {{ posting.recruiters|join:", " }}</span>
+            {% else %}
+              <span class="status-pill">Contact assignment in progress</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <section class="resume-section">
+          <h4 class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>Role Description</h4>
+          {% if posting.description %}
+            <div class="posting-rich">{{ posting.description|safe }}</div>
+          {% else %}
+            <p>No detailed role description is available for this posting yet.</p>
+          {% endif %}
+        </section>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Apply</button>
+          <button class="btn btn-ghost" type="button" data-cancel-vacancy="{{ posting.id }}" {% if not posting.can_cancel_application %}style="display:none;"{% endif %}><i class="ph ph-arrow-u-up-left" aria-hidden="true"></i>Withdraw</button>
+          <button class="btn btn-ghost" type="button" data-vacancy-not-interested="{{ posting.id }}"><i class="ph ph-eye-slash" aria-hidden="true"></i>Hide</button>
+        </div>
+
+        <div class="inline-message" data-vacancy-message="{{ posting.id }}">
+          {% if posting.has_applied %}Your application is {{ posting.application_label|lower }}. Check back here for the next update on this role.{% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+
+  {% for posting in more_job_postings %}
+    <div class="modal-overlay" id="{{ posting.modal_id }}" data-modal-overlay>
+      <div class="profile-modal" style="max-width: 760px;" role="dialog" aria-modal="true" aria-labelledby="{{ posting.modal_id }}Title">
+        <button class="modal-close" type="button" data-close-modal="{{ posting.modal_id }}" aria-label="Close vacancy details">&times;</button>
+
+        <div class="section-head u-mb-1">
+          <div class="section-head__copy">
+            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{{ posting.role|safe }}</h2>
+            <div class="pill-row">
+              <span class="status-pill">{{ posting.position }} openings</span>
+              {% if posting.job_type %}<span class="status-pill">{{ posting.job_type }}</span>{% endif %}
+              {% if posting.location %}<span class="status-pill">{{ posting.location }}</span>{% endif %}
+              {% if posting.experience_required %}<span class="status-pill">{{ posting.experience_required }}</span>{% endif %}
+              {% if posting.salary_range %}<span class="status-pill">{{ posting.salary_range }}</span>{% endif %}
+              <span class="status-pill">Posted {{ posting.date|date:"M d, Y" }}</span>
+              <span class="status-pill">{{ posting.status|title }}</span>
+              {% if posting.is_recommended %}<span class="status-pill">AI Match {{ posting.match_score }}%</span>{% endif %}
+            </div>
+          </div>
+          <div class="section-head__meta">
+            {% if posting.recruiters %}
+              <span class="status-pill">Contacts {{ posting.recruiters|join:", " }}</span>
+            {% else %}
+              <span class="status-pill">Contact assignment in progress</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <section class="resume-section">
+          <h4 class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>Role Description</h4>
+          {% if posting.description %}
+            <div class="posting-rich">{{ posting.description|safe }}</div>
+          {% else %}
+            <p>No detailed role description is available for this posting yet.</p>
+          {% endif %}
+        </section>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Apply</button>
+          <button class="btn btn-ghost" type="button" data-cancel-vacancy="{{ posting.id }}" {% if not posting.can_cancel_application %}style="display:none;"{% endif %}><i class="ph ph-arrow-u-up-left" aria-hidden="true"></i>Withdraw</button>
+          <button class="btn btn-ghost" type="button" data-vacancy-not-interested="{{ posting.id }}"><i class="ph ph-eye-slash" aria-hidden="true"></i>Hide</button>
+        </div>
+
+        <div class="inline-message" data-vacancy-message="{{ posting.id }}">
+          {% if posting.has_applied %}Your application is {{ posting.application_label|lower }}. Check back here for the next update on this role.{% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="session-idle-overlay" id="sessionIdleModal" aria-hidden="true">
+    <div class="session-idle-dialog" role="dialog" aria-modal="true" aria-labelledby="sessionIdleTitle">
+      <p class="session-idle-kicker">Session Expiring</p>
+      <h2 id="sessionIdleTitle">You will be signed out soon.</h2>
+      <p class="session-idle-copy">
+        For security, your session ends after 30 minutes of inactivity. Stay signed in to keep working.
+      </p>
+      <p class="session-idle-countdown">Signing out in <span id="sessionIdleCountdown">1:00</span></p>
+      <div class="session-idle-actions">
+        <button class="btn btn-primary" type="button" id="sessionIdleStayButton">Stay Signed In</button>
+        <button class="btn btn-ghost" type="button" id="sessionIdleLogoutButton">Logout Now</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const config = {
+        timeoutSeconds: {{ session_timeout_seconds|default:1800 }},
+        warningSeconds: {{ session_warning_seconds|default:60 }},
+        pingUrl: "{% url 'session-ping' %}",
+        logoutUrl: "{% url 'logout' %}",
+      };
+      if (!config.timeoutSeconds) return;
+
+      const modal = document.getElementById('sessionIdleModal');
+      const countdown = document.getElementById('sessionIdleCountdown');
+      const stayButton = document.getElementById('sessionIdleStayButton');
+      const logoutButton = document.getElementById('sessionIdleLogoutButton');
+      if (!modal || !countdown || !stayButton || !logoutButton) return;
+
+      const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'pointerdown'];
+      let warningTimerId = null;
+      let logoutTimerId = null;
+      let countdownIntervalId = null;
+      let lastActivityAt = Date.now();
+
+      function formatCountdown(totalSeconds) {
+        const safeSeconds = Math.max(0, Math.floor(totalSeconds || 0));
+        const minutes = Math.floor(safeSeconds / 60);
+        const seconds = safeSeconds % 60;
+        return `${minutes}:${String(seconds).padStart(2, '0')}`;
+      }
+
+      function clearTimers() {
+        if (warningTimerId) {
+          clearTimeout(warningTimerId);
+          warningTimerId = null;
+        }
+        if (logoutTimerId) {
+          clearTimeout(logoutTimerId);
+          logoutTimerId = null;
+        }
+        if (countdownIntervalId) {
+          clearInterval(countdownIntervalId);
+          countdownIntervalId = null;
+        }
+      }
+
+      function forceLogout() {
+        clearTimers();
+        window.location.assign(config.logoutUrl);
+      }
+
+      function closeWarning() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('session-idle-open');
+        stayButton.disabled = false;
+        stayButton.textContent = 'Stay Signed In';
+      }
+
+      function openWarning() {
+        const warningSeconds = Math.max(1, Math.min(Number(config.warningSeconds || 60), Number(config.timeoutSeconds) - 1));
+        let remainingSeconds = warningSeconds;
+        countdown.textContent = formatCountdown(remainingSeconds);
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('session-idle-open');
+        countdownIntervalId = setInterval(function () {
+          remainingSeconds = Math.max(0, remainingSeconds - 1);
+          countdown.textContent = formatCountdown(remainingSeconds);
+        }, 1000);
+        logoutTimerId = setTimeout(forceLogout, warningSeconds * 1000);
+        setTimeout(function () { stayButton.focus(); }, 0);
+      }
+
+      function scheduleIdleTimers() {
+        const timeoutSeconds = Math.max(1, Number(config.timeoutSeconds));
+        const warningSeconds = Math.max(1, Math.min(Number(config.warningSeconds || 60), timeoutSeconds - 1));
+        const warningDelayMs = Math.max(1000, (timeoutSeconds - warningSeconds) * 1000);
+        clearTimers();
+        closeWarning();
+        warningTimerId = setTimeout(openWarning, warningDelayMs);
+      }
+
+      async function continueSession() {
+        if (stayButton.disabled) return;
+        stayButton.disabled = true;
+        stayButton.textContent = 'Staying signed in...';
+
+        try {
+          const response = await fetch(config.pingUrl, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+          const contentType = response.headers.get('content-type') || '';
+          if (!response.ok || !contentType.includes('application/json')) {
+            throw new Error('Session refresh failed.');
+          }
+
+          const payload = await response.json();
+          if (!payload || !payload.authenticated) {
+            throw new Error('Session expired.');
+          }
+
+          lastActivityAt = Date.now();
+          scheduleIdleTimers();
+        } catch (error) {
+          forceLogout();
+        }
+      }
+
+      function handleUserActivity() {
+        if (modal.classList.contains('is-open')) return;
+        const now = Date.now();
+        if (now - lastActivityAt < 5000) return;
+        lastActivityAt = now;
+        scheduleIdleTimers();
+      }
+
+      activityEvents.forEach(function (eventName) {
+        window.addEventListener(eventName, handleUserActivity, { passive: true });
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && !modal.classList.contains('is-open')) {
+          lastActivityAt = Date.now();
+          scheduleIdleTimers();
+        }
+      });
+      stayButton.addEventListener('click', continueSession);
+      logoutButton.addEventListener('click', forceLogout);
+      scheduleIdleTimers();
+    }());
+
+    (function () {
+      const counterElements = document.querySelectorAll('[data-count]');
+      const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+
+      function animateCounter(element) {
+        if (!element || element.dataset.animated === 'true') return;
+        const rawValue = parseFloat(element.getAttribute('data-count') || '');
+        if (Number.isNaN(rawValue)) return;
+        const suffix = element.textContent && element.textContent.includes('%') ? '%' : '';
+        const duration = 900;
+        const start = performance.now();
+
+        function tick(now) {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = rawValue * eased;
+          const formatted = rawValue % 1 === 0 ? Math.round(current).toString() : formatter.format(current);
+          element.textContent = `${formatted}${suffix}`;
+          if (progress < 1) {
+            window.requestAnimationFrame(tick);
+          } else {
+            element.textContent = `${rawValue % 1 === 0 ? Math.round(rawValue) : formatter.format(rawValue)}${suffix}`;
+            element.dataset.animated = 'true';
+          }
+        }
+
+        window.requestAnimationFrame(tick);
+      }
+
+      counterElements.forEach(function (element) {
+        const observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              animateCounter(entry.target);
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.45 });
+        observer.observe(element);
+      });
+    }());
+
+    (function () {
+      const revealItems = document.querySelectorAll('.reveal');
+      if (!revealItems.length) return;
+
+      const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.12,
+        rootMargin: '0px 0px -40px 0px'
+      });
+
+      revealItems.forEach(function (item, index) {
+        item.style.transitionDelay = `${Math.min(index * 60, 220)}ms`;
+        observer.observe(item);
+      });
+    }());
+
+    (function () {
+      {% if profile_saved %}
+        try {
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.delete('updated');
+          const nextQuery = currentUrl.searchParams.toString();
+          const nextUrl = `${currentUrl.pathname}${nextQuery ? `?${nextQuery}` : ''}${currentUrl.hash || ''}`;
+          window.history.replaceState({}, document.title, nextUrl);
+        } catch (error) {
+          console.error('Unable to clean update flag from URL', error);
+        }
+      {% endif %}
+    }());
+
+    (function () {
+      function showToast(title, message, type) {
+        const region = document.getElementById('toastRegion');
+        if (!region) return;
+        const toast = document.createElement('div');
+        toast.className = `toast toast--${type || 'success'}`;
+        toast.innerHTML = `<strong>${title}</strong><span>${message}</span>`;
+        region.appendChild(toast);
+        window.setTimeout(function () {
+          toast.remove();
+        }, 3600);
+      }
+
+      window.dashboardToast = showToast;
+    }());
+
+    (function () {
+      function setText(id, value, fallback) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        element.textContent = value || fallback || '';
+      }
+
+      function setWidth(id, value, fallback) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        const width = Number.isFinite(Number(value)) ? Number(value) : fallback;
+        element.style.width = `${Math.max(0, Math.min(100, Number(width) || 0))}%`;
+      }
+
+      function setChip(id, values, index) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        element.textContent = values && values[index] ? values[index] : 'Pending';
+      }
+
+      function updateInsightsFreshness(message) {
+        const element = document.getElementById('insightsFreshnessLabel');
+        if (!element) return;
+        element.textContent = message;
+      }
+
+      function applyInsightsSnapshot(data) {
+        if (!data) return;
+
+        setText('executiveSummaryText', data.executive_summary, 'Your profile completion, verification status, and resume freshness shape how complete your dashboard looks today.');
+        setText('marketDemandSummaryText', data.market_demand_summary, 'Market demand insight will appear here after your first AI snapshot is generated.');
+        setText('skillsImpactSummaryText', data.current_skills_impact_summary, 'Skill impact insight will appear here after AI analysis completes.');
+        setText('salaryTrendSummaryText', data.salary_trend_summary, 'Salary trend insight will appear here after AI analysis completes. It will be positioned as directional guidance, not an authoritative benchmark.');
+        setText('roleFitSummaryText', data.executive_summary, 'Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.');
+        setText('marketTrendSummaryText', data.market_demand_summary, 'Current market trend for your skill profile will appear here after AI analysis completes.');
+        setText('salaryTrendInsightText', data.salary_trend_summary, 'Salary trend insight will appear here after AI analysis completes. It will be shown as directional guidance only.');
+
+        setText('resumeScoreValue', data.resume_score != null ? `${data.resume_score}` : '--', '--');
+        setText('marketDemandScoreValue', data.market_demand_score != null ? `${data.market_demand_score}` : '--', '--');
+        setText('skillsImpactScoreValue', data.current_skills_impact_score != null ? `${data.current_skills_impact_score}` : '--', '--');
+        setText('roleFitScoreValue', data.role_fit_score != null ? `${data.role_fit_score}` : '--', '--');
+        setText('marketDemandLabelValue', data.market_demand_label, 'Pending');
+        setText('salaryRangeValue', data.salary_range, 'Awaiting snapshot');
+        setText('salaryRangeInsightValue', data.salary_range, 'Pending');
+        setText('marketTrendMetric1', data.market_demand_score != null ? `Demand ${data.market_demand_score}/100` : 'Awaiting score', 'Awaiting score');
+        setText('marketTrendMetric2', data.current_skills_impact_score != null ? `Impact ${data.current_skills_impact_score}/100` : 'Awaiting impact', 'Awaiting impact');
+
+        setWidth('resumeScoreBar', data.resume_score, 0);
+        setWidth('marketDemandBar', data.market_demand_score, 52);
+        setWidth('skillsImpactBar', data.current_skills_impact_score, 48);
+        setWidth('roleFitBar', data.role_fit_score, 54);
+
+        setChip('strengthChip1', data.top_strengths || [], 0);
+        setChip('strengthChip2', data.top_strengths || [], 1);
+        setChip('strengthChip3', data.top_strengths || [], 2);
+        setChip('recommendedSkill1', data.recommended_skills || [], 0);
+        setChip('recommendedSkill2', data.recommended_skills || [], 1);
+        setChip('recommendedSkill3', data.recommended_skills || [], 2);
+        setChip('recommendedRole1', data.recommended_roles || [], 0);
+        setChip('recommendedRole2', data.recommended_roles || [], 1);
+        setChip('recommendedRole3', data.recommended_roles || [], 2);
+        setChip('growthArea1', data.growth_areas || [], 0);
+        setChip('growthArea2', data.growth_areas || [], 1);
+        setChip('growthArea3', data.growth_areas || [], 2);
+
+        const loadingBanner = document.getElementById('aiInsightsLoading');
+        const loadingText = document.getElementById('aiInsightsLoadingText');
+
+        if (loadingBanner) {
+          const showLoading = !!data.loading || !!data.stale || !data.available;
+          loadingBanner.style.display = showLoading ? 'flex' : 'none';
+          loadingBanner.dataset.insightsLoading = data.loading ? 'true' : 'false';
+          loadingBanner.dataset.insightsAvailable = data.available ? 'true' : 'false';
+          loadingBanner.dataset.insightsStale = data.stale ? 'true' : 'false';
+        }
+
+        if (loadingText) {
+          if (data.loading) {
+            loadingText.textContent = 'Refreshing AI insight snapshot...';
+            updateInsightsFreshness('Refreshing insight snapshot');
+          } else if (data.error_message) {
+            loadingText.textContent = data.error_message;
+            updateInsightsFreshness('Last refresh needs attention');
+          } else if (!data.available) {
+            loadingText.textContent = 'AI insight snapshot will be generated after your profile and resume context are ready.';
+            updateInsightsFreshness('Awaiting first insight snapshot');
+          } else {
+            updateInsightsFreshness('Insights refreshed just now');
+          }
+        }
+      }
+
+      async function fetchJson(url, options) {
+        const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
+        return response.json();
+      }
+
+      const loadingBanner = document.getElementById('aiInsightsLoading');
+      if (!loadingBanner) return;
+
+      const shouldTrigger = loadingBanner.dataset.insightsLoading === 'true'
+        || loadingBanner.dataset.insightsStale === 'true'
+        || loadingBanner.dataset.insightsAvailable !== 'true';
+
+      if (!shouldTrigger) return;
+
+      let pollCount = 0;
+      const maxPolls = 18;
+
+      async function pollStatus() {
+        pollCount += 1;
+        try {
+          const payload = await fetchJson('{% url "candidate-insight-status" %}');
+          if (payload && payload.Success && payload.Data) {
+            applyInsightsSnapshot(payload.Data);
+            if (payload.Data.status === 'completed' || payload.Data.status === 'failed' || pollCount >= maxPolls) {
+              return;
+            }
+          }
+        } catch (error) {
+          if (pollCount >= maxPolls) return;
+        }
+        window.setTimeout(pollStatus, 4000);
+      }
+
+      fetchJson('{% url "candidate-trigger-insights" %}', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] ? decodeURIComponent((document.cookie.match(/csrftoken=([^;]+)/) || [])[1]) : '',
+        },
+      }).then(function (payload) {
+        if (payload && payload.Success && payload.Data) {
+          applyInsightsSnapshot(payload.Data);
+        }
+        pollStatus();
+      }).catch(function () {
+        pollStatus();
+      });
+    }());
+
+    (function () {
+      document.querySelectorAll('.avatar img').forEach(function (image) {
+        image.addEventListener('error', function () {
+          const avatar = image.closest('.avatar');
+          if (!avatar) return;
+          avatar.classList.remove('has-image');
+          avatar.classList.add('is-fallback');
+        });
+
+        image.addEventListener('load', function () {
+          const avatar = image.closest('.avatar');
+          if (!avatar) return;
+          avatar.classList.add('has-image');
+          avatar.classList.remove('is-fallback');
+        });
+      });
+    }());
+
+    (function () {
+      const fileInput = document.getElementById('{{ form.profile_picture.id_for_label }}');
+      const previewImage = document.getElementById('profilePreviewImage');
+      const previewInitial = document.getElementById('profilePreviewInitial');
+      const previewCard = document.getElementById('profilePreviewCard');
+
+      if (fileInput && previewImage) {
+        fileInput.addEventListener('change', function (event) {
+          const target = event.target;
+          const file = target && target.files ? target.files[0] : null;
+          if (!file || !file.type.startsWith('image/')) return;
+
+          const reader = new FileReader();
+          reader.onload = function (loadEvent) {
+            const result = loadEvent.target && typeof loadEvent.target.result === 'string' ? loadEvent.target.result : '';
+            if (!result) return;
+            previewImage.src = result;
+            previewImage.style.display = 'block';
+            if (previewCard) {
+              previewCard.classList.add('has-image');
+              previewCard.classList.remove('is-fallback');
+            }
+            if (previewInitial) previewInitial.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    }());
+
+    (function () {
+      const form = document.getElementById('candidateProfileForm');
+      const submitButton = document.getElementById('candidateProfileSubmit');
+      if (!form || !submitButton) return;
+
+      let submitted = false;
+      form.addEventListener('submit', function (event) {
+        if (submitted) {
+          event.preventDefault();
+          return;
+        }
+        submitted = true;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving Profile...';
+      });
+    }());
+
+    (function () {
+      function getFocusableElements(container) {
+        return Array.from(container.querySelectorAll(
+          'a[href], button:not([disabled]), textarea, input:not([disabled]), select, [tabindex]:not([tabindex="-1"])'
+        )).filter(function (element) {
+          return element.offsetParent !== null;
+        });
+      }
+
+      function captureInitialState(element) {
+        if (!element || element.dataset.modalStateCaptured === 'true') return;
+        element.dataset.modalStateCaptured = 'true';
+
+        if ('value' in element && element.type !== 'file') {
+          element.dataset.initialValue = element.value || '';
+        }
+
+        if (element.tagName === 'BUTTON') {
+          element.dataset.initialHtml = element.innerHTML;
+        }
+
+        if (element.id && /Message$/.test(element.id)) {
+          element.dataset.initialText = element.textContent || '';
+          element.dataset.initialClassName = element.className || '';
+          element.dataset.resetText = element.dataset.initialText;
+          element.dataset.resetClassName = element.dataset.initialClassName;
+        }
+      }
+
+      function restoreButton(button) {
+        if (!button) return;
+        captureInitialState(button);
+        button.disabled = false;
+        button.classList.remove('is-loading');
+        button.removeAttribute('aria-busy');
+        if (button.dataset.initialHtml) {
+          button.innerHTML = button.dataset.initialHtml;
+        }
+      }
+
+      function restoreInput(input) {
+        if (!input) return;
+        captureInitialState(input);
+        if (input.type === 'file') {
+          input.value = '';
+          return;
+        }
+        input.value = input.dataset.initialValue || '';
+      }
+
+      function restoreMessage(message) {
+        if (!message) return;
+        captureInitialState(message);
+        message.textContent = message.dataset.resetText || '';
+        message.className = message.dataset.resetClassName || message.dataset.initialClassName || message.className;
+      }
+
+      function updateMessageResetState(message) {
+        if (!message) return;
+        captureInitialState(message);
+        message.dataset.resetText = message.textContent || '';
+        message.dataset.resetClassName = message.className || '';
+      }
+
+      function resetDashboardModalState(id) {
+        if (id === 'shareResumeModal') {
+          restoreButton(document.getElementById('copyPublicResumeLinkBtn'));
+          restoreMessage(document.getElementById('shareResumeMessage'));
+          return;
+        }
+
+        if (id === 'phoneVerificationModal') {
+          restoreButton(document.getElementById('requestPhoneOtpBtn'));
+          restoreButton(document.getElementById('verifyPhoneOtpBtn'));
+          restoreInput(document.getElementById('phoneOtpInput'));
+          restoreMessage(document.getElementById('phoneOtpMessage'));
+          return;
+        }
+
+        if (id === 'emailVerificationModal') {
+          restoreButton(document.getElementById('requestEmailOtpBtn'));
+          restoreButton(document.getElementById('verifyEmailOtpBtn'));
+          restoreInput(document.getElementById('emailOtpInput'));
+          restoreMessage(document.getElementById('emailOtpMessage'));
+          return;
+        }
+
+        if (id === 'identityVerificationModal') {
+          restoreButton(document.getElementById('submitAadhaarXmlBtn'));
+          restoreButton(document.getElementById('submitAadhaarDocsBtn'));
+          restoreInput(document.getElementById('aadhaarXmlInput'));
+          restoreInput(document.getElementById('aadhaarPdfInput'));
+          restoreInput(document.getElementById('aadhaarFrontInput'));
+          restoreInput(document.getElementById('aadhaarBackInput'));
+          restoreMessage(document.getElementById('identityVerificationMessage'));
+
+          document.querySelectorAll('[data-identity-mode]').forEach(function (button) {
+            button.classList.toggle('is-active', button.getAttribute('data-identity-mode') === 'xml');
+          });
+
+          const xmlPanel = document.getElementById('identityXmlPanel');
+          const documentPanel = document.getElementById('identityDocumentPanel');
+          if (xmlPanel) xmlPanel.classList.add('is-open');
+          if (documentPanel) documentPanel.classList.remove('is-open');
+        }
+      }
+
+      [
+        document.getElementById('copyPublicResumeLinkBtn'),
+        document.getElementById('requestPhoneOtpBtn'),
+        document.getElementById('verifyPhoneOtpBtn'),
+        document.getElementById('requestEmailOtpBtn'),
+        document.getElementById('verifyEmailOtpBtn'),
+        document.getElementById('submitAadhaarXmlBtn'),
+        document.getElementById('submitAadhaarDocsBtn'),
+        document.getElementById('phoneOtpInput'),
+        document.getElementById('emailOtpInput'),
+        document.getElementById('aadhaarXmlInput'),
+        document.getElementById('aadhaarPdfInput'),
+        document.getElementById('aadhaarFrontInput'),
+        document.getElementById('aadhaarBackInput'),
+        document.getElementById('shareResumeMessage'),
+        document.getElementById('phoneOtpMessage'),
+        document.getElementById('emailOtpMessage'),
+        document.getElementById('identityVerificationMessage')
+      ].forEach(captureInitialState);
+
+      let activeModal = null;
+      let lastFocused = null;
+
+      function openModal(id, trigger) {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        resetDashboardModalState(id);
+        lastFocused = trigger || document.activeElement;
+        modal.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        activeModal = modal;
+
+        const focusables = getFocusableElements(modal);
+        if (focusables.length) focusables[0].focus();
+      }
+
+      window.openCandidateDashboardModal = openModal;
+      window.updateCandidateDashboardModalMessageState = updateMessageResetState;
+
+      function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        resetDashboardModalState(id);
+        if (activeModal === modal) activeModal = null;
+        document.body.style.overflow = '';
+        if (lastFocused && typeof lastFocused.focus === 'function') {
+          lastFocused.focus();
+        }
+      }
+
+      document.querySelectorAll('[data-open-profile]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal('profileModal', button);
+        });
+      });
+
+      document.querySelectorAll('[data-open-update-profile]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal('updateProfileModal', button);
+        });
+      });
+
+      document.querySelectorAll('[data-open-share-resume]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal('shareResumeModal', button);
+        });
+      });
+
+      document.querySelectorAll('[data-open-verification]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const type = button.getAttribute('data-open-verification');
+          const id = type === 'phone' ? 'phoneVerificationModal' : (type === 'email' ? 'emailVerificationModal' : 'identityVerificationModal');
+          openModal(id, button);
+        });
+      });
+
+      document.querySelectorAll('[data-open-vacancy]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const id = button.getAttribute('data-open-vacancy');
+          const listModal = document.getElementById('vacancyListModal');
+          if (listModal) listModal.classList.remove('is-open');
+          openModal(id, button);
+        });
+      });
+
+      document.querySelectorAll('[data-open-vacancy-list]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal(button.getAttribute('data-open-vacancy-list'), button);
+        });
+      });
+
+      document.querySelectorAll('[data-close-modal]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          closeModal(button.getAttribute('data-close-modal'));
+        });
+      });
+
+      document.querySelectorAll('[data-modal-overlay]').forEach(function (overlay) {
+        overlay.addEventListener('click', function (event) {
+          if (event.target === overlay) {
+            closeModal(overlay.id);
+          }
+        });
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && activeModal) {
+          closeModal(activeModal.id);
+          return;
+        }
+
+        if (event.key === 'Tab' && activeModal) {
+          const focusables = getFocusableElements(activeModal);
+          if (!focusables.length) return;
+
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      {% if profile_error %}
+        openModal('updateProfileModal', document.querySelector('[data-open-update-profile]'));
+      {% endif %}
+    }());
+
+    (function () {
+      const copyButton = document.getElementById('copyPublicResumeLinkBtn');
+      const linkInput = document.getElementById('publicResumeLink');
+      const message = document.getElementById('shareResumeMessage');
+      if (!copyButton || !linkInput) return;
+
+      copyButton.addEventListener('click', async function () {
+        const value = linkInput.value || '';
+        if (!value) return;
+
+        try {
+          await navigator.clipboard.writeText(value);
+          if (message) {
+            message.textContent = 'Public resume link copied.';
+            message.classList.remove('is-error');
+            message.classList.add('is-success');
+            if (typeof window.updateCandidateDashboardModalMessageState === 'function') {
+              window.updateCandidateDashboardModalMessageState(message);
+            }
+          }
+          copyButton.textContent = 'Copied';
+          setTimeout(function () {
+            copyButton.textContent = 'Copy Link';
+          }, 1800);
+        } catch (error) {
+          linkInput.removeAttribute('readonly');
+          linkInput.select();
+          linkInput.setAttribute('readonly', 'readonly');
+          document.execCommand('copy');
+          if (message) {
+            message.textContent = 'Public resume link copied.';
+            message.classList.remove('is-error');
+            message.classList.add('is-success');
+            if (typeof window.updateCandidateDashboardModalMessageState === 'function') {
+              window.updateCandidateDashboardModalMessageState(message);
+            }
+          }
+        }
+      });
+    }());
+
+    (function () {
+      function getCsrfToken() {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      }
+
+      function setMessage(element, message, type) {
+        if (!element) return;
+        element.textContent = message || '';
+        element.classList.remove('is-error', 'is-success');
+        if (type === 'error') element.classList.add('is-error');
+        if (type === 'success') element.classList.add('is-success');
+        if (type !== 'error' && typeof window.updateCandidateDashboardModalMessageState === 'function') {
+          window.updateCandidateDashboardModalMessageState(element);
+        }
+      }
+
+      function setChecklistBadge(element, verified) {
+        if (!element) return;
+        element.textContent = verified ? 'Done' : 'Verify';
+        element.classList.toggle('check-badge--done', verified);
+        element.classList.toggle('check-badge--todo', !verified);
+      }
+
+      async function postForm(url, payload) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCsrfToken() },
+          body: payload,
+          credentials: 'same-origin',
+        });
+        return response.json();
+      }
+
+      const phoneRequestBtn = document.getElementById('requestPhoneOtpBtn');
+      const phoneVerifyBtn = document.getElementById('verifyPhoneOtpBtn');
+      const phoneInput = document.getElementById('phoneOtpInput');
+      const phoneMessage = document.getElementById('phoneOtpMessage');
+      const phoneBadge = document.getElementById('phoneChecklistBadge');
+
+      if (phoneRequestBtn) {
+        phoneRequestBtn.addEventListener('click', async function () {
+          phoneRequestBtn.disabled = true;
+          setMessage(phoneMessage, 'Sending OTP to SMS and WhatsApp...', '');
+          try {
+            const data = await postForm('{% url "candidate-request-phone-verification" %}', new FormData());
+            if (data.Success) {
+              const msg = data.Data && data.Data.message ? data.Data.message : 'OTP sent successfully.';
+              setMessage(phoneMessage, msg, 'success');
+              if (window.dashboardToast) window.dashboardToast('Phone OTP sent', msg, 'success');
+            } else {
+              const msg = data.Error || 'Unable to send phone OTP.';
+              setMessage(phoneMessage, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Phone OTP failed', msg, 'error');
+            }
+          } catch (error) {
+            setMessage(phoneMessage, 'Unable to send phone OTP right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Phone OTP failed', 'Unable to send phone OTP right now.', 'error');
+          } finally {
+            phoneRequestBtn.disabled = false;
+          }
+        });
+      }
+
+      if (phoneVerifyBtn) {
+        phoneVerifyBtn.addEventListener('click', async function () {
+          const otp = phoneInput ? phoneInput.value.trim() : '';
+          if (!otp) {
+            setMessage(phoneMessage, 'Enter the phone OTP first.', 'error');
+            return;
+          }
+          const formData = new FormData();
+          formData.append('otp', otp);
+          phoneVerifyBtn.disabled = true;
+          try {
+            const data = await postForm('{% url "candidate-verify-phone-otp" %}', formData);
+            if (data.Success) {
+              const msg = data.Data && data.Data.message ? data.Data.message : 'Phone verified successfully.';
+              setMessage(phoneMessage, msg, 'success');
+              setChecklistBadge(phoneBadge, true);
+              if (window.dashboardToast) window.dashboardToast('Phone verified', msg, 'success');
+            } else {
+              const msg = data.Error || 'Unable to verify phone OTP.';
+              setMessage(phoneMessage, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Verification failed', msg, 'error');
+            }
+          } catch (error) {
+            setMessage(phoneMessage, 'Unable to verify phone OTP right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Verification failed', 'Unable to verify phone OTP right now.', 'error');
+          } finally {
+            phoneVerifyBtn.disabled = false;
+          }
+        });
+      }
+
+      const emailRequestBtn = document.getElementById('requestEmailOtpBtn');
+      const emailVerifyBtn = document.getElementById('verifyEmailOtpBtn');
+      const emailInput = document.getElementById('emailOtpInput');
+      const emailMessage = document.getElementById('emailOtpMessage');
+      const emailBadge = document.getElementById('emailChecklistBadge');
+
+      if (emailRequestBtn) {
+        emailRequestBtn.addEventListener('click', async function () {
+          emailRequestBtn.disabled = true;
+          setMessage(emailMessage, 'Sending OTP to your email...', '');
+          try {
+            const data = await postForm('{% url "candidate-request-email-verification" %}', new FormData());
+            if (data.Success) {
+              const msg = data.Data && data.Data.message ? data.Data.message : 'OTP sent successfully.';
+              setMessage(emailMessage, msg, 'success');
+              if (window.dashboardToast) window.dashboardToast('Email OTP sent', msg, 'success');
+            } else {
+              const msg = data.Error || 'Unable to send email OTP.';
+              setMessage(emailMessage, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Email OTP failed', msg, 'error');
+            }
+          } catch (error) {
+            setMessage(emailMessage, 'Unable to send email OTP right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Email OTP failed', 'Unable to send email OTP right now.', 'error');
+          } finally {
+            emailRequestBtn.disabled = false;
+          }
+        });
+      }
+
+      if (emailVerifyBtn) {
+        emailVerifyBtn.addEventListener('click', async function () {
+          const otp = emailInput ? emailInput.value.trim() : '';
+          if (!otp) {
+            setMessage(emailMessage, 'Enter the email OTP first.', 'error');
+            return;
+          }
+          const formData = new FormData();
+          formData.append('otp', otp);
+          emailVerifyBtn.disabled = true;
+          try {
+            const data = await postForm('{% url "candidate-verify-email-otp" %}', formData);
+            if (data.Success) {
+              const msg = data.Data && data.Data.message ? data.Data.message : 'Email verified successfully.';
+              setMessage(emailMessage, msg, 'success');
+              setChecklistBadge(emailBadge, true);
+              if (window.dashboardToast) window.dashboardToast('Email verified', msg, 'success');
+            } else {
+              const msg = data.Error || 'Unable to verify email OTP.';
+              setMessage(emailMessage, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Verification failed', msg, 'error');
+            }
+          } catch (error) {
+            setMessage(emailMessage, 'Unable to verify email OTP right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Verification failed', 'Unable to verify email OTP right now.', 'error');
+          } finally {
+            emailVerifyBtn.disabled = false;
+          }
+        });
+      }
+
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('verify') !== 'email') return;
+
+        const emailModal = document.getElementById('emailVerificationModal');
+        if (!emailModal) return;
+
+        if (typeof window.openCandidateDashboardModal === 'function') {
+          window.openCandidateDashboardModal('emailVerificationModal', emailRequestBtn || emailVerifyBtn || document.body);
+        } else {
+          emailModal.classList.add('is-open');
+          document.body.style.overflow = 'hidden';
+        }
+
+        if (params.get('send_otp') === '1' && emailRequestBtn) {
+          window.setTimeout(function () {
+            emailRequestBtn.click();
+          }, 150);
+        }
+
+        if (window.history && typeof window.history.replaceState === 'function') {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('verify');
+          cleanUrl.searchParams.delete('send_otp');
+          window.history.replaceState({}, document.title, cleanUrl.toString());
+        }
+      }());
+
+      const refreshResumeBtn = document.getElementById('refreshResumeDetailsBtn');
+      const resumeStatusSummaryValue = document.getElementById('resumeStatusSummaryValue');
+      const resumeProcessedSummaryText = document.getElementById('resumeProcessedSummaryText');
+      const heroResumeStatusPill = document.getElementById('heroResumeStatusPill');
+      const workspaceResumeStatusValue = document.getElementById('workspaceResumeStatusValue');
+      const resumeStatusDetailPill = document.getElementById('resumeStatusDetailPill');
+      const resumeProcessedDetailPill = document.getElementById('resumeProcessedDetailPill');
+
+      if (refreshResumeBtn) {
+        refreshResumeBtn.addEventListener('click', async function () {
+          const originalLabel = refreshResumeBtn.textContent;
+          refreshResumeBtn.disabled = true;
+          refreshResumeBtn.textContent = 'Refreshing...';
+
+          try {
+            const data = await postForm('{% url "candidate-refresh-resume-details" %}', new FormData());
+            if (data.Success && data.Data && data.Data.resume) {
+              const resume = data.Data.resume;
+              const status = resume.status ? resume.status.replace(/_/g, ' ').replace(/\b\w/g, function (ch) { return ch.toUpperCase(); }) : 'Missing';
+              const processedText = resume.processed_at ? `Processed ${new Date(resume.processed_at).toLocaleString()}` : 'Awaiting structured extraction';
+
+              if (resumeStatusSummaryValue) resumeStatusSummaryValue.textContent = status;
+              if (resumeProcessedSummaryText) resumeProcessedSummaryText.textContent = processedText;
+              if (heroResumeStatusPill) heroResumeStatusPill.textContent = `Resume ${status}`;
+              if (workspaceResumeStatusValue) workspaceResumeStatusValue.textContent = status;
+              if (resumeStatusDetailPill) resumeStatusDetailPill.textContent = `Status: ${status}`;
+              if (resumeProcessedDetailPill) resumeProcessedDetailPill.textContent = processedText;
+
+              if (window.dashboardToast) {
+                window.dashboardToast('Resume refreshed', 'Latest resume details were collected successfully.', 'success');
+              }
+            } else {
+              const message = data.Error || 'Unable to refresh resume details right now.';
+              if (window.dashboardToast) window.dashboardToast('Resume refresh failed', message, 'error');
+            }
+          } catch (error) {
+            if (window.dashboardToast) {
+              window.dashboardToast('Resume refresh failed', 'Unable to refresh resume details right now.', 'error');
+            }
+          } finally {
+            refreshResumeBtn.disabled = false;
+            refreshResumeBtn.textContent = originalLabel;
+          }
+        });
+      }
+
+      const identityXmlBtn = document.getElementById('submitAadhaarXmlBtn');
+      const identityDocsBtn = document.getElementById('submitAadhaarDocsBtn');
+      const identityMessage = document.getElementById('identityVerificationMessage');
+      const identityBadge = document.getElementById('identityChecklistBadge');
+      const xmlInput = document.getElementById('aadhaarXmlInput');
+      const pdfInput = document.getElementById('aadhaarPdfInput');
+      const frontInput = document.getElementById('aadhaarFrontInput');
+      const backInput = document.getElementById('aadhaarBackInput');
+      const choiceButtons = document.querySelectorAll('[data-identity-mode]');
+      const xmlPanel = document.getElementById('identityXmlPanel');
+      const documentPanel = document.getElementById('identityDocumentPanel');
+
+      function switchIdentityMode(mode) {
+        choiceButtons.forEach(function (button) {
+          button.classList.toggle('is-active', button.getAttribute('data-identity-mode') === mode);
+        });
+        if (xmlPanel) xmlPanel.classList.toggle('is-open', mode === 'xml');
+        if (documentPanel) documentPanel.classList.toggle('is-open', mode === 'documents');
+        setMessage(identityMessage, '', '');
+      }
+
+      choiceButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          switchIdentityMode(button.getAttribute('data-identity-mode'));
+        });
+      });
+
+      if (identityXmlBtn) {
+        identityXmlBtn.addEventListener('click', async function () {
+          const xmlFile = xmlInput && xmlInput.files ? xmlInput.files[0] : null;
+          if (!xmlFile) {
+            setMessage(identityMessage, 'Upload the extracted Aadhaar XML file first.', 'error');
+            return;
+          }
+          const formData = new FormData();
+          formData.append('mode', 'offline_xml');
+          formData.append('xml_file', xmlFile);
+          identityXmlBtn.disabled = true;
+          setMessage(identityMessage, 'Verifying Aadhaar XML...', '');
+          try {
+            const data = await postForm('{% url "candidate-submit-identity-verification" %}', formData);
+            if (data.Success) {
+              setMessage(identityMessage, 'Aadhaar verification completed successfully.', 'success');
+              setChecklistBadge(identityBadge, true);
+              if (window.dashboardToast) window.dashboardToast('Identity verified', 'Aadhaar verification completed successfully.', 'success');
+            } else {
+              const msg = data.Error || 'Unable to verify Aadhaar XML.';
+              setMessage(identityMessage, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Identity verification failed', msg, 'error');
+            }
+          } catch (error) {
+            setMessage(identityMessage, 'Unable to verify Aadhaar XML right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Identity verification failed', 'Unable to verify Aadhaar XML right now.', 'error');
+          } finally {
+            identityXmlBtn.disabled = false;
+          }
+        });
+      }
+
+      if (identityDocsBtn) {
+        identityDocsBtn.addEventListener('click', async function () {
+          const pdfFile = pdfInput && pdfInput.files ? pdfInput.files[0] : null;
+          const frontFile = frontInput && frontInput.files ? frontInput.files[0] : null;
+          const backFile = backInput && backInput.files ? backInput.files[0] : null;
+
+          if (!pdfFile && !(frontFile && backFile)) {
+            setMessage(identityMessage, 'Upload an Aadhaar PDF or both front and back images.', 'error');
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append('mode', 'document_upload');
+          if (pdfFile) formData.append('aadhaar_pdf', pdfFile);
+          if (frontFile) formData.append('front_image', frontFile);
+          if (backFile) formData.append('back_image', backFile);
+
+          identityDocsBtn.disabled = true;
+          setMessage(identityMessage, 'Verifying Aadhaar documents...', '');
+
+          try {
+            const data = await postForm('{% url "candidate-submit-identity-verification" %}', formData);
+            if (data.Success) {
+              setMessage(identityMessage, 'Aadhaar verification completed successfully.', 'success');
+              setChecklistBadge(identityBadge, true);
+              if (window.dashboardToast) window.dashboardToast('Identity verified', 'Aadhaar verification completed successfully.', 'success');
+            } else {
+              const msg = data.Error || 'Unable to verify Aadhaar documents.';
+              setMessage(identityMessage, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Identity verification failed', msg, 'error');
+            }
+          } catch (error) {
+            setMessage(identityMessage, 'Unable to verify Aadhaar documents right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Identity verification failed', 'Unable to verify Aadhaar documents right now.', 'error');
+          } finally {
+            identityDocsBtn.disabled = false;
+          }
+        });
+      }
+    }());
+
+    (function () {
+      const buttons = document.querySelectorAll('[data-tab-target]');
+      const panels = document.querySelectorAll('.tab-panel');
+
+      buttons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          const target = button.getAttribute('data-tab-target');
+
+          buttons.forEach(function (item) {
+            item.classList.remove('is-active');
+            item.setAttribute('aria-selected', 'false');
+          });
+
+          panels.forEach(function (panel) {
+            panel.classList.remove('is-active');
+          });
+
+          button.classList.add('is-active');
+          button.setAttribute('aria-selected', 'true');
+
+          const next = document.getElementById(target);
+          if (next) next.classList.add('is-active');
+        });
+      });
+    }());
+
+    (function () {
+      const list = document.getElementById('jobPostingList');
+      const filterButtons = document.querySelectorAll('[data-posting-filter]');
+      const sortSelect = document.getElementById('jobSortSelect');
+      if (!list) return;
+
+      function getCards() {
+        return Array.from(list.querySelectorAll('[data-vacancy-card]'));
+      }
+
+      function filterCards(filter) {
+        getCards().forEach(function (card) {
+          const isRecommended = card.getAttribute('data-posting-recommended') === 'true';
+          const isApplied = card.getAttribute('data-posting-applied') === 'true';
+
+          let visible = true;
+
+          if (filter === 'recommended') visible = isRecommended;
+          if (filter === 'applied') visible = isApplied;
+          if (filter === 'new') visible = !isApplied;
+
+          card.hidden = !visible;
+        });
+      }
+
+      function sortCards(mode) {
+        const cards = getCards();
+
+        cards.sort(function (a, b) {
+          if (mode === 'recent') {
+            return new Date(b.getAttribute('data-posting-date')) - new Date(a.getAttribute('data-posting-date'));
+          }
+
+          if (mode === 'status') {
+            return (a.getAttribute('data-posting-status') || '').localeCompare(b.getAttribute('data-posting-status') || '');
+          }
+
+          const scoreA = Number(a.getAttribute('data-posting-match') || 0);
+          const scoreB = Number(b.getAttribute('data-posting-match') || 0);
+          return scoreB - scoreA;
+        });
+
+        cards.forEach(function (card) {
+          list.appendChild(card);
+        });
+      }
+
+      filterButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          filterButtons.forEach(function (item) { item.classList.remove('is-active'); });
+          button.classList.add('is-active');
+          filterCards(button.getAttribute('data-posting-filter'));
+        });
+      });
+
+      if (sortSelect) {
+        sortSelect.addEventListener('change', function () {
+          sortCards(sortSelect.value);
+        });
+      }
+
+      sortCards('recommended');
+      filterCards('all');
+    }());
+
+    (function () {
+      const applyButtons = document.querySelectorAll('[data-apply-vacancy]');
+      const cancelButtons = document.querySelectorAll('[data-cancel-vacancy]');
+      const notInterestedButtons = document.querySelectorAll('[data-vacancy-not-interested]');
+      if (!applyButtons.length && !cancelButtons.length && !notInterestedButtons.length) return;
+
+      function getCsrfToken() {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+      }
+
+      function setApplicationState(vacancyId, hasApplied) {
+        document.querySelectorAll(`[data-apply-vacancy="${vacancyId}"]`).forEach(function (button) {
+          button.textContent = 'Apply';
+          button.style.display = hasApplied ? 'none' : '';
+          button.disabled = false;
+        });
+
+        document.querySelectorAll(`[data-cancel-vacancy="${vacancyId}"]`).forEach(function (button) {
+          button.style.display = hasApplied ? '' : 'none';
+          button.disabled = false;
+        });
+
+        document.querySelectorAll(`[data-vacancy-card="${vacancyId}"]`).forEach(function (card) {
+          card.setAttribute('data-posting-applied', hasApplied ? 'true' : 'false');
+        });
+      }
+
+      function setApplyMessage(vacancyId, message, type) {
+        document.querySelectorAll(`[data-vacancy-message="${vacancyId}"]`).forEach(function (node) {
+          node.textContent = message || '';
+          node.classList.remove('is-error', 'is-success');
+          if (type === 'error') node.classList.add('is-error');
+          if (type === 'success') node.classList.add('is-success');
+        });
+      }
+
+      function removeVacancyFromView(vacancyId) {
+        document.querySelectorAll(`[data-vacancy-card="${vacancyId}"]`).forEach(function (node) {
+          node.remove();
+        });
+        document.querySelectorAll(`[data-apply-vacancy="${vacancyId}"], [data-cancel-vacancy="${vacancyId}"], [data-vacancy-not-interested="${vacancyId}"]`).forEach(function (button) {
+          button.disabled = true;
+        });
+      }
+
+      applyButtons.forEach(function (button) {
+        button.addEventListener('click', async function () {
+          const vacancyId = button.getAttribute('data-apply-vacancy');
+          if (!vacancyId) return;
+
+          setApplyMessage(vacancyId, 'Submitting your application...', '');
+          button.disabled = true;
+
+          try {
+            const formData = new FormData();
+            formData.append('vacancy_id', vacancyId);
+            const response = await fetch('{% url "candidate-apply-to-vacancy" %}', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'X-CSRFToken': getCsrfToken() },
+              body: formData,
+            });
+
+            const payload = await response.json();
+            if (payload && payload.Success) {
+              const data = payload.Data || {};
+              const msg = data.message || 'Application submitted successfully. You can track the next update for this role from your dashboard.';
+              setApplicationState(vacancyId, true);
+              setApplyMessage(vacancyId, msg, 'success');
+              if (window.dashboardToast) window.dashboardToast('Application submitted', msg, 'success');
+            } else {
+              button.disabled = false;
+              const msg = (payload && payload.Error) || 'Unable to submit the application right now.';
+              setApplyMessage(vacancyId, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Application failed', msg, 'error');
+            }
+          } catch (error) {
+            button.disabled = false;
+            setApplyMessage(vacancyId, 'Unable to submit the application right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Application failed', 'Unable to submit the application right now.', 'error');
+          }
+        });
+      });
+
+      cancelButtons.forEach(function (button) {
+        button.addEventListener('click', async function () {
+          const vacancyId = button.getAttribute('data-cancel-vacancy');
+          if (!vacancyId) return;
+
+          const confirmed = window.confirm('Withdraw this application? You can apply again later if the role is still open.');
+          if (!confirmed) return;
+
+          setApplyMessage(vacancyId, 'Cancelling your application...', '');
+          button.disabled = true;
+
+          try {
+            const formData = new FormData();
+            formData.append('vacancy_id', vacancyId);
+            const response = await fetch('{% url "candidate-cancel-vacancy-application" %}', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'X-CSRFToken': getCsrfToken() },
+              body: formData,
+            });
+
+            const payload = await response.json();
+            if (payload && payload.Success) {
+              const data = payload.Data || {};
+              const msg = data.message || 'Application cancelled successfully. You can apply again later if needed.';
+              setApplicationState(vacancyId, false);
+              setApplyMessage(vacancyId, msg, 'success');
+              if (window.dashboardToast) window.dashboardToast('Application withdrawn', msg, 'success');
+            } else {
+              button.disabled = false;
+              const msg = (payload && payload.Error) || 'Unable to cancel the application right now.';
+              setApplyMessage(vacancyId, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Withdraw failed', msg, 'error');
+            }
+          } catch (error) {
+            button.disabled = false;
+            setApplyMessage(vacancyId, 'Unable to cancel the application right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Withdraw failed', 'Unable to cancel the application right now.', 'error');
+          }
+        });
+      });
+
+      notInterestedButtons.forEach(function (button) {
+        button.addEventListener('click', async function () {
+          const vacancyId = button.getAttribute('data-vacancy-not-interested');
+          if (!vacancyId) return;
+
+          const confirmed = window.confirm('Hide this posting from your dashboard?');
+          if (!confirmed) return;
+
+          setApplyMessage(vacancyId, 'Hiding this posting from your dashboard...', '');
+          button.disabled = true;
+
+          try {
+            const formData = new FormData();
+            formData.append('vacancy_id', vacancyId);
+            const response = await fetch('{% url "candidate-vacancy-not-interested" %}', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'X-CSRFToken': getCsrfToken() },
+              body: formData,
+            });
+
+            const payload = await response.json();
+            if (payload && payload.Success) {
+              const msg = (payload.Data && payload.Data.message) || 'This posting has been hidden from your dashboard.';
+              setApplyMessage(vacancyId, msg, 'success');
+              removeVacancyFromView(vacancyId);
+              document.querySelectorAll('[data-modal-overlay].is-open').forEach(function (modal) {
+                if (modal.id && modal.id.indexOf('vacancy') !== -1) {
+                  modal.classList.remove('is-open');
+                  document.body.style.overflow = '';
+                }
+              });
+              if (window.dashboardToast) window.dashboardToast('Posting hidden', msg, 'success');
+            } else {
+              button.disabled = false;
+              const msg = (payload && payload.Error) || 'Unable to hide this posting right now.';
+              setApplyMessage(vacancyId, msg, 'error');
+              if (window.dashboardToast) window.dashboardToast('Hide failed', msg, 'error');
+            }
+          } catch (error) {
+            button.disabled = false;
+            setApplyMessage(vacancyId, 'Unable to hide this posting right now.', 'error');
+            if (window.dashboardToast) window.dashboardToast('Hide failed', 'Unable to hide this posting right now.', 'error');
+          }
+        });
+      });
+    }());
+  </script>
+</body>
+</html>

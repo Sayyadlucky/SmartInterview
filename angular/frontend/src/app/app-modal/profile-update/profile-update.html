@@ -1,0 +1,14 @@
+  <div class="modal-overlay" id="modal">
+    <div class="modal-card">
+    <button class="modal-close" id="modalClose" (click)="closeDialog()">&times;</button>
+      <div class="side-title">Candidate Details</div>
+      <div class="candidate-name" id="modalName">{{ candidate?.name }}</div>
+      <div class="candidate-info" id="modalRole">{{ formatRoleWithId(candidate?.role, candidate?.role_id) }}</div>
+      <div class="candidate-notes" id="modalNotes">{{ candidate?.notes }}</div>
+      <div class="side-actions mt-10">
+        <ng-container *ngFor="let status of filteredStatuses | keyvalue">
+          <button (click)="changeStatus('' + status.key)">{{ status.value }}</button>
+        </ng-container>
+      </div>
+    </div>
+  </div>

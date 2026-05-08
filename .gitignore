@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.cache/
+.venv/
+node_modules/
+angular/frontend/node_modules/
+staticfiles/
+media/
+*.zip
+test_db.sqlite3
+.idea/

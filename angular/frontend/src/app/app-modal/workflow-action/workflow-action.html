@@ -1,0 +1,338 @@
+<div class="workflow-shell" [class.workflow-shell--reviews]="mode === 'evaluation-reviews'">
+  <button type="button" class="close-btn" aria-label="Close dialog" (click)="close()">×</button>
+
+  <div class="workflow-head">
+    <div class="icon-wrap">
+      <i
+        class="ph"
+        [class.ph-calendar-check]="mode === 'schedule'"
+        [class.ph-users-three]="mode === 'bulk-assign'"
+        [class.ph-clipboard-text]="mode === 'evaluation-reviews'"></i>
+    </div>
+    <div class="copy">
+      <h3>{{ title }}</h3>
+      <p>{{ subtitle }}</p>
+    </div>
+  </div>
+
+  <div class="workflow-summary" *ngIf="mode === 'evaluation-reviews'">
+    <div class="summary-card">
+      <span>Reviewed Candidates</span>
+      <strong>{{ reviewCandidates.length }}</strong>
+    </div>
+    <div class="summary-card">
+      <span>Average Score</span>
+      <strong>{{ reviewAverageScore }}</strong>
+    </div>
+    <div class="summary-card">
+      <span>Needs Follow-up</span>
+      <strong>{{ reviewsMissingFeedback }}</strong>
+    </div>
+  </div>
+
+  <div class="feedback-message feedback-message--error" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="feedback-message feedback-message--success" *ngIf="successMessage">{{ successMessage }}</div>
+
+  <ng-container [ngSwitch]="mode">
+    <div *ngSwitchCase="'schedule'" class="workflow-body">
+      <div class="workflow-column">
+        <div class="section-head">
+          <h4>Candidate</h4>
+          <span *ngIf="!selectedCandidate">Search and select</span>
+          <button *ngIf="selectedCandidate" type="button" class="text-btn" (click)="resetSelectedCandidate()">Change Candidate</button>
+        </div>
+        <div class="candidate-search-block">
+          <div class="field-shell">
+            <i class="ph ph-magnifying-glass"></i>
+            <input
+              type="text"
+              [ngModel]="candidateSearch"
+              (ngModelChange)="onCandidateSearchChange($event)"
+              placeholder="Type at least 3 characters to search candidate"
+              [readonly]="!!selectedCandidate"
+              (focus)="openCandidateSearch()"
+              (blur)="closeCandidateSearch()" />
+          </div>
+          <div class="candidate-list candidate-list--overlay" *ngIf="showScheduleCandidateResults">
+            <button
+              type="button"
+              class="candidate-card"
+              *ngFor="let candidate of scheduleCandidates; trackBy: trackCandidate"
+              (mousedown)="selectCandidate(candidate)">
+              <div>
+                <strong>{{ candidate.name }}</strong>
+                <span>{{ candidate.role || 'Role not mapped' }}</span>
+              </div>
+              <small>{{ formatStatus(candidate.status) }}</small>
+            </button>
+          </div>
+          <div class="candidate-search-empty" *ngIf="showScheduleCandidateEmpty">No candidate matched your search.</div>
+        </div>
+
+        <div class="summary-panel candidate-summary-panel" *ngIf="selectedCandidate">
+          <div class="candidate-summary-head">
+            <strong>{{ selectedCandidate.name }}</strong>
+            <span>{{ selectedCandidate.role || 'Role not mapped' }}</span>
+          </div>
+          <div class="candidate-summary-grid">
+            <div>
+              <span>Interview Type</span>
+              <strong>{{ interviewType === 'auto' ? 'Auto Interview' : 'Manual Interview' }}</strong>
+            </div>
+            <div>
+              <span>Assigned Evaluator</span>
+              <strong>{{ interviewType === 'auto' ? 'Bot Managed' : (evaluatorSearch || selectedCandidate.interviewer || 'Unassigned') }}</strong>
+            </div>
+            <div>
+              <span>Current Status</span>
+              <strong>{{ formatStatus(selectedCandidate.status) }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="workflow-column workflow-column--form">
+        <div class="section-head">
+          <h4>Interview Plan</h4>
+          <span *ngIf="selectedCandidate">{{ selectedCandidate.recruiter || 'Recruiter not assigned' }}</span>
+        </div>
+
+        <label class="field-label">Interview Type</label>
+        <div class="type-toggle">
+          <button
+            type="button"
+            class="type-toggle-btn"
+            [class.active]="interviewType === 'auto'"
+            (click)="setInterviewType('auto')">
+            <span class="type-toggle-label">Auto Interview</span>
+            <small>Bot-led interview flow</small>
+          </button>
+          <button
+            type="button"
+            class="type-toggle-btn"
+            [class.active]="interviewType === 'manual'"
+            (click)="setInterviewType('manual')">
+            <span class="type-toggle-label">Manual Interview</span>
+            <small>Evaluator-led interview flow</small>
+          </button>
+        </div>
+
+        <div class="evaluator-search-block" *ngIf="interviewType === 'manual'">
+          <label class="field-label">Evaluator</label>
+          <div
+            class="field-shell evaluator-search-shell"
+            [class.field-shell--active]="evaluatorSearchOpen"
+            [class.field-shell--disabled]="loadingEvaluators || saving"
+          >
+            <i class="ph ph-magnifying-glass"></i>
+            <input
+              type="text"
+              [(ngModel)]="evaluatorSearch"
+              placeholder="Search evaluator by name, email, or recruiter"
+              [disabled]="loadingEvaluators || saving"
+              (focus)="openEvaluatorSearch()"
+              (blur)="closeEvaluatorSearch()"
+              (ngModelChange)="onEvaluatorSearchChange()" />
+          </div>
+          <div class="field-inline-status" *ngIf="loadingEvaluators || evaluatorFieldMessage">
+            <span class="lookup-spinner" *ngIf="loadingEvaluators"></span>
+            <span>{{ loadingEvaluators ? 'Loading evaluators...' : evaluatorFieldMessage }}</span>
+          </div>
+          <div class="evaluator-results" *ngIf="showEvaluatorResults">
+            <button
+              type="button"
+              class="evaluator-result"
+              *ngFor="let evaluator of filteredScheduleEvaluators; trackBy: trackEvaluator"
+              (mousedown)="selectEvaluator(evaluator)">
+              <div>
+                <strong>{{ evaluator.name }}</strong>
+                <span>{{ evaluator.email || evaluator.phone || 'Evaluator profile' }}</span>
+              </div>
+              <small>{{ evaluator.recruiter_name || 'Shared evaluator pool' }}</small>
+            </button>
+          </div>
+          <div class="evaluator-empty" *ngIf="showEvaluatorEmpty">
+            No evaluator matched your search.
+          </div>
+        </div>
+
+        <div class="schedule-composer">
+          <div class="schedule-composer-head">
+            <div>
+              <span class="field-label">Schedule Window</span>
+              <h5>Interview Slot</h5>
+            </div>
+            <i class="ph ph-calendar-blank"></i>
+          </div>
+          <div class="schedule-grid">
+            <div class="schedule-input-card">
+              <label class="field-label">Interview Date</label>
+              <input type="date" [(ngModel)]="scheduledDate" [disabled]="saving" />
+            </div>
+            <div class="schedule-input-card">
+              <label class="field-label">Interview Time</label>
+              <input type="time" [(ngModel)]="scheduledTime" [disabled]="saving" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div *ngSwitchCase="'bulk-assign'" class="workflow-body">
+      <div class="workflow-column">
+        <div class="section-head">
+          <h4>Candidate Selection</h4>
+          <button type="button" class="text-btn" (click)="toggleSelectAllBulkCandidates()">
+            {{ allVisibleBulkSelected ? 'Clear visible' : 'Select visible' }}
+          </button>
+        </div>
+        <div class="field-shell">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="text" [(ngModel)]="candidateSearch" placeholder="Search candidate, role, recruiter" />
+        </div>
+        <div class="candidate-list">
+          <label class="candidate-check" *ngFor="let candidate of bulkAssignableCandidates; trackBy: trackCandidate">
+            <input type="checkbox" [checked]="isBulkCandidateSelected(candidate.id)" (change)="toggleBulkCandidate(candidate.id)" />
+            <div>
+              <strong>{{ candidate.name }}</strong>
+              <span>{{ candidate.role || 'Role not mapped' }} · {{ candidate.recruiter || 'Recruiter not assigned' }}</span>
+            </div>
+            <small>{{ candidate.interviewer || 'Unassigned' }}</small>
+          </label>
+          <div class="empty-state" *ngIf="!bulkAssignableCandidates.length">No candidates available for evaluator assignment.</div>
+        </div>
+      </div>
+
+      <div class="workflow-column workflow-column--form">
+        <div class="section-head">
+          <h4>Assignment Rules</h4>
+          <span>{{ selectedBulkCount }} selected</span>
+        </div>
+
+        <label class="field-label">Evaluator</label>
+        <select [(ngModel)]="selectedEvaluatorId" [disabled]="loadingEvaluators || saving">
+          <option [ngValue]="null">Select evaluator</option>
+          <option *ngFor="let evaluator of evaluatorOptions; trackBy: trackEvaluator" [ngValue]="evaluator.id">
+            {{ evaluator.name }}{{ evaluator.recruiter_name ? ' · ' + evaluator.recruiter_name : '' }}
+          </option>
+        </select>
+        <div class="field-inline-status" *ngIf="loadingEvaluators || evaluatorFieldMessage">
+          <span class="lookup-spinner" *ngIf="loadingEvaluators"></span>
+          <span>{{ loadingEvaluators ? 'Loading evaluators...' : evaluatorFieldMessage }}</span>
+        </div>
+
+        <div class="summary-panel">
+          <div><span>Workflow</span><strong>Bulk evaluator assignment</strong></div>
+          <div><span>Selected Candidates</span><strong>{{ selectedBulkCount }}</strong></div>
+          <div><span>Result</span><strong>Updates interviewer ownership without changing interview status</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngSwitchCase="'evaluation-reviews'" class="reviews-shell">
+      <div class="field-shell field-shell--wide">
+        <i class="ph ph-magnifying-glass"></i>
+        <input type="text" [ngModel]="reviewSearch" (ngModelChange)="onReviewSearchChange($event)" placeholder="Search by candidate, recruiter, evaluator, role, or note" />
+      </div>
+
+      <div class="review-tab-shell" *ngIf="reviewGroups.length > 0 && activeReviewGroup">
+        <div class="review-tab-list">
+          <button
+            type="button"
+            class="review-tab-btn"
+            *ngFor="let group of reviewGroups"
+            [class.active]="group.key === activeReviewGroupKey"
+            (click)="setActiveReviewGroup(group.key)">
+            <span>{{ group.title }}</span>
+            <strong>{{ group.items.length }}</strong>
+          </button>
+        </div>
+
+        <section class="review-group review-group--active">
+          <div class="review-group-head">
+            <div>
+              <h4>{{ activeReviewGroup.title }}</h4>
+              <p>{{ activeReviewGroup.helper }}</p>
+            </div>
+            <span class="review-group-count">{{ activeReviewGroup.items.length }}</span>
+          </div>
+
+          <div class="review-list">
+            <div class="review-card" *ngFor="let candidate of activeReviewGroup.items; trackBy: trackCandidate">
+              <div class="review-card-main">
+                <div class="review-head">
+                  <div class="review-head-copy">
+                    <div class="review-identity-row">
+                      <button type="button" class="review-candidate-link" (click)="openCandidateProfile(candidate)">
+                        {{ candidate.name }}
+                      </button>
+                      <div class="score-badge" [class.score-badge--empty]="candidate.score === null || candidate.score === undefined">
+                        {{ candidate.score === null || candidate.score === undefined ? 'No Score' : (candidate.score + '/10') }}
+                      </div>
+                    </div>
+                    <p>{{ candidate.role || 'Role not mapped' }}</p>
+                  </div>
+                  <div class="review-head-aside">
+                    <div class="review-status-pill">{{ candidate.statusLabel }}</div>
+                  </div>
+                </div>
+                <div class="review-meta-strip">
+                  <div class="review-meta-inline">
+                    <span class="review-meta-label">Recruiter</span>
+                    <strong>{{ candidate.recruiter || 'Recruiter not assigned' }}</strong>
+                  </div>
+                  <div class="review-meta-inline">
+                    <span class="review-meta-label">Evaluator</span>
+                    <strong>{{ candidate.evaluatorLabel }}</strong>
+                  </div>
+                  <div class="review-meta-inline">
+                    <span class="review-meta-label">Interview Date</span>
+                    <strong>{{ candidate.dateLabel }}</strong>
+                  </div>
+                </div>
+                <div class="review-note" *ngIf="candidate.notes">
+                  <span class="review-note-label">Interview Feedback</span>
+                  {{ candidate.notes }}
+                </div>
+              </div>
+              <div class="review-actions-stack review-actions-stack--side" *ngIf="candidate.decisionActions.length || candidate.canScheduleFurther">
+                <button type="button" class="secondary-btn review-feedback-btn" (click)="openEvaluationSummary(candidate)">View Detailed Interview Feedback</button>
+                <button
+                  *ngFor="let action of candidate.decisionActions"
+                  type="button"
+                  [class.primary-btn]="action.tone === 'primary'"
+                  [class.secondary-btn]="action.tone === 'secondary'"
+                  [class.review-primary-btn]="action.tone === 'primary'"
+                  [class.review-decision-btn]="action.tone === 'secondary'"
+                  [disabled]="saving"
+                  (click)="updateReviewDecision(candidate, action.key)">
+                  {{ action.label }}
+                </button>
+                <button *ngIf="candidate.canScheduleFurther" type="button" class="primary-btn review-primary-btn" (click)="scheduleFurtherInterview(candidate)">Schedule Further Interview</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="empty-state empty-state--large" *ngIf="reviewGroups.length === 0">
+        No evaluation records are available in the current dashboard scope.
+      </div>
+    </div>
+  </ng-container>
+
+  <div class="workflow-actions" *ngIf="mode !== 'evaluation-reviews'">
+    <button type="button" class="secondary-btn" (click)="close()" [disabled]="saving">Cancel</button>
+    <button
+      type="button"
+      class="primary-btn"
+      [disabled]="mode === 'schedule' ? !canSubmitSchedule : !canSubmitBulkAssign"
+      (click)="mode === 'schedule' ? saveSchedule() : saveBulkAssign()">
+      {{ saving ? 'Saving...' : (mode === 'schedule' ? 'Schedule Interview' : 'Assign Evaluator') }}
+    </button>
+  </div>
+
+  <div class="workflow-actions" *ngIf="mode === 'evaluation-reviews'">
+    <button type="button" class="secondary-btn" (click)="close()">Close</button>
+  </div>
+</div>

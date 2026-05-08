@@ -1,0 +1,16 @@
+{% extends "smartInterview/emails/base.txt" %}
+
+{% block body %}
+New {{ inquiry_label|default:"contact" }} inquiry
+
+Sender: {{ sender_name }}
+Email: {{ sender_email }}
+Company: {{ company_name }}
+Subject: {{ subject_line }}
+
+Message:
+{{ message_body }}
+
+Reply to:
+{{ sender_email }}
+{% endblock %}

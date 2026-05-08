@@ -1,0 +1,16 @@
+{% extends "smartInterview/emails/base.html" %}
+
+{% block title %}Interview Reminder{% endblock %}
+{% block preheader %}Your interview is coming up soon.{% endblock %}
+
+{% block content %}
+<h1 class="email-title" style="margin:0 0 12px 0;font-size:34px;line-height:1.15;color:#0f172a;">Interview reminder</h1>
+<p style="margin:0 0 14px 0;font-size:16px;line-height:1.75;color:#334155;">
+  Hello {{ recipient_name|default:"there" }},
+</p>
+<p style="margin:0 0 24px 0;font-size:16px;line-height:1.75;color:#475569;">
+  Your interview{% if role_name %} for {{ role_name }}{% endif %} is coming up{% if reminder_window %} in {{ reminder_window }}{% endif %}. Please keep the details below close at hand.
+</p>
+{% include "smartInterview/emails/partials/details_card.html" with details_title=details_title details=details %}
+{% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
+{% endblock %}

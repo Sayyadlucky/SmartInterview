@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+{% load static %}
+{% load host_links %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title }} | Shortlistii</title>
+  <meta name="description" content="{{ meta_description }}" />
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260408c">
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260407f"></script>
+</head>
+<body class="legal-page">
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <header class="legal-header">
+    <div class="legal-header__inner">
+      <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+      <nav class="legal-nav" aria-label="Legal navigation">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}" aria-current="page">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal-main">
+    <section class="legal-hero">
+      <div class="legal-hero__copy">
+        <p class="eyebrow">Legal</p>
+        <h1>Privacy Policy</h1>
+        <p>
+          This Privacy Policy explains how shortlistii.com Private Limited collects, uses, stores, shares,
+          and protects personal data across Shortlistii and Litio. It is written for a hiring SaaS platform
+          used by recruiters, hiring teams, candidates, interviewers, and organizations operating structured
+          recruiting and interview workflows.
+        </p>
+      </div>
+      <aside class="legal-meta-card">
+        <span class="legal-meta-card__label">Last Updated</span>
+        <strong>{{ last_updated }}</strong>
+        <p>shortlistii.com Private Limited</p>
+        <address>
+          Flat No. 1404, Famed Tower<br>
+          Sikka Karnam Greens, Sector 143<br>
+          Noida, Uttar Pradesh – 201304<br>
+          India
+        </address>
+      </aside>
+    </section>
+
+    <section class="legal-content-shell">
+      <aside class="legal-toc">
+        <div class="legal-card">
+          <p class="eyebrow">On This Page</p>
+          <nav aria-label="Privacy policy sections">
+            <a href="#privacy-introduction"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5"/></svg></span><span>Introduction</span></a>
+            <a href="#privacy-who-we-are"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg></span><span>Who We Are</span></a>
+            <a href="#privacy-scope"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 3"/></svg></span><span>Scope</span></a>
+            <a href="#privacy-categories"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="13" width="7" height="7" rx="1.5"/><rect x="14" y="13" width="7" height="7" rx="1.5"/></svg></span><span>Categories of Information We Collect</span></a>
+            <a href="#privacy-receive"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="m4 8 8 6 8-6"/></svg></span><span>Information We Receive</span></a>
+            <a href="#privacy-litio"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg></span><span>Interview Data and Litio Signals</span></a>
+            <a href="#privacy-use"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.76l.05.05a2 2 0 0 1-2.83 2.83l-.05-.05a1.6 1.6 0 0 0-1.76-.32 1.6 1.6 0 0 0-.97 1.45V21a2 2 0 1 1-4 0v-.07a1.6 1.6 0 0 0-.97-1.45 1.6 1.6 0 0 0-1.76.32l-.05.05a2 2 0 1 1-2.83-2.83l.05-.05A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.45-.97H3a2 2 0 1 1 0-4h.07a1.6 1.6 0 0 0 1.45-.97 1.6 1.6 0 0 0-.32-1.76l-.05-.05a2 2 0 1 1 2.83-2.83l.05.05a1.6 1.6 0 0 0 1.76.32H9a1.6 1.6 0 0 0 .97-1.45V3a2 2 0 1 1 4 0v.07a1.6 1.6 0 0 0 .97 1.45h.21a1.6 1.6 0 0 0 1.76-.32l.05-.05a2 2 0 1 1 2.83 2.83l-.05.05a1.6 1.6 0 0 0-.32 1.76V9c0 .64.38 1.22.97 1.45H21a2 2 0 1 1 0 4h-.07c-.64 0-1.22.38-1.45.97Z"/></svg></span><span>How We Use Information</span></a>
+            <a href="#privacy-ai"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v6"/><path d="M12 15v6"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M3 12h6"/><path d="M15 12h6"/></svg></span><span>AI Processing and Automated Analysis</span></a>
+            <a href="#privacy-integrity"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-10V5l-7-2-7 2v6c0 5.65 7 10 7 10Z"/><path d="m9.5 12 1.75 1.75L15 10"/></svg></span><span>Identity Verification and Interview Integrity</span></a>
+            <a href="#privacy-grounds"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M7 7h10"/><path d="M5 7c0 3 3 5 7 5s7-2 7-5"/><path d="M6 17h12"/><path d="M4 17c0 2 3 4 8 4s8-2 8-4"/></svg></span><span>Legal Grounds for Processing</span></a>
+            <a href="#privacy-sharing"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="m8 12 8-6"/><path d="m8 12 8 6"/></svg></span><span>Data Sharing and Service Providers</span></a>
+            <a href="#privacy-retention"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg></span><span>Data Retention</span></a>
+            <a href="#privacy-security"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 1 1 8 0v3"/></svg></span><span>Security Safeguards</span></a>
+            <a href="#privacy-cookies"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 13a7 7 0 1 1-9-9 5 5 0 0 0 9 9Z"/><path d="M9 9h.01"/><path d="M14 14h.01"/><path d="M8 14h.01"/></svg></span><span>Cookies and Usage Data</span></a>
+            <a href="#privacy-rights"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><path d="M5 11h14v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2Z"/><path d="M12 15v2"/></svg></span><span>User Rights / Data Principal Rights</span></a>
+            <a href="#privacy-children"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="2.5"/><circle cx="15.5" cy="10" r="2"/><path d="M6 19v-3a3 3 0 0 1 3-3h1"/><path d="M13 19v-2.5a2.5 2.5 0 0 1 2.5-2.5h.5"/></svg></span><span>Children’s Data</span></a>
+            <a href="#privacy-transfers"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/></svg></span><span>International Data Transfers</span></a>
+            <a href="#privacy-contact"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 8 8 6 8-6"/></svg></span><span>Grievance / Contact Information</span></a>
+            <a href="#privacy-changes"><span class="toc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></span><span>Changes to this Privacy Policy</span></a>
+          </nav>
+        </div>
+      </aside>
+
+      <article class="legal-document legal-card">
+        <section id="privacy-introduction" class="legal-section">
+          <h2>Introduction</h2>
+          <p>
+            shortlistii.com Private Limited operates the Shortlistii platform and the Litio interview workflow
+            environment. Shortlistii supports candidate pipeline management, AI-assisted ranking, structured hiring
+            workflows, recruiter analytics, and related operational tools. Litio is part of that platform ecosystem
+            and supports AI-powered interview sessions, voice verification signals, candidate identity checks,
+            suspicious interview behavior indicators, transcripts, recordings, summaries, and recruiter-facing
+            interview intelligence.
+          </p>
+          <p>
+            We recognize that hiring workflows often involve sensitive professional information and high-trust
+            communications. We therefore seek to process personal data in a measured, lawful, and commercially
+            responsible manner, including with reference to the Digital Personal Data Protection Act, 2023, the
+            Information Technology Act, 2000, the Information Technology (Reasonable Security Practices and Procedures
+            and Sensitive Personal Data or Information) Rules, 2011, and related Indian legal expectations applicable
+            to technology platforms and recruitment workflows.
+          </p>
+        </section>
+
+        <section id="privacy-who-we-are" class="legal-section">
+          <h2>Who We Are</h2>
+          <p>
+            shortlistii.com Private Limited is an Indian company with its registered office at Flat No. 1404, Famed Tower,
+            Sikka Karnam Greens, Sector 143, Noida, Uttar Pradesh – 201304, India. In this Privacy Policy, “Shortlistii,”
+            “Litio,” “Company,” “we,” “us,” and “our” refer to shortlistii.com Private Limited and the products and services
+            we operate.
+          </p>
+          <p>
+            Depending on the context, we may process information for our own business operations, or on behalf of customer
+            organizations that use Shortlistii for recruiting, candidate assessment, interview execution, and hiring
+            administration. Where an organization uses our platform as part of its hiring process, that organization
+            remains responsible for its own recruiting decisions, notices, and compliance obligations toward candidates
+            and applicants.
+          </p>
+        </section>
+
+        <section id="privacy-scope" class="legal-section">
+          <h2>Scope</h2>
+          <p>This Privacy Policy applies to:</p>
+          <ul>
+            <li>Organizations, recruiters, hiring managers, interviewers, and administrators using Shortlistii.</li>
+            <li>Candidates and applicants whose information is submitted to, accessed through, or processed within the platform.</li>
+            <li>Participants in Litio interview sessions, including recorded or analyzed sessions where enabled by the customer.</li>
+            <li>Visitors who interact with our public website, careers pages, or legal pages.</li>
+            <li>Operational communications, support interactions, security workflows, and analytics related to the service.</li>
+          </ul>
+          <p>
+            This Privacy Policy does not govern third-party websites, third-party recruiting systems, or external services
+            that may link to or from our platform and that operate under their own policies and terms.
+          </p>
+        </section>
+
+        <section id="privacy-categories" class="legal-section">
+          <h2>Categories of Information We Collect</h2>
+          <p>We may collect or process the following categories of information, depending on how the platform is used:</p>
+          <ul>
+            <li>Account and identity information, such as name, work email, phone number, role, organization, and login credentials.</li>
+            <li>Organization information, such as company profile details, recruiter assignments, team structure, and job or vacancy data.</li>
+            <li>Candidate information, such as resumes, CVs, applications, work history, education, skills, portfolio links, profile documents, and hiring stage information.</li>
+            <li>Evaluation and workflow data, such as shortlists, rankings, interviewer notes, feedback, scoring inputs, recruiter actions, and hiring process status.</li>
+            <li>Interview data, including session metadata, recordings, transcripts, summaries, minutes, interview intelligence, and Litio-generated workflow signals.</li>
+            <li>Identity and verification-related signals, including voice enrollment inputs, voice verification indicators, candidate identity confirmation signals, and session integrity markers where enabled.</li>
+            <li>Technical and usage information, such as device information, browser type, IP address, timestamps, log data, session diagnostics, and service interaction data.</li>
+            <li>Support and communication records, including helpdesk interactions, issue reports, onboarding communications, and service notices.</li>
+          </ul>
+        </section>
+
+        <section id="privacy-receive" class="legal-section">
+          <h2>Information We Receive from Recruiters, Candidates, and Users</h2>
+          <p>
+            We receive information directly from recruiters, administrators, and hiring teams when they create accounts,
+            configure hiring workflows, upload roles, invite users, shortlist candidates, or review analytics.
+          </p>
+          <p>
+            We receive candidate information when candidates apply to roles, upload resumes or supporting materials, join
+            interviews, respond to workflow requests, or otherwise interact with the platform. We may also receive candidate
+            information from customer organizations, their recruiters, interviewers, or integrated workflows they use to
+            manage recruitment operations.
+          </p>
+          <p>
+            In many cases, customer organizations determine which candidate information is submitted to the platform and how
+            it is used within their hiring process. Where we process data on behalf of such organizations, we do so under
+            customer instructions, applicable contract terms, and operational requirements of the service.
+          </p>
+        </section>
+
+        <section id="privacy-litio" class="legal-section">
+          <h2>Interview Data, Recordings, Transcripts, and Litio Signals</h2>
+          <p>
+            Litio may process interview-related data where interview functionality is enabled by the customer organization.
+            This may include live session data, conferencing and signaling metadata, participant actions, recordings,
+            transcripts, AI-generated interview summaries, meeting minutes, recruiter-facing session analysis, and workflow
+            intelligence derived from the session.
+          </p>
+          <p>
+            Litio may also process voice enrollment inputs, voice verification signals, candidate identity verification
+            indicators, and suspicious interview behavior or integrity signals derived from session behavior, timing, voice,
+            participant interactions, and related interview metadata. These features are intended to support safer and more
+            reliable interview execution, help recruiters identify issues requiring review, and strengthen operational
+            confidence in interview workflows.
+          </p>
+          <p>
+            Such signals are designed to support review and decision-making by authorized recruiters or administrators.
+            They are not intended to serve as conclusive proof of misconduct on their own and should be evaluated in context.
+          </p>
+        </section>
+
+        <section id="privacy-use" class="legal-section">
+          <h2>How We Use Information</h2>
+          <p>We use information for the following purposes:</p>
+          <ul>
+            <li>To provide, maintain, support, secure, and improve the Shortlistii and Litio services.</li>
+            <li>To create and manage accounts, authenticate users, assign roles, and administer access controls.</li>
+            <li>To enable recruiting workflows, candidate ranking, shortlist management, evaluations, analytics, and reporting.</li>
+            <li>To facilitate interview scheduling, Litio interview execution, transcripts, summaries, and recruiter review workflows.</li>
+            <li>To verify candidate identity and support interview integrity, fraud-awareness, and security monitoring.</li>
+            <li>To communicate with users about accounts, security issues, service updates, support matters, and operational notices.</li>
+            <li>To monitor service performance, troubleshoot issues, maintain logs, and detect misuse, abuse, or platform threats.</li>
+            <li>To comply with applicable law, legal process, audit expectations, and contractual obligations.</li>
+          </ul>
+        </section>
+
+        <section id="privacy-ai" class="legal-section">
+          <h2>AI Processing and Automated Analysis</h2>
+          <p>
+            Shortlistii and Litio include AI-assisted features that may analyze resumes, candidate profiles, interview
+            transcripts, workflow activity, and related data to produce rankings, summaries, alerts, recommendations, or
+            recruiter-facing insights. These capabilities are intended to support hiring teams with better organization,
+            improved visibility, and more consistent review workflows.
+          </p>
+          <p>
+            AI-generated outputs are decision-support tools. They do not replace final hiring decisions, employment judgments,
+            or independent review by customer organizations, recruiters, or authorized interviewers. Customers remain
+            responsible for how they use platform outputs in recruiting and employment-related processes, including compliance
+            with applicable employment, anti-discrimination, privacy, and workplace laws.
+          </p>
+        </section>
+
+        <section id="privacy-integrity" class="legal-section">
+          <h2>Identity Verification and Interview Integrity</h2>
+          <p>
+            Where enabled, Litio may support candidate identity confirmation and interview integrity features such as voice
+            enrollment, voice verification, participant matching, and suspicious signal detection. These tools are designed
+            to help customer organizations reduce impersonation risk, identify anomalies for review, and preserve confidence
+            in interview workflows.
+          </p>
+          <p>
+            We limit access to such data and signals to authorized users, administrators, and service providers who need that
+            access for service delivery, platform security, support, or lawful compliance purposes. We expect customers using
+            these features to provide appropriate notices and maintain lawful grounds for their use in the hiring context.
+          </p>
+        </section>
+
+        <section id="privacy-grounds" class="legal-section">
+          <h2>Legal Basis / Grounds for Processing under Applicable Law</h2>
+          <p>
+            Depending on the nature of the interaction and applicable law, we may process personal data based on one or more
+            of the following grounds:
+          </p>
+          <ul>
+            <li>Consent or notice-based permissions, where required or appropriate.</li>
+            <li>Performance of a contract, including provision of our SaaS platform to customers and users.</li>
+            <li>Compliance with legal obligations, lawful requests, dispute handling, audit expectations, and regulatory requirements.</li>
+            <li>Reasonable and lawful business purposes connected to platform administration, information security, fraud prevention, and service improvement.</li>
+            <li>Legitimate uses or permitted processing recognized under applicable Indian law, including in operational and employment-related contexts where relevant.</li>
+          </ul>
+          <p>
+            Where a customer organization uses the platform to process candidate or recruiter information, that organization
+            may also have its own separate legal grounds and responsibilities with respect to such processing.
+          </p>
+        </section>
+
+        <section id="privacy-sharing" class="legal-section">
+          <h2>Data Sharing and Service Providers</h2>
+          <p>We may share information in the following circumstances:</p>
+          <ul>
+            <li>With customer organizations and their authorized users, where such users are operating the relevant hiring workflow.</li>
+            <li>With service providers who support hosting, infrastructure, communications, analytics, support, security, transcription, identity or voice verification workflows, and related platform operations.</li>
+            <li>With professional advisers, auditors, insurers, or transaction counterparties where reasonably necessary for legitimate business purposes.</li>
+            <li>With regulators, law enforcement authorities, courts, or government bodies where required by law or legal process.</li>
+            <li>As part of a merger, financing, corporate restructuring, acquisition, or sale of business assets, subject to appropriate confidentiality and lawful handling requirements.</li>
+          </ul>
+          <p>
+            We do not sell personal data. We do not disclose personal data to unrelated third parties for their independent
+            marketing use. Access to data is limited to authorized personnel, customer users, and service providers where
+            necessary for legitimate platform operations.
+          </p>
+        </section>
+
+        <section id="privacy-retention" class="legal-section">
+          <h2>Data Retention</h2>
+          <p>
+            We retain personal data for as long as reasonably necessary to provide the service, maintain customer accounts,
+            support recruiting workflows, comply with legal obligations, resolve disputes, enforce agreements, and preserve
+            platform security and integrity. Specific retention periods may vary based on the customer’s use of the service,
+            the nature of the data, applicable law, contractual commitments, and legitimate operational needs.
+          </p>
+          <p>
+            Candidate profiles, recruiting workflow records, Litio session outputs, transcripts, recordings, summaries,
+            verification signals, and analytics may be retained for the duration of the relevant workflow and for a
+            commercially reasonable period thereafter, unless deletion, anonymization, or earlier removal is required or
+            requested under applicable law, contract, or customer configuration.
+          </p>
+          <p>
+            Where data is no longer required, we may delete it, de-identify it, or retain only the minimum information
+            necessary for compliance, audit, security, or dispute-management purposes.
+          </p>
+        </section>
+
+        <section id="privacy-security" class="legal-section">
+          <h2>Security Safeguards</h2>
+          <p>
+            We maintain commercially reasonable administrative, technical, and organizational safeguards designed to protect
+            personal data against unauthorized access, misuse, accidental loss, alteration, disclosure, or destruction.
+            These safeguards may include role-based access controls, authentication controls, logging, secure development
+            practices, encryption in transit, restricted administrative access, vendor diligence, backup processes, and
+            incident response measures appropriate to the nature of the platform.
+          </p>
+          <p>
+            No online platform can guarantee absolute security. Users and customers are also expected to maintain appropriate
+            account hygiene, device security, credential protection, and internal access discipline when using the service.
+          </p>
+        </section>
+
+        <section id="privacy-cookies" class="legal-section">
+          <h2>Cookies and Usage Data</h2>
+          <p>
+            We may use cookies, local storage, session identifiers, and similar technologies to operate the website and
+            platform, maintain sessions, remember preferences, improve usability, monitor performance, detect abuse, and
+            understand how visitors and users interact with the service.
+          </p>
+          <p>
+            We may also process standard usage and diagnostic data such as page visits, browser information, device type,
+            IP address, timestamps, and interaction patterns for analytics, stability, and security purposes. Users may be
+            able to manage some cookie preferences through browser or device settings, although disabling certain technologies
+            may affect the availability or reliability of parts of the service.
+          </p>
+        </section>
+
+        <section id="privacy-rights" class="legal-section">
+          <h2>User Rights / Data Principal Rights</h2>
+          <p>
+            Subject to applicable law and the nature of the relationship, individuals may have rights relating to access,
+            correction, updating, deletion, withdrawal of consent where processing depends on consent, grievance redressal,
+            and other rights recognized under Indian law. Where technically and operationally appropriate, we will review and
+            respond to valid requests in a commercially reasonable manner.
+          </p>
+          <p>
+            If your information is processed on behalf of a customer organization as part of that organization’s hiring or
+            interview workflow, we may direct you to that organization first because it may be the primary decision-maker
+            with respect to that data. We may also require verification of identity before acting on a request, particularly
+            where identity, interview integrity, or account security is relevant.
+          </p>
+          <p>
+            Where applicable under law, an individual may also nominate another person to exercise certain rights in the event
+            of death or incapacity, subject to reasonable verification and legal requirements.
+          </p>
+        </section>
+
+        <section id="privacy-children" class="legal-section">
+          <h2>Children’s Data</h2>
+          <p>
+            Shortlistii and Litio are designed for professional recruiting, hiring, and interview workflows and are not
+            directed to children. We do not knowingly collect or solicit personal data from children in a manner inconsistent
+            with applicable law. If we become aware that personal data has been collected inappropriately, we may take steps
+            to delete or restrict such information as appropriate.
+          </p>
+        </section>
+
+        <section id="privacy-transfers" class="legal-section">
+          <h2>International Data Transfers</h2>
+          <p>
+            We may use infrastructure, support tools, communications providers, analytics systems, or other service providers
+            that process or store data outside India. As a result, personal data may be transferred to, stored in, or
+            accessed from jurisdictions other than the one in which it was originally collected.
+          </p>
+          <p>
+            When we arrange such processing, we seek to do so in a controlled manner consistent with applicable law, customer
+            commitments, and reasonable contractual or organizational safeguards. We remain attentive to access limitation,
+            confidentiality, and security requirements when using cross-border service providers.
+          </p>
+        </section>
+
+        <section id="privacy-contact" class="legal-section">
+          <h2>Grievance / Contact Information</h2>
+          <p>
+            For privacy-related questions, access or correction requests, grievance matters, or concerns regarding the handling
+            of personal data on the platform, you may write to:
+          </p>
+          <address class="legal-address">
+            shortlistii.com Private Limited<br>
+            Flat No. 1404, Famed Tower<br>
+            Sikka Karnam Greens, Sector 143<br>
+            Noida, Uttar Pradesh – 201304<br>
+            India
+          </address>
+          <p>
+            You may also raise privacy or grievance matters through the support, administrator, or account channels made
+            available within the platform. Where a request relates to data processed for a customer organization, we may
+            coordinate with that organization to address the matter appropriately.
+          </p>
+        </section>
+
+        <section id="privacy-changes" class="legal-section">
+          <h2>Changes to this Privacy Policy</h2>
+          <p>
+            We may update this Privacy Policy from time to time to reflect changes in our services, product features, legal
+            requirements, platform practices, or operational safeguards. When we make material updates, we may revise the
+            “Last Updated” date above and, where appropriate, provide additional notice through the website, the platform,
+            or customer account channels.
+          </p>
+        </section>
+      </article>
+    </section>
+  </main>
+
+  <footer class="legal-footer">
+    <div class="legal-footer__inner">
+      <div>
+        <a href="{% url 'home' %}" class="shortlistii-logo" aria-label="shortlistii.com home">
+          <span class="logo-text">shortlist</span>
+          <span class="logo-ii" aria-hidden="true">
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+          </span>
+        </a>
+        <p>AI-powered hiring intelligence for recruiters, hiring teams, and companies.</p>
+      </div>
+      <div class="legal-footer__links">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

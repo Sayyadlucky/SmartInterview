@@ -1,0 +1,16 @@
+{% extends "smartInterview/emails/base.html" %}
+
+{% block title %}We received your message{% endblock %}
+{% block preheader %}Your message is with the Shortlistii team.{% endblock %}
+
+{% block content %}
+<h1 class="email-title" style="margin:0 0 12px 0;font-size:34px;line-height:1.15;color:#0f172a;">We received your message</h1>
+<p style="margin:0 0 14px 0;font-size:16px;line-height:1.75;color:#334155;">
+  Thank you for contacting Shortlistii{% if recipient_name %}, {{ recipient_name }}{% endif %}.
+</p>
+<p style="margin:0 0 24px 0;font-size:16px;line-height:1.75;color:#475569;">
+  Our team will review your inquiry{% if inquiry_label %} about {{ inquiry_label|lower }}{% endif %} and respond as soon as possible.
+</p>
+{% include "smartInterview/emails/partials/details_card.html" with details_title=details_title details=details %}
+{% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
+{% endblock %}

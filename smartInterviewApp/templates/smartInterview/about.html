@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+{% load static %}
+{% load host_links %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title }} | Shortlistii</title>
+  <meta name="description" content="{{ meta_description }}" />
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260408c">
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260407f"></script>
+</head>
+<body class="legal-page about-page-shell">
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <header class="legal-header">
+    <div class="legal-header__inner">
+      <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+      <nav class="legal-nav" aria-label="Primary navigation">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}" aria-current="page">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal-main about-main">
+    <section class="about-hero reveal-up">
+      <div class="about-hero__copy">
+        <p class="eyebrow">About Shortlistii</p>
+        <h1>We are building hiring intelligence for teams that want better signals, better interviews, and better decisions.</h1>
+        <p class="about-hero__lede">
+          Shortlistii is an AI-powered hiring intelligence platform built for recruiters and hiring teams that need more than
+          a place to store resumes. We are building software for the real work of hiring: reducing manual screening, improving
+          signal quality, running trustworthy interviews, and helping teams make decisions with more clarity and less noise.
+        </p>
+        <div class="about-hero__chips">
+          <span>AI candidate ranking</span>
+          <span>Litio interview intelligence</span>
+          <span>Recruiter analytics</span>
+        </div>
+      </div>
+      <aside class="about-hero__visual tilt-card">
+        <div class="about-hero__window">
+          <div class="about-hero__window-bar">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="about-hero__window-head">
+            <div>
+              <p>Company Perspective</p>
+              <h2>Building the intelligence layer for modern hiring.</h2>
+            </div>
+            <span class="about-status-pill">Shortlistii + Litio</span>
+          </div>
+          <div class="about-hero__metric-grid">
+            <article class="about-metric-card">
+              <span>Candidate clarity</span>
+              <strong>Reduce manual screening</strong>
+              <p>AI-assisted ranking and stronger-fit prioritization for recruiters.</p>
+            </article>
+            <article class="about-metric-card">
+              <span>Interview trust</span>
+              <strong>Voice-verified sessions</strong>
+              <p>Litio supports identity checks, transcript review, and integrity signals.</p>
+            </article>
+            <article class="about-metric-card about-metric-card--wide">
+              <span>Platform visibility</span>
+              <strong>One workflow from shortlist to decision</strong>
+              <ul class="about-mini-list">
+                <li>Structured interview workflows</li>
+                <li>Recruiter-facing summaries and insights</li>
+                <li>Hiring performance visibility</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+        <div class="about-hero__support-grid">
+          <div class="about-floating-card about-floating-card--signal">
+            <span class="legal-meta-card__label">Litio Signals</span>
+            <strong>Interview integrity, summary ready</strong>
+            <p>Voice verification, transcript review, and suspicious-signal visibility in one recruiter workflow.</p>
+          </div>
+          <div class="about-floating-card about-floating-card--proof">
+            <span class="legal-meta-card__label">shortlistii.com Private Limited</span>
+            <strong>Founder-led product conviction</strong>
+            <p>Built for teams that want hiring to become more structured, reviewable, and defensible.</p>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="about-story about-panel reveal-up">
+      <div class="about-story__copy">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v6"/><path d="M12 15v6"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M3 12h6"/><path d="M15 12h6"/><path d="M4.93 19.07l4.24-4.24"/><path d="M14.83 9.17l4.24-4.24"/></svg></span><span>Why We Started</span></p>
+          <h2>Hiring is too important to run on fragmented tools and weak signals.</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            Most hiring systems were built to track process, not improve judgment. Recruiters are asked to move quickly through
+            large candidate volumes, evaluate incomplete information, coordinate interviews across disconnected workflows, and
+            make decisions from signals that are often inconsistent, delayed, or hard to trust.
+          </p>
+          <p>
+            We started Shortlistii from a simple conviction: hiring should feel more structured, more intelligible, and more
+            defensible than it often does today. AI can help teams reduce repetitive screening work and surface stronger
+            candidates earlier. But it should do that in a way that sharpens human judgment rather than replacing it.
+          </p>
+          <p>
+            That same gap becomes even more visible in interviews. Interview workflows are often operationally messy, signal
+            quality varies from one session to the next, and integrity issues can be difficult to detect until they become
+            costly. We built Shortlistii to address the full hiring flow, from shortlist quality to interview trust to final
+            decision support.
+          </p>
+        </div>
+      </div>
+      <div class="about-story__rail">
+        <article class="about-story-card">
+          <span>Resume noise</span>
+          <strong>Too much screening work, not enough decision quality</strong>
+          <p>High-volume recruiting often creates admin load without improving confidence in who moves forward.</p>
+        </article>
+        <article class="about-story-card">
+          <span>Interview inconsistency</span>
+          <strong>Disconnected workflows reduce signal quality</strong>
+          <p>Scheduling, evaluation, and session review often live in separate tools with weak recruiter visibility.</p>
+        </article>
+        <article class="about-story-card about-story-card--quote">
+          <span>Founding point of view</span>
+          <strong>Recruiters need better signals, not more noise.</strong>
+          <p>That principle still anchors how we build ranking, workflow intelligence, and Litio interview trust.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="about-beliefs-block reveal-up">
+      <div class="about-section-head">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-10V5l-7-2-7 2v6c0 5.65 7 10 7 10Z"/><path d="m9.5 12 1.75 1.75L15 10"/></svg></span><span>What We Believe</span></p>
+          <h2>We believe better hiring starts with clearer systems.</h2>
+        </div>
+        <p class="about-section-head__summary">
+          Our product philosophy is opinionated in the right places: structure improves review, AI should support judgment,
+          and interview integrity belongs inside the hiring workflow rather than outside of it.
+        </p>
+      </div>
+      <div class="about-beliefs">
+        <article class="about-belief-card">
+          <div class="about-belief-card__title">
+            <span class="about-belief-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="13" width="7" height="7" rx="1.5"/><path d="M14 16h7"/><path d="M14 20h7"/></svg></span>
+            <h3>Hiring should be more structured</h3>
+          </div>
+          <p>
+            Strong hiring outcomes are more likely when teams work from clear stages, shared evaluation standards, and cleaner
+            process visibility.
+          </p>
+        </article>
+        <article class="about-belief-card">
+          <div class="about-belief-card__title">
+            <span class="about-belief-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 3.5A3.5 3.5 0 0 0 6 7c0 1.4.82 2.62 2 3.18V13"/><path d="M14.5 3.5A3.5 3.5 0 0 1 18 7c0 1.4-.82 2.62-2 3.18V13"/><path d="M8 13h8"/><path d="M9 17h6"/><path d="M10 21h4"/></svg></span>
+            <h3>AI should support judgment, not replace it</h3>
+          </div>
+          <p>
+            AI is useful when it helps recruiters focus, compare, summarize, and prioritize. Final decisions should remain
+            thoughtful and human-led.
+          </p>
+        </article>
+        <article class="about-belief-card">
+          <div class="about-belief-card__title">
+            <span class="about-belief-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M7 15V9"/><path d="M12 15V5"/><path d="M17 15v-3"/></svg></span>
+            <h3>Better signals lead to better decisions</h3>
+          </div>
+          <p>
+            Recruiters do not need more dashboards for their own sake. They need stronger signals at the moments where hiring
+            judgment matters.
+          </p>
+        </article>
+        <article class="about-belief-card">
+          <div class="about-belief-card__title">
+            <span class="about-belief-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-10V5l-7-2-7 2v6c0 5.65 7 10 7 10Z"/><path d="m9.5 12 1.75 1.75L15 10"/></svg></span>
+            <h3>Interview integrity matters</h3>
+          </div>
+          <p>
+            Interviews should be credible, verifiable, and reviewable. Trust in the hiring process is not optional when the
+            decision carries real business weight.
+          </p>
+        </article>
+        <article class="about-belief-card">
+          <div class="about-belief-card__title">
+            <span class="about-belief-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+            <h3>Recruiters deserve software built for clarity</h3>
+          </div>
+          <p>
+            Hiring teams spend too much time managing friction between tools. The platform should reduce operational overhead,
+            not add to it.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="about-platform about-panel reveal-up">
+      <div class="about-platform__visual tilt-card">
+        <div class="about-platform__window">
+          <div class="about-platform__header">
+            <div>
+              <span>Platform Vision</span>
+              <strong>One hiring system with stronger decision signals</strong>
+            </div>
+            <span class="about-status-pill">Shortlistii Workspace</span>
+          </div>
+          <div class="about-platform__lanes">
+            <article>
+              <span>Candidate ranking</span>
+              <div class="about-lane"><span style="width: 88%;"></span></div>
+            </article>
+            <article>
+              <span>Structured workflows</span>
+              <div class="about-lane"><span style="width: 81%;"></span></div>
+            </article>
+            <article>
+              <span>Recruiter intelligence</span>
+              <div class="about-lane"><span style="width: 76%;"></span></div>
+            </article>
+          </div>
+          <div class="about-platform__stats">
+            <div>
+              <strong>Pipeline visibility</strong>
+              <span>Stage movement, review consistency, and operational context in one view.</span>
+            </div>
+            <div>
+              <strong>Decision support</strong>
+              <span>Analytics help teams understand process quality, not just activity volume.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="about-platform__copy">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9h8"/><path d="M8 13h5"/></svg></span><span>What We Are Building</span></p>
+          <h2>A platform that connects hiring intelligence across the full workflow.</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            Shortlistii brings together the core systems hiring teams need to move with more confidence. That starts with
+            AI-assisted candidate ranking and analysis that helps reduce manual screening and surface stronger-fit candidates
+            earlier. It continues through structured hiring workflows that make coordination, evaluation, and stage movement more
+            consistent across recruiters and interviewers.
+          </p>
+          <p>
+            We are also building recruiter intelligence into the operating layer of hiring itself. That includes analytics and
+            decision support that help teams understand pipeline health, recruiter effectiveness, process bottlenecks, and the
+            quality of signals behind hiring decisions. The goal is not to create more activity. The goal is to create more
+            informed hiring.
+          </p>
+        </div>
+        <div class="about-pill-list">
+          <span>AI candidate ranking</span>
+          <span>Structured hiring workflows</span>
+          <span>Recruiter intelligence</span>
+          <span>End-to-end hiring visibility</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-litio about-panel reveal-up">
+      <div class="about-litio__copy">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/><path d="M8 21h8"/></svg></span><span>Litio</span></p>
+          <h2>Interview intelligence and integrity are a core part of the platform.</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            Litio is a core product layer within Shortlistii. It exists because interview execution is too often treated as a
+            scheduling problem when it is actually a signal-quality problem. Teams need to run interviews well, understand what
+            happened during those interviews, and trust the integrity of the process.
+          </p>
+          <p>
+            With Litio, teams can run AI-powered interview sessions inside the same broader hiring workflow. Litio supports
+            interview execution with recruiter-facing visibility into transcripts, summaries, minutes, and session intelligence.
+            It also helps teams verify candidate identity during interviews, review voice verification signals, and examine
+            suspicious interview behavior in a measured and operationally useful way.
+          </p>
+          <p>
+            We think this matters because interviews are one of the highest-stakes parts of hiring. When trust breaks down there,
+            the rest of the process becomes harder to defend. Litio is designed to help teams preserve interview credibility
+            without making the experience feel heavier than it needs to be.
+          </p>
+        </div>
+        <div class="about-pill-list about-pill-list--litio">
+          <span>Voice verification</span>
+          <span>Interview summaries</span>
+          <span>Suspicious signal review</span>
+          <span>Interview integrity</span>
+        </div>
+      </div>
+      <div class="about-litio__visual tilt-card">
+        <div class="about-litio__window">
+          <div class="about-litio__window-head">
+            <div>
+              <span>Litio Session Intelligence</span>
+              <strong>Trustworthy interviews with recruiter-facing visibility</strong>
+            </div>
+            <span class="about-status-pill">Voice verified</span>
+          </div>
+          <div class="about-litio__feed">
+            <article>
+              <strong>Candidate identity confirmed</strong>
+              <span>Voice match accepted for the live session.</span>
+            </article>
+            <article>
+              <strong>Interview summary prepared</strong>
+              <span>Transcript, key responses, and follow-up notes ready for review.</span>
+            </article>
+            <article>
+              <strong>Integrity review available</strong>
+              <span>Suspicious session signals surfaced for recruiter review in context.</span>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-principles reveal-up">
+      <article class="about-principle-card about-panel">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 2h8l3 5-3 5H8L5 7l3-5Z"/><path d="M7 12v3a5 5 0 0 0 10 0v-3"/></svg></span><span>Human-Led, AI-Assisted</span></p>
+          <h2>We use AI to improve consistency, visibility, and quality of review.</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            We do not believe hiring should become an automated black box. AI can help summarize information, identify patterns,
+            prioritize stronger signals, and reduce repetitive operational work. But people still need to make the decisions that
+            shape teams and careers.
+          </p>
+          <p>
+            Our philosophy is simple: AI should make hiring more thoughtful, not less. It should help teams be more consistent,
+            more prepared, and more grounded in evidence. It should improve fairness by reducing noise and increasing visibility.
+            And it should leave room for human judgment where judgment belongs.
+          </p>
+        </div>
+      </article>
+      <article class="about-principle-card about-principle-card--accent about-panel">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v2"/><path d="M20 12h-2"/><path d="M12 20v-2"/><path d="M4 12h2"/></svg></span><span>Our Mission</span></p>
+          <h2>To help organizations hire with stronger signals and greater confidence.</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            Our mission is to build the intelligence layer for modern hiring: a system that helps teams identify stronger
+            candidates, run better interviews, protect process integrity, and make decisions with clearer context. We want hiring
+            to become less noisy, less fragmented, and more defensible for the people responsible for getting it right.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="about-future reveal-up">
+      <article class="about-future__story about-panel">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 17 5-5 3 3 5-6"/><path d="M18 9h2v2"/></svg></span><span>Looking Ahead</span></p>
+          <h2>We are building toward a more trustworthy operating system for hiring.</h2>
+        </div>
+        <div class="about-prose">
+          <p>
+            Over time, we see Shortlistii becoming the system where hiring teams work with stronger decision signals across the
+            entire journey, from candidate intake to interview review to final hiring outcomes. That means giving recruiters more
+            clarity, helping organizations trust interviews more deeply, and turning fragmented hiring activity into a coherent,
+            reviewable workflow.
+          </p>
+          <p>
+            We are building for teams that want to move faster without becoming careless, and for organizations that believe the
+            quality of hiring decisions compounds over time.
+          </p>
+        </div>
+      </article>
+      <aside class="about-company-panel about-panel">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9 14h.01"/><path d="M15 14h.01"/></svg></span><span>Company Information</span></p>
+          <h2>shortlistii.com Private Limited</h2>
+        </div>
+        <div class="about-company-card">
+          <p>shortlistii.com Private Limited</p>
+          <address>
+            Flat No. 1404, Famed Tower<br>
+            Sikka Karnam Greens<br>
+            Sector 143<br>
+            Noida, Uttar Pradesh – 201304<br>
+            India
+          </address>
+        </div>
+      </aside>
+    </section>
+
+    <section class="about-cta about-panel reveal-up">
+      <div class="about-cta__copy">
+        <p class="eyebrow section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="m13 5 7 7-7 7"/></svg></span><span>Explore the Platform</span></p>
+        <h2>See how Shortlistii brings ranking, interviews, integrity, and hiring intelligence into one workflow.</h2>
+      </div>
+      <div class="about-cta__actions">
+        <a href="{% url 'home' %}#platform-overview" class="btn btn-primary">Explore the Platform</a>
+        <a href="{% url 'home' %}#operations" class="btn btn-outline">See How It Works</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="legal-footer">
+    <div class="legal-footer__inner">
+      <div>
+        <a href="{% url 'home' %}" class="shortlistii-logo" aria-label="shortlistii.com home">
+          <span class="logo-text">shortlist</span>
+          <span class="logo-ii" aria-hidden="true">
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+          </span>
+        </a>
+        <p>AI-powered hiring intelligence for recruiters, hiring teams, and companies.</p>
+      </div>
+      <div class="legal-footer__links">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

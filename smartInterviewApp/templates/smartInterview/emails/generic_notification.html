@@ -1,0 +1,16 @@
+{% extends "smartInterview/emails/base.html" %}
+
+{% block title %}{{ headline|default:"Shortlistii notification" }}{% endblock %}
+{% block preheader %}{{ intro|default:"A Shortlistii update is ready for you." }}{% endblock %}
+
+{% block content %}
+<h1 class="email-title" style="margin:0 0 12px 0;font-size:34px;line-height:1.15;color:#0f172a;">{{ headline|default:"Shortlistii notification" }}</h1>
+{% if intro %}
+<p style="margin:0 0 14px 0;font-size:16px;line-height:1.75;color:#334155;">{{ intro }}</p>
+{% endif %}
+{% if body_copy %}
+<p style="margin:0 0 24px 0;font-size:16px;line-height:1.75;color:#475569;">{{ body_copy }}</p>
+{% endif %}
+{% include "smartInterview/emails/partials/details_card.html" with details_title=details_title details=details %}
+{% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
+{% endblock %}

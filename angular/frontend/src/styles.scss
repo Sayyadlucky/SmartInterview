@@ -1,0 +1,236 @@
+:root {
+  --c1: #09162b;
+  --c2: #1a3463;
+  --c3: #23293b;
+  --chrome-rail: linear-gradient(90deg, rgba(64, 231, 255, 0.42), rgba(95, 176, 255, 0.3), transparent 82%);
+  --chrome-top-highlight: rgba(255, 255, 255, 0.045);
+  --chrome-inner-border: rgba(210, 240, 255, 0.035);
+  --chrome-inner-glow: rgba(103, 239, 255, 0.032);
+  --chrome-hover-border: rgba(137, 226, 255, 0.26);
+  --chrome-hover-shadow: rgba(2, 10, 24, 0.2);
+  --chrome-focus-ring: rgba(103, 239, 255, 0.16);
+  --chrome-focus-border: rgba(103, 239, 255, 0.42);
+  --chrome-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --chrome-duration: 220ms;
+}
+
+html,
+body {
+  min-height: 100vh;
+  margin: 0;
+}
+
+html {
+  background:
+    radial-gradient(circle at 78% 85%, rgba(78, 145, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 12% 12%, rgba(56, 212, 255, 0.12), transparent 28%),
+    linear-gradient(135deg, var(--c1), var(--c2), var(--c3));
+  background-size: 400% 400%;
+  animation: globalGradientShift 12s ease infinite;
+  background-color: var(--c1);
+}
+
+body {
+  color: #dbedff;
+  font-family: 'Inter', sans-serif;
+  background: transparent;
+  overflow-x: hidden;
+}
+
+app-root {
+  display: block;
+  min-height: 100vh;
+}
+
+:where(
+  .dashboard-card,
+  .recruiters-sidebar,
+  .recruiters-profile-panel,
+  .detail-panel,
+  .profile-workspace-head,
+  .insight-card,
+  .stat-chip,
+  .state-card,
+  .company-identity-card,
+  .role-snapshot-card-item,
+  .talent-candidate-panel,
+  .talent-side-card,
+  .talent-stat-card,
+  .talent-candidate-card
+) {
+  position: relative;
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 var(--chrome-top-highlight),
+    inset 0 0 0 1px var(--chrome-inner-border),
+    inset 0 18px 26px var(--chrome-inner-glow);
+}
+
+:where(
+  .dashboard-shell,
+  .recruiters-sidebar,
+  .recruiters-profile-panel,
+  .detail-panel,
+  .profile-workspace-head,
+  .company-identity-card
+)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--chrome-rail);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+:where(
+  .dashboard-card:not(.skeleton-card),
+  .insight-card,
+  .recruiter-item,
+  .detail-panel,
+  .company-identity-card,
+  .role-snapshot-card-item.is-clickable,
+  .dashboard-card.quick-action,
+  .talent-candidate-card,
+  .talent-side-card,
+  .talent-stat-card
+) {
+  transition:
+    transform var(--chrome-duration) var(--chrome-ease),
+    border-color var(--chrome-duration) var(--chrome-ease),
+    box-shadow var(--chrome-duration) var(--chrome-ease),
+    background var(--chrome-duration) var(--chrome-ease);
+}
+
+:where(
+  .insight-card:hover,
+  .recruiter-item:hover,
+  .detail-panel:hover,
+  .company-identity-card:hover,
+  .role-snapshot-card-item.is-clickable:hover,
+  .dashboard-card.quick-action:hover,
+  .talent-candidate-card:hover,
+  .talent-side-card:hover,
+  .talent-stat-card:hover
+) {
+  transform: translateY(-1px);
+  border-color: var(--chrome-hover-border);
+  box-shadow:
+    0 12px 24px var(--chrome-hover-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(210, 240, 255, 0.04),
+    inset 0 18px 26px rgba(103, 239, 255, 0.04);
+}
+
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  .recruiter-item,
+  .role-snapshot-card-item,
+  .workspace-pill,
+  .stat-chip,
+  .talent-action,
+  .talent-fit-chip,
+  .talent-page-button,
+  .primary-btn,
+  .edit-profile-btn,
+  .ghost-btn,
+  .quick-action-btn
+):focus-visible {
+  outline: none;
+  border-color: var(--chrome-focus-border);
+  box-shadow:
+    0 0 0 1px var(--chrome-focus-border),
+    0 0 0 4px var(--chrome-focus-ring);
+}
+
+.candidate-profile-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.candidate-profile-dialog .mat-mdc-dialog-container {
+  max-height: 92vh !important;
+}
+
+.role-detail-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.role-detail-dialog .mat-mdc-dialog-container {
+  max-height: 92vh !important;
+}
+
+.confirm-dialog .mat-mdc-dialog-container {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.confirm-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.workflow-action-dialog .mat-mdc-dialog-container {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.workflow-action-dialog .mat-mdc-dialog-container .mdc-dialog__surface,
+.workflow-action-dialog .mat-mdc-dialog-surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-radius: 0 !important;
+}
+
+.workflow-action-dialog .mat-mdc-dialog-inner-container,
+.workflow-action-dialog .mdc-dialog__container,
+.workflow-action-dialog.cdk-overlay-pane {
+  background: transparent !important;
+  box-shadow: none !important;
+  max-height: 92vh !important;
+}
+
+.candidate-profile-dialog.cdk-overlay-pane,
+.role-detail-dialog.cdk-overlay-pane {
+  max-height: 92vh !important;
+}
+
+.candidate-call-tracker-dialog .mat-mdc-dialog-container,
+.candidate-call-tracker-dialog .mat-mdc-dialog-container .mdc-dialog__surface,
+.candidate-call-tracker-dialog .mat-mdc-dialog-surface,
+.candidate-call-tracker-dialog.cdk-overlay-pane {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  max-height: 92vh !important;
+}
+
+.cdk-overlay-dark-backdrop {
+  background: rgba(6, 17, 36, 0.72);
+}
+
+@keyframes globalGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

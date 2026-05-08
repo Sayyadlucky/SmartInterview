@@ -1,0 +1,188 @@
+from django.db import migrations, models
+import django.db.models.deletion
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('smartInterviewApp', '0040_candidateresumebuilderdraft'),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Skill',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=120)),
+                ('key', models.SlugField(max_length=120, unique=True)),
+                ('category', models.CharField(blank=True, default='', max_length=80)),
+                ('aliases', models.JSONField(blank=True, default=list)),
+                ('description', models.TextField(blank=True, default='')),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+            ],
+            options={
+                'ordering': ['name'],
+                'indexes': [
+                    models.Index(fields=['key'], name='smartInterv_key_5afaa8_idx'),
+                    models.Index(fields=['name'], name='smartInterv_name_7e737b_idx'),
+                    models.Index(fields=['is_active'], name='smartInterv_is_acti_629ccf_idx'),
+                    models.Index(fields=['category'], name='smartInterv_categor_888acf_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='JobInterviewBlueprint',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('status', models.CharField(choices=[('pending', 'Pending'), ('generating', 'Generating'), ('ready', 'Ready'), ('partial', 'Partial'), ('failed', 'Failed')], default='pending', max_length=20)),
+                ('role_title', models.CharField(blank=True, default='', max_length=255)),
+                ('experience_level', models.CharField(blank=True, default='', max_length=80)),
+                ('raw_extracted_skills', models.JSONField(blank=True, default=list)),
+                ('selected_skills_snapshot', models.JSONField(blank=True, default=list)),
+                ('generation_source', models.CharField(choices=[('openai', 'OpenAI'), ('manual', 'Manual'), ('system', 'System')], default='openai', max_length=20)),
+                ('model_name', models.CharField(blank=True, default='', max_length=120)),
+                ('error_message', models.TextField(blank=True, default='')),
+                ('version', models.PositiveIntegerField(default=1)),
+                ('minimum_ready', models.BooleanField(default=False)),
+                ('fully_ready', models.BooleanField(default=False)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('job', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='interview_blueprint', to='smartInterviewApp.vacancies')),
+            ],
+            options={
+                'ordering': ['-updated_at', '-id'],
+                'indexes': [
+                    models.Index(fields=['job'], name='smartInterv_job_id_0eed81_idx'),
+                    models.Index(fields=['status'], name='smartInterv_status_b1e07c_idx'),
+                    models.Index(fields=['minimum_ready'], name='smartInterv_minimum_d0b234_idx'),
+                    models.Index(fields=['fully_ready'], name='smartInterv_fully_r_96b1e1_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='CodingQuestion',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('title', models.CharField(max_length=255)),
+                ('slug', models.SlugField(max_length=255, unique=True)),
+                ('prompt', models.TextField()),
+                ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], max_length=20)),
+                ('question_type', models.CharField(choices=[('algorithm', 'Algorithm'), ('data_structure', 'Data Structure'), ('debugging', 'Debugging'), ('sql_query', 'SQL Query'), ('framework_task', 'Framework Task'), ('api_design', 'API Design'), ('system_design', 'System Design')], max_length=30)),
+                ('topic', models.CharField(blank=True, default='', max_length=120)),
+                ('family_key', models.CharField(db_index=True, max_length=120)),
+                ('input_format', models.TextField(blank=True, default='')),
+                ('output_format', models.TextField(blank=True, default='')),
+                ('constraints', models.TextField(blank=True, default='')),
+                ('starter_code', models.JSONField(blank=True, default=dict)),
+                ('test_cases', models.JSONField(blank=True, default=list)),
+                ('hidden_test_cases', models.JSONField(blank=True, default=list)),
+                ('expected_solution', models.TextField(blank=True, default='')),
+                ('explanation', models.TextField(blank=True, default='')),
+                ('time_limit_ms', models.PositiveIntegerField(default=2000)),
+                ('memory_limit_mb', models.PositiveIntegerField(default=256)),
+                ('tags', models.JSONField(blank=True, default=list)),
+                ('source', models.CharField(choices=[('manual', 'Manual'), ('openai', 'OpenAI'), ('imported', 'Imported')], default='manual', max_length=20)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('skill', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='coding_questions', to='smartInterviewApp.skill')),
+            ],
+            options={
+                'ordering': ['skill__name', 'difficulty', 'title'],
+                'indexes': [
+                    models.Index(fields=['skill', 'difficulty', 'is_active'], name='smartInterv_skill_i_4610aa_idx'),
+                    models.Index(fields=['skill', 'family_key'], name='smartInterv_skill_i_24eac2_idx'),
+                    models.Index(fields=['question_type'], name='smartInterv_questio_d32e6f_idx'),
+                    models.Index(fields=['slug'], name='smartInterv_slug_f68346_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='SkillQuestion',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('question_text', models.TextField()),
+                ('difficulty', models.CharField(choices=[('basic', 'Basic'), ('intermediate', 'Intermediate'), ('advanced', 'Advanced')], max_length=20)),
+                ('question_type', models.CharField(choices=[('concept', 'Concept'), ('scenario', 'Scenario'), ('debugging', 'Debugging'), ('practical', 'Practical'), ('behavioral', 'Behavioral'), ('follow_up', 'Follow Up')], max_length=30)),
+                ('family_key', models.CharField(db_index=True, max_length=120)),
+                ('expected_signal', models.TextField(blank=True, default='')),
+                ('ideal_answer_points', models.JSONField(blank=True, default=list)),
+                ('evaluation_rubric', models.JSONField(blank=True, default=dict)),
+                ('tags', models.JSONField(blank=True, default=list)),
+                ('source', models.CharField(choices=[('manual', 'Manual'), ('openai', 'OpenAI'), ('imported', 'Imported')], default='manual', max_length=20)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('skill', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='verbal_questions', to='smartInterviewApp.skill')),
+            ],
+            options={
+                'ordering': ['skill__name', 'difficulty', 'id'],
+                'indexes': [
+                    models.Index(fields=['skill', 'difficulty', 'is_active'], name='smartInterv_skill_i_3f74b0_idx'),
+                    models.Index(fields=['skill', 'family_key'], name='smartInterv_skill_i_7e0a0d_idx'),
+                    models.Index(fields=['question_type'], name='smartInterv_questio_804204_idx'),
+                    models.Index(fields=['source'], name='smartInterv_source_10a448_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='JobInterviewSkill',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('priority', models.PositiveIntegerField(default=1)),
+                ('questions_to_ask', models.PositiveIntegerField(default=4)),
+                ('coding_questions_to_ask', models.PositiveIntegerField(default=0)),
+                ('difficulty_mix', models.JSONField(blank=True, default=dict)),
+                ('coding_difficulty_mix', models.JSONField(blank=True, default=dict)),
+                ('source', models.CharField(choices=[('openai', 'OpenAI'), ('manual', 'Manual'), ('system', 'System')], default='openai', max_length=20)),
+                ('confidence', models.FloatField(blank=True, null=True)),
+                ('is_required', models.BooleanField(default=True)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('blueprint', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='planned_skills', to='smartInterviewApp.jobinterviewblueprint')),
+                ('job', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='interview_skills', to='smartInterviewApp.vacancies')),
+                ('skill', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='job_plans', to='smartInterviewApp.skill')),
+            ],
+            options={
+                'ordering': ['blueprint', 'priority', 'id'],
+                'indexes': [
+                    models.Index(fields=['job', 'priority'], name='smartInterv_job_id_e6406f_idx'),
+                    models.Index(fields=['blueprint', 'priority'], name='smartInterv_bluepri_9ba934_idx'),
+                    models.Index(fields=['skill', 'is_active'], name='smartInterv_skill_i_f54142_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='QuestionGenerationJob',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('task_type', models.CharField(choices=[('jd_skill_mapping', 'JD Skill Mapping'), ('question_generation', 'Question Generation'), ('coding_generation', 'Coding Generation'), ('repair', 'Repair')], max_length=40)),
+                ('status', models.CharField(choices=[('queued', 'Queued'), ('running', 'Running'), ('success', 'Success'), ('failed', 'Failed'), ('skipped', 'Skipped')], default='queued', max_length=20)),
+                ('attempts', models.PositiveIntegerField(default=0)),
+                ('payload', models.JSONField(blank=True, default=dict)),
+                ('result', models.JSONField(blank=True, default=dict)),
+                ('error_message', models.TextField(blank=True, default='')),
+                ('started_at', models.DateTimeField(blank=True, null=True)),
+                ('finished_at', models.DateTimeField(blank=True, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('blueprint', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='generation_jobs', to='smartInterviewApp.jobinterviewblueprint')),
+                ('job', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='question_generation_jobs', to='smartInterviewApp.vacancies')),
+            ],
+            options={
+                'ordering': ['-created_at', '-id'],
+                'indexes': [
+                    models.Index(fields=['job', 'status'], name='smartInterv_job_id_edb88b_idx'),
+                    models.Index(fields=['task_type', 'status'], name='smartInterv_task_ty_732e60_idx'),
+                    models.Index(fields=['created_at'], name='smartInterv_created_0548d7_idx'),
+                ],
+            },
+        ),
+        migrations.AddConstraint(
+            model_name='jobinterviewskill',
+            constraint=models.UniqueConstraint(fields=('blueprint', 'skill'), name='unique_blueprint_skill_plan'),
+        ),
+    ]

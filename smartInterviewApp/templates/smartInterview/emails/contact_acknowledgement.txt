@@ -1,0 +1,14 @@
+{% extends "smartInterview/emails/base.txt" %}
+
+{% block body %}
+We received your message.
+
+Thank you for contacting Shortlistii{% if recipient_name %}, {{ recipient_name }}{% endif %}.
+Our team will review your inquiry and respond as soon as possible.
+
+{% for item in details %}{{ item.label }}: {{ item.value }}
+{% endfor %}
+{% if button_url %}{{ button_label|default:"Open link" }}:
+{{ button_url }}
+{% endif %}
+{% endblock %}

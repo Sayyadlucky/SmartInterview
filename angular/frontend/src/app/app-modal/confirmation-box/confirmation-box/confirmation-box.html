@@ -1,0 +1,80 @@
+<div class="confirm-shell" [class.confirm-shell--export]="mode === 'export'">
+  <button class="close-btn" type="button" (click)="closeDialog()">×</button>
+
+  <div class="head">
+    <div class="icon-wrap" [class.icon-wrap--export]="mode === 'export'">
+      <i [class]="mode === 'export' ? 'ph ph-files' : 'ph ph-warning-circle'"></i>
+    </div>
+    <div class="copy">
+      <h3>{{ title }}</h3>
+      <p>{{ message }}</p>
+    </div>
+  </div>
+
+  <div class="export-summary" *ngIf="mode === 'export' && exportSummary">
+    <div class="summary-chip">
+      <span class="label">Candidates</span>
+      <strong>{{ exportSummary.count }}</strong>
+    </div>
+    <div class="summary-chip">
+      <span class="label">Status Filter</span>
+      <strong>{{ exportSummary.statusLabel }}</strong>
+    </div>
+    <div class="summary-chip">
+      <span class="label">Search</span>
+      <strong>{{ exportSummary.searchLabel }}</strong>
+    </div>
+  </div>
+
+  <div class="format-grid" *ngIf="mode === 'export'">
+    <button
+      type="button"
+      class="format-card"
+      [class.active]="selectedFormat === 'excel'"
+      (click)="selectedFormat = 'excel'"
+    >
+      <i class="ph ph-file-xls"></i>
+      <div>
+        <strong>Excel</strong>
+        <span>Structured spreadsheet for analysis and sharing.</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      class="format-card"
+      [class.active]="selectedFormat === 'pdf'"
+      (click)="selectedFormat = 'pdf'"
+    >
+      <i class="ph ph-file-pdf"></i>
+      <div>
+        <strong>PDF</strong>
+        <span>Print-ready executive layout with polished formatting.</span>
+      </div>
+    </button>
+
+    <button
+      type="button"
+      class="format-card"
+      [class.active]="selectedFormat === 'word'"
+      (click)="selectedFormat = 'word'"
+    >
+      <i class="ph ph-file-doc"></i>
+      <div>
+        <strong>Word</strong>
+        <span>Styled document for editable reports and client delivery.</span>
+      </div>
+    </button>
+  </div>
+
+  <div class="export-note" *ngIf="mode === 'export' && selectedFormat === 'pdf'">
+    PDF export opens a print-ready document so you can save it as PDF with browser print settings.
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn btn-ghost" (click)="confirmNo()">{{ cancelText }}</button>
+    <button type="button" class="btn btn-primary" (click)="confirmYes()">
+      {{ mode === 'export' ? ('Export as ' + (selectedFormat | titlecase)) : confirmText }}
+    </button>
+  </div>
+</div>

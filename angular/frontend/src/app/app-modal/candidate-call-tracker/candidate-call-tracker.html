@@ -1,0 +1,58 @@
+<div class="call-tracker-dialog">
+  <div class="call-tracker-hero">
+    <div class="call-tracker-orb" [class.call-tracker-orb--active]="!isTerminal">
+      <i class="ph" [ngClass]="isTerminal ? 'ph-phone-disconnect' : 'ph-phone-call'"></i>
+    </div>
+    <div class="call-tracker-copy">
+      <span class="call-tracker-eyebrow">Exotel Call Tracker</span>
+      <h2>{{ title }}</h2>
+      <p>{{ description }}</p>
+    </div>
+  </div>
+
+  <div class="call-tracker-state">
+    <div class="call-tracker-stage" [class.is-live]="!isTerminal">
+      <span class="call-tracker-pulse"></span>
+      <strong>{{ session.status.replace('_', ' ') | titlecase }}</strong>
+    </div>
+    <div class="call-tracker-stage-copy" *ngIf="!isTerminal">
+      <span class="call-tracker-dot"></span>
+      <span>{{ loading ? 'Refreshing live call state' : 'Tracking live Exotel status' }}</span>
+    </div>
+  </div>
+
+  <div class="call-tracker-metrics">
+    <article class="call-tracker-metric">
+      <span>Billable Duration</span>
+      <strong>{{ billableLabel }}</strong>
+      <small>Starts when the first bridge is connected</small>
+    </article>
+    <article class="call-tracker-metric">
+      <span>Conversation Duration</span>
+      <strong>{{ connectedLabel }}</strong>
+      <small>Starts after the candidate is connected</small>
+    </article>
+  </div>
+
+  <div class="call-tracker-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <div class="call-tracker-actions">
+    <button
+      type="button"
+      class="call-tracker-disconnect"
+      [disabled]="disconnecting || !session.can_disconnect"
+      [attr.title]="!session.can_disconnect ? (session.disconnect_unavailable_reason || 'Disconnect is not currently available for this call.') : null"
+      (click)="disconnectCall()">
+      <span class="call-tracker-disconnect__spinner" *ngIf="disconnecting"></span>
+      <span>{{ disconnecting ? 'Disconnecting...' : 'Disconnect Call' }}</span>
+    </button>
+
+    <div class="call-tracker-action-note" *ngIf="!session.can_disconnect && !isTerminal && session.disconnect_unavailable_reason">
+      {{ session.disconnect_unavailable_reason }}
+    </div>
+
+    <button type="button" class="call-tracker-close" [disabled]="!isTerminal" (click)="close()">
+      {{ isTerminal ? 'Close' : 'Close unavailable during active call' }}
+    </button>
+  </div>
+</div>

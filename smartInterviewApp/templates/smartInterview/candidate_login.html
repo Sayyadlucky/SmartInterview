@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+{% load static %}
+{% load form_tags %}
+{% load host_links %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candidate Login | Shortlistii.com</title>
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260309j">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260330b"></script>
+  <style>
+    body.candidate-login-page {
+      min-height: 100vh;
+    }
+
+    body.candidate-login-page .noise-layer {
+      opacity: 0.24;
+    }
+
+    body.candidate-login-page .vignette {
+      background: radial-gradient(circle at 50% 50%, transparent 52%, rgba(1, 4, 10, 0.36) 100%);
+    }
+
+    body.candidate-login-page .spotlight {
+      background:
+        radial-gradient(circle at var(--mx, 50%) var(--my, 45%), rgba(116, 225, 255, 0.1), transparent 24%),
+        radial-gradient(circle at calc(var(--mx, 50%) + 8%) calc(var(--my, 45%) - 12%), rgba(107, 133, 255, 0.07), transparent 22%);
+    }
+
+    body.candidate-login-page .light-beam {
+      opacity: 0.2;
+      filter: blur(18px);
+    }
+
+    body.candidate-login-page .atmo {
+      opacity: 0.16;
+      filter: blur(90px);
+    }
+
+    body.candidate-login-page #mainHeader,
+    body.candidate-login-page #mainHeader.scrolled {
+      background: rgba(5, 10, 22, 0.42);
+      border-bottom-color: rgba(142, 203, 255, 0.08);
+      backdrop-filter: blur(8px);
+    }
+
+    body.candidate-login-page .header-shell {
+      max-width: 1220px;
+      padding: 14px 24px;
+    }
+
+    body.candidate-login-page #mainMenu {
+      gap: 18px;
+    }
+
+    body.candidate-login-page #mainMenu a {
+      font-size: 0.84rem;
+      color: #93aac8;
+    }
+
+    body.candidate-login-page .header-actions .btn {
+      min-height: 40px;
+      padding-inline: 16px;
+      font-size: 0.86rem;
+      opacity: 0.92;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .candidate-login-main {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 108px 24px 42px;
+    }
+
+    .candidate-login-shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(420px, 500px);
+      gap: 46px;
+      align-items: start;
+    }
+
+    .candidate-story,
+    .candidate-form-panel {
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      box-shadow: 0 18px 48px rgba(2, 8, 18, 0.18);
+    }
+
+    .candidate-story {
+      padding: 34px 10px 28px 8px;
+      display: grid;
+      gap: 22px;
+      align-content: start;
+      position: relative;
+      overflow: visible;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+
+    .candidate-story::before {
+      content: "";
+      position: absolute;
+      inset: -8% auto auto -5%;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(116, 225, 255, 0.08), transparent 68%);
+      filter: blur(22px);
+      pointer-events: none;
+    }
+
+    .candidate-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 8px 13px;
+      border-radius: 999px;
+      border: 1px solid rgba(135, 198, 255, 0.16);
+      background: rgba(124, 170, 255, 0.06);
+      color: #cfe8ff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .candidate-kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(82, 213, 255, 0.75);
+    }
+
+    .candidate-headline {
+      max-width: 11ch;
+      margin: 0;
+      font-size: clamp(2rem, 3.6vw, 3.2rem);
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+    }
+
+    .candidate-copy {
+      max-width: 44ch;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+
+    .candidate-story-copy {
+      display: grid;
+      gap: 14px;
+    }
+
+    .candidate-trust-list {
+      display: grid;
+      gap: 10px;
+      margin: 4px 0 0;
+    }
+
+    .candidate-trust-item {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(135, 198, 255, 0.1);
+      background: rgba(10, 19, 36, 0.28);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+      max-width: 380px;
+    }
+
+    .candidate-trust-item i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      margin-bottom: 0;
+      border-radius: 12px;
+      background: rgba(124, 170, 255, 0.1);
+      color: #7be6ff;
+      font-size: 0.95rem;
+    }
+
+    .candidate-trust-body {
+      display: grid;
+      gap: 2px;
+    }
+
+    .candidate-trust-item strong {
+      display: block;
+      margin-bottom: 0;
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+
+    .candidate-trust-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .candidate-story-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #9fb6d4;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .candidate-story-meta i {
+      color: #7ce8ff;
+      font-size: 0.9rem;
+    }
+
+    .candidate-form-panel {
+      position: relative;
+      justify-self: end;
+      width: 100%;
+      max-width: 500px;
+      padding: 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 26px;
+      background: linear-gradient(180deg, rgba(18, 30, 54, 0.94), rgba(10, 19, 37, 0.92));
+      backdrop-filter: blur(18px);
+      box-shadow:
+        0 24px 64px rgba(2, 8, 18, 0.34),
+        0 0 0 1px rgba(135, 198, 255, 0.05) inset;
+    }
+
+    .candidate-form-panel::before {
+      content: "";
+      position: absolute;
+      inset: -10% -8% auto auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(82, 213, 255, 0.16), transparent 70%);
+      filter: blur(24px);
+      pointer-events: none;
+    }
+
+    .candidate-form-panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 28%);
+      pointer-events: none;
+    }
+
+    .candidate-secure-badge {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(135, 198, 255, 0.16);
+      background: rgba(9, 20, 39, 0.48);
+      color: #cde7ff;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .candidate-secure-badge i {
+      color: #7ce8ff;
+    }
+
+    .candidate-form-shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 24px;
+    }
+
+    .candidate-form-top {
+      position: relative;
+      display: grid;
+      gap: 10px;
+    }
+
+    .candidate-form-kicker {
+      color: #8edfff;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .candidate-form-title {
+      margin: 0;
+      font-size: clamp(1.9rem, 3vw, 2.35rem);
+      letter-spacing: -0.035em;
+    }
+
+    .candidate-form-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.95rem;
+    }
+
+    .candidate-alert {
+      position: relative;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 145, 145, 0.18);
+      background: rgba(127, 29, 29, 0.16);
+      color: #ffd6d6;
+      line-height: 1.55;
+    }
+
+    .candidate-form {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .candidate-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .candidate-field label {
+      color: #d8ebff;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .candidate-input-wrap {
+      position: relative;
+    }
+
+    .candidate-input-wrap i {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      transform: translateY(-50%);
+      color: #88b8de;
+      font-size: 1rem;
+      pointer-events: none;
+      transition: color 180ms ease;
+    }
+
+    .candidate-field input {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      border-radius: 16px;
+      background: rgba(5, 13, 28, 0.72);
+      color: var(--text);
+      padding: 15px 16px 15px 46px;
+      font: inherit;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease, transform 180ms ease;
+    }
+
+    .candidate-field input::placeholder {
+      color: rgba(220, 236, 255, 0.42);
+    }
+
+    .candidate-input-wrap:hover input {
+      border-color: rgba(135, 198, 255, 0.22);
+      background: rgba(7, 16, 33, 0.82);
+    }
+
+    .candidate-input-wrap:hover i {
+      color: #a2dfff;
+    }
+
+    .candidate-field input:focus {
+      border-color: rgba(82, 213, 255, 0.42);
+      box-shadow: 0 0 0 4px rgba(82, 213, 255, 0.09);
+      background: rgba(9, 20, 39, 0.78);
+    }
+
+    .candidate-input-wrap:focus-within i {
+      color: #7ce8ff;
+    }
+
+    .candidate-form-utility {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: -2px;
+    }
+
+    .candidate-form-utility a {
+      color: #9fc8ea;
+      font-size: 0.84rem;
+      text-decoration: none;
+      transition: color 180ms ease, opacity 180ms ease;
+    }
+
+    .candidate-form-utility a:hover,
+    .candidate-form-utility button:hover {
+      color: #d5f2ff;
+    }
+
+    .candidate-form-utility button {
+      border: 0;
+      background: transparent;
+      color: #9fc8ea;
+      font-size: 0.84rem;
+      padding: 0;
+      cursor: pointer;
+      transition: color 180ms ease, opacity 180ms ease;
+    }
+
+    .errorlist {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: #ffb8b8;
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .candidate-actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 2px;
+    }
+
+    .candidate-actions .btn {
+      position: relative;
+      justify-content: center;
+      width: 100%;
+      min-height: 52px;
+      border-radius: 16px;
+      box-shadow: 0 14px 32px rgba(45, 115, 214, 0.2);
+      transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+    }
+
+    .candidate-actions .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(45, 115, 214, 0.24);
+      filter: brightness(1.03);
+    }
+
+    .candidate-actions .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 10px 22px rgba(45, 115, 214, 0.18);
+    }
+
+    .btn.is-loading {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: none;
+      opacity: 0.88;
+    }
+
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      border-top-color: currentColor;
+      animation: auth-spin 0.7s linear infinite;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    @keyframes auth-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .candidate-form-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(135, 198, 255, 0.18), transparent);
+      opacity: 0.9;
+    }
+
+    .candidate-login-note {
+      position: relative;
+      margin: 0;
+      color: #8ea9c9;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .password-reset-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(2, 8, 18, 0.68);
+      backdrop-filter: blur(12px);
+    }
+
+    .password-reset-overlay.is-open {
+      display: flex;
+    }
+
+    .password-reset-modal {
+      position: relative;
+      width: min(100%, 520px);
+      padding: 34px;
+      border-radius: 24px;
+      border: 1px solid rgba(135, 198, 255, 0.16);
+      background: linear-gradient(180deg, rgba(18, 30, 54, 0.97), rgba(10, 19, 37, 0.95));
+      box-shadow: 0 26px 80px rgba(2, 8, 18, 0.42);
+      overflow: hidden;
+    }
+
+    .password-reset-modal::before {
+      content: "";
+      position: absolute;
+      inset: -12% auto auto 60%;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(82, 213, 255, 0.18), transparent 70%);
+      filter: blur(18px);
+      pointer-events: none;
+    }
+
+    .password-reset-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 3;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      border-radius: 999px;
+      background: rgba(8, 18, 36, 0.72);
+      color: #cde7ff;
+      cursor: pointer;
+    }
+
+    .password-reset-shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 22px;
+    }
+
+    .password-reset-head {
+      display: grid;
+      gap: 10px;
+    }
+
+    .password-reset-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(135, 198, 255, 0.15);
+      background: rgba(9, 20, 39, 0.46);
+      color: #cfe8ff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .password-reset-kicker i {
+      color: #7ce8ff;
+    }
+
+    .password-reset-title {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2rem);
+      letter-spacing: -0.03em;
+    }
+
+    .password-reset-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.94rem;
+    }
+
+    .password-reset-stepper {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .password-reset-step {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(135, 198, 255, 0.1);
+    }
+
+    .password-reset-step.is-active,
+    .password-reset-step.is-complete {
+      background: linear-gradient(90deg, #52d5ff, #5f7cff);
+    }
+
+    .password-reset-panel {
+      display: none;
+      gap: 18px;
+    }
+
+    .password-reset-panel.is-active {
+      display: grid;
+    }
+
+    .password-reset-message {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      background: rgba(8, 18, 36, 0.58);
+      color: #d5e9ff;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .password-reset-message.is-visible {
+      display: block;
+    }
+
+    .password-reset-message.is-error {
+      border-color: rgba(255, 145, 145, 0.18);
+      background: rgba(127, 29, 29, 0.16);
+      color: #ffd6d6;
+    }
+
+    .password-reset-message.is-success {
+      border-color: rgba(82, 213, 255, 0.16);
+      background: rgba(12, 44, 64, 0.34);
+      color: #d8f8ff;
+    }
+
+    .password-reset-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .password-reset-field label {
+      color: #d8ebff;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .password-reset-input-wrap {
+      position: relative;
+    }
+
+    .password-reset-input-wrap i {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      transform: translateY(-50%);
+      color: #88b8de;
+      font-size: 1rem;
+      pointer-events: none;
+    }
+
+    .password-reset-field input {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      border-radius: 16px;
+      background: rgba(5, 13, 28, 0.78);
+      color: var(--text);
+      padding: 15px 16px 15px 46px;
+      font: inherit;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .password-reset-field input:focus {
+      border-color: rgba(82, 213, 255, 0.42);
+      box-shadow: 0 0 0 4px rgba(82, 213, 255, 0.09);
+      background: rgba(9, 20, 39, 0.86);
+    }
+
+    .password-reset-hint {
+      margin: 0;
+      color: #9fb6d4;
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .password-reset-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .password-reset-actions .btn {
+      min-height: 48px;
+      border-radius: 14px;
+      padding-inline: 18px;
+    }
+
+    .password-reset-success {
+      display: grid;
+      gap: 14px;
+      text-align: center;
+      justify-items: center;
+    }
+
+    .password-reset-success-mark {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(82, 213, 255, 0.12);
+      border: 1px solid rgba(135, 198, 255, 0.16);
+      color: #7ce8ff;
+      font-size: 1.4rem;
+    }
+
+    @media (max-width: 1080px) {
+      .candidate-login-shell {
+        grid-template-columns: 1fr;
+        margin: 0 auto;
+      }
+
+      .candidate-headline {
+        max-width: 100%;
+      }
+
+      .candidate-story {
+        padding-right: 0;
+      }
+
+      .candidate-form-panel {
+        justify-self: stretch;
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .candidate-login-main {
+        padding: 92px 16px 28px;
+      }
+
+      .candidate-story,
+      .candidate-form-panel {
+        padding: 24px;
+      }
+
+      .candidate-form-utility {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .password-reset-modal {
+        padding: 24px;
+      }
+
+      .password-reset-stepper {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body class="candidate-login-page">
+  <div id="scene3d" aria-hidden="true"></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <div class="spotlight"></div>
+  <div class="light-beam beam-a"></div>
+  <div class="light-beam beam-b"></div>
+  <div class="atmo haze-1"></div>
+  <div class="atmo haze-2"></div>
+  <div class="noise-layer"></div>
+
+  <header id="mainHeader" class="scrolled">
+    <div class="header-shell">
+      <a href="{% host_link request 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+
+      <nav id="mainMenu" aria-label="Primary navigation">
+        <a href="{% host_link request 'jobs' %}">Jobs</a>
+        <a href="{% host_link request 'candidate_signup' %}">Signup</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="{% host_link request 'candidate_signup' %}" class="btn btn-ghost"><i class="ph ph-user-plus"></i>Create Account</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="candidate-login-main">
+    <section class="candidate-login-shell">
+      <article class="candidate-story glass-card">
+        <span class="candidate-kicker">Candidate Portal</span>
+        <div class="candidate-story-copy">
+          <h1 class="candidate-headline">Access your candidate workspace</h1>
+          <p class="candidate-copy">
+            Review your profile, application progress, and interview updates from one secure dashboard.
+          </p>
+        </div>
+
+        <div class="candidate-trust-list">
+          <article class="candidate-trust-item">
+            <i class="ph ph-user-circle"></i>
+            <div class="candidate-trust-body">
+              <strong>Profile access</strong>
+              <p>Keep your resume and personal details current.</p>
+            </div>
+          </article>
+          <article class="candidate-trust-item">
+            <i class="ph ph-calendar-check"></i>
+            <div class="candidate-trust-body">
+              <strong>Application updates</strong>
+              <p>Track interviews and progress across active opportunities.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="candidate-story-meta">
+          <i class="ph ph-shield-check"></i>
+          Secure sign-in for your profile, applications, and interview activity.
+        </div>
+      </article>
+
+      <aside class="candidate-form-panel glass-card">
+        <div class="candidate-form-shell">
+          <div class="candidate-secure-badge">
+            <i class="ph ph-lock-key"></i>
+            Secure Access
+          </div>
+
+          <div class="candidate-form-top">
+            <span class="candidate-form-kicker">Candidate Login</span>
+            <h2 class="candidate-form-title">Welcome back</h2>
+            <p class="candidate-form-copy">Sign in with your registered email and password.</p>
+          </div>
+
+          {% if form.non_field_errors %}
+            <div class="candidate-alert">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <form method="post" class="candidate-form">
+            {% csrf_token %}
+            {% if next %}
+              <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
+            <div class="candidate-field">
+              <label for="{{ form.username.id_for_label }}">Email address</label>
+              <div class="candidate-input-wrap">
+                <i class="ph ph-envelope-simple"></i>
+                {{ form.username }}
+              </div>
+              {{ form.username.errors }}
+            </div>
+
+            <div class="candidate-field">
+              <label for="{{ form.password.id_for_label }}">Password</label>
+              <div class="candidate-input-wrap">
+                <i class="ph ph-lock"></i>
+                {{ form.password }}
+              </div>
+              {{ form.password.errors }}
+            </div>
+
+            <div class="candidate-form-utility">
+              <a href="{% host_link request 'candidate_signup' %}">Create account</a>
+              <button type="button" id="forgotPasswordTrigger">Forgot Password?</button>
+            </div>
+
+            <div class="candidate-actions">
+              <button class="btn btn-primary" type="submit" id="candidateLoginSubmit">
+                <span class="btn-label">Sign In</span>
+              </button>
+            </div>
+          </form>
+
+          <div class="candidate-form-divider"></div>
+
+          <p class="candidate-login-note">
+            If your recruiter invited you first, finish signup and then return here to log in.
+          </p>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="password-reset-overlay" id="passwordResetOverlay" aria-hidden="true">
+    <div class="password-reset-modal" role="dialog" aria-modal="true" aria-labelledby="passwordResetTitle">
+      <button class="password-reset-close" type="button" id="passwordResetClose" aria-label="Close password reset">&times;</button>
+      <div class="password-reset-shell">
+        <div class="password-reset-head">
+          <span class="password-reset-kicker"><i class="ph ph-shield-lock"></i> Account Recovery</span>
+          <h2 class="password-reset-title" id="passwordResetTitle">Reset your password</h2>
+          <p class="password-reset-copy" id="passwordResetCopy">Verify your account in a few secure steps and set a new password.</p>
+        </div>
+
+        <div class="password-reset-stepper" aria-hidden="true">
+          <span class="password-reset-step is-active" data-step-indicator="1"></span>
+          <span class="password-reset-step" data-step-indicator="2"></span>
+          <span class="password-reset-step" data-step-indicator="3"></span>
+          <span class="password-reset-step" data-step-indicator="4"></span>
+        </div>
+
+        <div class="password-reset-message" id="passwordResetMessage"></div>
+
+        <form class="password-reset-panel is-active" id="passwordResetEmailStep">
+          <div class="password-reset-field">
+            <label for="passwordResetEmail">Registered email address</label>
+            <div class="password-reset-input-wrap">
+              <i class="ph ph-envelope-simple"></i>
+              <input id="passwordResetEmail" name="email" type="email" placeholder="Enter your candidate account email" autocomplete="email" />
+            </div>
+          </div>
+          <div class="password-reset-actions">
+            <button class="btn btn-primary" type="submit">Continue</button>
+          </div>
+        </form>
+
+        <form class="password-reset-panel" id="passwordResetPhoneStep">
+          <p class="password-reset-hint">Enter the mobile number linked to your account. It should end with <strong id="passwordResetLastFour">0000</strong>.</p>
+          <div class="password-reset-field">
+            <label for="passwordResetPhone">Registered mobile number</label>
+            <div class="password-reset-input-wrap">
+              <i class="ph ph-device-mobile"></i>
+              <input id="passwordResetPhone" name="phone" type="tel" placeholder="Enter your mobile number" inputmode="numeric" autocomplete="tel" data-digits-only="true" />
+            </div>
+          </div>
+          <div class="password-reset-actions">
+            <button class="btn btn-primary" type="submit">Send OTP</button>
+          </div>
+        </form>
+
+        <form class="password-reset-panel" id="passwordResetOtpStep">
+          <p class="password-reset-hint">Enter the OTP sent to your registered mobile number <strong id="passwordResetMaskedPhone">••••</strong>.</p>
+          <div class="password-reset-field">
+            <label for="passwordResetOtp">OTP</label>
+            <div class="password-reset-input-wrap">
+              <i class="ph ph-password"></i>
+              <input id="passwordResetOtp" name="otp" type="text" placeholder="Enter OTP" inputmode="numeric" autocomplete="one-time-code" data-digits-only="true" />
+            </div>
+          </div>
+          <div class="password-reset-actions">
+            <button class="btn btn-primary" type="submit">Verify OTP</button>
+          </div>
+        </form>
+
+        <form class="password-reset-panel" id="passwordResetPasswordStep">
+          <div class="password-reset-field">
+            <label for="passwordResetNewPassword">New password</label>
+            <div class="password-reset-input-wrap">
+              <i class="ph ph-lock"></i>
+              <input id="passwordResetNewPassword" name="password" type="password" placeholder="Enter a new password" autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="password-reset-field">
+            <label for="passwordResetConfirmPassword">Re-enter new password</label>
+            <div class="password-reset-input-wrap">
+              <i class="ph ph-lock-key"></i>
+              <input id="passwordResetConfirmPassword" name="confirm_password" type="password" placeholder="Re-enter new password" autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="password-reset-actions">
+            <button class="btn btn-primary" type="submit">Update Password</button>
+          </div>
+        </form>
+
+        <div class="password-reset-panel" id="passwordResetSuccessStep">
+          <div class="password-reset-success">
+            <div class="password-reset-success-mark"><i class="ph ph-check"></i></div>
+            <h3 class="password-reset-title" style="font-size: 1.5rem;">Password updated</h3>
+            <p class="password-reset-copy">Your password has been reset successfully. Use your new password to sign in to the candidate portal.</p>
+            <div class="password-reset-actions" style="justify-content:center;">
+              <button class="btn btn-primary" type="button" id="passwordResetProceed">Proceed to Login</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const loginForm = document.querySelector('.candidate-form');
+      const loginSubmit = document.getElementById('candidateLoginSubmit');
+      if (loginForm && loginSubmit) {
+        let loginSubmitted = false;
+        loginForm.addEventListener('submit', function (event) {
+          if (loginSubmitted) {
+            event.preventDefault();
+            return;
+          }
+          event.preventDefault();
+          loginSubmitted = true;
+          loginSubmit.disabled = true;
+          loginSubmit.classList.add('is-loading');
+          loginSubmit.setAttribute('aria-busy', 'true');
+          loginSubmit.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">Signing In...</span>';
+          requestAnimationFrame(function () {
+            window.setTimeout(function () {
+              loginForm.submit();
+            }, 40);
+          });
+        });
+      }
+
+      const overlay = document.getElementById('passwordResetOverlay');
+      const trigger = document.getElementById('forgotPasswordTrigger');
+      const closeBtn = document.getElementById('passwordResetClose');
+      const proceedBtn = document.getElementById('passwordResetProceed');
+      const messageBox = document.getElementById('passwordResetMessage');
+      const copy = document.getElementById('passwordResetCopy');
+      const indicators = Array.from(document.querySelectorAll('[data-step-indicator]'));
+      const stepMap = {
+        1: document.getElementById('passwordResetEmailStep'),
+        2: document.getElementById('passwordResetPhoneStep'),
+        3: document.getElementById('passwordResetOtpStep'),
+        4: document.getElementById('passwordResetPasswordStep'),
+        5: document.getElementById('passwordResetSuccessStep'),
+      };
+      const state = { step: 1, maskedPhone: '', lastFour: '' };
+      const resetButtons = [
+        document.querySelector('#passwordResetEmailStep button[type="submit"]'),
+        document.querySelector('#passwordResetPhoneStep button[type="submit"]'),
+        document.querySelector('#passwordResetOtpStep button[type="submit"]'),
+        document.querySelector('#passwordResetPasswordStep button[type="submit"]')
+      ].filter(Boolean);
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
+      }
+
+      function setStep(step) {
+        state.step = step;
+        Object.entries(stepMap).forEach(([key, panel]) => {
+          if (!panel) return;
+          panel.classList.toggle('is-active', Number(key) === step);
+        });
+        indicators.forEach((indicator, index) => {
+          const value = index + 1;
+          indicator.classList.toggle('is-active', value === Math.min(step, 4));
+          indicator.classList.toggle('is-complete', value < Math.min(step, 5));
+        });
+      }
+
+      function showMessage(text, type) {
+        if (!text) {
+          messageBox.textContent = '';
+          messageBox.className = 'password-reset-message';
+          return;
+        }
+        messageBox.textContent = text;
+        messageBox.className = `password-reset-message is-visible ${type ? `is-${type}` : ''}`.trim();
+      }
+
+      function rememberButtonLabel(button) {
+        if (!button || button.dataset.defaultLabel) return;
+        const label = button.querySelector('.btn-label');
+        button.dataset.defaultLabel = label ? label.textContent.trim() : button.textContent.trim();
+      }
+
+      function restoreButton(button) {
+        if (!button) return;
+        rememberButtonLabel(button);
+        button.disabled = false;
+        button.classList.remove('is-loading');
+        button.removeAttribute('aria-busy');
+        button.innerHTML = `<span class="btn-label">${button.dataset.defaultLabel || 'Continue'}</span>`;
+      }
+
+      function resetFlow() {
+        state.step = 1;
+        state.maskedPhone = '';
+        state.lastFour = '';
+        document.getElementById('passwordResetEmailStep')?.reset();
+        document.getElementById('passwordResetPhoneStep')?.reset();
+        document.getElementById('passwordResetOtpStep')?.reset();
+        document.getElementById('passwordResetPasswordStep')?.reset();
+        document.getElementById('passwordResetLastFour').textContent = '0000';
+        document.getElementById('passwordResetMaskedPhone').textContent = '••••';
+        copy.textContent = 'Verify your account in a few secure steps and set a new password.';
+        showMessage('', '');
+        resetButtons.forEach(restoreButton);
+        setStep(1);
+      }
+
+      function openModal() {
+        resetFlow();
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        resetFlow();
+        overlay.classList.remove('is-open');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+
+      async function postForm(url, payload) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: payload,
+        });
+        const rawText = await response.text();
+        let data = null;
+        try {
+          data = rawText ? JSON.parse(rawText) : null;
+        } catch (error) {
+          data = null;
+        }
+        if (!response.ok || !data.Success) {
+          throw new Error((data && data.Error) || 'Unable to complete this step right now. Please verify your details and try again.');
+        }
+        return data;
+      }
+
+      function setLoadingState(button, label) {
+        if (!button) return;
+        rememberButtonLabel(button);
+        button.disabled = true;
+        button.classList.add('is-loading');
+        button.setAttribute('aria-busy', 'true');
+        button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span class="btn-label">${label}</span>`;
+      }
+
+      function resetLoadingState(button) {
+        if (!button) return;
+        restoreButton(button);
+      }
+
+      resetButtons.forEach(rememberButtonLabel);
+
+      trigger?.addEventListener('click', function (event) {
+        event.preventDefault();
+        openModal();
+      });
+
+      closeBtn?.addEventListener('click', closeModal);
+      proceedBtn?.addEventListener('click', closeModal);
+      overlay?.addEventListener('click', function (event) {
+        if (event.target === overlay) closeModal();
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && overlay?.classList.contains('is-open')) {
+          closeModal();
+        }
+      });
+
+      document.getElementById('passwordResetEmailStep')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        showMessage('', '');
+        const formData = new FormData(event.currentTarget);
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+        setLoadingState(submitButton, 'Checking...');
+        try {
+          const data = await postForm('{% url "candidate-password-reset-start-root" %}', formData);
+          state.maskedPhone = data.Data.masked_phone || '••••';
+          state.lastFour = data.Data.last_four || '0000';
+          document.getElementById('passwordResetLastFour').textContent = state.lastFour;
+          document.getElementById('passwordResetMaskedPhone').textContent = state.maskedPhone;
+          copy.textContent = 'Confirm the mobile number linked to your account before we send a one-time password.';
+          setStep(2);
+        } catch (error) {
+          resetLoadingState(submitButton);
+          showMessage(error.message, 'error');
+        }
+      });
+
+      document.getElementById('passwordResetPhoneStep')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        showMessage('', '');
+        const formData = new FormData(event.currentTarget);
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+        setLoadingState(submitButton, 'Sending OTP...');
+        try {
+          const data = await postForm('{% url "candidate-password-reset-verify-phone-root" %}', formData);
+          copy.textContent = 'Enter the OTP sent to your registered mobile number to continue securely.';
+          showMessage(data.Data?.message || 'OTP sent successfully.', 'success');
+          document.getElementById('passwordResetMaskedPhone').textContent = data.Data?.masked_phone || state.maskedPhone;
+          setStep(3);
+        } catch (error) {
+          resetLoadingState(submitButton);
+          showMessage(error.message, 'error');
+        }
+      });
+
+      document.getElementById('passwordResetOtpStep')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        showMessage('', '');
+        const formData = new FormData(event.currentTarget);
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+        setLoadingState(submitButton, 'Verifying...');
+        try {
+          const data = await postForm('{% url "candidate-password-reset-verify-otp-root" %}', formData);
+          copy.textContent = 'Set a new password for your candidate account.';
+          showMessage(data.Data?.message || 'OTP verified successfully.', 'success');
+          setStep(4);
+        } catch (error) {
+          resetLoadingState(submitButton);
+          showMessage(error.message, 'error');
+        }
+      });
+
+      document.getElementById('passwordResetPasswordStep')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        showMessage('', '');
+        const formData = new FormData(event.currentTarget);
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+        setLoadingState(submitButton, 'Updating...');
+        try {
+          const data = await postForm('{% url "candidate-password-reset-complete-root" %}', formData);
+          showMessage('', '');
+          copy.textContent = data.Data?.message || 'Your password has been updated successfully.';
+          setStep(5);
+        } catch (error) {
+          resetLoadingState(submitButton);
+          showMessage(error.message, 'error');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

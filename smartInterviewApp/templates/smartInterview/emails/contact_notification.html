@@ -1,0 +1,23 @@
+{% extends "smartInterview/emails/base.html" %}
+
+{% block title %}{{ subject_line }}{% endblock %}
+{% block preheader %}New contact inquiry from {{ sender_name }}.{% endblock %}
+
+{% block content %}
+<h1 class="email-title" style="margin:0 0 12px 0;font-size:34px;line-height:1.15;color:#0f172a;">New {{ inquiry_label|default:"contact" }} inquiry</h1>
+<p style="margin:0 0 24px 0;font-size:16px;line-height:1.75;color:#475569;">
+  A new message has been submitted through the Shortlistii contact form. Use reply to respond directly to the sender.
+</p>
+{% include "smartInterview/emails/partials/details_card.html" with details_title=details_title details=details %}
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px 0;">
+  <tr>
+    <td style="padding:18px;border:1px solid #dbe5f1;border-radius:14px;background-color:#f8fbff;">
+      <p style="margin:0 0 12px 0;font-size:13px;line-height:1.5;color:#475569;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;">
+        Message
+      </p>
+      <p style="margin:0;font-size:15px;line-height:1.8;color:#0f172a;">{{ message_body|linebreaksbr }}</p>
+    </td>
+  </tr>
+</table>
+{% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
+{% endblock %}

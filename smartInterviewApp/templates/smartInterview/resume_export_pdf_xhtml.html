@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ candidate.name }} | Digital Resume</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    body {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 9pt;
+      line-height: 1.45;
+      color: #1f2f3d;
+      background: #ffffff;
+    }
+
+    .page {
+      width: 100%;
+    }
+
+    .resume-shell {
+      width: 100%;
+      border: 1px solid #d8e1ea;
+      background: #ffffff;
+      padding: 12px;
+    }
+
+    .hero-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #183c5c;
+    }
+
+    .hero-avatar {
+      width: 88px;
+      vertical-align: top;
+      padding-right: 12px;
+    }
+
+    .avatar-box {
+      width: 72px;
+      height: 72px;
+      border: 1px solid #d5e0ea;
+      background: #f4f7fa;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 20pt;
+      font-weight: bold;
+      color: #183c5c;
+    }
+
+    .avatar-box img {
+      width: 72px;
+      height: 72px;
+      display: block;
+      object-fit: cover;
+    }
+
+    .hero-main {
+      vertical-align: top;
+      padding-right: 12px;
+    }
+
+    .hero-side {
+      width: 34%;
+      vertical-align: top;
+    }
+
+    .name {
+      margin: 0 0 6px;
+      font-size: 22pt;
+      line-height: 1.02;
+      font-weight: bold;
+      color: #17324a;
+    }
+
+    .hero-subline {
+      margin: 0;
+      color: #445668;
+      font-size: 9.8pt;
+      line-height: 1.55;
+    }
+
+    .pill-table,
+    .meta-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 6px;
+    }
+
+    .pill-cell {
+      border: 1px solid #d8e1ea;
+      background: #ffffff;
+      padding: 6px 8px;
+      color: #17324a;
+      font-size: 8.4pt;
+    }
+
+    .meta-table td {
+      width: 50%;
+      padding: 0 6px 0 0;
+      vertical-align: top;
+    }
+
+    .meta-card {
+      border: 1px solid #d8e1ea;
+      background: #ffffff;
+      padding: 8px 10px;
+      min-height: 52px;
+    }
+
+    .meta-card-label {
+      display: block;
+      color: #6b8094;
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    .meta-card-value {
+      display: block;
+      color: #17324a;
+      font-size: 9pt;
+      font-weight: bold;
+    }
+
+    .section {
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      margin: 0 0 8px;
+      color: #1d5677;
+      font-size: 8.2pt;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid #d8e1ea;
+      padding-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .skills-table,
+    .box-table,
+    .experience-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+    }
+
+    .skills-table td,
+    .box-table td {
+      border: 1px solid #d8e1ea;
+      background: #ffffff;
+      padding: 7px 9px;
+      vertical-align: top;
+      color: #1f2f3d;
+    }
+
+    .box-title {
+      display: block;
+      color: #17324a;
+      font-weight: bold;
+      margin-bottom: 3px;
+    }
+
+    .box-line {
+      color: #445668;
+      font-size: 8.5pt;
+      line-height: 1.45;
+    }
+
+    .experience-card {
+      border: 1px solid #d8e1ea;
+      background: #ffffff;
+      padding: 10px 12px;
+      page-break-inside: avoid;
+    }
+
+    .experience-head {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4px;
+    }
+
+    .experience-title {
+      color: #17324a;
+      font-size: 10pt;
+      font-weight: bold;
+    }
+
+    .experience-duration {
+      text-align: right;
+      color: #6b8094;
+      font-size: 8pt;
+      white-space: nowrap;
+    }
+
+    .experience-company {
+      color: #1d5677;
+      font-size: 8.8pt;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+
+    .experience-meta {
+      color: #6b8094;
+      font-size: 8pt;
+      margin-bottom: 5px;
+    }
+
+    .detail-list {
+      margin: 0;
+      padding-left: 15px;
+      color: #445668;
+      font-size: 8.4pt;
+    }
+
+    .detail-list li {
+      margin-bottom: 3px;
+    }
+
+    .section-text {
+      margin: 0;
+      color: #445668;
+      white-space: pre-line;
+      font-size: 8.6pt;
+    }
+
+    .footer-note {
+      color: #7b8b9b;
+      text-align: left;
+      border-top: 1px solid #d8e1ea;
+      padding-top: 8px;
+      font-size: 7.6pt;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="resume-shell">
+      <table class="hero-table">
+        <tr>
+          <td class="hero-avatar">
+            <div class="avatar-box">
+              {% if candidate.profile_picture_url %}
+                <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+              {% else %}
+                {{ candidate.name|slice:":1" }}
+              {% endif %}
+            </div>
+          </td>
+          <td class="hero-main">
+            <div class="name">{{ candidate.name }}</div>
+            <p class="hero-subline">
+              {% if resume.summary %}
+                {{ resume.summary }}
+              {% elif resume.headline %}
+                {{ resume.headline }}
+              {% else %}
+                Professional candidate profile shared through Shortlistii.com.
+              {% endif %}
+            </p>
+            <table class="pill-table">
+              <tr>
+                {% if candidate.email %}<td class="pill-cell">{{ candidate.email }}</td>{% endif %}
+                {% if candidate.phone %}<td class="pill-cell">{{ candidate.phone }}</td>{% endif %}
+                {% if highlights.current_title %}<td class="pill-cell">{{ highlights.current_title }}</td>{% endif %}
+                {% if highlights.experience_years %}<td class="pill-cell">{{ highlights.experience_years }} years experience</td>{% endif %}
+              </tr>
+            </table>
+          </td>
+          <td class="hero-side">
+            <table class="meta-table">
+              <tr>
+                <td>
+                  <div class="meta-card">
+                    <span class="meta-card-label">Current Role</span>
+                    <span class="meta-card-value">{% if highlights.current_title %}{{ highlights.current_title }}{% elif resume.headline %}{{ resume.headline }}{% else %}Candidate{% endif %}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="meta-card">
+                    <span class="meta-card-label">Company</span>
+                    <span class="meta-card-value">{% if highlights.current_company %}{{ highlights.current_company }}{% else %}Available on request{% endif %}</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="meta-card">
+                    <span class="meta-card-label">Experience</span>
+                    <span class="meta-card-value">{% if highlights.experience_years %}{{ highlights.experience_years }} years{% else %}Not specified{% endif %}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="meta-card">
+                    <span class="meta-card-label">Resume Source</span>
+                    <span class="meta-card-value">{% if resume.source_file %}{{ resume.source_file }}{% else %}Digital profile{% endif %}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      {% if resume.skills %}
+        <div class="section">
+          <div class="section-title">Skills</div>
+          <table class="skills-table">
+            {% for skill in resume.skills %}
+              {% if forloop.first or forloop.counter0|divisibleby:4 %}<tr>{% endif %}
+              <td>{{ skill }}</td>
+              {% if forloop.counter|divisibleby:4 or forloop.last %}</tr>{% endif %}
+            {% endfor %}
+          </table>
+        </div>
+      {% endif %}
+
+      {% for section in resume.sections %}
+        {% if section.text or section.items %}
+          <div class="section">
+            <div class="section-title">{{ section.title }}</div>
+            {% if section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+              <table class="experience-table">
+                {% for item in section.items %}
+                  <tr>
+                    <td>
+                      <div class="experience-card">
+                        <table class="experience-head">
+                          <tr>
+                            <td class="experience-title">{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</td>
+                            <td class="experience-duration">{% if item.duration %}{{ item.duration }}{% endif %}</td>
+                          </tr>
+                        </table>
+                        {% if item.company %}<div class="experience-company">{{ item.company }}</div>{% endif %}
+                        {% if item.role or item.location %}
+                          <div class="experience-meta">
+                            {% if item.role %}{{ item.role }}{% endif %}{% if item.role and item.location %} | {% endif %}{% if item.location %}{{ item.location }}{% endif %}
+                          </div>
+                        {% endif %}
+                        {% if item.details %}
+                          <ul class="detail-list">
+                            {% for detail in item.details %}
+                              <li>{{ detail }}</li>
+                            {% endfor %}
+                          </ul>
+                        {% elif item.description %}
+                          <p class="section-text">{{ item.description }}</p>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </table>
+            {% elif section.items %}
+              <table class="box-table">
+                {% for item in section.items %}
+                  <tr>
+                    <td>
+                      {% if item.title %}
+                        <span class="box-title">{{ item.title }}</span>
+                      {% elif item.degree %}
+                        <span class="box-title">{{ item.degree }}</span>
+                      {% elif item.label %}
+                        <span class="box-title">{{ item.label }}</span>
+                      {% endif %}
+                      {% if item.company %}<div class="box-line">{{ item.company }}</div>{% endif %}
+                      {% if item.institution %}<div class="box-line">{{ item.institution }}</div>{% endif %}
+                      {% if item.issuer %}<div class="box-line">{{ item.issuer }}</div>{% endif %}
+                      {% if item.duration %}<div class="box-line">{{ item.duration }}</div>{% endif %}
+                      {% if item.location %}<div class="box-line">{{ item.location }}</div>{% endif %}
+                      {% if item.value %}<div class="box-line">{{ item.value }}</div>{% endif %}
+                      {% if item.description %}<div class="box-line">{{ item.description }}</div>{% endif %}
+                      {% if item.details %}
+                        {% for detail in item.details %}
+                          <div class="box-line">{{ detail }}</div>
+                        {% endfor %}
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </table>
+            {% elif section.text %}
+              <p class="section-text">{{ section.text }}</p>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <div class="footer-note">Shared through Shortlistii.com.</div>
+    </div>
+  </div>
+</body>
+</html>

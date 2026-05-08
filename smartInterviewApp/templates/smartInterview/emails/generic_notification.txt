@@ -1,0 +1,15 @@
+{% extends "smartInterview/emails/base.txt" %}
+
+{% block body %}
+{{ headline|default:"Shortlistii notification" }}
+
+{% if intro %}{{ intro }}
+
+{% endif %}{% if body_copy %}{{ body_copy }}
+
+{% endif %}{% for item in details %}{{ item.label }}: {{ item.value }}
+{% endfor %}
+{% if button_url %}{{ button_label|default:"Open link" }}:
+{{ button_url }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/notifications/components/notification-console/notification-console.scss"],
+  "sourcesContent": [".notification-console {\n  margin-top: 1.25rem;\n  padding: 1rem;\n  border-radius: 0.85rem;\n  background: linear-gradient(120deg, rgba(30, 41, 59, 0.75), rgba(12, 74, 110, 0.65));\n  border: 1px solid rgba(148, 163, 184, 0.3);\n\n  h3 {\n    margin: 0 0 0.8rem;\n    color: #e2e8f0;\n  }\n\n  .grid {\n    display: grid;\n    gap: 0.8rem;\n    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));\n  }\n}\n"],
+  "mappings": "AAAA,CAAA,qBACE,WAAA,QADF,QAEE,KAFF,cAGE,OACA,WAAA,gBAAA,MAAA,CAAA,SAAA,CAAA,WACA,OAAA,IAAA,MAAA,KAAA,GAAA,CAAA,GAAA,CAAA,GAAA,CAAA,IAEA,CAPF,qBAOE,GAPF,OAQI,EAAA,EAAA,MACA,MAAA,QAGF,CAZF,qBAYE,CAAA,KACE,QAAA,KACA,IAAA,MACA,sBAAA,OAAA,QAAA,CAAA,OAAA,KAAA,CAAA",
+  "names": []
+}

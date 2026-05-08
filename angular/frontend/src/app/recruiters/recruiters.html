@@ -1,0 +1,496 @@
+<section class="recruiters-shell" [attr.aria-busy]="loading || detailLoading">
+  <div class="recruiters-overview" *ngIf="!loading; else recruitersOverviewSkeleton">
+    <article class="insight-card" *ngFor="let card of recruiterSummaryCards">
+      <div class="insight-icon">
+        <i class="ph" [ngClass]="card.icon"></i>
+      </div>
+      <div class="insight-copy">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.helper }}</small>
+      </div>
+    </article>
+  </div>
+
+  <ng-template #recruitersOverviewSkeleton>
+    <div class="recruiters-overview recruiters-skeleton recruiters-overview-skeleton" aria-hidden="true">
+      <article class="insight-card skeleton-card recruiters-summary-skeleton" *ngFor="let _ of [1, 2, 3, 4]">
+        <div class="skeleton-icon"></div>
+        <div class="recruiters-skeleton-stack">
+          <div class="skeleton-line skeleton-line-label"></div>
+          <div class="skeleton-line skeleton-line-value"></div>
+          <div class="skeleton-line skeleton-line-helper"></div>
+        </div>
+      </article>
+    </div>
+  </ng-template>
+
+  <div class="recruiters-layout">
+    <aside class="recruiters-sidebar">
+    <ng-container *ngIf="!loading; else recruitersSidebarSkeleton">
+    <div class="recruiters-head">
+      <div>
+        <h3><i class="ph ph-identification-badge"></i>Recruiters</h3>
+        <p>Review recruiter ownership, search the directory, and open detailed activity analytics.</p>
+      </div>
+      <button class="primary-btn" type="button" (click)="addRecruiter()"><i class="ph ph-plus"></i>Add Recruiter</button>
+    </div>
+
+    <div class="recruiters-toolbar">
+      <div class="stat-chip">
+        <span><i class="ph ph-stack"></i> Total</span>
+        <strong>{{ totalRecruiters }}</strong>
+      </div>
+      <div class="stat-chip">
+        <span><i class="ph ph-eye"></i> Showing</span>
+        <strong>{{ displayedRecruiters }}</strong>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <i class="ph ph-magnifying-glass"></i>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (input)="applyFilter()"
+        placeholder="Search by name, role, email, phone"
+      />
+      <button *ngIf="searchTerm" class="clear-btn" type="button" (click)="clearSearch()">Clear</button>
+    </div>
+
+    <div *ngIf="errorMessage" class="error-banner">{{ errorMessage }}</div>
+
+    <div class="list-section-head">
+      <div>
+        <h4><i class="ph ph-identification-card"></i>Recruiter Directory</h4>
+        <p>Select a recruiter to inspect ownership, linked evaluator capacity, and interview analytics.</p>
+      </div>
+      <span class="directory-count">{{ displayedRecruiters }}</span>
+    </div>
+
+    <div class="list-wrap" *ngIf="!loading">
+      <button
+        *ngFor="let recruiter of filteredRecruiters"
+        type="button"
+        class="recruiter-item"
+        [class.active]="selectedRecruiter?.id === recruiter.id"
+        (click)="openRecruiter(recruiter)">
+        <span class="avatar">{{ getInitials(recruiter.name) }}</span>
+        <span class="recruiter-meta">
+          <span class="name">{{ recruiter.name }}</span>
+          <span class="sub">{{ recruiter.role | titlecase }} • {{ recruiter.email }}</span>
+          <span class="sub">{{ recruiter.interviewers_count || 0 }} evaluators • {{ recruiter.candidates_count || 0 }} candidates</span>
+        </span>
+      </button>
+
+      <div class="state-card compact" *ngIf="!filteredRecruiters.length">
+        No recruiter records found.
+      </div>
+    </div>
+    </ng-container>
+
+    <ng-template #recruitersSidebarSkeleton>
+      <div class="recruiters-skeleton recruiters-sidebar-skeleton" aria-hidden="true">
+        <div class="recruiters-head recruiters-skeleton-head">
+          <div class="recruiters-skeleton-stack">
+            <div class="skeleton-line skeleton-line-title"></div>
+            <div class="skeleton-line skeleton-line-body"></div>
+          </div>
+          <div class="skeleton-chip skeleton-chip-button"></div>
+        </div>
+
+        <div class="recruiters-toolbar recruiters-skeleton-toolbar">
+          <div class="stat-chip skeleton-card recruiters-stat-skeleton" *ngFor="let _ of [1, 2]">
+            <div class="skeleton-line skeleton-line-label"></div>
+            <div class="skeleton-line skeleton-line-value"></div>
+          </div>
+        </div>
+
+        <div class="search-wrap recruiters-search-skeleton skeleton-card">
+          <div class="skeleton-icon"></div>
+          <div class="skeleton-line skeleton-line-search"></div>
+        </div>
+
+        <div class="list-section-head recruiters-skeleton-list-head">
+          <div class="recruiters-skeleton-stack">
+            <div class="skeleton-line skeleton-line-panel-title"></div>
+            <div class="skeleton-line skeleton-line-body short"></div>
+          </div>
+          <div class="skeleton-chip skeleton-chip-count"></div>
+        </div>
+
+        <div class="list-wrap recruiters-list-skeleton">
+          <div class="recruiter-item recruiters-item-skeleton skeleton-card" *ngFor="let _ of [1, 2, 3, 4, 5]" aria-hidden="true">
+            <div class="skeleton-avatar"></div>
+            <div class="recruiters-skeleton-stack">
+              <div class="skeleton-line skeleton-line-item-title"></div>
+              <div class="skeleton-line skeleton-line-item-sub"></div>
+              <div class="skeleton-line skeleton-line-item-sub short"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-template>
+    </aside>
+
+    <main class="recruiters-profile-panel">
+    <ng-container *ngIf="selectedRecruiter || loading; else recruiterPlaceholder">
+      <ng-container *ngIf="loading || detailLoading; else recruiterDetailContent">
+        <div class="recruiters-skeleton recruiters-detail-skeleton" aria-hidden="true">
+          <section class="profile-workspace-head recruiters-detail-head-skeleton skeleton-card">
+            <div class="workspace-identity">
+              <div class="skeleton-avatar skeleton-avatar-lg"></div>
+              <div class="recruiters-skeleton-stack">
+                <div class="skeleton-line skeleton-line-kicker"></div>
+                <div class="skeleton-line skeleton-line-title"></div>
+                <div class="skeleton-line skeleton-line-body"></div>
+                <div class="skeleton-line skeleton-line-body short"></div>
+              </div>
+            </div>
+            <div class="workspace-actions recruiters-skeleton-actions">
+              <div class="workspace-badges recruiters-skeleton-badges">
+                <div class="skeleton-chip" *ngFor="let _ of [1, 2, 3]"></div>
+              </div>
+              <div class="skeleton-chip skeleton-chip-button"></div>
+            </div>
+          </section>
+
+          <div class="recruiter-detail-grid">
+            <section class="detail-panel recruiters-detail-panel-skeleton skeleton-card">
+              <div class="recruiters-skeleton-panel-head">
+                <div class="recruiters-skeleton-stack">
+                  <div class="skeleton-line skeleton-line-kicker"></div>
+                  <div class="skeleton-line skeleton-line-panel-title"></div>
+                </div>
+                <div class="skeleton-icon"></div>
+              </div>
+              <div class="recruiters-skeleton-stack">
+                <div class="skeleton-bar-row" *ngFor="let _ of [1, 2]">
+                  <div class="recruiters-skeleton-stack">
+                    <div class="skeleton-line skeleton-line-label"></div>
+                    <div class="skeleton-line skeleton-line-value short"></div>
+                  </div>
+                  <div class="skeleton-line skeleton-line-helper short"></div>
+                </div>
+                <div class="skeleton-track"><span></span></div>
+                <div class="skeleton-track secondary"><span></span></div>
+              </div>
+            </section>
+
+            <section class="detail-panel recruiters-detail-panel-skeleton skeleton-card">
+              <div class="recruiters-skeleton-panel-head">
+                <div class="recruiters-skeleton-stack">
+                  <div class="skeleton-line skeleton-line-kicker"></div>
+                  <div class="skeleton-line skeleton-line-panel-title"></div>
+                </div>
+                <div class="panel-switcher recruiters-skeleton-switcher">
+                  <div class="skeleton-chip skeleton-chip-nav"></div>
+                  <div class="skeleton-line skeleton-line-switcher"></div>
+                  <div class="skeleton-chip skeleton-chip-nav"></div>
+                </div>
+              </div>
+              <div class="recruiters-skeleton-stack">
+                <div class="skeleton-bar-row" *ngFor="let _ of [1, 2, 3, 4, 5]">
+                  <div class="skeleton-line skeleton-line-month"></div>
+                  <div class="skeleton-track"><span></span></div>
+                  <div class="skeleton-line skeleton-line-count"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="detail-panel detail-panel--wide recruiters-detail-panel-skeleton skeleton-card">
+              <div class="recruiters-skeleton-panel-head">
+                <div class="recruiters-skeleton-stack">
+                  <div class="skeleton-line skeleton-line-kicker"></div>
+                  <div class="skeleton-line skeleton-line-panel-title"></div>
+                </div>
+                <div class="panel-switcher recruiters-skeleton-switcher">
+                  <div class="skeleton-chip skeleton-chip-nav"></div>
+                  <div class="skeleton-line skeleton-line-switcher"></div>
+                  <div class="skeleton-chip skeleton-chip-nav"></div>
+                </div>
+              </div>
+              <div class="recruiters-skeleton-stack">
+                <div class="skeleton-bar-row role" *ngFor="let _ of [1, 2, 3, 4]">
+                  <div class="recruiters-skeleton-row-top">
+                    <div class="skeleton-line skeleton-line-item-title"></div>
+                    <div class="skeleton-line skeleton-line-count"></div>
+                  </div>
+                  <div class="skeleton-track"><span></span></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="detail-panel detail-panel--wide recruiters-detail-panel-skeleton skeleton-card">
+              <div class="recruiters-skeleton-panel-head">
+                <div class="recruiters-skeleton-stack">
+                  <div class="skeleton-line skeleton-line-kicker"></div>
+                  <div class="skeleton-line skeleton-line-panel-title"></div>
+                </div>
+              </div>
+              <div class="insight-mini-grid recruiters-insight-skeleton-grid">
+                <article class="insight-mini-card skeleton-card" *ngFor="let _ of [1, 2, 3, 4]">
+                  <div class="skeleton-line skeleton-line-label"></div>
+                  <div class="skeleton-line skeleton-line-value short"></div>
+                </article>
+              </div>
+              <div class="busiest-day-card skeleton-card recruiters-busiest-skeleton">
+                <div class="skeleton-line skeleton-line-label"></div>
+                <div class="skeleton-line skeleton-line-panel-title"></div>
+                <div class="skeleton-line skeleton-line-helper short"></div>
+              </div>
+              <div class="highlight-list recruiters-highlight-skeleton">
+                <article class="highlight-card skeleton-card" *ngFor="let _ of [1, 2, 3]">
+                  <div class="skeleton-line skeleton-line-label"></div>
+                  <div class="skeleton-line skeleton-line-value"></div>
+                  <div class="skeleton-line skeleton-line-helper"></div>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #recruiterDetailContent>
+      <div class="profile-workspace-head">
+        <div class="workspace-identity">
+          <div class="workspace-avatar">
+            <img
+              *ngIf="selectedRecruiter!.gender === 'female'; else recruiterDefaultAvatar"
+              src="static/assets/images/girl.png"
+              alt="Recruiter profile"
+            />
+            <ng-template #recruiterDefaultAvatar>
+              <img src="static/assets/images/boy.png" alt="Recruiter profile" />
+            </ng-template>
+          </div>
+          <div>
+            <span class="workspace-kicker"><i class="ph ph-user-circle"></i>Recruiter Workspace</span>
+            <h3>{{ selectedRecruiter!.name }}</h3>
+            <p>{{ recruiterNarrative }}</p>
+          </div>
+        </div>
+        <div class="workspace-actions">
+          <div class="workspace-badges">
+            <span class="workspace-pill">
+              <i class="ph ph-users-three"></i>
+              {{ selectedRecruiter!.candidates_count || 0 }} candidates
+            </span>
+            <span class="workspace-pill">
+              <i class="ph ph-user-list"></i>
+              {{ selectedRecruiter!.interviewers_count || 0 }} evaluators
+            </span>
+            <span class="workspace-pill" *ngIf="selectedRecruiter!.phone">
+              <i class="ph ph-phone"></i>
+              {{ selectedRecruiter!.phone }}
+            </span>
+          </div>
+          <div class="header-edit-actions">
+            <button class="ghost-btn" type="button" *ngIf="isEditingProfile" (click)="cancelEditProfile()" [disabled]="savingProfile">
+              <i class="ph ph-x"></i>Cancel
+            </button>
+            <button class="edit-profile-btn" type="button" *ngIf="!isEditingProfile" (click)="openEditProfile()">
+              <i class="ph ph-pencil-simple"></i>Edit Profile
+            </button>
+            <button class="edit-profile-btn" type="button" *ngIf="isEditingProfile" (click)="saveRecruiterProfile()" [disabled]="savingProfile">
+              <i class="ph" [class.ph-spinner-gap]="savingProfile" [class.ph-floppy-disk]="!savingProfile"></i>{{ savingProfile ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <section class="detail-panel edit-panel" *ngIf="isEditingProfile">
+        <div class="detail-panel-head">
+          <div>
+            <span class="detail-kicker">Profile Maintenance</span>
+            <h4><i class="ph ph-user-gear"></i>Edit Recruiter Details</h4>
+          </div>
+        </div>
+        <div class="edit-grid">
+          <label class="field-block">
+            <span>Full Name</span>
+            <input type="text" [(ngModel)]="editableRecruiter.name" placeholder="Full name" />
+          </label>
+          <label class="field-block">
+            <span>Email Address</span>
+            <input type="email" [(ngModel)]="editableRecruiter.email" placeholder="Email address" />
+          </label>
+          <label class="field-block">
+            <span>Phone Number</span>
+            <input type="text" [(ngModel)]="editableRecruiter.phone" placeholder="Phone number" inputmode="numeric" appDigitsOnly />
+          </label>
+          <label class="field-block">
+            <span>Gender</span>
+            <select [(ngModel)]="editableRecruiter.gender">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div class="edit-status error" *ngIf="saveErrorMessage">{{ saveErrorMessage }}</div>
+      <div class="edit-status success" *ngIf="saveSuccessMessage">{{ saveSuccessMessage }}</div>
+
+      <div class="recruiter-detail-grid">
+        <section class="detail-panel">
+          <div class="detail-panel-head">
+            <div>
+              <span class="detail-kicker">Operational Health</span>
+              <h4><i class="ph ph-chart-line-up"></i>Coverage Analytics</h4>
+            </div>
+            <i class="ph ph-chart-line-up"></i>
+          </div>
+          <div class="metric-block">
+            <div class="metric-row">
+              <div>
+                <span class="metric-label">Candidate ownership share</span>
+                <strong>{{ candidateLoadPercent }}%</strong>
+              </div>
+              <span class="metric-caption">{{ selectedRecruiter!.candidates_count || 0 }} of {{ totalManagedCandidates }} total candidates</span>
+            </div>
+            <div class="metric-track">
+              <span [style.width.%]="candidateLoadPercent"></span>
+            </div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-row">
+              <div>
+                <span class="metric-label">Evaluator network share</span>
+                <strong>{{ evaluatorCoveragePercent }}%</strong>
+              </div>
+              <span class="metric-caption">{{ selectedRecruiter!.interviewers_count || 0 }} of {{ totalLinkedEvaluators }} linked evaluators</span>
+            </div>
+            <div class="metric-track secondary">
+              <span [style.width.%]="evaluatorCoveragePercent"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="detail-panel">
+          <div class="detail-panel-head">
+            <div>
+              <span class="detail-kicker">Yearly Performance</span>
+              <h4><i class="ph ph-chart-bar"></i>Evaluator-Driven Interview Volume</h4>
+            </div>
+            <div class="panel-switcher">
+              <button type="button" (click)="changePerformanceYear(-1)" [disabled]="!canGoPrevPerformanceYear">‹</button>
+              <span>{{ performanceYear }}</span>
+              <button type="button" (click)="changePerformanceYear(1)" [disabled]="!canGoNextPerformanceYear">›</button>
+            </div>
+          </div>
+          <div class="inline-state error" *ngIf="detailErrorMessage">{{ detailErrorMessage }}</div>
+          <div class="year-performance-list" *ngIf="!detailErrorMessage">
+            <div class="year-performance-row" *ngFor="let item of yearlyPerformanceBars">
+              <span class="year-label">{{ item.label }}</span>
+              <div class="year-bar"><span [style.width.%]="yearBarWidth(item.count)"></span></div>
+              <strong>{{ item.count }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="detail-panel detail-panel--wide recruiter-alerts-panel">
+          <div class="detail-panel-head">
+            <div>
+              <span class="detail-kicker"><i class="ph ph-siren"></i>Recruiter Alerts</span>
+              <h6>What needs attention now</h6>
+            </div>
+          </div>
+          <div class="recruiter-alert-list">
+            <article class="recruiter-alert-card" *ngFor="let alert of recruiterAlerts" [class.warning]="alert.type === 'warning'" [class.info]="alert.type === 'info'" [class.success]="alert.type === 'success'">
+              <div class="recruiter-alert-icon">
+                <i class="ph" [class.ph-warning-circle]="alert.type === 'warning'" [class.ph-info]="alert.type === 'info'" [class.ph-check-circle]="alert.type === 'success'"></i>
+              </div>
+              <div class="recruiter-alert-copy">
+                <strong>{{ alert.title }}</strong>
+                <p>{{ alert.message }}</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="detail-panel detail-panel--wide">
+          <div class="detail-panel-head">
+            <div>
+              <span class="detail-kicker"><i class="ph ph-briefcase"></i>Role Workload</span>
+              <h6>Monthly Distribution by Role</h6>
+            </div>
+            <div class="panel-switcher">
+              <button type="button" (click)="changeInsightsMonth(-1)" [disabled]="!canGoPrevInsightsMonth">‹</button>
+              <span>{{ insightsMonthName }} {{ insightsYear }}</span>
+              <button type="button" (click)="changeInsightsMonth(1)" [disabled]="!canGoNextInsightsMonth">›</button>
+            </div>
+          </div>
+          <div class="role-bars" *ngIf="selectedMonthTopRoles.length; else noRoleData">
+            <div class="role-row" *ngFor="let item of selectedMonthTopRoles">
+              <div class="role-row-top">
+                <span>{{ item.role }}</span>
+                <span>{{ item.count }}</span>
+              </div>
+              <div class="role-bar"><span [style.width.%]="roleBarWidth(item.count)"></span></div>
+            </div>
+          </div>
+          <ng-template #noRoleData>
+            <div class="inline-state">No role workload data for this month.</div>
+          </ng-template>
+        </section>
+
+        <section class="detail-panel detail-panel--wide">
+          <div class="detail-panel-head">
+            <div>
+              <span class="detail-kicker"><i class="ph ph-lightbulb"></i>Monthly Insights </span>
+              <h6>Recruiter Highlights</h6>
+            </div>
+          </div>
+          <div class="insight-mini-grid">
+            <article class="insight-mini-card">
+              <span><i class="ph ph-chats-teardrop"></i>Total Interviews</span>
+              <strong>{{ selectedMonthInterviews }}</strong>
+            </article>
+            <article class="insight-mini-card">
+              <span><i class="ph ph-calendar-dots"></i>Active Days</span>
+              <strong>{{ selectedMonthActiveDays }}</strong>
+            </article>
+            <article class="insight-mini-card">
+              <span><i class="ph ph-chart-bar"></i>Avg / Active Day</span>
+              <strong>{{ selectedMonthAvgPerActiveDay }}</strong>
+            </article>
+            <article class="insight-mini-card">
+              <span><i class="ph ph-clock"></i>Scheduled</span>
+              <strong>{{ selectedMonthScheduledCount }}</strong>
+            </article>
+          </div>
+          <div class="busiest-day-card">
+            <span><i class="ph ph-fire"></i>Busiest Day</span>
+            <strong>{{ selectedMonthBusiestDayLabel }}</strong>
+            <em *ngIf="selectedMonthBusiestCount > 0">{{ selectedMonthBusiestCount }} interviews</em>
+            <em *ngIf="selectedMonthBusiestCount === 0">No interviews this month</em>
+          </div>
+          <div class="highlight-list">
+            <article class="highlight-card" *ngFor="let item of selectedRecruiterHighlights" [class.accent]="item.tone === 'accent'">
+              <span>{{ item.title }}</span>
+              <strong>{{ item.value }}</strong>
+              <small>{{ item.helper }}</small>
+            </article>
+          </div>
+        </section>
+      </div>
+      </ng-template>
+    </ng-container>
+
+    <ng-template #recruiterPlaceholder>
+      <div class="profile-placeholder">
+        <div class="placeholder-art" aria-hidden="true">
+          <span class="ring ring-outer"></span>
+          <span class="ring ring-mid"></span>
+          <span class="ring ring-inner"></span>
+          <i class="ph ph-user-focus"></i>
+        </div>
+        <h3>Select a recruiter</h3>
+        <p>Choose a recruiter from the left panel to open a descriptive workspace with profile details and analytics.</p>
+      </div>
+    </ng-template>
+    </main>
+  </div>
+</section>

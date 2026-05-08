@@ -1,0 +1,1236 @@
+:host {
+  display: block;
+}
+
+.talent-pool {
+  --talent-border: rgba(137, 206, 246, 0.22);
+  --talent-border-soft: rgba(137, 206, 246, 0.16);
+  --talent-surface: rgba(8, 31, 62, 0.64);
+  --talent-surface-strong: rgba(8, 31, 62, 0.78);
+  --talent-surface-soft: rgba(7, 29, 56, 0.74);
+  --talent-surface-deep: rgba(6, 24, 49, 0.96);
+  --talent-chip-surface: rgba(11, 54, 95, 0.45);
+  --talent-ring: rgba(103, 239, 255, 0.14);
+  --talent-ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --talent-duration-fast: 180ms;
+  --talent-duration-base: 240ms;
+  --talent-toolbar-glow: rgba(103, 239, 255, 0.05);
+  display: grid;
+  gap: 18px;
+}
+
+.talent-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.talent-hero-copy,
+.talent-role-context,
+.talent-controls,
+.talent-stat-card,
+.talent-candidate-panel,
+.talent-side-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--talent-border);
+  background: var(--talent-surface);
+  box-shadow: none;
+}
+
+.talent-hero-copy::before,
+.talent-role-context::before,
+.talent-controls::before,
+.talent-stat-card::before,
+.talent-candidate-panel::before,
+.talent-side-card::before,
+.talent-hero-copy::after,
+.talent-role-context::after,
+.talent-controls::after,
+.talent-stat-card::after,
+.talent-candidate-panel::after,
+.talent-side-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.talent-hero-copy::before,
+.talent-role-context::before,
+.talent-controls::before,
+.talent-stat-card::before,
+.talent-candidate-panel::before,
+.talent-side-card::before {
+  inset: 1px 1px auto;
+  height: 72px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02) 45%, transparent 100%);
+  opacity: 0.5;
+}
+
+.talent-hero-copy::after,
+.talent-role-context::after,
+.talent-controls::after,
+.talent-stat-card::after,
+.talent-candidate-panel::after,
+.talent-side-card::after {
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(210, 240, 255, 0.03),
+    inset 0 18px 26px rgba(103, 239, 255, 0.035);
+}
+
+.talent-hero-copy,
+.talent-role-context {
+  padding: 24px;
+  border-radius: 24px;
+}
+
+.talent-kicker,
+.talent-section-kicker,
+.talent-context-label,
+.talent-label,
+.talent-explanation-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(146, 205, 255, 0.74);
+}
+
+.talent-hero-copy h2,
+.talent-panel-head h3,
+.talent-results-summary h4 {
+  margin: 10px 0 8px;
+  color: #f4f8ff;
+}
+
+.talent-hero-copy h2 {
+  font-size: clamp(1.7rem, 1.5rem + 0.8vw, 2.35rem);
+}
+
+.talent-hero-copy p,
+.talent-role-context small,
+.talent-side-copy,
+.talent-empty p,
+.loading-state p,
+.error-state p,
+.talent-results-summary p {
+  margin: 0;
+  color: rgba(199, 220, 245, 0.76);
+  line-height: 1.6;
+}
+
+.talent-side-copy i {
+  margin-right: 8px;
+  color: rgba(157, 210, 255, 0.76);
+}
+
+.talent-role-context {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.talent-role-context strong {
+  font-size: 1.15rem;
+  color: #f4f8ff;
+  overflow-wrap: anywhere;
+}
+
+.talent-controls {
+  position: sticky;
+  top: calc(72px + 16px);
+  z-index: 4;
+  border-radius: 22px;
+  padding: 18px;
+  overflow: visible;
+}
+
+.talent-control-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(180px, 0.9fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.talent-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.talent-field-search {
+  min-width: 0;
+}
+
+.talent-role-search {
+  position: relative;
+  z-index: 6;
+}
+
+.talent-role-search-shell input {
+  padding-right: 42px;
+}
+
+.talent-role-search-shell.open {
+  border-color: rgba(103, 239, 255, 0.24);
+  box-shadow: 0 0 0 1px rgba(83, 214, 255, 0.24);
+  background: rgba(7, 27, 61, 0.95);
+}
+
+.talent-role-clear {
+  position: absolute;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(190, 215, 241, 0.74);
+  cursor: pointer;
+  transition:
+    color var(--talent-duration-fast) var(--talent-ease-premium),
+    background var(--talent-duration-fast) var(--talent-ease-premium);
+}
+
+.talent-role-clear:hover,
+.talent-role-clear:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf5ff;
+  outline: none;
+}
+
+.talent-role-options {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: 12;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--talent-border);
+  border-radius: 18px;
+  background: rgba(6, 24, 49, 0.96);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.talent-role-option {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--talent-border-soft);
+  border-radius: 14px;
+  background: rgba(10, 34, 66, 0.72);
+  color: #d9efff;
+  text-align: left;
+  transition:
+    border-color var(--talent-duration-fast) var(--talent-ease-premium),
+    background var(--talent-duration-fast) var(--talent-ease-premium),
+    transform var(--talent-duration-fast) var(--talent-ease-premium),
+    box-shadow var(--talent-duration-fast) var(--talent-ease-premium);
+}
+
+.talent-role-option span,
+.talent-role-option small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.talent-role-option span {
+  color: #f1f8ff;
+  font-weight: 600;
+}
+
+.talent-role-option small {
+  color: rgba(187, 212, 238, 0.7);
+}
+
+.talent-role-option:hover,
+.talent-role-option:focus-visible,
+.talent-role-option.active {
+  border-color: rgba(103, 239, 255, 0.2);
+  background: rgba(10, 37, 69, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(2, 10, 24, 0.14);
+  outline: none;
+}
+
+.talent-role-empty {
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: rgba(187, 212, 238, 0.72);
+  text-align: center;
+  background: rgba(10, 34, 66, 0.42);
+}
+
+.talent-input-shell,
+.talent-select-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--talent-border-soft);
+  border-radius: 16px;
+  background: rgba(5, 24, 49, 0.66);
+  transition:
+    border-color var(--talent-duration-fast) var(--talent-ease-premium),
+    box-shadow var(--talent-duration-fast) var(--talent-ease-premium),
+    background var(--talent-duration-fast) var(--talent-ease-premium),
+    transform var(--talent-duration-fast) var(--talent-ease-premium);
+}
+
+.talent-input-shell i,
+.talent-select-shell i {
+  position: absolute;
+  left: 14px;
+  color: rgba(152, 204, 255, 0.62);
+  pointer-events: none;
+}
+
+.talent-input-shell input,
+.talent-select-shell select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #edf5ff;
+  padding: 13px 14px 13px 42px;
+  font: inherit;
+}
+
+.talent-select-shell select {
+  appearance: none;
+  padding-right: 42px;
+}
+
+.talent-input-shell:hover,
+.talent-select-shell:hover {
+  border-color: rgba(103, 239, 255, 0.22);
+}
+
+.talent-input-shell:focus-within,
+.talent-select-shell:focus-within {
+  border-color: rgba(103, 239, 255, 0.3);
+  box-shadow: 0 0 0 1px rgba(83, 214, 255, 0.3);
+  background: rgba(7, 27, 61, 0.95);
+  transform: translateY(-1px);
+}
+
+.talent-reset,
+.talent-fit-chip,
+.talent-action,
+.talent-page-button {
+  border: 1px solid transparent;
+  transition:
+    transform var(--talent-duration-fast) var(--talent-ease-premium),
+    border-color var(--talent-duration-fast) var(--talent-ease-premium),
+    background var(--talent-duration-fast) var(--talent-ease-premium),
+    box-shadow var(--talent-duration-fast) var(--talent-ease-premium),
+    color var(--talent-duration-fast) var(--talent-ease-premium),
+    opacity var(--talent-duration-fast) var(--talent-ease-premium);
+}
+
+.talent-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: rgba(8, 31, 62, 0.5);
+  border-color: var(--talent-border);
+  color: #d9eaff;
+}
+
+.talent-fit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(136, 191, 243, 0.08);
+}
+
+.talent-fit-chip {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border-color: var(--talent-border);
+  background: rgba(8, 31, 62, 0.5);
+  color: rgba(221, 236, 255, 0.86);
+}
+
+.talent-fit-chip.active {
+  background: linear-gradient(135deg, rgba(153, 211, 255, 0.98), rgba(107, 185, 255, 0.92));
+  color: #07203d;
+  box-shadow: 0 18px 30px rgba(92, 174, 255, 0.22);
+}
+
+.talent-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.talent-stat-card {
+  border-radius: 20px;
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.talent-stat-card span,
+.talent-spotlight-stats span,
+.talent-side-list span,
+.talent-metadata span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(198, 223, 248, 0.76);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.talent-stat-card strong,
+.talent-spotlight-stats strong {
+  font-size: 1.9rem;
+  color: #f8fbff;
+}
+
+.talent-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.talent-main,
+.talent-side {
+  min-width: 0;
+}
+
+.talent-side {
+  display: grid;
+  gap: 18px;
+}
+
+.talent-candidate-panel,
+.talent-side-card {
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.talent-side-card {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.talent-side-card .talent-panel-head {
+  margin-bottom: 0;
+}
+
+.talent-side-card .talent-panel-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.talent-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.talent-panel-meta {
+  color: rgba(171, 204, 240, 0.72);
+  font-size: 0.93rem;
+}
+
+.talent-results-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--talent-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 42%),
+    radial-gradient(circle at top right, var(--talent-toolbar-glow), transparent 42%),
+    linear-gradient(180deg, rgba(8, 31, 62, 0.62), rgba(7, 27, 54, 0.58));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(137, 206, 246, 0.05);
+}
+
+.talent-results-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.talent-results-summary h4 {
+  font-size: 1rem;
+}
+
+.talent-results-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.talent-results-count {
+  display: grid;
+  gap: 2px;
+  min-width: 84px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--talent-border-soft);
+  background: rgba(5, 24, 49, 0.76);
+  text-align: center;
+}
+
+.talent-results-count strong {
+  font-size: 1.2rem;
+  color: #f8fbff;
+}
+
+.talent-results-count span {
+  color: rgba(190, 215, 241, 0.68);
+  font-size: 0.84rem;
+}
+
+.talent-sort-field {
+  min-width: 210px;
+}
+
+.talent-candidate-list {
+  display: grid;
+  gap: 14px;
+  animation: talentListFadeIn 220ms var(--talent-ease-premium);
+  transform-origin: top center;
+}
+
+.talent-candidate-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--talent-border);
+  background: rgba(8, 31, 62, 0.5);
+  display: grid;
+  gap: 14px;
+  transition:
+    transform var(--talent-duration-base) var(--talent-ease-premium),
+    border-color var(--talent-duration-base) var(--talent-ease-premium),
+    box-shadow var(--talent-duration-base) var(--talent-ease-premium),
+    background var(--talent-duration-base) var(--talent-ease-premium);
+  will-change: transform, box-shadow, border-color, background;
+}
+
+.talent-candidate-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(103, 239, 255, 0.2);
+  box-shadow:
+    0 14px 30px rgba(2, 10, 24, 0.22),
+    0 0 0 1px rgba(180, 233, 255, 0.055),
+    0 0 0 4px rgba(103, 239, 255, 0.04);
+  background: rgba(9, 38, 73, 0.82);
+}
+
+.talent-candidate-card::before,
+.talent-candidate-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.talent-candidate-card::before {
+  inset: 1px 1px auto;
+  height: 64px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015) 48%, transparent 100%);
+  opacity: 0.42;
+}
+
+.talent-candidate-card::after {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(210, 240, 255, 0.025),
+    inset 0 14px 22px rgba(103, 239, 255, 0.028);
+}
+
+.talent-candidate-top {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.talent-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, rgba(146, 209, 255, 0.24), rgba(84, 153, 255, 0.2));
+  border: 1px solid rgba(156, 212, 255, 0.22);
+  color: #e9f5ff;
+  font-weight: 700;
+}
+
+.talent-candidate-copy,
+.talent-candidate-title-row,
+.talent-candidate-heading {
+  min-width: 0;
+}
+
+.talent-candidate-copy {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.talent-candidate-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.talent-candidate-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.talent-candidate-copy h4,
+.talent-candidate-copy p,
+.talent-recruiter-list strong {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.talent-candidate-copy h4 {
+  color: #f6fbff;
+  font-size: 1rem;
+}
+
+.talent-candidate-copy p,
+.talent-candidate-email {
+  color: rgba(190, 215, 241, 0.74);
+}
+
+.talent-candidate-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.talent-candidate-email span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.talent-match-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.talent-match-chip.strong {
+  background: rgba(43, 197, 140, 0.14);
+  border-color: rgba(61, 230, 164, 0.24);
+  color: #9ef2ca;
+}
+
+.talent-match-chip.good {
+  background: rgba(109, 183, 255, 0.14);
+  border-color: rgba(109, 183, 255, 0.2);
+  color: #a8d7ff;
+}
+
+.talent-match-chip.watch {
+  background: rgba(250, 200, 96, 0.12);
+  border-color: rgba(250, 200, 96, 0.2);
+  color: #f4d99a;
+}
+
+.talent-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(137, 206, 246, 0.12);
+  border-bottom: 1px solid rgba(137, 206, 246, 0.12);
+}
+
+.talent-card-body {
+  display: grid;
+  gap: 12px;
+}
+
+.talent-breakdown-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--talent-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 42%),
+    rgba(5, 24, 49, 0.42);
+}
+
+.talent-breakdown-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.talent-breakdown-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.talent-breakdown-kicker {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(160, 212, 255, 0.78);
+}
+
+.talent-breakdown-head p {
+  margin: 0;
+  color: rgba(190, 215, 241, 0.68);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.talent-breakdown-head strong {
+  flex: 0 0 auto;
+  color: #f8fbff;
+  font-size: 1.1rem;
+}
+
+.talent-breakdown-list {
+  display: grid;
+  gap: 10px;
+}
+
+.talent-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(104px, 0.72fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.talent-breakdown-label {
+  color: rgba(212, 230, 247, 0.86);
+  font-size: 0.84rem;
+}
+
+.talent-breakdown-row strong {
+  color: rgba(236, 245, 255, 0.92);
+  font-size: 0.83rem;
+}
+
+.talent-breakdown-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(10, 41, 76, 0.82);
+  border: 1px solid rgba(136, 191, 243, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.talent-breakdown-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(111, 185, 255, 0.72), rgba(104, 231, 255, 0.82));
+  box-shadow: 0 0 14px rgba(103, 239, 255, 0.12);
+}
+
+.talent-skill-group {
+  display: grid;
+  gap: 8px;
+}
+
+.talent-skill-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(195, 219, 245, 0.84);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.talent-skill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.talent-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--talent-border-soft);
+  background: rgba(7, 35, 67, 0.5);
+  color: rgba(222, 236, 255, 0.88);
+  font-size: 0.8rem;
+}
+
+.talent-skill-chip-match {
+  border-color: rgba(56, 218, 156, 0.26);
+  background: rgba(28, 112, 84, 0.16);
+  color: #a7efd1;
+}
+
+.talent-skill-chip-gap {
+  border-color: rgba(245, 183, 88, 0.24);
+  background: rgba(115, 69, 19, 0.16);
+  color: #f4d59e;
+}
+
+.talent-skill-chip-muted {
+  border-color: var(--talent-border-soft);
+  background: rgba(10, 40, 76, 0.45);
+  color: rgba(197, 220, 245, 0.76);
+}
+
+.talent-explanation-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--talent-border-soft);
+  background: rgba(5, 24, 49, 0.38);
+}
+
+.talent-explanation-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 6px;
+  color: rgba(189, 211, 236, 0.74);
+  font-size: 0.9rem;
+}
+
+.talent-explanation-list li {
+  overflow-wrap: anywhere;
+}
+
+.talent-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.talent-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+}
+
+.talent-action-primary {
+  background: linear-gradient(135deg, rgba(149, 214, 255, 0.98), rgba(101, 183, 255, 0.95));
+  color: #06203d;
+  box-shadow: 0 18px 30px rgba(89, 171, 255, 0.24);
+}
+
+.talent-action-secondary {
+  background: rgba(8, 31, 62, 0.5);
+  border-color: var(--talent-border);
+  color: #dcecff;
+}
+
+.talent-action.wide {
+  width: 100%;
+}
+
+.talent-side-card .talent-action.wide {
+  align-self: stretch;
+  margin-top: 2px;
+}
+
+.talent-spotlight-stats,
+.talent-side-list,
+.talent-recruiter-list {
+  display: grid;
+  gap: 12px;
+}
+
+.talent-spotlight-stats {
+  margin-top: 2px;
+}
+
+.talent-spotlight-stats article,
+.talent-side-list article,
+.talent-recruiter-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(8, 31, 62, 0.5);
+  border: 1px solid var(--talent-border);
+}
+
+.talent-recruiter-list article div {
+  min-width: 0;
+}
+
+.talent-recruiter-list span {
+  display: block;
+  color: rgba(187, 212, 238, 0.7);
+  font-size: 0.88rem;
+}
+
+.talent-recruiter-list b {
+  font-size: 1.15rem;
+  color: #f6fbff;
+}
+
+.talent-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(136, 191, 243, 0.08);
+}
+
+.talent-pagination-summary {
+  color: rgba(190, 215, 241, 0.76);
+}
+
+.talent-pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.talent-page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.talent-page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: rgba(8, 31, 62, 0.5);
+  border-color: var(--talent-border);
+  color: #dcecff;
+  backface-visibility: hidden;
+}
+
+.talent-page-button.active {
+  background: linear-gradient(135deg, rgba(153, 211, 255, 0.98), rgba(107, 185, 255, 0.92));
+  border-color: transparent;
+  color: #07203d;
+  box-shadow:
+    0 14px 24px rgba(92, 174, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.talent-page-button:not(:disabled):hover {
+  border-color: rgba(137, 235, 255, 0.24);
+  background: rgba(10, 37, 69, 0.62);
+}
+
+.talent-page-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  transition-duration: 120ms;
+}
+
+.talent-page-nav {
+  min-width: 108px;
+}
+
+.talent-empty,
+.loading-state,
+.error-state {
+  padding: 36px 24px;
+  border-radius: 22px;
+  border: 1px dashed rgba(137, 206, 246, 0.18);
+  background: rgba(8, 31, 62, 0.5);
+  text-align: center;
+}
+
+.talent-empty h4,
+.error-state h3 {
+  margin: 10px 0 8px;
+  color: #f6fbff;
+}
+
+.talent-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  background: rgba(109, 183, 255, 0.14);
+  color: #a8d7ff;
+  font-size: 1.45rem;
+}
+
+.talent-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.talent-skeleton-card,
+.talent-skeleton-row {
+  background:
+    linear-gradient(90deg, rgba(16, 31, 53, 0.72) 25%, rgba(31, 54, 84, 0.84) 50%, rgba(16, 31, 53, 0.72) 75%);
+  background-size: 220% 100%;
+  animation: talentShimmer 1.5s linear infinite;
+}
+
+.talent-skeleton-card {
+  min-height: 104px;
+  border-radius: 18px;
+}
+
+.talent-skeleton-list {
+  display: grid;
+  gap: 12px;
+}
+
+.talent-skeleton-row {
+  min-height: 132px;
+  border-radius: 20px;
+}
+
+.talent-reset:hover,
+.talent-fit-chip:hover,
+.talent-action:hover,
+.talent-page-button:hover,
+.talent-reset:focus-visible,
+.talent-fit-chip:focus-visible,
+.talent-action:focus-visible,
+.talent-page-button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.talent-action:hover,
+.talent-fit-chip:hover,
+.talent-page-button:hover,
+.talent-reset:hover {
+  box-shadow: 0 10px 20px rgba(2, 10, 24, 0.14);
+}
+
+.talent-reset:focus-visible,
+.talent-fit-chip:focus-visible,
+.talent-action:focus-visible,
+.talent-page-button:focus-visible,
+.talent-input-shell input:focus-visible,
+.talent-select-shell select:focus-visible {
+  outline: none;
+}
+
+.talent-reset:focus-visible,
+.talent-fit-chip:focus-visible,
+.talent-action:focus-visible,
+.talent-page-button:focus-visible {
+  border-color: rgba(132, 207, 255, 0.44);
+  box-shadow: 0 0 0 3px rgba(120, 194, 255, 0.18);
+}
+
+@supports not ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  .talent-hero-copy,
+  .talent-role-context,
+  .talent-controls,
+  .talent-stat-card,
+  .talent-candidate-panel,
+  .talent-side-card {
+    background: var(--talent-surface);
+  }
+}
+
+@media (max-width: 1180px) {
+  .talent-hero,
+  .talent-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-controls {
+    position: static;
+  }
+
+  .talent-control-grid,
+  .talent-stat-grid,
+  .talent-skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .talent-results-toolbar,
+  .talent-results-actions,
+  .talent-pagination {
+    align-items: stretch;
+  }
+
+  .talent-results-toolbar,
+  .talent-results-actions {
+    flex-direction: column;
+  }
+
+  .talent-sort-field {
+    min-width: 0;
+  }
+
+  .talent-metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-role-options {
+    position: static;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .talent-hero-copy,
+  .talent-role-context,
+  .talent-controls,
+  .talent-candidate-panel,
+  .talent-side-card,
+  .talent-stat-card {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .talent-control-grid,
+  .talent-stat-grid,
+  .talent-skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-candidate-title-row,
+  .talent-panel-head,
+  .talent-candidate-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .talent-breakdown-head,
+  .talent-breakdown-row {
+    grid-template-columns: 1fr;
+  }
+
+  .talent-card-actions {
+    flex-direction: column;
+  }
+
+  .talent-action,
+  .talent-results-count,
+  .talent-sort-field,
+  .talent-page-nav {
+    width: 100%;
+  }
+
+  .talent-pagination-controls,
+  .talent-page-numbers {
+    width: 100%;
+  }
+
+  .talent-page-button {
+    flex: 1 1 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .talent-candidate-list,
+  .talent-reset,
+  .talent-fit-chip,
+  .talent-action,
+  .talent-candidate-card,
+  .talent-skeleton-card,
+  .talent-skeleton-row,
+  .talent-page-button,
+  .talent-input-shell,
+  .talent-select-shell {
+    transition: none;
+    animation: none;
+    transform: none;
+  }
+}
+
+@keyframes talentShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+
+@keyframes talentListFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

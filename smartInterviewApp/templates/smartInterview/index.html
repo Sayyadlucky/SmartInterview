@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+{% load static %}
+{% load form_tags %}
+{% load host_links %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shortlistii | AI Hiring Intelligence Platform</title>
+  <meta
+    name="description"
+    content="Shortlistii is an AI-powered hiring intelligence platform for recruiters and hiring teams to shortlist candidates, manage interviews, and act on recruiter analytics."
+  />
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260408d">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260408a"></script>
+</head>
+<body class="landing-page">
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+
+  <header id="mainHeader">
+    <div class="header-shell">
+      <a href="#hero" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+
+      <nav id="mainMenu" aria-label="Primary navigation">
+        <a href="#hero">Home</a>
+        <a href="#operations">How It Works</a>
+        <a href="#ai-capabilities">Capabilities</a>
+        <a href="#platform-overview">Platform</a>
+        <a href="#analytics-layer">Analytics</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'contact' %}">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <button id="mobileMenuBtn" class="menu-toggle" aria-label="Open menu">
+          <i class="ph ph-list"></i>
+        </button>
+        <button id="openLoginBtn" class="btn btn-ghost">Sign In</button>
+      </div>
+    </div>
+  </header>
+
+  <aside id="mobileDrawer" class="mobile-drawer" aria-hidden="true">
+    <button id="closeMobileMenu" class="drawer-close" aria-label="Close menu">
+      <i class="ph ph-x"></i>
+    </button>
+    <nav class="drawer-nav" aria-label="Mobile navigation">
+      <a href="#hero">Home</a>
+      <a href="#operations">How It Works</a>
+      <a href="#ai-capabilities">Capabilities</a>
+      <a href="#platform-overview">Platform</a>
+      <a href="#analytics-layer">Analytics</a>
+      <a href="{% url 'jobs-portal' %}">Jobs</a>
+      <a href="{% url 'contact' %}">Contact</a>
+      <button id="drawerSignInBtn" class="btn btn-primary">Sign In</button>
+    </nav>
+  </aside>
+  <div id="mobileDrawerBackdrop" class="mobile-drawer-backdrop"></div>
+
+  <main>
+    <section id="hero" class="hero">
+      <div class="hero-backdrop" aria-hidden="true">
+        <span class="hero-glow hero-glow-a"></span>
+        <span class="hero-glow hero-glow-b"></span>
+        <span class="hero-beam hero-beam-a"></span>
+        <span class="hero-beam hero-beam-b"></span>
+        <span class="hero-grid"></span>
+      </div>
+      <div class="hero-orbits" aria-hidden="true">
+        <span class="orbit orbit-a"></span>
+        <span class="orbit orbit-b"></span>
+        <span class="orbit orbit-c"></span>
+      </div>
+
+      <div class="hero-layout">
+        <div class="hero-copy">
+          <p class="eyebrow">AI Hiring Platform For Recruiters</p>
+          <div class="wordmark shortlistii-wordmark hero-wordmark" aria-label="shortlistii.com">
+            <span class="logo-text">shortlist</span>
+            <span class="logo-ii" aria-hidden="true">
+              <span class="person">
+                <span class="head"></span>
+                <span class="body"></span>
+                <span class="tie"></span>
+              </span>
+              <span class="person">
+                <span class="head"></span>
+                <span class="body"></span>
+                <span class="tie"></span>
+              </span>
+            </span>
+            <span class="logo-dot">.</span>
+            <span class="com-vertical" aria-hidden="true">
+              <span>c</span>
+              <span>o</span>
+              <span>m</span>
+            </span>
+          </div>
+          <h1 class="hero-title">Hire faster with AI-powered candidate ranking and recruiter visibility.</h1>
+          <p class="subtitle hero-subtitle">
+            Shortlistii helps hiring teams reduce manual screening, run AI-powered interviews with Litio,
+            verify candidate identity, and track hiring performance from one structured workflow.
+          </p>
+
+          <div class="hero-actions hero-cta">
+            <a
+              id="getStartedBtn"
+              href="#platform-overview"
+              data-scroll-target="#platform-overview"
+              class="btn btn-primary"
+            >
+              Start Hiring Smarter
+            </a>
+            <a href="{% host_link request 'marketing_jobs' %}" class="btn btn-outline">View Open Roles</a>
+          </div>
+
+          <div class="hero-link-row">
+            <button type="button" class="hero-inline-link hero-inline-button" data-open-login>
+              <i class="ph ph-sign-in"></i>
+              Recruiter Sign In
+            </button>
+            <a href="{% host_link request 'marketing_candidate_login' %}" class="hero-inline-link">
+              <i class="ph ph-user-circle"></i>
+              Candidate Portal
+            </a>
+          </div>
+
+          <div class="hero-context-strip hero-trust">
+            <span class="context-chip"><i class="ph ph-sparkle"></i>AI candidate shortlisting</span>
+            <span class="context-chip"><i class="ph ph-chats-circle"></i>Litio AI interview sessions</span>
+            <span class="context-chip"><i class="ph ph-waveform"></i>Voice-verified interviews</span>
+            <span class="context-chip"><i class="ph ph-chart-line-up"></i>Recruiter and pipeline analytics</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Product preview">
+          <article class="hero-visual-window glass-card">
+            <div class="hero-visual-window__bar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="hero-visual-window__top">
+              <div>
+                <p class="hero-panel__eyebrow">AI Recruiter Workspace</p>
+                <h2>Shortlist, run Litio interviews, and review decision signals in one unified workspace.</h2>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Live view
+              </span>
+            </div>
+            <div class="hero-visual-window__metrics">
+              <article class="hero-mini-metric">
+                <span>Top shortlist</span>
+                <strong>5 high-fit candidates</strong>
+              </article>
+              <article class="hero-mini-metric">
+                <span>Litio sessions</span>
+                <strong>4 voice-verified</strong>
+              </article>
+              <article class="hero-mini-metric">
+                <span>Interview summaries</span>
+                <strong>2 ready to review</strong>
+              </article>
+            </div>
+            <div class="hero-visual-window__board">
+              <section class="hero-mini-panel">
+                <div class="preview-card__header">
+                  <span>Ranking</span>
+                  <span>Live shortlist</span>
+                </div>
+                <div class="hero-mini-list">
+                  <article>
+                    <strong>Aarav Mehta</strong>
+                    <span>94 fit score</span>
+                  </article>
+                  <article>
+                    <strong>Riya Nair</strong>
+                    <span>89 fit score</span>
+                  </article>
+                  <article>
+                    <strong>Neil Thomas</strong>
+                    <span>86 fit score</span>
+                  </article>
+                </div>
+              </section>
+              <section class="hero-mini-panel">
+                <div class="preview-card__header">
+                  <span>Litio</span>
+                  <span>Interview intelligence</span>
+                </div>
+                <div class="hero-mini-timeline">
+                  <div><span class="overlay-activity-dot"></span><strong>Voice verified for latest session</strong></div>
+                  <div><span class="overlay-activity-dot"></span><strong>Interview summary ready</strong></div>
+                  <div><span class="overlay-activity-dot"></span><strong>Suspicious signals reviewed</strong></div>
+                </div>
+              </section>
+            </div>
+          </article>
+          <div class="hero-floating-row">
+            <article class="hero-floating-card hero-floating-card--ranking preview-card">
+              <p class="hero-overlay-card__label">AI candidate ranking</p>
+              <strong>Prioritize stronger-fit profiles faster</strong>
+              <div class="hero-floating-bar"><span style="width: 82%"></span></div>
+            </article>
+            <article class="hero-floating-card hero-floating-card--activity preview-card">
+              <p class="hero-overlay-card__label">Litio interview intelligence</p>
+              <strong>Voice-verified sessions are ready for recruiter review</strong>
+            </article>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="hiring-flow-section reveal-up" aria-label="Hiring flow overview">
+      <div class="hiring-flow-strip glass-card">
+        <div class="hiring-flow-strip__top">
+          <p class="hiring-flow-strip__title">Hiring Flow From Intake To Hiring Intelligence</p>
+        </div>
+        <div class="hiring-flow-track" role="list" aria-label="Shortlistii workflow">
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-file-text"></i>
+            </span>
+            <span class="hiring-flow-label">Resume</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-sparkle"></i>
+            </span>
+            <span class="hiring-flow-label">AI Ranking</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-chats-circle"></i>
+            </span>
+            <span class="hiring-flow-label">Interview</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-check-circle"></i>
+            </span>
+            <span class="hiring-flow-label">Hiring Decision</span>
+          </div>
+          <div class="hiring-flow-step" role="listitem" tabindex="0">
+            <span class="hiring-flow-node">
+              <i class="ph ph-chart-line-up"></i>
+            </span>
+            <span class="hiring-flow-label">Analytics</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="positioning-strip" class="positioning-strip reveal-up">
+      <div class="positioning-strip__inner glass-card">
+        <div>
+          <p class="eyebrow">Built For Serious Hiring Teams</p>
+          <h2>AI shortlisting, interview workflows, and recruiter analytics in one hiring workflow.</h2>
+        </div>
+        <div class="positioning-strip__chips" aria-label="Target users">
+          <span class="positioning-chip"><i class="ph ph-briefcase"></i><span>Recruiters</span></span>
+          <span class="positioning-chip"><i class="ph ph-users-three"></i><span>Hiring managers</span></span>
+          <span class="positioning-chip"><i class="ph ph-chats-circle"></i><span>Interview panels</span></span>
+          <span class="positioning-chip"><i class="ph ph-chart-line-up"></i><span>Talent operations</span></span>
+          <span class="positioning-chip"><i class="ph ph-buildings"></i><span>Growing companies</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section id="operations" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>How It Works</p>
+        <h2>Move from applications to shortlist, interviews, and decisions in four clear stages.</h2>
+      </div>
+
+      <div class="workflow-grid">
+        <article class="workflow-card glass-card reveal-up">
+          <span class="badge">01</span>
+          <h3>Collect candidates and role demand</h3>
+          <p>Collect applications, role context, and recruiter ownership in one place instead of scattered tools.</p>
+        </article>
+        <article class="workflow-card glass-card reveal-up">
+          <span class="badge">02</span>
+          <h3>Let AI prioritize the strongest fits</h3>
+          <p>Use AI ranking and search to reduce manual screening and surface stronger-fit candidates faster.</p>
+        </article>
+        <article class="workflow-card glass-card reveal-up">
+          <span class="badge">03</span>
+          <h3>Run Litio interview sessions with integrity checks</h3>
+          <p>Conduct AI-powered interviews, verify candidate voice identity, and keep interview execution safer and more structured.</p>
+        </article>
+        <article class="workflow-card glass-card reveal-up">
+          <span class="badge">04</span>
+          <h3>Use summaries and analytics to guide final decisions</h3>
+          <p>Review interview summaries, suspicious signals, pipeline health, and recruiter performance with clearer decision support.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="ai-capabilities" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>AI Capabilities</p>
+        <h2>Capabilities that help teams shortlist faster, run safer interviews, and improve hiring visibility.</h2>
+      </div>
+
+      <div class="cards-grid landing-feature-grid">
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-sort-descending"></i>
+          <h3>AI Candidate Ranking</h3>
+          <p>Prioritize candidates by role fit and resume intelligence so recruiters spend less time on manual screening.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-magnifying-glass"></i>
+          <h3>AI Talent Pool Search</h3>
+          <p>Search beyond flat applicant lists to surface relevant profiles and identify stronger matches faster.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-kanban"></i>
+          <h3>Litio AI Interview Sessions</h3>
+          <p>Run AI-powered interview sessions with cleaner conferencing workflow, transcript capture, and recruiter-facing interview intelligence.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-chart-line-up"></i>
+          <h3>Recruiter Analytics</h3>
+          <p>Track recruiter activity, bottlenecks, and hiring progress with clearer pipeline visibility.</p>
+        </article>
+        <article class="feature-card glass-card tilt-card reveal-up">
+          <i class="ph ph-waveform"></i>
+          <h3>Voice-Verified Interview Identity</h3>
+          <p>Use Litio to verify candidate voice identity, surface suspicious session signals, and give recruiters more confidence in interview integrity.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="platform-overview" class="section visuals">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>Inside the Platform</p>
+        <h2>Explore a focused product tour across ranking, Litio interviews, workflow integrity, and hiring analytics.</h2>
+      </div>
+
+      <div class="platform-tour-shell" id="ai-visuals">
+        <div class="platform-tour-nav glass-card reveal-up">
+          <div class="platform-tour-nav__intro">
+            <p class="eyebrow">Platform Snapshot</p>
+            <h3>See one focused hiring workflow at a time.</h3>
+            <p>
+              Move through the platform the way recruiters do: shortlist candidates, run Litio interviews,
+              monitor interview integrity, and review hiring performance with less manual work.
+            </p>
+          </div>
+
+          <div class="platform-tour-tabs" role="tablist" aria-label="Platform tour">
+            <button
+              type="button"
+              class="platform-tour-tab is-active"
+              id="platform-tab-ranking"
+              data-platform-tab="ranking"
+              role="tab"
+              aria-selected="true"
+              aria-controls="platform-panel-ranking"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-stack"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>AI Candidate Ranking</strong>
+                <span>Prioritize stronger-fit profiles faster.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="platform-tour-tab"
+              id="platform-tab-workflow"
+              data-platform-tab="workflow"
+              role="tab"
+              aria-selected="false"
+              aria-controls="platform-panel-workflow"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-flow-arrow"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>Interview Workflow</strong>
+                <span>Keep interviews structured and decision-ready.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="platform-tour-tab"
+              id="platform-tab-activity"
+              data-platform-tab="activity"
+              role="tab"
+              aria-selected="false"
+              aria-controls="platform-panel-activity"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-waveform"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>Litio AI Interviewing</strong>
+                <span>Run interviews with identity checks and cleaner intelligence.</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="platform-tour-tab"
+              id="platform-tab-analytics"
+              data-platform-tab="analytics"
+              role="tab"
+              aria-selected="false"
+              aria-controls="platform-panel-analytics"
+            >
+              <span class="platform-tour-tab__icon"><i class="ph ph-chart-line-up"></i></span>
+              <span class="platform-tour-tab__copy">
+                <strong>Hiring Analytics</strong>
+                <span>See where pipeline speed and quality are shifting.</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div class="platform-tour-stage reveal-up">
+          <article
+            class="platform-tour-panel glass-card is-active"
+            id="platform-panel-ranking"
+            data-platform-panel="ranking"
+            role="tabpanel"
+            aria-labelledby="platform-tab-ranking"
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">AI Candidate Ranking</p>
+                <h3>Shortlist better-fit candidates with clearer ranking signals.</h3>
+                <p>
+                  Surface the strongest profiles faster with fit scoring, shortlist movement, and clear next-stage visibility.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Live shortlist
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Candidate ranking</span>
+                  <span>Top shortlist</span>
+                </div>
+                <div class="ranking-list">
+                  <article class="ranking-item">
+                    <div>
+                      <strong>Aarav Mehta</strong>
+                      <span>Senior Product Designer</span>
+                    </div>
+                    <div class="ranking-item__score">
+                      <span class="ranking-score">94</span>
+                      <small>Fit</small>
+                    </div>
+                    <div class="ranking-item__bar"><span style="width: 94%"></span></div>
+                  </article>
+                  <article class="ranking-item">
+                    <div>
+                      <strong>Riya Nair</strong>
+                      <span>Product Designer</span>
+                    </div>
+                    <div class="ranking-item__score">
+                      <span class="ranking-score">89</span>
+                      <small>Fit</small>
+                    </div>
+                    <div class="ranking-item__bar"><span style="width: 89%"></span></div>
+                  </article>
+                  <article class="ranking-item">
+                    <div>
+                      <strong>Neil Thomas</strong>
+                      <span>UX Researcher</span>
+                    </div>
+                    <div class="ranking-item__score">
+                      <span class="ranking-score">86</span>
+                      <small>Fit</small>
+                    </div>
+                    <div class="ranking-item__bar"><span style="width: 86%"></span></div>
+                  </article>
+                </div>
+                <div class="pipeline-stage-strip" aria-label="Pipeline stages">
+                  <span class="pipeline-stage pipeline-stage--complete">Applied</span>
+                  <span class="pipeline-stage pipeline-stage--complete">Ranked</span>
+                  <span class="pipeline-stage pipeline-stage--active">Interviews</span>
+                  <span class="pipeline-stage">Decision</span>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Ranking confidence</span>
+                  <strong>Top 3 profiles aligned for final review</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Reduce manual screening by ranking applicants against role fit.</li>
+                  <li>Highlight shortlist-ready profiles before recruiters lose momentum.</li>
+                  <li>Keep stage movement visible from application through decision.</li>
+                </ul>
+              </aside>
+            </div>
+          </article>
+
+          <article
+            class="platform-tour-panel glass-card"
+            id="platform-panel-workflow"
+            data-platform-panel="workflow"
+            role="tabpanel"
+            aria-labelledby="platform-tab-workflow"
+            hidden
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">Interview Workflow</p>
+                <h3>Move from screening to final review with less coordination overhead.</h3>
+                <p>
+                  Keep each interview stage visible, evaluator coverage clear, and final review steps easier to manage.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                In progress
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Interview workflow</span>
+                  <span>Recruiter view</span>
+                </div>
+                <div class="workflow-status-list">
+                  <article class="workflow-status-item workflow-status-item--active">
+                    <span class="workflow-status-item__dot"></span>
+                    <div>
+                      <strong>Screening complete</strong>
+                      <span>12 candidates reviewed and 5 moved forward</span>
+                    </div>
+                    <span class="workflow-status-tag">Today</span>
+                  </article>
+                  <article class="workflow-status-item">
+                    <span class="workflow-status-item__dot"></span>
+                    <div>
+                      <strong>Panel interviews</strong>
+                      <span>4 interviews scheduled with evaluator coverage</span>
+                    </div>
+                    <span class="workflow-status-tag">Next</span>
+                  </article>
+                  <article class="workflow-status-item">
+                    <span class="workflow-status-item__dot"></span>
+                    <div>
+                      <strong>Evaluation summary</strong>
+                      <span>2 profiles ready for final decision review</span>
+                    </div>
+                    <span class="workflow-status-tag">Ready</span>
+                  </article>
+                </div>
+                <div class="workflow-alert-rail">
+                  <span class="workflow-alert-chip">Evaluator coverage confirmed</span>
+                  <span class="workflow-alert-chip">Feedback sync active</span>
+                  <span class="workflow-alert-chip">Final review queue ready</span>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Interview readiness</span>
+                  <strong>4 interviews scheduled with complete panel coverage</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Structure interviewer handoff without losing stage context.</li>
+                  <li>Keep evaluation checkpoints visible for recruiters and hiring managers.</li>
+                  <li>Reduce back-and-forth before final decision conversations.</li>
+                </ul>
+              </aside>
+            </div>
+          </article>
+
+          <article
+            class="platform-tour-panel glass-card"
+            id="platform-panel-activity"
+            data-platform-panel="activity"
+            role="tabpanel"
+            aria-labelledby="platform-tab-activity"
+            hidden
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">Litio AI Interviewing</p>
+                <h3>Run AI-powered interviews with identity verification and recruiter-ready session intelligence.</h3>
+                <p>
+                  Use Litio to conduct interview sessions, verify candidate voice identity, review suspicious signals, and generate cleaner interview summaries.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Litio session live
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Litio interview session</span>
+                  <span>Integrity view</span>
+                </div>
+                <div class="overlay-activity-list">
+                  <div class="overlay-activity-item">
+                    <span class="overlay-activity-dot"></span>
+                    <div class="overlay-activity-item__copy">
+                      <strong>Voice identity verified for candidate check-in</strong>
+                      <span>Session start</span>
+                    </div>
+                  </div>
+                  <div class="overlay-activity-item">
+                    <span class="overlay-activity-dot"></span>
+                    <div class="overlay-activity-item__copy">
+                      <strong>Interview transcript and summary prepared</strong>
+                      <span>Live analysis</span>
+                    </div>
+                  </div>
+                  <div class="overlay-activity-item">
+                    <span class="overlay-activity-dot"></span>
+                    <div class="overlay-activity-item__copy">
+                      <strong>Suspicious session signals queued for recruiter review</strong>
+                      <span>Integrity review</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="hero-panel__signal-row">
+                  <span class="hero-signal-chip hero-signal-chip--active">Voice verified</span>
+                  <span class="hero-signal-chip">Summary ready</span>
+                  <span class="hero-signal-chip">Signals monitored</span>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Interview integrity</span>
+                  <strong>Recruiters can review identity, summaries, and suspicious signals in one Litio workflow</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Run AI-powered interviews without splitting session context across separate tools.</li>
+                  <li>Verify candidate voice identity before and during interview execution.</li>
+                  <li>Give recruiters cleaner summaries and suspicious-activity visibility after each session.</li>
+                </ul>
+              </aside>
+            </div>
+          </article>
+
+          <article
+            class="platform-tour-panel glass-card"
+            id="platform-panel-analytics"
+            data-platform-panel="analytics"
+            role="tabpanel"
+            aria-labelledby="platform-tab-analytics"
+            hidden
+          >
+            <div class="platform-tour-panel__top">
+              <div>
+                <p class="hero-panel__eyebrow">Hiring Analytics</p>
+                <h3>Track pipeline speed, recruiter output, and source quality with clearer signals.</h3>
+                <p>
+                  Give recruiters and hiring teams a faster read on where hiring is moving well and where friction is building.
+                </p>
+              </div>
+              <span class="hero-panel__status">
+                <span class="live-dot"></span>
+                Weekly view
+              </span>
+            </div>
+
+            <div class="platform-tour-panel__content">
+              <section class="platform-tour-preview preview-card">
+                <div class="preview-card__header">
+                  <span>Hiring analytics</span>
+                  <span>Weekly view</span>
+                </div>
+                <div class="analytics-mini-grid">
+                  <div class="analytics-mini-card">
+                    <span>Pipeline visibility</span>
+                    <strong>Track stage progress by role</strong>
+                    <div class="mini-chart">
+                      <span style="height: 48%"></span>
+                      <span style="height: 68%"></span>
+                      <span style="height: 60%"></span>
+                      <span style="height: 84%"></span>
+                      <span style="height: 72%"></span>
+                    </div>
+                  </div>
+                  <div class="analytics-mini-card">
+                    <span>Recruiter activity</span>
+                    <strong>See follow-up and response momentum</strong>
+                    <div class="mini-chart">
+                      <span style="height: 36%"></span>
+                      <span style="height: 52%"></span>
+                      <span style="height: 74%"></span>
+                      <span style="height: 66%"></span>
+                      <span style="height: 82%"></span>
+                    </div>
+                  </div>
+                  <div class="analytics-mini-card">
+                    <span>Time-to-hire friction</span>
+                    <strong>Spot slowdowns before they impact hiring</strong>
+                    <div class="mini-chart">
+                      <span style="height: 80%"></span>
+                      <span style="height: 64%"></span>
+                      <span style="height: 56%"></span>
+                      <span style="height: 42%"></span>
+                      <span style="height: 34%"></span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <aside class="platform-tour-aside">
+                <div class="platform-tour-metric-card">
+                  <span>Decision support</span>
+                  <strong>Pipeline friction is down while shortlist quality remains stable</strong>
+                </div>
+                <ul class="platform-tour-bullets">
+                  <li>Monitor time-to-hire friction before it slows recruiter throughput.</li>
+                  <li>Compare hiring momentum across roles, stages, and recruiter activity.</li>
+                  <li>Give teams better decision support with clearer performance visibility.</li>
+                </ul>
+              </aside>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="analytics-layer" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>Recruiter Analytics</p>
+        <h2>Give hiring teams clearer visibility into speed, bottlenecks, and recruiter performance.</h2>
+      </div>
+
+      <div class="analytics-layout">
+        <article class="analytics-spotlight glass-card reveal-up">
+          <div class="analytics-spotlight__copy">
+            <h3>Analytics that help teams reduce time-to-hire friction</h3>
+            <p>
+              Understand where hiring is slowing down, where recruiters need follow-up support,
+              and which sources are producing stronger-fit candidates.
+            </p>
+          </div>
+          <div class="analytics-spotlight__grid">
+            <div class="analytics-tile">
+              <span>Time-to-hire visibility</span>
+              <strong>Understand pipeline speed by stage and role.</strong>
+            </div>
+            <div class="analytics-tile">
+              <span>Recruiter performance insights</span>
+              <strong>See workload, momentum, and follow-through more clearly.</strong>
+            </div>
+            <div class="analytics-tile">
+              <span>Source effectiveness</span>
+              <strong>Compare where stronger-fit candidates are coming from.</strong>
+            </div>
+            <div class="analytics-tile">
+              <span>Hiring pipeline intelligence</span>
+              <strong>Spot bottlenecks before they slow the decision cycle.</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="decision-layer" class="section">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="section-title reveal-up">
+        <p>Problem vs Solution</p>
+        <h2>Replace fragmented hiring operations with a cleaner and more structured process.</h2>
+      </div>
+
+      <div class="comparison-grid">
+        <article class="comparison-card comparison-card--problem glass-card reveal-up">
+          <h3>Traditional hiring pain points</h3>
+          <ul>
+            <li>Manual resume screening slows early-stage hiring.</li>
+            <li>Shortlisting becomes inconsistent when candidate volume increases.</li>
+            <li>Interview feedback lives across too many disconnected tools.</li>
+            <li>Interview identity and suspicious session signals are easy to miss.</li>
+            <li>Recruiters have limited visibility into pipeline performance.</li>
+            <li>Hiring decisions get delayed by fragmented workflow tracking.</li>
+          </ul>
+        </article>
+        <article class="comparison-card comparison-card--solution glass-card reveal-up">
+          <h3>SmartInterview with AI-powered hiring workflows</h3>
+          <ul>
+            <li>AI-assisted ranking helps teams focus on stronger-fit candidates earlier.</li>
+            <li>Litio interview sessions keep recruiter, interviewer, and decision steps aligned.</li>
+            <li>Voice verification and suspicious signal review support stronger interview integrity.</li>
+            <li>Analytics expose recruiter performance, source quality, and pipeline health.</li>
+            <li>Teams can move faster with clearer context and more consistent decision support.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section section-cta">
+      <div class="section-divider" aria-hidden="true"></div>
+      <div class="final-cta glass-card reveal-up">
+        <div class="final-cta__copy">
+          <p class="eyebrow">Smarter Hiring Starts Here</p>
+          <h2>Shortlist with AI, interview with Litio, and decide with more confidence.</h2>
+          <p>
+            Use Shortlistii to rank candidates faster, run voice-verified interviews with Litio,
+            and help recruiters act with clearer interview and pipeline visibility.
+          </p>
+        </div>
+        <div class="final-cta__actions">
+          <button type="button" id="contactSignInBtn" class="btn btn-primary">Get Started</button>
+          <a href="{% url 'jobs-portal' %}" class="btn btn-outline">View Open Roles</a>
+          <a href="{% host_link request 'marketing_candidate_login' %}" class="btn btn-ghost">Candidate Portal</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="loginSection" class="hidden">
+    <form method="post" id="loginForm">
+      {% csrf_token %}
+      <div id="loginPanel" class="glass-card">
+        <button type="button" id="closeLogin" aria-label="Close Login Panel">
+          <i class="ph ph-x"></i>
+        </button>
+
+        <h2>Welcome Back</h2>
+        <p class="panel-subtitle">Sign in to continue to the Shortlistii hiring workspace.</p>
+        <p id="errorMsg"></p>
+
+        <div class="floating">
+          <i class="ph ph-user icon-left"></i>
+          {{ form.username|add_class:"floating-input" }}
+          <label class="floating-label">Email address / Username</label>
+        </div>
+
+        <div class="floating">
+          <i class="ph ph-lock icon-left"></i>
+          {{ form.password|add_class:"floating-input" }}
+          <label class="floating-label">Password</label>
+        </div>
+
+        <button type="button" class="forgot" id="workspaceForgotPasswordTrigger">Forgot Password?</button>
+        <button type="submit" id="signInBtn" class="btn btn-primary full">
+          <span class="btn-label">Sign In</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <div class="workspace-reset-overlay" id="workspaceResetOverlay" aria-hidden="true">
+    <div class="workspace-reset-modal" role="dialog" aria-modal="true" aria-labelledby="workspaceResetTitle">
+      <button class="workspace-reset-close" type="button" id="workspaceResetClose" aria-label="Close password reset">&times;</button>
+      <div class="workspace-reset-shell">
+        <div class="workspace-reset-head">
+          <span class="workspace-reset-kicker"><i class="ph ph-shield-lock"></i> Workspace Recovery</span>
+          <h2 class="workspace-reset-title" id="workspaceResetTitle">Reset your workspace password</h2>
+          <p class="workspace-reset-copy" id="workspaceResetCopy">Verify your admin or recruiter account in a few secure steps and set a new password.</p>
+        </div>
+
+        <div class="workspace-reset-stepper" aria-hidden="true">
+          <span class="workspace-reset-step is-active" data-workspace-step-indicator="1"></span>
+          <span class="workspace-reset-step" data-workspace-step-indicator="2"></span>
+          <span class="workspace-reset-step" data-workspace-step-indicator="3"></span>
+          <span class="workspace-reset-step" data-workspace-step-indicator="4"></span>
+        </div>
+
+        <div class="workspace-reset-message" id="workspaceResetMessage"></div>
+
+        <form class="workspace-reset-panel is-active" id="workspaceResetEmailStep">
+          <div class="workspace-reset-field">
+            <label for="workspaceResetEmail">Registered work email address</label>
+            <div class="workspace-reset-input-wrap">
+              <i class="ph ph-envelope-simple"></i>
+              <input id="workspaceResetEmail" name="email" type="email" placeholder="Enter your admin or recruiter email" autocomplete="email" />
+            </div>
+          </div>
+          <div class="workspace-reset-actions">
+            <button class="btn btn-primary" type="submit"><span class="btn-label">Continue</span></button>
+          </div>
+        </form>
+
+        <form class="workspace-reset-panel" id="workspaceResetPhoneStep">
+          <p class="workspace-reset-hint">Enter the mobile number linked to your workspace account. It should end with <strong id="workspaceResetLastFour">0000</strong>.</p>
+          <div class="workspace-reset-field">
+            <label for="workspaceResetPhone">Registered mobile number</label>
+            <div class="workspace-reset-input-wrap">
+              <i class="ph ph-device-mobile"></i>
+              <input id="workspaceResetPhone" name="phone" type="tel" placeholder="Enter your mobile number" inputmode="numeric" autocomplete="tel" data-digits-only="true" />
+            </div>
+          </div>
+          <div class="workspace-reset-actions">
+            <button class="btn btn-primary" type="submit"><span class="btn-label">Send OTP</span></button>
+          </div>
+        </form>
+
+        <form class="workspace-reset-panel" id="workspaceResetOtpStep">
+          <p class="workspace-reset-hint">Enter the OTP sent to your registered mobile number <strong id="workspaceResetMaskedPhone">••••</strong>.</p>
+          <div class="workspace-reset-field">
+            <label for="workspaceResetOtp">OTP</label>
+            <div class="workspace-reset-input-wrap">
+              <i class="ph ph-password"></i>
+              <input id="workspaceResetOtp" name="otp" type="text" placeholder="Enter OTP" inputmode="numeric" autocomplete="one-time-code" data-digits-only="true" />
+            </div>
+          </div>
+          <div class="workspace-reset-actions">
+            <button class="btn btn-primary" type="submit"><span class="btn-label">Verify OTP</span></button>
+          </div>
+        </form>
+
+        <form class="workspace-reset-panel" id="workspaceResetPasswordStep">
+          <div class="workspace-reset-field">
+            <label for="workspaceResetNewPassword">New password</label>
+            <div class="workspace-reset-input-wrap">
+              <i class="ph ph-lock"></i>
+              <input id="workspaceResetNewPassword" name="password" type="password" placeholder="Enter a new password" autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="workspace-reset-field">
+            <label for="workspaceResetConfirmPassword">Re-enter new password</label>
+            <div class="workspace-reset-input-wrap">
+              <i class="ph ph-lock-key"></i>
+              <input id="workspaceResetConfirmPassword" name="confirm_password" type="password" placeholder="Re-enter new password" autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="workspace-reset-actions">
+            <button class="btn btn-primary" type="submit"><span class="btn-label">Update Password</span></button>
+          </div>
+        </form>
+
+        <div class="workspace-reset-panel" id="workspaceResetSuccessStep">
+          <div class="workspace-reset-success">
+            <div class="workspace-reset-success-mark"><i class="ph ph-check"></i></div>
+            <h3 class="workspace-reset-title workspace-reset-title--success">Password updated</h3>
+            <p class="workspace-reset-copy">Your workspace password has been reset successfully. Use your new password to sign in.</p>
+            <div class="workspace-reset-actions workspace-reset-actions--center">
+              <button class="btn btn-primary" type="button" id="workspaceResetProceed"><span class="btn-label">Proceed to Sign In</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="#hero" class="shortlistii-logo" aria-label="shortlistii.com home">
+          <span class="logo-text">shortlist</span>
+          <span class="logo-ii" aria-hidden="true">
+            <span class="person">
+              <span class="head"></span>
+              <span class="body"></span>
+              <span class="tie"></span>
+            </span>
+            <span class="person">
+              <span class="head"></span>
+              <span class="body"></span>
+              <span class="tie"></span>
+            </span>
+          </span>
+        </a>
+        <p>AI-powered hiring intelligence for recruiters, hiring teams, and companies.</p>
+      </div>
+
+      <div class="site-footer__nav">
+        <div class="footer-group">
+          <h3>Product</h3>
+          <a href="#platform-overview">Platform</a>
+          <a href="#operations">How It Works</a>
+          <a href="#analytics-layer">Analytics</a>
+        </div>
+        <div class="footer-group">
+          <h3>Features</h3>
+          <a href="#ai-capabilities">AI Shortlisting</a>
+          <a href="#ai-capabilities">Interview Workflows</a>
+          <a href="#decision-layer">Decision Support</a>
+        </div>
+        <div class="footer-group">
+          <h3>Company</h3>
+          <a href="{% url 'about' %}">About</a>
+          <a href="{% url 'contact' %}">Contact</a>
+          <a href="{% host_link request 'marketing_jobs' %}">Jobs</a>
+          <a href="{% host_link request 'marketing_candidate_login' %}">Candidate Portal</a>
+          <button type="button" class="footer-link-button" data-open-login>Recruiter Sign In</button>
+        </div>
+        <div class="footer-group">
+          <h3>Legal</h3>
+          <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+          <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+        </div>
+        <div class="footer-group">
+          <h3>Contact</h3>
+          <span class="footer-muted">Talk to the team about demos, enterprise hiring workflows, support, or partnerships.</span>
+          <a href="{% url 'contact' %}">Contact Us</a>
+          <a href="{% url 'jobs-portal' %}">Open Jobs Portal</a>
+        </div>
+      </div>
+    </div>
+    <p class="site-footer__copyright">&copy; <span id="currentYear"></span> Shortlistii.com Private Limited. All rights reserved.</p>
+  </footer>
+</body>
+</html>

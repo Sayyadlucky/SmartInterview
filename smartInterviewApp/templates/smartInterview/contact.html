@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+{% load static %}
+{% load host_links %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ page_title }} | Shortlistii</title>
+  <meta name="description" content="{{ meta_description }}" />
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260408d">
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260408a"></script>
+</head>
+<body class="legal-page contact-page-shell">
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <header class="legal-header">
+    <div class="legal-header__inner">
+      <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+      <nav class="legal-nav" aria-label="Primary navigation">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}" aria-current="page">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal-main contact-main">
+    <section class="contact-hero reveal-up">
+      <div class="contact-hero__copy">
+        <p class="eyebrow">Contact Us</p>
+        <h1>Talk to the team behind Shortlistii.</h1>
+        <p class="contact-hero__lede">
+          Reach out for product demos, enterprise hiring conversations, Litio interview intelligence, onboarding guidance,
+          partnerships, support, or general questions about the platform.
+        </p>
+        <div class="contact-hero__chips">
+          <span>Product demos</span>
+          <span>Enterprise conversations</span>
+          <span>Litio interview workflows</span>
+        </div>
+      </div>
+      <aside class="contact-hero__visual tilt-card">
+        <div class="contact-hero__window">
+          <div class="contact-hero__window-bar">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="contact-hero__window-head">
+            <div>
+              <p>Reach Out For</p>
+              <h2>Product conversations with real hiring context.</h2>
+            </div>
+            <span class="contact-status-pill">Shortlistii + Litio</span>
+          </div>
+          <div class="contact-hero__signals">
+            <article class="contact-signal-card">
+              <span>Hiring workflows</span>
+              <strong>Explore AI-assisted shortlisting and recruiter visibility.</strong>
+            </article>
+            <article class="contact-signal-card">
+              <span>Litio interviews</span>
+              <strong>See how interview identity checks and session intelligence fit into the workflow.</strong>
+            </article>
+            <article class="contact-signal-card contact-signal-card--wide">
+              <span>Enterprise readiness</span>
+              <strong>Discuss team rollout, onboarding, support, and hiring process fit.</strong>
+            </article>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="contact-layout reveal-up">
+      <div class="contact-column">
+        <article class="contact-panel contact-copy-card">
+          <div class="section-title">
+            <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="m13 5 7 7-7 7"/></svg></span><span>Why Reach Out</span></p>
+            <h2>Connect with the team on product, hiring, and platform fit.</h2>
+          </div>
+          <div class="about-prose">
+            <p>
+              Shortlistii is built for recruiters and hiring teams that want stronger decision signals across the hiring journey.
+              We are happy to talk through AI-assisted candidate ranking, structured workflows, Litio-powered interviews, and how
+              the platform can fit enterprise hiring needs.
+            </p>
+            <p>
+              If you are evaluating the product, exploring partnerships, or need help with onboarding or support, use the form and
+              include enough context for our team to route your inquiry well.
+            </p>
+          </div>
+        </article>
+
+        <article class="contact-panel contact-reasons-card">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m9.5 12 1.75 1.75L15 10"/></svg></span><span>How We Can Help</span></p>
+          <ul class="contact-reason-list">
+            <li>Explore Shortlistii for structured hiring workflows and AI-assisted candidate ranking.</li>
+            <li>Learn how Litio supports AI-powered interview sessions, identity verification, and transcript intelligence.</li>
+            <li>Discuss enterprise hiring needs, onboarding expectations, and product fit for your team.</li>
+            <li>Ask product, support, or partnership questions with the right business context.</li>
+          </ul>
+        </article>
+
+        <article class="contact-panel contact-company-card">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg></span><span>Company Information</span></p>
+          <strong>{{ company_legal_name }}</strong>
+          <address>
+            {% for line in company_address_lines %}
+              {{ line }}{% if not forloop.last %}<br>{% endif %}
+            {% endfor %}
+          </address>
+          <div class="contact-company-meta">
+            <span>Support email</span>
+            <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+          </div>
+        </article>
+      </div>
+
+      <section class="contact-panel contact-form-card">
+        <div class="section-title">
+          <p class="section-kicker"><span class="section-kicker__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 8 8 6 8-6"/></svg></span><span>Get In Touch</span></p>
+          <h2>Tell us what you want to explore.</h2>
+        </div>
+
+        <form method="post" class="contact-form" novalidate>
+          {% csrf_token %}
+          <div class="contact-form__grid">
+            <div class="contact-field">
+              <label for="{{ form.full_name.id_for_label }}">Full Name</label>
+              {{ form.full_name }}
+              {% for error in form.full_name.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="contact-field">
+              <label for="{{ form.work_email.id_for_label }}">Work Email</label>
+              {{ form.work_email }}
+              {% for error in form.work_email.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="contact-field">
+              <label for="{{ form.company_name.id_for_label }}">Company Name</label>
+              {{ form.company_name }}
+              {% for error in form.company_name.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="contact-field">
+              <label for="{{ form.inquiry_type.id_for_label }}">Inquiry Type</label>
+              {{ form.inquiry_type }}
+              {% for error in form.inquiry_type.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="contact-field">
+              <label for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+              {{ form.phone_number }}
+              {% for error in form.phone_number.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="contact-field">
+              <label for="{{ form.team_size.id_for_label }}">Team Size</label>
+              {{ form.team_size }}
+              {% for error in form.team_size.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="contact-field contact-field--full">
+              <label for="{{ form.message.id_for_label }}">Message</label>
+              {{ form.message }}
+              {% for error in form.message.errors %}<p class="contact-field__error">{{ error }}</p>{% endfor %}
+            </div>
+          </div>
+
+          {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+              <p class="contact-field__error">{{ error }}</p>
+            {% endfor %}
+          {% endif %}
+
+          <div class="contact-form__actions">
+            <button
+              type="submit"
+              class="btn btn-primary contact-submit-btn"
+              data-default-label="Send Inquiry"
+              data-loading-label="Sending Inquiry"
+            >
+              <span class="contact-submit-btn__label">Send Inquiry</span>
+              <span class="contact-submit-btn__spinner" aria-hidden="true"></span>
+            </button>
+            <p>Use this page for demos, enterprise conversations, partnerships, support, and product questions.</p>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  {% if messages %}
+    <div class="contact-success-modal" id="contactSuccessModal" aria-hidden="true">
+      <div class="contact-success-modal__backdrop" data-close-contact-success></div>
+      <div class="contact-success-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="contactSuccessTitle">
+        <p class="eyebrow">Inquiry Received</p>
+        <h2 id="contactSuccessTitle">Your inquiry has been sent successfully.</h2>
+        {% for message in messages %}
+          <p>{{ message }}</p>
+        {% endfor %}
+        <div class="contact-success-modal__actions">
+          <button type="button" class="btn btn-primary" data-close-contact-success>Close</button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <footer class="legal-footer">
+    <div class="legal-footer__inner">
+      <div>
+        <a href="{% url 'home' %}" class="shortlistii-logo" aria-label="shortlistii.com home">
+          <span class="logo-text">shortlist</span>
+          <span class="logo-ii" aria-hidden="true">
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+            <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+          </span>
+        </a>
+        <p>AI-powered hiring intelligence for recruiters, hiring teams, and companies.</p>
+      </div>
+      <div class="legal-footer__links">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+        <a href="{% url 'about' %}">About</a>
+        <a href="{% url 'contact' %}">Contact</a>
+        <a href="{% url 'privacy-policy' %}">Privacy Policy</a>
+        <a href="{% url 'terms-of-service' %}">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

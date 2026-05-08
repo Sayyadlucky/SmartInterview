@@ -1,0 +1,14 @@
+.git
+.gitignore
+node_modules
+**/node_modules
+.venv
+venv
+env
+__pycache__
+*.pyc
+db.sqlite3
+media
+.DS_Store
+*.log
+smartInterview.zip

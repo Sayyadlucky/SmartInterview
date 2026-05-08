@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/notifications/components/notification-status/notification-status.scss"],
+  "sourcesContent": [".notify-card {\n  display: flex;\n  flex-direction: column;\n  gap: 0.5rem;\n  padding: 1rem;\n  border-radius: 0.75rem;\n  background: rgba(15, 23, 42, 0.65);\n  border: 1px solid rgba(148, 163, 184, 0.25);\n}\n\ninput {\n  border: 1px solid rgba(148, 163, 184, 0.45);\n  border-radius: 0.5rem;\n  padding: 0.45rem 0.6rem;\n  background: rgba(15, 23, 42, 0.5);\n  color: #e2e8f0;\n}\n\nbutton {\n  border: 0;\n  border-radius: 0.5rem;\n  padding: 0.45rem 0.6rem;\n  cursor: pointer;\n}\n\n.status-box {\n  padding: 0.6rem;\n  border: 1px solid rgba(148, 163, 184, 0.3);\n  border-radius: 0.5rem;\n}\n\n.error {\n  margin: 0;\n  color: #fda4af;\n}\n"],
+  "mappings": "AAAA,CAAA,YACE,QAAA,KACA,eAAA,OACA,IAAA,MAHF,QAIE,KAJF,cAKE,OACA,WAAA,UACA,OAAA,IAAA,MAAA,KAAA,GAAA,CAAA,GAAA,CAAA,GAAA,CAAA,KAGF,MACE,OAAA,IAAA,MAAA,KAAA,GAAA,CAAA,GAAA,CAAA,GAAA,CAAA,KAXF,cAYE,MAZF,QAaE,OAAA,MACA,WAAA,UACA,MAAA,QAGF,OACE,OAAA,EAnBF,cAoBE,MApBF,QAqBE,OAAA,MACA,OAAA,QAGF,CAAA,WAzBA,QA0BE,MACA,OAAA,IAAA,MAAA,KAAA,GAAA,CAAA,GAAA,CAAA,GAAA,CAAA,IA3BF,cA4BE,MAGF,CAAA,MA/BA,OAgCE,EACA,MAAA",
+  "names": []
+}

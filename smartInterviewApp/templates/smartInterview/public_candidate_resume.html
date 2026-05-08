@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en"{% if export_mode == 'word' %} xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"{% endif %}>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% if export_mode == 'word' %}
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="ProgId" content="Word.Document">
+    <meta name="Generator" content="SmartInterview">
+  {% endif %}
+  <title>{{ candidate.name }} | Digital Resume</title>
+  <style>
+    :root {
+      --bg-0: #040811;
+      --bg-1: #070f1f;
+      --bg-2: #101c3d;
+      --panel: linear-gradient(145deg, rgba(12, 22, 44, 0.68), rgba(7, 12, 28, 0.7));
+      --panel-soft: rgba(11, 22, 44, 0.56);
+      --panel-border: rgba(135, 198, 255, 0.16);
+      --card: rgba(255, 255, 255, 0.035);
+      --card-2: linear-gradient(180deg, rgba(20, 58, 97, 0.34), rgba(10, 38, 67, 0.54));
+      --text: #ecf4ff;
+      --muted: #9eb0d0;
+      --muted-2: #86a5c5;
+      --accent: #52d5ff;
+      --accent-strong: #5f7cff;
+      --accent-soft: rgba(82, 213, 255, 0.12);
+      --accent-glow: rgba(82, 213, 255, 0.18);
+      --radius-panel: 24px;
+      --radius-card: 18px;
+      --radius-pill: 999px;
+      --shadow: 0 25px 60px rgba(3, 8, 18, 0.55);
+      --shadow-strong: 0 28px 70px rgba(0, 0, 0, 0.42);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 20% -20%, #1e3770 0%, #070f1f 42%, #03060e 100%);
+      padding: 28px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(52px);
+    }
+
+    body::before {
+      background: radial-gradient(circle at 40% 20%, #122754, #050913 55%, transparent 100%);
+      opacity: 0.9;
+      mix-blend-mode: screen;
+    }
+
+    body::after {
+      background: radial-gradient(circle at 50% 50%, transparent 42%, rgba(1, 4, 10, 0.58) 100%);
+    }
+
+    #particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.9;
+    }
+
+    .page {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .resume-shell {
+      background: linear-gradient(165deg, rgba(9, 32, 64, 0.96), rgba(5, 23, 49, 0.96));
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      display: grid;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .resume-shell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(140deg, rgba(255,255,255,0.04), transparent 30%, transparent 70%, rgba(82, 213, 255, 0.035));
+      pointer-events: none;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--radius-pill);
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-glow);
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .action-link {
+      border-radius: var(--radius-pill);
+      padding: 10px 14px;
+      text-decoration: none;
+      color: var(--text);
+      background: rgba(11, 22, 44, 0.48);
+      border: 1px solid rgba(135, 198, 255, 0.12);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .hero {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      padding: 18px;
+      border-radius: var(--radius-card);
+      background: linear-gradient(145deg, rgba(12, 22, 44, 0.78), rgba(7, 12, 28, 0.8));
+      border: 1px solid var(--panel-border);
+    }
+
+    .avatar {
+      width: 86px;
+      height: 86px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(82, 213, 255, 0.22);
+      background: linear-gradient(150deg, rgba(12, 32, 56, 0.98), rgba(7, 19, 34, 0.95));
+      display: grid;
+      place-items: center;
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: #d8f3ff;
+      flex: 0 0 auto;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 4vw, 2.7rem);
+      line-height: 1.05;
+    }
+
+    .name-inline-role {
+      font-size: 0.42em;
+      font-weight: 400;
+      color: var(--muted);
+      margin-left: 8px;
+      vertical-align: middle;
+      letter-spacing: 0;
+    }
+
+    .hero-subline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .status-pill,
+    .box-item {
+      border-radius: var(--radius-pill);
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: var(--text);
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .modal-card,
+    .resume-section {
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius-card);
+      background: var(--card);
+      padding: 14px;
+    }
+
+    .modal-card span {
+      display: block;
+      color: var(--muted-2);
+      font-size: 0.72rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .modal-card strong {
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .resume-section h2 {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .resume-section p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    .resume-section,
+    .experience-card,
+    .box-item {
+      page-break-inside: avoid;
+      break-inside: avoid-page;
+    }
+
+    .box-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .box-list--stacked {
+      display: grid;
+      gap: 12px;
+    }
+
+    .box-item {
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .box-item--section {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+
+    .box-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-size: 0.84rem;
+    }
+
+    .box-item div {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .field-line {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+
+    .field-line strong {
+      display: inline;
+      margin: 0;
+      color: var(--text);
+      font-size: inherit;
+      font-weight: 700;
+    }
+
+    .experience-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .experience-card {
+      border-radius: var(--radius-card);
+      padding: 16px;
+      background: var(--card-2);
+      border: 1px solid var(--panel-border);
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .experience-head {
+      display: grid;
+      gap: 6px;
+    }
+
+    .experience-head strong {
+      color: #eff8ff;
+      font-size: 0.98rem;
+      line-height: 1.35;
+    }
+
+    .experience-company {
+      color: #d8efff;
+      font-size: 0.86rem;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .experience-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .experience-meta span {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.74rem;
+      color: #d0e9fb;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .experience-role {
+      color: #cde8fb;
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .detail-list li {
+      position: relative;
+      padding-left: 14px;
+      color: #bdd8ee;
+      font-size: 0.79rem;
+      line-height: 1.55;
+    }
+
+    .detail-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(86, 211, 255, 0.85);
+    }
+
+    .footer-note {
+      color: #8cb1cf;
+      font-size: 0.79rem;
+      text-align: center;
+    }
+
+    body.is-export {
+      background: #ffffff;
+      color: #1f2f3d;
+      padding: 0;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    body.is-export::before,
+    body.is-export::after,
+    body.is-export .resume-shell::before {
+      content: none;
+      display: none;
+    }
+
+    body.is-export .page {
+      width: 100%;
+      margin: 0;
+      gap: 12px;
+    }
+
+    body.is-export .resume-shell {
+      background: #ffffff;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 0;
+      gap: 12px;
+    }
+
+    body.is-export .topbar {
+      display: none;
+    }
+
+    body.is-export .hero {
+      padding: 0 0 12px;
+      border-radius: 0;
+      border: 0;
+      border-bottom: 2px solid #183c5c;
+      background: #ffffff;
+    }
+
+    body.is-export .avatar {
+      border-color: #d5e0ea;
+      background: #f4f7fa;
+      color: #183c5c;
+    }
+
+    body.is-export h1,
+    body.is-export .hero-subline,
+    body.is-export .box-item strong,
+    body.is-export .modal-card strong,
+    body.is-export .experience-head strong,
+    body.is-export .experience-company,
+    body.is-export .experience-role {
+      color: #17324a;
+    }
+
+    body.is-export .hero-subline,
+    body.is-export .resume-section p,
+    body.is-export .box-item div,
+    body.is-export .detail-list li {
+      color: #445668;
+    }
+
+    body.is-export .hero-subline {
+      font-size: 0.88rem;
+      line-height: 1.48;
+      max-width: 92%;
+    }
+
+    body.is-export .status-pill,
+    body.is-export .modal-card,
+    body.is-export .resume-section,
+    body.is-export .experience-card,
+    body.is-export .experience-meta span {
+      background: #ffffff;
+      border-color: #d8e1ea;
+      color: #1f2f3d;
+      box-shadow: none;
+    }
+
+    body.is-export .box-item {
+      background: #ffffff;
+      border: 1px solid #d8e1ea;
+      color: #1f2f3d;
+      box-shadow: none;
+      border-radius: 10px;
+    }
+
+    body.is-export .box-item--section {
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    body.is-export .field-line,
+    body.is-export .box-item div {
+      color: #445668;
+    }
+
+    body.is-export .field-line strong {
+      color: #17324a;
+    }
+
+    body.is-export .status-pill,
+    body.is-export .experience-meta span {
+      border-radius: 10px;
+    }
+
+    body.is-export .modal-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+
+    body.is-export .resume-section h2 {
+      color: #1d5677;
+      border-bottom: 1px solid #d8e1ea;
+      padding-bottom: 6px;
+    }
+
+    body.is-export .resume-section.section-work-history .experience-card,
+    body.is-export .resume-section.section-professional-experience .experience-card,
+    body.is-export .resume-section.section-experience .experience-card {
+      gap: 10px;
+      padding: 14px 15px;
+    }
+
+    body.is-export .resume-section.section-work-history .experience-head,
+    body.is-export .resume-section.section-professional-experience .experience-head,
+    body.is-export .resume-section.section-experience .experience-head {
+      gap: 5px;
+    }
+
+    body.is-export .resume-section.section-work-history .experience-head strong,
+    body.is-export .resume-section.section-professional-experience .experience-head strong,
+    body.is-export .resume-section.section-experience .experience-head strong {
+      line-height: 1.22;
+    }
+
+    body.is-export .resume-section.section-work-history .experience-company,
+    body.is-export .resume-section.section-professional-experience .experience-company,
+    body.is-export .resume-section.section-experience .experience-company,
+    body.is-export .resume-section.section-work-history .experience-role,
+    body.is-export .resume-section.section-professional-experience .experience-role,
+    body.is-export .resume-section.section-experience .experience-role {
+      line-height: 1.4;
+    }
+
+    body.is-export .resume-section.section-work-history .detail-list,
+    body.is-export .resume-section.section-professional-experience .detail-list,
+    body.is-export .resume-section.section-experience .detail-list {
+      gap: 7px;
+    }
+
+    body.is-export .resume-section.section-work-history .detail-list li,
+    body.is-export .resume-section.section-professional-experience .detail-list li,
+    body.is-export .resume-section.section-experience .detail-list li {
+      line-height: 1.34;
+      margin: 0;
+    }
+
+    body.is-export .footer-note {
+      color: #7b8b9b;
+      text-align: left;
+      border-top: 1px solid #d8e1ea;
+      padding-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .modal-grid,
+      .experience-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 14px;
+      }
+
+      .resume-shell {
+        padding: 18px;
+      }
+
+      .hero {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media print {
+      {% if export_mode == 'pdf' or print_mode %}
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+      {% endif %}
+
+      body {
+        background: #fff;
+        color: #000;
+        padding: 0;
+      }
+
+      .page {
+        width: 100%;
+      }
+
+      .resume-shell {
+        box-shadow: none;
+        border: 0;
+        border-radius: 0;
+        background: #fff;
+        color: #000;
+      }
+
+      .action-row {
+        display: none !important;
+      }
+
+      .modal-card,
+      .resume-section,
+      .experience-card,
+      .box-item,
+      .status-pill {
+        background: #fff;
+        color: #111;
+        border-color: #d8e1ea;
+      }
+
+      .experience-card,
+      .box-item {
+        page-break-inside: auto;
+        break-inside: auto;
+      }
+
+      .experience-grid,
+      .box-list {
+        break-inside: auto;
+      }
+
+      .resume-section.section-work-history .experience-grid,
+      .resume-section.section-professional-experience .experience-grid,
+      .resume-section.section-experience .experience-grid,
+      .resume-section.section-education .box-list,
+      .resume-section.section-academics .box-list,
+      .resume-section.section-certifications .box-list {
+        display: block;
+      }
+
+      .resume-section.section-work-history .experience-card,
+      .resume-section.section-professional-experience .experience-card,
+      .resume-section.section-experience .experience-card,
+      .resume-section.section-education .box-item,
+      .resume-section.section-academics .box-item,
+      .resume-section.section-certifications .box-item {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body class="{% if export_mode or print_mode %}is-export{% endif %}">
+  {% if not export_mode and not print_mode %}
+    <canvas id="particles" aria-hidden="true"></canvas>
+  {% endif %}
+  <div class="page">
+    <div class="resume-shell">
+      <div class="topbar">
+        <span class="eyebrow">Shortlistii.com Digital Resume</span>
+        {% if not export_mode %}
+          <div class="action-row">
+            <a class="action-link" href="{{ share.pdf_url }}" data-download-link>Download PDF</a>
+            <a class="action-link" href="{{ share.word_url }}" data-download-link>Download Word</a>
+            <button class="action-link" type="button" id="copyResumeLinkBtn">Copy Link</button>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="hero">
+        <div class="avatar">
+          {% if candidate.profile_picture_data_url %}
+            <img src="{{ candidate.profile_picture_data_url }}" alt="{{ candidate.name }}">
+          {% elif candidate.profile_picture_url %}
+            <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+          {% else %}
+            <span>{{ candidate.name|slice:":1" }}</span>
+          {% endif %}
+        </div>
+        <div>
+          <h1>
+            {{ candidate.name }}
+            {% if highlights.current_title %}
+              <span class="name-inline-role">- {{ highlights.current_title }}</span>
+            {% endif %}
+          </h1>
+          <p class="hero-subline">
+            {% if resume.summary %}
+              {{ resume.summary }}
+            {% elif resume.headline %}
+              {{ resume.headline }}
+            {% else %}
+              Professional candidate profile shared through Shortlistii.com.
+            {% endif %}
+          </p>
+          <div class="pill-row">
+            {% if candidate.email %}<span class="status-pill">{{ candidate.email }}</span>{% endif %}
+            {% if candidate.phone %}<span class="status-pill">{{ candidate.phone }}</span>{% endif %}
+            {% if highlights.experience_years %}<span class="status-pill">{{ highlights.experience_years }} years experience</span>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- <div class="modal-grid">
+        <div class="modal-card">
+          <span>Current Role</span>
+          <strong>{% if highlights.current_title %}{{ highlights.current_title }}{% elif resume.headline %}{{ resume.headline }}{% else %}Candidate{% endif %}</strong>
+        </div>
+        <div class="modal-card">
+          <span>Company</span>
+          <strong>{% if highlights.current_company %}{{ highlights.current_company }}{% else %}Available on request{% endif %}</strong>
+        </div>
+        <div class="modal-card">
+          <span>Experience</span>
+          <strong>{% if highlights.experience_years %}{{ highlights.experience_years }} years{% else %}Not specified{% endif %}</strong>
+        </div>
+        <div class="modal-card">
+          <span>Resume Source</span>
+          <strong>{% if resume.source_file %}{{ resume.source_file }}{% else %}Digital profile{% endif %}</strong>
+        </div>
+      </div> -->
+
+      {% if resume.skills %}
+        <section class="resume-section">
+          <h2>Skills</h2>
+          <div class="box-list">
+            {% for skill in resume.skills %}
+              <div class="box-item">{{ skill }}</div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% for section in resume.sections %}
+        {% if section.text or section.items %}
+          <section class="resume-section section-{{ section.section_key|default:section.title|lower|slugify }}">
+            <h2>{{ section.title }}</h2>
+            {% if section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+              <div class="experience-grid">
+                {% for item in section.items %}
+                  <article class="experience-card">
+                    <div class="experience-head">
+                      <strong>{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</strong>
+                      {% if item.company %}<div class="experience-company">Employer: {{ item.company }}</div>{% endif %}
+                    </div>
+                    <div class="experience-meta">
+                      {% if item.duration %}<span>Duration: {{ item.duration }}</span>{% endif %}
+                      {% if item.location %}<span>Location: {{ item.location }}</span>{% endif %}
+                    </div>
+                    {% if item.role %}<div class="experience-role">Function: {{ item.role }}</div>{% endif %}
+                    {% if item.tech_stack %}
+                      <div class="field-line"><strong>Tech Stack:</strong> {{ item.tech_stack|join:", " }}</div>
+                      <div class="box-list">
+                        {% for tech in item.tech_stack %}
+                          <div class="box-item">{{ tech }}</div>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                    {% if item.details %}
+                      <ul class="detail-list">
+                        {% for detail in item.details %}
+                          <li>{{ detail }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% elif item.description %}
+                      <p>{{ item.description }}</p>
+                    {% endif %}
+                  </article>
+                {% endfor %}
+              </div>
+            {% elif section.items %}
+              <div class="box-list box-list--stacked">
+                {% for item in section.items %}
+                  <div class="box-item box-item--section">
+                    {% if item.title %}
+                      <strong>{{ item.title }}</strong>
+                      {% if section.section_key == 'projects' %}
+                        {% if item.company %}<div class="field-line"><strong>Client / Link:</strong> {{ item.company }}</div>{% endif %}
+                        {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
+                        {% if item.duration %}<div class="field-line"><strong>Duration:</strong> {{ item.duration }}</div>{% endif %}
+                        {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                      {% else %}
+                        {% if item.company %}<div class="field-line"><strong>Organization:</strong> {{ item.company }}</div>{% endif %}
+                        {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                        {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                        {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
+                      {% endif %}
+                    {% elif item.degree or item.institution %}
+                      {% if item.degree %}<div class="field-line"><strong>Degree:</strong> {{ item.degree }}</div>{% endif %}
+                      {% if item.institution %}<div class="field-line"><strong>Institution:</strong> {{ item.institution }}</div>{% endif %}
+                      {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                      {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                    {% elif item.label or item.value %}
+                      {% if item.label %}<strong>{{ item.label }}</strong>{% endif %}
+                      {% if section.section_key == 'certifications' %}
+                        {% if item.issuer %}<div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>{% endif %}
+                        {% if item.value %}<div class="field-line"><strong>Credential:</strong> {{ item.value }}</div>{% endif %}
+                        {% if item.duration %}<div class="field-line"><strong>Issued:</strong> {{ item.duration }}</div>{% endif %}
+                      {% elif section.section_key == 'achievements' %}
+                        {% if item.value %}<div class="field-line"><strong>Outcome:</strong> {{ item.value }}</div>{% endif %}
+                        {% if item.issuer %}<div class="field-line"><strong>Organization:</strong> {{ item.issuer }}</div>{% endif %}
+                        {% if item.duration %}<div class="field-line"><strong>Date:</strong> {{ item.duration }}</div>{% endif %}
+                      {% elif section.section_key == 'languages' %}
+                        {% if item.value %}<div class="field-line"><strong>Proficiency:</strong> {{ item.value }}</div>{% endif %}
+                        {% if item.issuer %}<div class="field-line"><strong>Context:</strong> {{ item.issuer }}</div>{% endif %}
+                        {% if item.duration %}<div class="field-line"><strong>Usage:</strong> {{ item.duration }}</div>{% endif %}
+                      {% else %}
+                        {% if item.value %}<div class="field-line"><strong>Details:</strong> {{ item.value }}</div>{% endif %}
+                      {% endif %}
+                    {% elif item.description %}
+                      <div class="field-line">{{ item.description }}</div>
+                    {% else %}
+                      {{ item }}
+                    {% endif %}
+                    {% if item.issuer and section.section_key != 'certifications' and section.section_key != 'achievements' and section.section_key != 'languages' %}
+                      <div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>
+                    {% endif %}
+                    {% if item.tech_stack %}
+                      <div class="field-line"><strong>Tech Stack:</strong> {{ item.tech_stack|join:", " }}</div>
+                    {% endif %}
+                    {% if item.description %}
+                      <div class="field-line"><strong>Summary:</strong> {{ item.description }}</div>
+                    {% endif %}
+                    {% if item.details %}
+                      {% for detail in item.details %}
+                        <div class="field-line"><strong>{% if section.section_key == 'projects' %}Highlight{% elif section.section_key == 'education' %}Detail{% elif section.section_key == 'certifications' %}Coverage{% elif section.section_key == 'achievements' %}Impact{% elif section.section_key == 'languages' %}Usage Detail{% else %}Detail{% endif %}:</strong> {{ detail }}</div>
+                      {% endfor %}
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% elif section.text %}
+              <p>{{ section.text }}</p>
+            {% endif %}
+          </section>
+        {% endif %}
+      {% endfor %}
+
+      <div class="footer-note">
+        Shared through Shortlistii.com.
+      </div>
+    </div>
+  </div>
+
+  {% if not export_mode %}
+    <script>
+      (function () {
+        const canvas = document.getElementById('particles');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            let points = [];
+            let animationFrameId = 0;
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const pointCount = reducedMotion ? 28 : 72;
+            const maxDistance = 120;
+
+            function resizeParticles() {
+              canvas.width = window.innerWidth;
+              canvas.height = window.innerHeight;
+            }
+
+            function seedParticles() {
+              points = Array.from({ length: pointCount }, function () {
+                return {
+                  x: Math.random() * canvas.width,
+                  y: Math.random() * canvas.height,
+                  vx: (Math.random() - 0.5) * 0.25,
+                  vy: (Math.random() - 0.5) * 0.25,
+                  r: Math.random() * 1.5 + 0.35
+                };
+              });
+            }
+
+            function tickParticles() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+              for (let i = 0; i < points.length; i += 1) {
+                const p = points[i];
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                ctx.fillStyle = 'rgba(102, 226, 255, 0.38)';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+
+                for (let j = i + 1; j < points.length; j += 1) {
+                  const q = points[j];
+                  const dx = p.x - q.x;
+                  const dy = p.y - q.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
+                  if (dist < maxDistance) {
+                    ctx.strokeStyle = `rgba(88, 164, 255, ${(1 - dist / maxDistance) * 0.15})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(q.x, q.y);
+                    ctx.stroke();
+                  }
+                }
+              }
+
+              animationFrameId = window.requestAnimationFrame(tickParticles);
+            }
+
+            resizeParticles();
+            seedParticles();
+            tickParticles();
+            window.addEventListener('resize', function () {
+              resizeParticles();
+              seedParticles();
+            });
+            window.addEventListener('pagehide', function () {
+              if (animationFrameId) {
+                window.cancelAnimationFrame(animationFrameId);
+              }
+            }, { once: true });
+          }
+        }
+
+        document.querySelectorAll('[data-download-link]').forEach(function (link) {
+          link.addEventListener('click', function () {
+            if (link.dataset.downloading === '1') {
+              return;
+            }
+            link.dataset.downloading = '1';
+            const originalText = link.textContent;
+            link.textContent = 'Downloading...';
+            link.style.pointerEvents = 'none';
+            setTimeout(function () {
+              link.textContent = 'Downloaded';
+            }, 1200);
+            setTimeout(function () {
+              link.textContent = originalText;
+              link.style.pointerEvents = '';
+              link.dataset.downloading = '0';
+            }, 4000);
+          });
+        });
+
+        const copyButton = document.getElementById('copyResumeLinkBtn');
+        if (!copyButton) return;
+        copyButton.addEventListener('click', async function () {
+          try {
+            await navigator.clipboard.writeText('{{ share.share_url|escapejs }}');
+            copyButton.textContent = 'Link Copied';
+            setTimeout(function () {
+              copyButton.textContent = 'Copy Link';
+            }, 1800);
+          } catch (error) {
+            window.prompt('Copy resume link', '{{ share.share_url|escapejs }}');
+          }
+        });
+      }());
+    </script>
+  {% endif %}
+</body>
+</html>

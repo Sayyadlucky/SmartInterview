@@ -1,0 +1,21 @@
+<div class="notify-card">
+  <h4>Notification Status</h4>
+  <input [(ngModel)]="notificationId" placeholder="Notification id" />
+  <button (click)="fetch()" [disabled]="loading">Fetch</button>
+
+  <p class="error" *ngIf="error">{{ error }}</p>
+  <div *ngIf="notification" class="status-box">
+    <p><strong>ID:</strong> {{ notification.id }}</p>
+    <p><strong>Status:</strong> {{ notification.status }}</p>
+    <p><strong>Severity:</strong> {{ notification.severity }}</p>
+    <p><strong>Final Channel:</strong> {{ notification.final_channel || 'n/a' }}</p>
+    <div *ngIf="notification.attempts?.length">
+      <p><strong>Attempts:</strong></p>
+      <ul>
+        <li *ngFor="let attempt of notification.attempts">
+          {{ attempt.channel }} - {{ attempt.provider }} - {{ attempt.status }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

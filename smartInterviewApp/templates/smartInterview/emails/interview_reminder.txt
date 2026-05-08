@@ -1,0 +1,15 @@
+{% extends "smartInterview/emails/base.txt" %}
+
+{% block body %}
+Interview reminder
+
+Hello {{ recipient_name|default:"there" }},
+
+Your interview{% if role_name %} for {{ role_name }}{% endif %} is coming up{% if reminder_window %} in {{ reminder_window }}{% endif %}.
+
+{% for item in details %}{{ item.label }}: {{ item.value }}
+{% endfor %}
+{% if button_url %}{{ button_label|default:"Open link" }}:
+{{ button_url }}
+{% endif %}
+{% endblock %}

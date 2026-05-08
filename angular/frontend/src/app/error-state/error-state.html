@@ -1,0 +1,83 @@
+<header class="navbar-shell">
+  <nav class="navbar" aria-label="Primary navigation">
+    <a class="navbar-brand shortlistii-navbar" aria-label="Shortlist dashboard" routerLink="/dashboard">
+      <span class="logo-text">shortlist</span>
+      <span class="logo-ii" aria-hidden="true">
+        <span class="person">
+          <span class="head"></span>
+          <span class="body"></span>
+          <span class="tie"></span>
+        </span>
+        <span class="person">
+          <span class="head"></span>
+          <span class="body"></span>
+          <span class="tie"></span>
+        </span>
+      </span>
+    </a>
+
+    <div class="navbar-actions">
+      <a routerLink="/dashboard">Dashboard</a>
+      <a routerLink="/dashboard/jobs">Job Postings</a>
+    </div>
+  </nav>
+</header>
+
+<main class="error-page-shell">
+  <section class="error-page-card" [class.is-technical]="isTechnical">
+    <div class="error-card-glow" aria-hidden="true"></div>
+
+    <div class="error-status-row">
+      <div class="error-status-pill">
+        <i class="ph" [class]="content.iconClass" aria-hidden="true"></i>
+        <span>{{ content.statusLabel }}</span>
+      </div>
+      <span class="error-accent-label">{{ content.accentLabel }}</span>
+    </div>
+
+    <div class="error-layout">
+      <div class="error-copy">
+        <div class="error-code">{{ content.code }}</div>
+        <h1>{{ content.title }}</h1>
+        <p>{{ content.description }}</p>
+
+        <div class="error-actions">
+          <a class="hero-action hero-action-primary" routerLink="/dashboard">
+            <i class="ph ph-house-line" aria-hidden="true"></i>
+            <span>Back to dashboard</span>
+          </a>
+          <button type="button" class="hero-action hero-action-secondary" (click)="goBack()">
+            <i class="ph ph-arrow-left" aria-hidden="true"></i>
+            <span>Go back</span>
+          </button>
+          <button *ngIf="isTechnical" type="button" class="hero-action hero-action-secondary" (click)="reloadPage()">
+            <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+            <span>Reload page</span>
+          </button>
+        </div>
+      </div>
+
+      <aside class="error-support-card" aria-labelledby="errorSupportTitle">
+        <div class="support-kicker">Recovery steps</div>
+        <h2 id="errorSupportTitle">What to do next</h2>
+        <ul class="support-list">
+          <li *ngFor="let tip of content.tips">
+            <i class="ph ph-check-circle" aria-hidden="true"></i>
+            <span>{{ tip }}</span>
+          </li>
+        </ul>
+
+        <div class="support-links">
+          <a routerLink="/dashboard/jobs">
+            <i class="ph ph-briefcase" aria-hidden="true"></i>
+            <span>Open jobs workspace</span>
+          </a>
+          <a href="/logout/">
+            <i class="ph ph-sign-out" aria-hidden="true"></i>
+            <span>Sign out</span>
+          </a>
+        </div>
+      </aside>
+    </div>
+  </section>
+</main>

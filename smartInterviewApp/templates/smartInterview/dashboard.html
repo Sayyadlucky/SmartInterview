@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hiring Dashboard | Shortlistii</title>
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+     <!--local files-->
+    <link rel="stylesheet" href="{% static 'smartInterview/css/dashboard.css' %}">
+
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- GSAP CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <!-- Phosphor Icons CDN -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+<div class="navbar">
+    <div class="navbar-right">
+      <a href="#" class="active">Dashboard</a>
+      <a href="#">Jobs</a>
+      <a href="#">Candidates</a>
+      <a href="#">Talent</a>
+      <a href="{% url 'logout' %}">Logout</a>
+    </div>
+  </div>
+ <!-- <header id="mainHeader" class="top-0 left-0 w-full z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 grid grid-cols-3 items-center">
+      <div class="flex items-center gap-2">
+        <i class="ph ph-cube text-cyan-400 text-2xl"></i>
+        <span class="text-xl font-bold">BrandName</span>
+      </div>
+
+      <nav id="mainMenu" class="justify-self-center">
+        <ul class="flex gap-8 text-sm font-medium">
+          <li><a href="#hero" class="hover:text-cyan-400 transition active">Dashboard</a></li>
+          <li><a href="#features" class="hover:text-cyan-400 transition">Candidates</a></li>
+          <li><a href="#pricing" class="hover:text-cyan-400 transition">Reports</a></li>
+        </ul>
+      </nav>
+
+      <div class="justify-self-end">
+        <a href="" id="logout" class="sign-in-btn text-sm py-2 px-4 rounded-lg">Logout</a>
+      </div>
+    </div>
+  </header>
+  -->
+  <div class="dashboard-wrap">
+    <main class="dashboard-card">
+      <div class="dashboard-title">Office Manager</div>
+      <div class="tabs">
+        <button class="tab-btn active">Overview</button>
+        <button class="tab-btn">Promote</button>
+        <button class="tab-btn">HR</button>
+        <button class="tab-btn">Evaluators</button>
+        <button class="tab-btn">Candidates</button>
+        <button class="tab-btn">Invite</button>
+        <button class="tab-btn">Activity</button>
+        <button class="tab-btn">Analytics</button>
+      </div>
+      <div class="status-bar">
+        <div class="status-item">Applied <span>100</span></div>
+        <div class="status-item">Auto Screened <span>60</span></div>
+        <div class="status-item">Disqualified <span>43</span></div>
+        <div class="status-item">Shortlisted <span>12</span></div>
+        <div class="status-item active">Phone <span>4</span></div>
+      </div>
+      <div class="status-row">
+        <div class="status-item">Finance Assess. <span>2</span></div>
+        <div class="status-item">In-person Intvw. <span>2</span></div>
+        <div class="status-item">Other <span>0</span></div>
+        <div class="status-item">HIRED <span>0</span></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Disqualify</th>
+            <th>Opinion</th>
+            <th>HR Tasks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="#" class="candidate-link" data-name="Charlotte Walker"
+                 data-address="3428 Candidate Lane, Lafayette, Indiana 47905"
+                 data-email="cwalker@perfectcandidate.com"
+                 data-info="Notes: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eleifend, felis eu sodales tempor, enim orci cursus mi.">
+              Charlotte Walker</a></td>
+            <td>92%</td>
+            <td></td>
+            <td><span class="stars">★★★★★</span></td>
+            <td><button class="hr-btn">Interview Scheduled</button></td>
+          </tr>
+          <tr>
+            <td><a href="#" class="candidate-link" data-name="Nathan Daniels"
+                 data-address="123 Main St, City, State"
+                 data-email="ndaniels@example.com"
+                 data-info="Notes: Candidate shows great potential but needs more experience.">
+              Nathan Daniels</a></td>
+            <td>85%</td>
+            <td></td>
+            <td><span class="stars">★★★★☆</span></td>
+            <td><button class="hr-btn">Need to Schedule</button></td>
+          </tr>
+          <!-- Add more candidate rows similarly -->
+        </tbody>
+      </table>
+    </main>
+  </div>
+
+  <!-- Candidate Overview Modal -->
+  <div id="candidateModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" title="Close Modal" aria-label="Close Candidate Overview">&times;</button>
+      <div class="side-title" id="modalTitle">Candidate Overview</div>
+      <div class="candidate-name" id="modalName"></div>
+      <div class="candidate-info" id="modalAddress"></div>
+      <div class="candidate-info" id="modalEmail"></div>
+      <div class="side-actions">
+        <button>RESUME</button>
+        <button>Flag</button>
+      </div>
+      <div class="candidate-notes" id="modalNotes"></div>
+    </div>
+  </div>
+
+  <script>
+    const modal = document.getElementById('candidateModal');
+    const modalName = document.getElementById('modalName');
+    const modalAddress = document.getElementById('modalAddress');
+    const modalEmail = document.getElementById('modalEmail');
+    const modalNotes = document.getElementById('modalNotes');
+    const modalClose = modal.querySelector('.modal-close');
+
+    document.querySelectorAll('.candidate-link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        modalName.textContent = link.dataset.name;
+        modalAddress.textContent = link.dataset.address;
+        modalEmail.textContent = link.dataset.email;
+        modalNotes.textContent = link.dataset.info;
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+      });
+    });
+
+    modalClose.addEventListener('click', () => {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    });
+
+    modal.addEventListener('click', e => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+  </script>
+</body>
+</html>

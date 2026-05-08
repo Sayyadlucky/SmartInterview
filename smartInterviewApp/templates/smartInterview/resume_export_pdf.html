@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ candidate.name }} | Resume</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm;
+    }
+
+    :root {
+      --ink: #13263b;
+      --muted: #60758d;
+      --soft: #edf3f8;
+      --line: #d9e4ef;
+      --accent: #155e75;
+      --accent-soft: #dff3f8;
+      --strong: #0f2741;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Helvetica Neue", "Segoe UI", sans-serif;
+      color: var(--ink);
+      font-size: 10.5pt;
+      line-height: 1.5;
+      background: white;
+    }
+
+    .resume {
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap: 18px;
+      border-bottom: 2px solid var(--strong);
+      padding-bottom: 14px;
+    }
+
+    .name {
+      margin: 0;
+      font-size: 24pt;
+      line-height: 1.05;
+      letter-spacing: 0.01em;
+      color: var(--strong);
+    }
+
+    .headline {
+      margin: 6px 0 0;
+      font-size: 11.5pt;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .summary {
+      margin: 10px 0 0;
+      color: var(--ink);
+    }
+
+    .contact-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafcfe;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .contact-card h2,
+    .section h2 {
+      margin: 0;
+      font-size: 9pt;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .contact-item {
+      display: grid;
+      gap: 2px;
+    }
+
+    .contact-item span {
+      font-size: 8pt;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .contact-item strong {
+      font-size: 10pt;
+      color: var(--strong);
+      word-break: break-word;
+    }
+
+    .meta-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .meta-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: var(--soft);
+    }
+
+    .meta-card span {
+      display: block;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .meta-card strong {
+      display: block;
+      font-size: 10pt;
+      color: var(--strong);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 0.7fr 1.3fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .sidebar,
+    .main {
+      display: grid;
+      gap: 14px;
+    }
+
+    .section {
+      display: grid;
+      gap: 10px;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 8.5pt;
+      font-weight: 600;
+    }
+
+    .simple-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+
+    .simple-card strong {
+      display: block;
+      color: var(--strong);
+      margin-bottom: 4px;
+      font-size: 10pt;
+    }
+
+    .simple-card div,
+    .simple-card p {
+      color: var(--ink);
+      margin: 0;
+      white-space: pre-line;
+    }
+
+    .experience-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .experience-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: white;
+    }
+
+    .experience-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .experience-title {
+      font-size: 11pt;
+      font-weight: 700;
+      color: var(--strong);
+    }
+
+    .experience-duration {
+      font-size: 8.5pt;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .experience-company {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .experience-submeta {
+      font-size: 8.5pt;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    ul.detail-list {
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    ul.detail-list li {
+      margin: 0 0 4px;
+    }
+
+    .section-text {
+      margin: 0;
+      white-space: pre-line;
+    }
+
+    .debug-note {
+      margin-top: 8px;
+      font-size: 7pt;
+      color: #8ea0b1;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="resume">
+    <section class="hero">
+      <div>
+        <h1 class="name">{{ candidate.name }}</h1>
+        {% if highlights.current_title or resume.headline %}
+          <div class="headline">{{ highlights.current_title|default:resume.headline }}</div>
+        {% endif %}
+        {% if resume.summary %}
+          <p class="summary">{{ resume.summary }}</p>
+        {% endif %}
+      </div>
+      <aside class="contact-card">
+        <h2>Contact</h2>
+        {% if candidate.email %}
+          <div class="contact-item">
+            <span>Email</span>
+            <strong>{{ candidate.email }}</strong>
+          </div>
+        {% endif %}
+        {% if candidate.phone %}
+          <div class="contact-item">
+            <span>Phone</span>
+            <strong>{{ candidate.phone }}</strong>
+          </div>
+        {% endif %}
+        {% if candidate.gender %}
+          <div class="contact-item">
+            <span>Gender</span>
+            <strong>{{ candidate.gender }}</strong>
+          </div>
+        {% endif %}
+      </aside>
+    </section>
+
+    <section class="meta-strip">
+      <div class="meta-card">
+        <span>Current Title</span>
+        <strong>{% if highlights.current_title %}{{ highlights.current_title }}{% else %}Candidate{% endif %}</strong>
+      </div>
+      <div class="meta-card">
+        <span>Current Company</span>
+        <strong>{% if highlights.current_company %}{{ highlights.current_company }}{% else %}Available on request{% endif %}</strong>
+      </div>
+      <div class="meta-card">
+        <span>Experience</span>
+        <strong>{% if highlights.experience_years %}{{ highlights.experience_years }} years{% else %}Not specified{% endif %}</strong>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <aside class="sidebar">
+        {% if resume.skills %}
+          <section class="section">
+            <h2>Core Skills</h2>
+            <div class="chip-list">
+              {% for skill in resume.skills %}
+                <span class="chip">{{ skill }}</span>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+
+        {% for section in resume.sections %}
+          {% if section.items and section.title|lower == 'education' or section.items and section.title|lower == 'academics' or section.items and section.title|lower == 'certifications' %}
+            <section class="section">
+              <h2>{{ section.title }}</h2>
+              {% for item in section.items %}
+                <div class="simple-card">
+                  {% if item.degree %}<strong>{{ item.degree }}</strong>{% elif item.title %}<strong>{{ item.title }}</strong>{% endif %}
+                  {% if item.institution %}<div>{{ item.institution }}</div>{% endif %}
+                  {% if item.issuer %}<div>{{ item.issuer }}</div>{% endif %}
+                  {% if item.duration %}<div>{{ item.duration }}</div>{% endif %}
+                  {% if item.details %}
+                    {% for detail in item.details %}
+                      <div>{{ detail }}</div>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </section>
+          {% endif %}
+        {% endfor %}
+      </aside>
+
+      <main class="main">
+        {% for section in resume.sections %}
+          {% if section.text or section.items %}
+            {% if section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+              <section class="section">
+                <h2>{{ section.title }}</h2>
+                <div class="experience-list">
+                  {% for item in section.items %}
+                    <article class="experience-card">
+                      <div class="experience-head">
+                        <div class="experience-title">{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</div>
+                        {% if item.duration %}<div class="experience-duration">{{ item.duration }}</div>{% endif %}
+                      </div>
+                      {% if item.company %}<div class="experience-company">{{ item.company }}</div>{% endif %}
+                      {% if item.role or item.location %}
+                        <div class="experience-submeta">
+                          {% if item.role %}{{ item.role }}{% endif %}{% if item.role and item.location %} · {% endif %}{% if item.location %}{{ item.location }}{% endif %}
+                        </div>
+                      {% endif %}
+                      {% if item.details %}
+                        <ul class="detail-list">
+                          {% for detail in item.details %}
+                            <li>{{ detail }}</li>
+                          {% endfor %}
+                        </ul>
+                      {% elif item.description %}
+                        <p class="section-text">{{ item.description }}</p>
+                      {% endif %}
+                    </article>
+                  {% endfor %}
+                </div>
+              </section>
+            {% elif section.title|lower != 'education' and section.title|lower != 'academics' and section.title|lower != 'certifications' %}
+              <section class="section">
+                <h2>{{ section.title }}</h2>
+                {% if section.items %}
+                  {% for item in section.items %}
+                    <div class="simple-card">
+                      {% if item.title %}<strong>{{ item.title }}</strong>{% elif item.label %}<strong>{{ item.label }}</strong>{% elif item.degree %}<strong>{{ item.degree }}</strong>{% endif %}
+                      {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+                      {% if item.company %}<div>{{ item.company }}</div>{% endif %}
+                      {% if item.value %}<div>{{ item.value }}</div>{% endif %}
+                      {% if item.details %}
+                        {% for detail in item.details %}
+                          <div>{{ detail }}</div>
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                {% elif section.text %}
+                  <p class="section-text">{{ section.text }}</p>
+                {% endif %}
+              </section>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </main>
+    </section>
+
+    {% if renderer_hint %}
+      <div class="debug-note">Renderer hint: {{ renderer_hint }}</div>
+    {% endif %}
+  </div>
+</body>
+</html>

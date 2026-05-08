@@ -1,0 +1,3879 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jobs Portal | Shortlistii.com</title>
+  <link rel="icon" href="{% static 'smartInterview/favicon.ico' %}" sizes="any">
+  <link rel="shortcut icon" href="{% static 'smartInterview/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'smartInterview/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260309j">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="{% static 'smartInterview/js/script.js' %}?v=20260331a"></script>
+  <style>
+    :root {
+      --bg: #08101d;
+      --bg-elev: #0d1830;
+      --panel: rgba(8, 20, 40, 0.82);
+      --panel-strong: rgba(9, 24, 47, 0.94);
+      --panel-soft: rgba(15, 29, 53, 0.62);
+      --border: rgba(144, 192, 234, 0.16);
+      --border-strong: rgba(126, 201, 242, 0.28);
+      --text: #eef5ff;
+      --muted: #9eb4d0;
+      --muted-soft: #7c9ab8;
+      --accent: #66d4ff;
+      --accent-strong: #2f83ff;
+      --accent-soft: rgba(102, 212, 255, 0.12);
+      --success: #8de8b3;
+      --warning: #ffd48f;
+      --danger: #ff9aa5;
+      --shadow: 0 22px 50px rgba(1, 6, 18, 0.38);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+      --pill: 999px;
+      --layout-x: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Manrope", sans-serif;
+      background: radial-gradient(circle at 20% -20%, #1e3770 0%, #070f1f 42%, #03060e 100%);
+    }
+
+    body.jobs-portal-page {
+      min-height: 100vh;
+    }
+
+    body.jobs-portal-page .noise-layer {
+      opacity: 0.24;
+    }
+
+    body.jobs-portal-page .vignette {
+      background: radial-gradient(circle at 50% 50%, transparent 52%, rgba(1, 4, 10, 0.36) 100%);
+    }
+
+    body.jobs-portal-page .spotlight {
+      background:
+        radial-gradient(circle at var(--mx, 50%) var(--my, 45%), rgba(116, 225, 255, 0.1), transparent 24%),
+        radial-gradient(circle at calc(var(--mx, 50%) + 8%) calc(var(--my, 45%) - 12%), rgba(107, 133, 255, 0.07), transparent 22%);
+    }
+
+    body.jobs-portal-page .light-beam {
+      opacity: 0.2;
+      filter: blur(18px);
+    }
+
+    body.jobs-portal-page .atmo {
+      opacity: 0.16;
+      filter: blur(90px);
+    }
+
+    body.jobs-portal-page #mainHeader,
+    body.jobs-portal-page #mainHeader.scrolled {
+      background: rgba(5, 10, 22, 0.42);
+      border-bottom: 1px solid rgba(142, 203, 255, 0.08);
+      backdrop-filter: blur(8px);
+    }
+
+    body.jobs-portal-page .header-shell {
+      max-width: 1380px;
+      padding: 14px var(--layout-x);
+    }
+
+    body.jobs-portal-page #mainMenu {
+      gap: 18px;
+    }
+
+    body.jobs-portal-page #mainMenu a {
+      font-size: 0.84rem;
+      color: #93aac8;
+    }
+
+    body.jobs-portal-page .header-actions .btn {
+      min-height: 40px;
+      padding-inline: 16px;
+      font-size: 0.86rem;
+    }
+
+    body.jobs-portal-page .page-shell {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      padding-top: 104px;
+    }
+
+    a, button, input, select { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+    button { border: 0; cursor: pointer; }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid rgba(102, 212, 255, 0.96);
+      outline-offset: 3px;
+    }
+
+    .page-shell {
+      width: min(1380px, 100%);
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      padding: 18px var(--layout-x) 42px;
+    }
+
+    .surface {
+      background: linear-gradient(165deg, rgba(11, 25, 48, 0.72), rgba(7, 15, 30, 0.82));
+      border: 1px solid rgba(144, 192, 234, 0.1);
+      box-shadow: 0 14px 34px rgba(1, 6, 18, 0.22);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 14px;
+      border-radius: 18px;
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+      background: rgba(8, 17, 32, 0.78);
+      border-color: rgba(144, 192, 234, 0.08);
+      box-shadow: 0 10px 28px rgba(1, 6, 18, 0.2);
+    }
+
+    .topbar .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(102, 212, 255, 0.22), rgba(47, 131, 255, 0.26));
+      border: 1px solid rgba(126, 201, 242, 0.22);
+      color: #d8f2ff;
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .topbar .brand-copy strong,
+    .section-heading h2,
+    .job-role,
+    .modal-title {
+      font-family: "Space Grotesk", sans-serif;
+      letter-spacing: -0.04em;
+    }
+
+    .topbar .brand-copy strong {
+      display: block;
+      font-size: 1rem;
+    }
+
+    .topbar .brand-copy span {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.72rem;
+      color: var(--muted-soft);
+    }
+
+    .topbar .topbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip-link,
+    .cta-link,
+    .action-btn,
+    .modal-action,
+    .filter-btn,
+    .secondary-btn {
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: var(--pill);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .chip-link,
+    .action-btn,
+    .secondary-btn,
+    .filter-btn {
+      border: 1px solid var(--border-strong);
+      background: rgba(10, 24, 46, 0.48);
+      color: #e3f3ff;
+      box-shadow: inset 0 1px 0 rgba(197, 231, 255, 0.04);
+    }
+
+    .cta-link,
+    .action-btn--primary,
+    .modal-action--primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #04111f;
+      font-weight: 800;
+      box-shadow: 0 12px 24px rgba(47, 131, 255, 0.16);
+    }
+
+    .chip-link,
+    .cta-link {
+      min-height: 38px;
+      padding: 0 14px;
+      font-size: 0.82rem;
+    }
+
+    .chip-link:hover,
+    .secondary-btn:hover,
+    .filter-btn:hover,
+    .action-btn:hover,
+    .cta-link:hover,
+    .modal-action:hover {
+      transform: translateY(-1px);
+    }
+
+    .results-overview {
+      margin-top: 18px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 4px 4px 2px;
+    }
+
+    .results-overview-copy {
+      display: grid;
+      gap: 8px;
+    }
+
+    .results-overview-copy h1 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(1.35rem, 2.5vw, 2rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    .results-overview-copy p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.5;
+      max-width: 60ch;
+    }
+
+    .results-overview-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .overview-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(126, 201, 242, 0.1);
+      background: rgba(9, 19, 36, 0.3);
+      color: #dceefe;
+      font-size: 0.78rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .overview-chip i {
+      color: #8fdfff;
+      font-size: 0.92rem;
+    }
+
+    .overview-chip strong {
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .insights-strip {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .insight-card {
+      border-radius: 16px;
+      padding: 13px 14px;
+      background: linear-gradient(165deg, rgba(10, 22, 42, 0.32), rgba(7, 15, 29, 0.46));
+      border: 1px solid rgba(126, 201, 242, 0.05);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.03),
+        0 10px 20px rgba(1, 6, 18, 0.06);
+    }
+
+    .insight-card-head {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .insight-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(102, 212, 255, 0.1);
+      border: 1px solid rgba(126, 201, 242, 0.12);
+      color: #9be3ff;
+      font-size: 0.86rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .insight-label {
+      display: block;
+      color: var(--muted-soft);
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .insight-value {
+      display: block;
+      margin-top: 8px;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.5rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: #f2f8ff;
+    }
+
+    .insight-card--primary .insight-value {
+      font-size: 1.68rem;
+    }
+
+    .insight-meta {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
+    }
+
+    .page-grid {
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    .panel--filters {
+      position: relative;
+      overflow: hidden;
+      background: rgba(7, 15, 30, 0.26);
+      border-color: rgba(144, 192, 234, 0.06);
+      box-shadow: none;
+      backdrop-filter: blur(10px);
+    }
+
+    .panel--filters.is-loading > :not(.filters-loading-state) {
+      opacity: 0.34;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+
+    .filters-loading-state {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(9, 19, 36, 0.74), rgba(5, 12, 24, 0.88));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+
+    .panel--filters.is-loading .filters-loading-state {
+      opacity: 1;
+    }
+
+    .filters-loading-card {
+      width: 100%;
+      max-width: 220px;
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+      padding: 18px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background: rgba(9, 19, 36, 0.82);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 34px rgba(1, 6, 18, 0.26);
+      text-align: center;
+    }
+
+    .filters-loading-spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(126, 201, 242, 0.14);
+      border-top-color: rgba(141, 224, 255, 0.94);
+      border-right-color: rgba(77, 155, 255, 0.78);
+      animation: filtersPanelSpin 0.8s linear infinite;
+    }
+
+    .filters-loading-copy strong {
+      display: block;
+      color: #eef8ff;
+      font-size: 0.9rem;
+    }
+
+    .filters-loading-copy span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+
+    @keyframes filtersPanelSpin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .panel--results {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+      padding: 0;
+    }
+
+    .results-workspace {
+      position: relative;
+      display: grid;
+      gap: 0;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      overflow: visible;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      font-size: 1.04rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-heading h2 i {
+      color: #93e2ff;
+      font-size: 1rem;
+    }
+
+    .section-heading p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.8rem;
+    }
+
+    .filter-form {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      position: relative;
+    }
+
+    .field label {
+      color: #dceefe;
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      min-height: 46px;
+      border-radius: 14px;
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background: rgba(6, 15, 28, 0.72);
+      color: var(--text);
+      padding: 0 14px;
+    }
+
+    .field input::-webkit-search-cancel-button,
+    .field input::-webkit-search-decoration {
+      -webkit-appearance: none;
+    }
+
+    .recruiter-combobox {
+      position: relative;
+    }
+
+    .recruiter-suggestions {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      z-index: 18;
+      display: grid;
+      gap: 4px;
+      padding: 8px;
+      border-radius: 16px;
+      border: 1px solid rgba(126, 201, 242, 0.16);
+      background:
+        linear-gradient(180deg, rgba(14, 28, 52, 0.96), rgba(8, 17, 31, 0.98));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 18px 36px rgba(1, 6, 18, 0.28);
+      max-height: 248px;
+      overflow-y: auto;
+      backdrop-filter: blur(12px);
+    }
+
+    .recruiter-suggestions[hidden] {
+      display: none !important;
+    }
+
+    .recruiter-suggestion {
+      width: 100%;
+      min-height: 42px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: rgba(9, 19, 36, 0.38);
+      color: #e7f4ff;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+
+    .recruiter-suggestion:hover,
+    .recruiter-suggestion.is-active,
+    .recruiter-suggestion:focus-visible {
+      outline: none;
+      background: rgba(25, 53, 95, 0.88);
+      border-color: rgba(126, 201, 242, 0.24);
+      transform: translateY(-1px);
+    }
+
+    .recruiter-suggestion-empty {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(9, 19, 36, 0.32);
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+
+    .field input::placeholder {
+      color: rgba(158, 180, 208, 0.68);
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .quick-filters {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-meta {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(126, 201, 242, 0.12);
+      display: grid;
+      gap: 8px;
+    }
+
+    .filter-meta-card {
+      border-radius: 14px;
+      padding: 12px 13px;
+      border: 1px solid rgba(126, 201, 242, 0.08);
+      background: rgba(11, 22, 42, 0.2);
+    }
+
+    .filter-meta-card strong {
+      display: block;
+      font-size: 1.05rem;
+    }
+
+    .filter-meta-card span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .results-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .results-summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: var(--pill);
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background: rgba(8, 19, 37, 0.5);
+      color: #dbf0ff;
+      font-size: 0.78rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      white-space: nowrap;
+    }
+
+    .results-summary i {
+      color: #8edfff;
+      font-size: 0.88rem;
+    }
+
+    .results-summary span:first-child {
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .results-tabs-shell {
+      --shape-tab-gap: 2.8rem;
+      --shape-tab-inactive: #0a1425;
+      --shape-tab-hover: #0d1a31;
+      --shape-tab-active: #101d35;
+      --shape-tab-inactive-fill: #0a1425;
+      --shape-tab-hover-fill: #0d1a31;
+      --shape-tab-active-fill: #101d35;
+      margin: 0 0 -1px;
+      padding: 0;
+      position: relative;
+      z-index: 3;
+    }
+
+    .results-tab-shape-defs {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .results-tabs-nav {
+      position: relative;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-top: 10px;
+    }
+
+    .results-tabs-nav::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 60px;
+      border-radius: 26px 26px 0 0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .results-tabs-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .results-tabs {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: flex-end;
+      flex-wrap: nowrap;
+      min-width: 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .results-tab-item {
+      position: relative;
+      flex: 1 1 0;
+      min-width: 220px;
+      margin: 0 var(--shape-tab-gap) 0 0;
+    }
+
+    .results-tab-item:first-child {
+      margin-left: 0;
+    }
+
+    .results-tab-item:last-child {
+      margin-right: 0;
+    }
+
+    .results-tab-item.tab-current {
+      z-index: 5;
+    }
+
+    .results-tab {
+      position: relative;
+      width: 100%;
+      margin: 0 calc(var(--shape-tab-gap) * -1) 0 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #dfefff;
+      text-align: left;
+      overflow: visible;
+      box-shadow: none;
+    }
+
+    .results-tab:focus-visible {
+      outline: none;
+    }
+
+    .results-tab-surface {
+      position: relative;
+      display: grid;
+      gap: 5px;
+      min-height: 60px;
+      padding: 12px 18px 15px;
+      background-color: var(--shape-tab-inactive-fill);
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+      z-index: 2;
+    }
+
+    .results-tab:hover .results-tab-surface,
+    .results-tab:focus-visible .results-tab-surface {
+      background-color: var(--shape-tab-hover-fill);
+      color: #f3f9ff;
+    }
+
+    .results-tab:hover .results-tab-shape,
+    .results-tab:focus-visible .results-tab-shape {
+      fill: var(--shape-tab-hover-fill);
+    }
+
+    .results-tab:focus-visible .results-tab-surface {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 0 0 1px rgba(126, 201, 242, 0.22),
+        0 0 0 4px rgba(47, 131, 255, 0.14);
+    }
+
+    .results-tab-shape {
+      position: absolute;
+      top: 0;
+      width: var(--shape-tab-gap);
+      height: 100%;
+      display: block;
+      fill: var(--shape-tab-inactive-fill);
+      transition: fill 0.18s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .results-tab-shape--right {
+      left: calc(100% - 2px);
+    }
+
+    .results-tab-shape--left {
+      right: calc(100% - 2px);
+      transform: scale3d(-1, 1, 1);
+    }
+
+    .results-tab-item:first-child .results-tab {
+      margin-left: 0;
+    }
+
+    .results-tab-item:first-child .results-tab-surface {
+      padding-left: 22px;
+    }
+
+    .results-tab-item:last-child .results-tab-surface {
+      padding-right: 22px;
+    }
+
+    .results-tab-item:first-child .results-tab-shape--left,
+    .results-tab-item:last-child .results-tab-shape--right {
+      display: none;
+    }
+
+    .results-tab-item.tab-current .results-tab-surface {
+      background-color: var(--shape-tab-active-fill);
+      color: #eff7ff;
+    }
+
+    .results-tab-item.tab-current .results-tab-shape {
+      fill: var(--shape-tab-active-fill);
+    }
+
+    .results-tab-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.61rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: inherit;
+      opacity: 0.7;
+    }
+
+    .results-tab-kicker i {
+      font-size: 0.72rem;
+      opacity: 0.9;
+    }
+
+    .results-tab-title {
+      display: block;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.14;
+      letter-spacing: -0.03em;
+      color: inherit;
+    }
+
+    .results-tab-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.68rem;
+      line-height: 1.4;
+      color: inherit;
+      opacity: 0.78;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .results-tab-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: inherit;
+      flex-shrink: 0;
+    }
+
+    .results-tab-item.tab-current .results-tab-badge {
+      background: rgba(102, 212, 255, 0.12);
+    }
+
+    .results-panels-shell {
+      position: relative;
+      z-index: 1;
+      padding: 26px 24px 24px;
+      border-radius: 0 0 28px 28px;
+      background:
+        radial-gradient(circle at top right, rgba(102, 212, 255, 0.06), transparent 28%),
+        linear-gradient(180deg, rgba(16, 29, 53, 0.98), rgba(8, 18, 34, 0.96));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.03),
+        inset 1px 0 0 rgba(126, 201, 242, 0.08),
+        inset -1px 0 0 rgba(126, 201, 242, 0.08),
+        inset 0 -1px 0 rgba(126, 201, 242, 0.08),
+        0 20px 42px rgba(1, 6, 18, 0.18);
+    }
+
+    .results-panels-shell::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 2px;
+      background: var(--shape-tab-active);
+      pointer-events: none;
+    }
+
+    .results-panel {
+      display: grid;
+      gap: 16px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      position: relative;
+    }
+
+    .results-panel[hidden] {
+      display: none !important;
+    }
+
+    .saved-strip {
+      border-radius: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .saved-strip[hidden] { display: none; }
+
+    .saved-grid {
+      margin-top: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .saved-grid[hidden] {
+      display: none !important;
+    }
+
+    .saved-strip-empty {
+      margin-top: 14px;
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px dashed rgba(126, 201, 242, 0.18);
+      background: rgba(8, 20, 40, 0.34);
+      display: grid;
+      gap: 10px;
+      justify-items: start;
+    }
+
+    .saved-strip-empty[hidden] {
+      display: none !important;
+    }
+
+    .saved-strip-empty strong,
+    .ai-pool-panel strong {
+      font-size: 0.96rem;
+      line-height: 1.25;
+    }
+
+    .saved-strip-empty p,
+    .ai-pool-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.6;
+      max-width: 58ch;
+    }
+
+    .saved-strip-empty-actions,
+    .ai-pool-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .saved-item {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(10, 20, 39, 0.46);
+      border: 1px solid rgba(126, 201, 242, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .saved-item strong {
+      display: block;
+      font-size: 0.88rem;
+      line-height: 1.3;
+    }
+
+    .saved-item span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .saved-item-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .jobs-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .ai-pool-panel {
+      border-radius: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      display: grid;
+      gap: 16px;
+    }
+
+    .ai-pool-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .ai-pool-copy {
+      display: grid;
+      gap: 12px;
+    }
+
+    .ai-pool-copy-head {
+      display: grid;
+      gap: 8px;
+    }
+
+    .ai-pool-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #8ce3ff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .ai-pool-kicker::before {
+      content: "";
+      width: 18px;
+      height: 1px;
+      background: rgba(102, 212, 255, 0.7);
+    }
+
+    .ai-pool-copy-head h3 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(1.1rem, 2vw, 1.42rem);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+    }
+
+    .ai-pool-feature-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .ai-pool-feature {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 10px;
+      padding: 12px 13px;
+      border-radius: 14px;
+      border: 1px solid rgba(126, 201, 242, 0.1);
+      background: rgba(8, 18, 34, 0.42);
+    }
+
+    .ai-pool-feature-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: rgba(102, 212, 255, 0.1);
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      color: #94e5ff;
+      font-size: 0.9rem;
+    }
+
+    .ai-pool-feature strong {
+      display: block;
+      font-size: 0.84rem;
+      line-height: 1.3;
+    }
+
+    .ai-pool-feature span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.5;
+    }
+
+    .ai-pool-side {
+      display: grid;
+      gap: 12px;
+    }
+
+    .ai-pool-metric-card {
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(126, 201, 242, 0.12);
+      background: rgba(8, 19, 36, 0.56);
+      display: grid;
+      gap: 8px;
+    }
+
+    .ai-pool-metric-card strong {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.38rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .ai-pool-metric-card span {
+      color: var(--muted-soft);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .ai-pool-note {
+      padding: 15px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(126, 201, 242, 0.1);
+      background: rgba(10, 20, 39, 0.4);
+      color: #dff1ff;
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+
+    .job-card {
+      border-radius: 20px;
+      padding: 20px 20px 18px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top right, rgba(102, 212, 255, 0.06), transparent 24%),
+        linear-gradient(165deg, rgba(11, 24, 46, 0.72), rgba(7, 15, 29, 0.84));
+      border-color: rgba(144, 192, 234, 0.11);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.03),
+        0 14px 30px rgba(1, 6, 18, 0.16);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .job-card::before {
+      content: "";
+      position: absolute;
+      top: -18%;
+      bottom: -18%;
+      left: -34%;
+      width: 38%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(102, 212, 255, 0), rgba(170, 230, 255, 0.22) 48%, rgba(102, 212, 255, 0));
+      transform: skewX(-22deg) translateX(0);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2;
+      filter: blur(1px);
+    }
+
+    .job-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(130deg, rgba(255,255,255,0.025), transparent 36%, transparent 66%, rgba(102, 212, 255, 0.05));
+      pointer-events: none;
+    }
+
+    .job-card.is-busy {
+      pointer-events: none;
+      border-color: rgba(126, 201, 242, 0.22);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 18px 36px rgba(1, 6, 18, 0.2);
+    }
+
+    .job-card.is-busy::before {
+      opacity: 1;
+      animation: jobCardBusySweep 1s ease-in-out infinite;
+    }
+
+    .job-card.is-busy .job-actions,
+    .job-card.is-busy .job-info-row,
+    .job-card.is-busy .job-meta-stack,
+    .job-card.is-busy .job-summary-line {
+      opacity: 0.68;
+    }
+
+    .job-card.is-busy .save-toggle {
+      opacity: 1;
+    }
+
+    .saved-grid .job-card.is-removing {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.985);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    @keyframes jobCardBusySweep {
+      from {
+        transform: skewX(-22deg) translateX(0);
+      }
+      to {
+        transform: skewX(-22deg) translateX(430%);
+      }
+    }
+
+    .job-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(126, 201, 242, 0.24);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 18px 36px rgba(1, 6, 18, 0.22);
+    }
+
+    .job-top {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 96px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .job-main {
+      min-width: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .job-brand-box {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .job-brand-box .company-logo,
+    .job-brand-box .company-monogram {
+      width: clamp(72px, 7vw, 96px);
+      height: clamp(72px, 7vw, 96px);
+      border-radius: clamp(18px, 1.8vw, 24px);
+    }
+
+    .job-brand-box .company-logo img {
+      padding: clamp(8px, 1vw, 12px);
+    }
+
+    .job-brand-box .company-monogram {
+      font-size: clamp(1.28rem, 1.6vw, 1.7rem);
+    }
+
+    .company-logo,
+    .company-monogram {
+      width: 62px;
+      height: 62px;
+      border-radius: 16px;
+      flex-shrink: 0;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    .company-logo {
+      background: #ffffff;
+      border: 1px solid rgba(188, 214, 238, 0.92);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 10px 22px rgba(3, 10, 24, 0.16);
+    }
+
+    .company-monogram {
+      background: linear-gradient(135deg, rgba(102, 212, 255, 0.12), rgba(47, 131, 255, 0.16));
+      border: 1px solid rgba(126, 201, 242, 0.22);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .company-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 8px;
+    }
+
+    .company-monogram {
+      color: #dff4ff;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 1.18rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .job-company-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #d8e8ff;
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    .job-company-name {
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: #dfefff;
+    }
+
+    .job-company-separator {
+      color: rgba(154, 180, 208, 0.56);
+      font-size: 0.84rem;
+    }
+
+    .job-company-subline {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .job-info-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      align-items: center;
+    }
+
+    .job-detail-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(126, 201, 242, 0.09);
+      background: rgba(8, 18, 34, 0.54);
+      color: #dceefe;
+      font-size: 0.77rem;
+      line-height: 1.4;
+      max-width: 100%;
+    }
+
+    .job-detail-item span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .job-detail-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 8px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(102, 212, 255, 0.1);
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      color: #8edfff;
+      font-size: 0.68rem;
+      flex-shrink: 0;
+    }
+
+    .job-detail-icon i {
+      font-size: 0.78rem;
+      line-height: 1;
+    }
+
+    .job-summary-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(126, 201, 242, 0.08);
+      background: rgba(7, 17, 31, 0.34);
+      color: #d4e7fb;
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+
+    .job-summary-line span:last-child {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      max-width: 82ch;
+    }
+
+    .job-role-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .job-role-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(102, 212, 255, 0.1);
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      color: #8edfff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      flex-shrink: 0;
+    }
+
+    .job-role-mark i {
+      font-size: 0.98rem;
+      line-height: 1;
+    }
+
+    .job-role {
+      font-size: clamp(1.24rem, 2vw, 1.58rem);
+      line-height: 1.06;
+      margin: 0;
+      color: #f3f8ff;
+    }
+
+    .save-toggle {
+      width: 38px;
+      height: 38px;
+      min-height: 38px;
+      padding: 0;
+      border-radius: 12px;
+      font-size: 0.88rem;
+    }
+
+    .save-toggle.is-saved {
+      background: linear-gradient(135deg, rgba(102, 212, 255, 0.22), rgba(47, 131, 255, 0.28));
+      border-color: rgba(126, 201, 242, 0.34);
+      color: #ffffff;
+    }
+
+    .save-toggle .save-toggle-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .save-toggle .save-toggle-icon svg {
+      width: 0.98rem;
+      height: 0.98rem;
+      display: block;
+      fill: currentColor;
+    }
+
+    .save-toggle.is-saved .save-toggle-icon svg {
+      fill: currentColor;
+    }
+
+    .saved-grid .save-toggle {
+      font-size: 0;
+    }
+
+    .job-tags {
+      display: none;
+    }
+
+    .tag,
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--pill);
+      font-size: 0.72rem;
+      line-height: 1.2;
+    }
+
+    .tag {
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background: rgba(10, 20, 38, 0.58);
+      color: #dceefe;
+    }
+
+    .status-tag {
+      background: rgba(102, 212, 255, 0.12);
+      border: 1px solid rgba(126, 201, 242, 0.16);
+      color: #dcf5ff;
+    }
+
+    .status-tag--applied {
+      background: rgba(141, 232, 179, 0.12);
+      border-color: rgba(141, 232, 179, 0.18);
+      color: #d7ffe6;
+    }
+
+    .status-tag--warning {
+      background: rgba(255, 212, 143, 0.14);
+      border-color: rgba(255, 212, 143, 0.18);
+      color: #ffe7bf;
+    }
+
+    .status-tag--saved {
+      background: rgba(102, 212, 255, 0.16);
+      border-color: rgba(126, 201, 242, 0.2);
+      color: #dff7ff;
+    }
+
+    .job-bottom {
+      position: relative;
+      z-index: 1;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(126, 201, 242, 0.08);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 14px;
+    }
+
+    .job-meta-stack {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .job-posted-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted-soft);
+      font-size: 0.74rem;
+      letter-spacing: 0.02em;
+    }
+
+    .job-posted-line i {
+      color: #8edfff;
+      font-size: 0.8rem;
+    }
+
+    .job-posted-line strong {
+      color: #d9eeff;
+      font-weight: 700;
+    }
+
+    .job-secondary-actions {
+      display: none;
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .job-footer-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.73rem;
+      line-height: 1.5;
+    }
+
+    .job-footer-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .job-footer-note i {
+      color: #8edfff;
+      font-size: 0.82rem;
+      flex-shrink: 0;
+    }
+
+    .job-footer-meta strong {
+      color: #dff2ff;
+      font-weight: 700;
+    }
+
+    .job-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-left: auto;
+      align-items: center;
+    }
+
+    .job-action-cluster {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .saved-grid .job-card {
+      background:
+        radial-gradient(circle at top right, rgba(102, 212, 255, 0.08), transparent 26%),
+        linear-gradient(165deg, rgba(12, 27, 50, 0.78), rgba(7, 15, 29, 0.88));
+      border-color: rgba(126, 201, 242, 0.16);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 16px 34px rgba(1, 6, 18, 0.18);
+    }
+
+    .job-actions .action-btn:not(.save-toggle) {
+      min-width: 92px;
+    }
+
+    .job-actions .action-btn:not(.action-btn--primary):not(.save-toggle) {
+      background: rgba(10, 20, 38, 0.58);
+      border-color: rgba(126, 201, 242, 0.12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .action-btn {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #e5f4ff;
+    }
+
+    .action-btn i,
+    .filter-btn i,
+    .secondary-btn i,
+    .chip-link i {
+      font-size: 0.9rem;
+      line-height: 1;
+    }
+
+    .action-btn--primary {
+      color: #04111f;
+      min-width: 126px;
+      padding: 0 18px;
+      box-shadow: 0 12px 22px rgba(47, 131, 255, 0.18);
+    }
+
+    .action-btn:disabled,
+    .modal-action:disabled {
+      opacity: 0.64;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .inline-message {
+      position: relative;
+      z-index: 1;
+      margin-top: 8px;
+      min-height: 18px;
+      font-size: 0.74rem;
+    }
+
+    .inline-message.is-success { color: var(--success); }
+    .inline-message.is-error { color: var(--danger); }
+
+    .empty-state {
+      border-radius: 22px;
+      padding: 34px 24px;
+      text-align: center;
+      border: 1px dashed rgba(126, 201, 242, 0.2);
+      background: rgba(8, 20, 40, 0.48);
+    }
+
+    .empty-state strong {
+      display: block;
+      font-size: 1.1rem;
+    }
+
+    .empty-state p {
+      margin: 10px auto 0;
+      max-width: 52ch;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      padding: 20px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 7, 15, 0.78);
+      backdrop-filter: blur(12px);
+      z-index: 50;
+    }
+
+    .modal-overlay.is-open { display: flex; }
+
+    .modal-card {
+      width: min(980px, 100%);
+      max-height: min(88vh, 940px);
+      overflow: auto;
+      border-radius: 22px;
+      padding: 18px;
+      position: relative;
+      background: linear-gradient(165deg, rgba(11, 24, 46, 0.96), rgba(7, 15, 29, 0.98));
+      border: 1px solid rgba(126, 201, 242, 0.18);
+      box-shadow: 0 26px 70px rgba(0, 0, 0, 0.45);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      background: rgba(14, 26, 49, 0.82);
+      border: 1px solid rgba(126, 201, 242, 0.16);
+      color: #e7f4ff;
+      font-size: 1.3rem;
+    }
+
+    .modal-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #8cdfff;
+      font-size: 0.66rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .modal-kicker::before {
+      content: "";
+      width: 18px;
+      height: 1px;
+      background: rgba(102, 212, 255, 0.62);
+    }
+
+    .modal-title {
+      margin: 12px 0 0;
+      font-size: clamp(1.18rem, 1.7vw, 1.56rem);
+      line-height: 1.12;
+      max-width: 14ch;
+    }
+
+    .modal-shell {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) 320px;
+      gap: 14px;
+    }
+
+    .modal-panel {
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background: rgba(11, 22, 42, 0.58);
+    }
+
+    .modal-overview {
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background:
+        radial-gradient(circle at top right, rgba(102, 212, 255, 0.1), transparent 32%),
+        linear-gradient(165deg, rgba(12, 26, 48, 0.9), rgba(8, 17, 33, 0.92));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 16px 34px rgba(1, 6, 18, 0.16);
+    }
+
+    .modal-brief-hero {
+      margin-top: 14px;
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background:
+        radial-gradient(circle at top left, rgba(102, 212, 255, 0.08), transparent 34%),
+        linear-gradient(165deg, rgba(11, 24, 46, 0.88), rgba(7, 15, 29, 0.92));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 16px 34px rgba(1, 6, 18, 0.14);
+    }
+
+    .modal-brief-hero .modal-section-head {
+      margin-bottom: 12px;
+    }
+
+    .modal-brief-hero .modal-story {
+      border-radius: 16px;
+      background: rgba(8, 17, 33, 0.44);
+    }
+
+    .modal-overview-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .modal-overview-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #8edfff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .modal-overview-kicker i {
+      font-size: 0.84rem;
+    }
+
+    .modal-overview-copy h3 {
+      margin: 10px 0 0;
+      font-size: 1.22rem;
+      line-height: 1.12;
+      max-width: 18ch;
+    }
+
+    .modal-overview-copy p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      max-width: 54ch;
+    }
+
+    .modal-overview-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .modal-overview-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(126, 201, 242, 0.14);
+      background: rgba(8, 17, 33, 0.5);
+      color: #e6f4ff;
+      font-size: 0.76rem;
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      white-space: nowrap;
+    }
+
+    .modal-overview-pill i {
+      color: #8edfff;
+      font-size: 0.84rem;
+    }
+
+    .modal-overview-pill strong {
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .modal-details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .modal-detail-card {
+      display: grid;
+      gap: 6px;
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(8, 17, 33, 0.72);
+      border: 1px solid rgba(126, 201, 242, 0.12);
+    }
+
+    .modal-detail-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.66rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .modal-detail-label i {
+      color: #8edfff;
+      font-size: 0.82rem;
+    }
+
+    .modal-detail-card strong {
+      display: block;
+      font-size: 0.86rem;
+      line-height: 1.4;
+      color: #eef7ff;
+    }
+
+    .modal-copy {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.58;
+      font-size: 0.78rem;
+      white-space: pre-line;
+    }
+
+    .modal-section {
+      margin-top: 14px;
+    }
+
+    .modal-section-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .modal-section-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 12px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(102, 212, 255, 0.1);
+      border: 1px solid rgba(126, 201, 242, 0.12);
+      color: #8edfff;
+      flex-shrink: 0;
+    }
+
+    .modal-section-icon i {
+      font-size: 0.92rem;
+      line-height: 1;
+    }
+
+    .modal-section-copy strong {
+      display: block;
+      color: #eef7ff;
+      font-size: 0.88rem;
+      line-height: 1.25;
+    }
+
+    .modal-section-copy span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.45;
+    }
+
+    .modal-story {
+      border-radius: 16px;
+      padding: 14px;
+      border: 1px solid rgba(126, 201, 242, 0.12);
+      background: rgba(8, 17, 33, 0.56);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .modal-story .modal-copy {
+      margin-top: 0;
+    }
+    .modal-company-block {
+      display: grid;
+      gap: 12px;
+    }
+
+    .modal-company-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-company-copy strong {
+      display: block;
+      font-size: 0.92rem;
+      line-height: 1.25;
+    }
+
+    .modal-company-copy span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .modal-company-copy span i {
+      color: #8edfff;
+      font-size: 0.82rem;
+    }
+
+    .company-data-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .company-data-row {
+      display: grid;
+      gap: 4px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(126, 201, 242, 0.1);
+    }
+
+    .company-data-row:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .company-data-row span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted-soft);
+      font-size: 0.64rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .company-data-row span i {
+      color: #8edfff;
+      font-size: 0.78rem;
+    }
+
+    .company-data-row strong,
+    .company-data-row a {
+      color: #e8f4ff;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .modal-actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .modal-action {
+      min-height: 38px;
+      padding: 0 14px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      border: 1px solid rgba(126, 201, 242, 0.16);
+      background: rgba(10, 20, 38, 0.72);
+      color: #e5f4ff;
+    }
+
+    .modal-action[hidden] {
+      display: none !important;
+    }
+
+    .modal-action i {
+      font-size: 0.92rem;
+      line-height: 1;
+    }
+
+    #jobDetailsCompanyLogoWrap[hidden],
+    #jobDetailsCompanyFallback[hidden] {
+      display: none !important;
+    }
+
+    .modal-action--primary {
+      border: 0;
+    }
+
+    #jobDetailsApplyButton {
+      min-width: 148px;
+      justify-content: center;
+      color: #04111f;
+      background: linear-gradient(135deg, #7ed4ff, #4d9bff);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 14px 26px rgba(47, 131, 255, 0.2);
+    }
+
+    #jobDetailsApplyButton:hover {
+      background: linear-gradient(135deg, #91ddff, #63a9ff);
+    }
+
+    @media (max-width: 1180px) {
+      .insights-strip,
+      .page-grid,
+      .modal-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .insights-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .ai-pool-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .job-top {
+        grid-template-columns: 1fr 88px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      :root {
+        --layout-x: 10px;
+      }
+
+      .page-shell {
+        width: 100%;
+        padding: 18px var(--layout-x) 42px;
+      }
+
+      .topbar,
+      .panel,
+      .job-card,
+      .modal-card {
+        padding: 18px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+      }
+
+      .results-overview,
+      .saved-item,
+      .results-head {
+        flex-direction: column;
+      }
+
+      .results-workspace {
+        padding: 0;
+      }
+
+      .results-tabs-shell {
+        margin: 0 0 10px;
+        padding: 0;
+      }
+
+      .results-tabs-nav {
+        overflow: visible;
+        padding-top: 0;
+      }
+
+      .results-tabs {
+        flex-direction: column;
+        padding: 0;
+        gap: 0;
+      }
+
+      .results-tab-item {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: -14px 0 0;
+      }
+
+      .results-tab {
+        margin: 0;
+      }
+
+      .results-tab-shape {
+        display: none;
+      }
+
+      .results-tab-surface {
+        min-height: 68px;
+        padding: 16px 18px 24px !important;
+        border-radius: 24px 24px 0 0 !important;
+        box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.18);
+      }
+
+      .results-tab-item:last-child .results-tab-surface {
+        padding-bottom: 16px !important;
+      }
+
+      .results-panels-shell {
+        border-radius: 20px;
+        margin-top: 0;
+        padding: 18px;
+      }
+
+      .insights-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .job-top {
+        grid-template-columns: 1fr;
+      }
+
+      .job-brand-box {
+        justify-content: flex-start;
+      }
+
+      .job-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .job-actions,
+      .job-action-cluster,
+      .saved-item-actions,
+      .saved-strip-empty-actions,
+      .ai-pool-actions,
+      .results-overview-meta {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .action-btn,
+      .modal-action {
+        flex: 1 1 160px;
+      }
+
+      .highlights,
+      .modal-details-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="jobs-portal-page" data-is-candidate-user="{% if is_candidate_user %}true{% else %}false{% endif %}">
+  <div id="scene3d" aria-hidden="true"></div>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <div class="spotlight"></div>
+  <div class="light-beam beam-a"></div>
+  <div class="light-beam beam-b"></div>
+  <div class="atmo haze-1"></div>
+  <div class="atmo haze-2"></div>
+  <div class="noise-layer"></div>
+
+  <header id="mainHeader" class="scrolled">
+    <div class="header-shell">
+      <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
+        
+        <span class="logo-text">shortlist</span>
+        <span class="logo-ii" aria-hidden="true">
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+          <span class="person">
+            <span class="head"></span>
+            <span class="body"></span>
+            <span class="tie"></span>
+          </span>
+        </span>
+      </a>
+
+      <nav id="mainMenu" aria-label="Primary navigation">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'jobs-portal' %}">Jobs</a>
+      </nav>
+
+      <div class="header-actions">
+        {% if is_authenticated %}
+          <a href="{% url 'candidate-dashboard' %}" class="btn btn-ghost">Candidate Dashboard</a>
+        {% else %}
+          <a href="{{ candidate_login_url }}" class="btn btn-ghost">Candidate Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <div class="page-shell">
+
+    <section class="results-overview" aria-label="Jobs overview">
+      <div class="results-overview-copy">
+        <h1>Browse current openings</h1>
+        <p>Explore live roles, review details, and move quickly when something fits.</p>
+      </div>
+      <div class="results-overview-meta">
+        <span class="overview-chip"><i class="ph ph-briefcase" aria-hidden="true"></i><strong id="jobCountMetric">{{ job_count }}</strong> open roles</span>
+        <span class="overview-chip"><i class="ph ph-bookmarks" aria-hidden="true"></i><strong id="savedMetricCount">{{ saved_job_count }}</strong> saved</span>
+        <span class="overview-chip"><i class="ph ph-user-circle" aria-hidden="true"></i>{% if is_candidate_user %}Candidate access{% elif is_authenticated %}Signed in viewer{% else %}Public browsing{% endif %}</span>
+      </div>
+    </section>
+
+    <section class="insights-strip" aria-label="Hiring Insights">
+      <article class="insight-card insight-card--primary">
+        <span class="insight-card-head"><span class="insight-icon"><i class="ph ph-briefcase" aria-hidden="true"></i></span><span class="insight-label">Total Vacancies</span></span>
+        <strong class="insight-value">{{ jobs_summary.total_vacancies|default:job_count|default:"--" }}</strong>
+        <span class="insight-meta">Open positions across all roles</span>
+      </article>
+      <article class="insight-card">
+        <span class="insight-card-head"><span class="insight-icon"><i class="ph ph-buildings" aria-hidden="true"></i></span><span class="insight-label">Active Companies</span></span>
+        <strong class="insight-value">{{ jobs_summary.active_companies|default:"--" }}</strong>
+        <span class="insight-meta">Companies currently hiring</span>
+      </article>
+      <article class="insight-card">
+        <span class="insight-card-head"><span class="insight-icon"><i class="ph ph-clock-countdown" aria-hidden="true"></i></span><span class="insight-label">New This Week</span></span>
+        <strong class="insight-value">{{ jobs_summary.new_this_week|default:"--" }}</strong>
+        <span class="insight-meta">Roles posted in last 7 days</span>
+      </article>
+      <article class="insight-card">
+        <span class="insight-card-head"><span class="insight-icon"><i class="ph ph-users-three" aria-hidden="true"></i></span><span class="insight-label">Recruiter Network</span></span>
+        <strong class="insight-value">{{ jobs_summary.active_recruiters|default:"--" }}</strong>
+        <span class="insight-meta">Recruiters with active openings</span>
+      </article>
+    </section>
+
+    <div class="page-grid">
+      <aside class="panel panel--filters surface">
+        <div class="filters-loading-state" aria-hidden="true">
+          <div class="filters-loading-card">
+            <div class="filters-loading-spinner" aria-hidden="true"></div>
+            <div class="filters-loading-copy">
+              <strong>Updating jobs</strong>
+              <span>Refreshing filters and recruiter matches.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-heading">
+          <h2><i class="ph ph-funnel-simple" aria-hidden="true"></i>Filters</h2>
+          <p>Narrow the list and jump to the roles that matter.</p>
+        </div>
+
+        <form class="filter-form" method="get">
+          <div class="field">
+            <label for="jobSearchInput">Keyword</label>
+            <input id="jobSearchInput" type="search" name="q" value="{{ filters.q }}" placeholder="Search by Job Title">
+          </div>
+
+          <div class="field">
+            <label for="recruiterSearchInput">Recruiter</label>
+            <div class="recruiter-combobox">
+              <input
+                id="recruiterSearchInput"
+                type="search"
+                placeholder="Search recruiter"
+                autocomplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="recruiterSuggestions"
+                data-selected-value="{{ filters.recruiter }}"
+              >
+              <div id="recruiterSuggestions" class="recruiter-suggestions" role="listbox" hidden></div>
+            </div>
+            <input id="recruiterValueInput" type="hidden" name="recruiter" value="{{ filters.recruiter }}">
+            <datalist id="recruiterChoices" hidden>
+              {% for recruiter in recruiter_choices %}
+                <option value="{{ recruiter.label }}" data-value="{{ recruiter.value }}"></option>
+              {% endfor %}
+            </datalist>
+          </div>
+
+          <div class="field">
+            <label for="postedSelect">Posted within</label>
+            <select id="postedSelect" name="posted">
+              <option value="">Any time</option>
+              <option value="1" {% if filters.posted == '1' %}selected{% endif %}>Last 24 hours</option>
+              <option value="3" {% if filters.posted == '3' %}selected{% endif %}>Last 3 days</option>
+              <option value="7" {% if filters.posted == '7' %}selected{% endif %}>Last 7 days</option>
+              <option value="15" {% if filters.posted == '15' %}selected{% endif %}>Last 15 days</option>
+              <option value="30" {% if filters.posted == '30' %}selected{% endif %}>Last 30 days</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sortSelect">Sort by</label>
+            <select id="sortSelect" name="sort">
+              <option value="recent" {% if filters.sort == 'recent' %}selected{% endif %}>Most recent</option>
+              <option value="oldest" {% if filters.sort == 'oldest' %}selected{% endif %}>Oldest first</option>
+              <option value="role" {% if filters.sort == 'role' %}selected{% endif %}>Role name</option>
+            </select>
+          </div>
+
+          <div class="filter-actions">
+            <button class="filter-btn" type="submit"><i class="ph ph-funnel-simple" aria-hidden="true"></i>Apply Filters</button>
+            <a class="secondary-btn" href="{% url 'jobs-portal' %}"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i>Reset</a>
+          </div>
+        </form>
+
+        <div class="quick-filters">
+          <a class="chip-link" href="{% url 'jobs-portal' %}?posted=7"><i class="ph ph-calendar-blank" aria-hidden="true"></i>Last 7 Days</a>
+          <a class="chip-link" href="{% url 'jobs-portal' %}?sort=role"><i class="ph ph-squares-four" aria-hidden="true"></i>Browse by Role</a>
+        </div>
+
+        <div class="filter-meta">
+          <div class="filter-meta-card">
+            <strong>{{ job_count }}</strong>
+            <span>roles in the current result set</span>
+          </div>
+          <div class="filter-meta-card">
+            <strong>{% if is_candidate_user %}Applications enabled{% else %}Browse-only access{% endif %}</strong>
+            <span>{% if is_candidate_user %}Save, apply, withdraw, and hide actions are available{% else %}Sign in as a candidate to save roles and apply{% endif %}</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel panel--results surface">
+        <div class="results-workspace">
+          <div class="results-tabs-shell" aria-label="Jobs workspace views">
+            <svg class="results-tab-shape-defs" aria-hidden="true" focusable="false">
+              <defs>
+                <path id="resultsTabShape" d="M80,60C34,60,64,0,0,0V60H80Z"></path>
+              </defs>
+            </svg>
+            <nav class="results-tabs-nav" aria-label="Jobs workspace views">
+              <ul class="results-tabs" role="tablist" aria-label="Jobs workspace tabs">
+                <li class="results-tab-item tab-current" role="presentation">
+                  <button
+                    class="results-tab is-active"
+                    type="button"
+                    id="jobsTabOpenings"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="jobsPanelOpenings"
+                    data-results-tab="openings">
+                    <svg class="results-tab-shape results-tab-shape--right" viewBox="0 0 80 60" preserveAspectRatio="none" aria-hidden="true"><use href="#resultsTabShape"></use></svg>
+                    <svg class="results-tab-shape results-tab-shape--left" viewBox="0 0 80 60" preserveAspectRatio="none" aria-hidden="true"><use href="#resultsTabShape"></use></svg>
+                    <span class="results-tab-surface">
+                      <span class="results-tab-kicker"><i class="ph ph-broadcast" aria-hidden="true"></i>Primary feed</span>
+                      <span class="results-tab-title">Current Openings</span>
+                      <span class="results-tab-meta"><span class="results-tab-badge" id="jobCountMetricTab">{{ job_count }}</span> live roles in view</span>
+                    </span>
+                  </button>
+                </li>
+                <li class="results-tab-item" role="presentation">
+                  <button
+                    class="results-tab"
+                    type="button"
+                    id="jobsTabSaved"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="jobsPanelSaved"
+                    data-results-tab="saved">
+                    <svg class="results-tab-shape results-tab-shape--right" viewBox="0 0 80 60" preserveAspectRatio="none" aria-hidden="true"><use href="#resultsTabShape"></use></svg>
+                    <svg class="results-tab-shape results-tab-shape--left" viewBox="0 0 80 60" preserveAspectRatio="none" aria-hidden="true"><use href="#resultsTabShape"></use></svg>
+                    <span class="results-tab-surface">
+                      <span class="results-tab-kicker"><i class="ph ph-bookmarks-simple" aria-hidden="true"></i>Candidate shortlist</span>
+                      <span class="results-tab-title">Bookmarked</span>
+                      <span class="results-tab-meta"><span class="results-tab-badge" id="savedMetricCountTab">{{ saved_job_count }}</span> roles saved for follow-up</span>
+                    </span>
+                  </button>
+                </li>
+                <li class="results-tab-item" role="presentation">
+                  <button
+                    class="results-tab"
+                    type="button"
+                    id="jobsTabAiPool"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="jobsPanelAiPool"
+                    data-results-tab="ai-pool">
+                    <svg class="results-tab-shape results-tab-shape--right" viewBox="0 0 80 60" preserveAspectRatio="none" aria-hidden="true"><use href="#resultsTabShape"></use></svg>
+                    <svg class="results-tab-shape results-tab-shape--left" viewBox="0 0 80 60" preserveAspectRatio="none" aria-hidden="true"><use href="#resultsTabShape"></use></svg>
+                    <span class="results-tab-surface">
+                      <span class="results-tab-kicker"><i class="ph ph-cpu" aria-hidden="true"></i>AI workspace</span>
+                      <span class="results-tab-title">AI Jobs Pool</span>
+                      <span class="results-tab-meta"><span class="results-tab-badge">AI</span> matching, signals, and next steps</span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+
+          <div class="results-panels-shell">
+            <section class="results-panel" id="jobsPanelOpenings" role="tabpanel" aria-labelledby="jobsTabOpenings" data-results-panel="openings">
+              <div class="results-head">
+                <div class="section-heading">
+                  <h2><i class="ph ph-briefcase" aria-hidden="true"></i>Current Openings</h2>
+                  <p>Role-first browsing with quick actions and deeper detail on demand.</p>
+                </div>
+                <div class="results-summary"><i class="ph ph-stack" aria-hidden="true"></i><span id="jobResultCount">{{ job_count }}</span><span>roles available</span></div>
+              </div>
+
+              {% if job_cards %}
+                <div class="jobs-grid" id="jobsGrid">
+                  {% for job in job_cards %}
+                    <article
+                      class="job-card surface"
+                      data-job-card="{{ job.id }}"
+                      data-job-role="{{ job.role|default:'' }}"
+                      data-job-openings="{{ job.position|default:'' }}"
+                      data-job-type="{{ job.job_type|default:'' }}"
+                      data-job-location="{{ job.location|default:'' }}"
+                      data-job-salary-range="{{ job.salary_range|default:'' }}"
+                      data-job-experience-required="{{ job.experience_required|default:'' }}"
+                      data-job-posted="{{ job.date_display|default:'' }}"
+                      data-job-status="{{ job.status_label|default:'' }}"
+                      data-job-full-description="{{ job.description|default:'' }}"
+                      data-job-description-preview="{{ job.description_preview|default:'' }}"
+                      data-job-recruiters="{{ job.recruiters|join:', '|default:'' }}"
+                      data-job-recruiter="{{ job.recruiter_name|default:'' }}"
+                      data-job-hr="{{ job.admin_name|default:'' }}"
+                      data-job-apply-label="{{ job.application_label|default:'' }}"
+                      data-job-applied="{% if job.has_applied %}true{% else %}false{% endif %}"
+                      data-job-saved="{% if job.is_saved %}true{% else %}false{% endif %}"
+                      data-job-company-name="{% if job.company %}{{ job.company.display_name|default:job.company.legal_name }}{% endif %}"
+                      data-job-company-industry="{% if job.company %}{{ job.company.industry|default:'' }}{% endif %}"
+                      data-job-company-website="{% if job.company %}{{ job.company.website|default:'' }}{% endif %}"
+                      data-job-company-location="{% if job.company %}{{ job.company.headquarters|default:job.company.city }}{% endif %}"
+                      data-job-company-city="{% if job.company %}{{ job.company.city|default:'' }}{% endif %}"
+                      data-job-company-state="{% if job.company %}{{ job.company.state|default:'' }}{% endif %}"
+                      data-job-company-country="{% if job.company %}{{ job.company.country|default:'' }}{% endif %}"
+                      data-job-company-logo="{% if job.company %}{{ job.company.logo_url|default:'' }}{% endif %}"
+                    >
+                      <div class="job-top">
+                        <div class="job-main">
+                          <div class="job-role-row">
+                            <span class="job-role-mark" aria-hidden="true"><i class="ph ph-briefcase"></i></span>
+                            <h3 class="job-role">{{ job.role }}</h3>
+                          </div>
+
+                        <div class="job-company-line">
+                          <span class="job-company-name">{% if job.company %}{{ job.company.display_name|default:job.company.legal_name }}{% else %}Company details unavailable{% endif %}</span>
+                          {% if job.company and job.company.industry %}
+                            <span class="job-company-separator">•</span>
+                            <span class="job-company-subline">{{ job.company.industry }}</span>
+                          {% endif %}
+                        </div>
+
+                        <div class="job-info-row">
+                          <div class="job-detail-item">
+                            <span class="job-detail-icon"><i class="ph ph-users-three" aria-hidden="true"></i></span>
+                            <span>{{ job.position }} openings</span>
+                          </div>
+                          {% if job.job_type %}
+                            <div class="job-detail-item">
+                              <span class="job-detail-icon"><i class="ph ph-briefcase" aria-hidden="true"></i></span>
+                              <span>{{ job.job_type }}</span>
+                            </div>
+                          {% endif %}
+                          <div class="job-detail-item">
+                            <span class="job-detail-icon"><i class="ph ph-map-pin" aria-hidden="true"></i></span>
+                            <span>
+                              {% if job.location %}
+                                {{ job.location }}
+                              {% elif job.company and job.company.headquarters %}
+                                {{ job.company.headquarters }}
+                              {% elif job.company and job.company.city %}
+                                {{ job.company.city }}{% if job.company.country %}, {{ job.company.country }}{% endif %}
+                              {% elif job.recruiter_name %}
+                                Recruiter {{ job.recruiter_name }}
+                              {% else %}
+                                Location not specified
+                              {% endif %}
+                            </span>
+                          </div>
+                        </div>
+ 
+                        <div class="job-summary-line">
+                          <span class="job-detail-icon"><i class="ph ph-note-pencil" aria-hidden="true"></i></span>
+                          <span>{{ job.description_preview|default:"This role is currently open and available for review." }}</span>
+                        </div>
+
+                        <div class="job-tags">
+                          {% if job.highlights %}
+                            {% for point in job.highlights|slice:":3" %}
+                              <span class="tag">{{ point }}</span>
+                            {% endfor %}
+                          {% elif job.company and job.company.industry %}
+                            <span class="tag">{{ job.company.industry }}</span>
+                          {% endif %}
+                          {% if job.job_type %}
+                            <span class="tag">{{ job.job_type }}</span>
+                          {% endif %}
+                          {% if job.location %}
+                            <span class="tag">{{ job.location }}</span>
+                          {% endif %}
+                          {% if job.experience_required %}
+                            <span class="tag">{{ job.experience_required }}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="job-brand-box">
+                        {% if job.company and job.company.logo_url %}
+                          <div class="company-logo">
+                            <img src="{{ job.company.logo_url }}" alt="{% if job.company.display_name %}{{ job.company.display_name }}{% else %}Company{% endif %} logo">
+                          </div>
+                        {% else %}
+                          <div class="company-monogram">
+                            {% if job.company and job.company.display_name %}
+                              {{ job.company.display_name|slice:":1"|upper }}
+                            {% else %}
+                              C
+                            {% endif %}
+                          </div>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="job-bottom">
+                      <div class="job-meta-stack">
+                        <div class="job-footer-meta">
+                          <span class="status-tag">{{ job.status_label }}</span>
+                          {% if job.has_applied %}
+                            <span class="status-tag status-tag--applied">{{ job.application_label }}</span>
+                          {% elif not is_candidate_user %}
+                            <span class="status-tag status-tag--warning">Candidate login required</span>
+                          {% endif %}
+                          {% if job.recruiters %}
+                            <span class="job-footer-note"><i class="ph ph-users-three" aria-hidden="true"></i><span><strong>Panel:</strong> {{ job.recruiters|join:", " }}</span></span>
+                          {% endif %}
+                        </div>
+                        <div class="job-posted-line"><i class="ph ph-calendar-dots" aria-hidden="true"></i>Posted <strong>{{ job.date_display }}</strong></div>
+                      </div>
+
+                      <div class="job-actions">
+                        <button
+                          class="action-btn save-toggle {% if job.is_saved %}is-saved{% endif %}"
+                          type="button"
+                          data-save-vacancy="{{ job.id }}"
+                          title="{% if job.is_saved %}Saved posting{% else %}Save posting{% endif %}"
+                          aria-label="{% if job.is_saved %}Saved posting{% else %}Save posting{% endif %}"
+                        ><span class="save-toggle-icon" aria-hidden="true"><svg viewBox="0 0 50 50" focusable="false"><path d="{% if job.is_saved %}M 37 48 C 36.824219 48 36.652344 47.953125 36.496094 47.863281 L 25 41.15625 L 13.503906 47.863281 C 13.195313 48.042969 12.8125 48.046875 12.503906 47.867188 C 12.191406 47.6875 12 47.359375 12 47 L 12 3 C 12 2.449219 12.449219 2 13 2 L 37 2 C 37.554688 2 38 2.449219 38 3 L 38 47 C 38 47.359375 37.808594 47.6875 37.496094 47.867188 C 37.34375 47.957031 37.171875 48 37 48 Z{% else %}M 12.8125 2 C 12.335938 2.089844 11.992188 2.511719 12 3 L 12 47 C 11.996094 47.359375 12.1875 47.691406 12.496094 47.871094 C 12.804688 48.054688 13.1875 48.054688 13.5 47.875 L 25 41.15625 L 36.5 47.875 C 36.8125 48.054688 37.195313 48.054688 37.503906 47.871094 C 37.8125 47.691406 38.003906 47.359375 38 47 L 38 3 C 38 2.449219 37.550781 2 37 2 L 13 2 C 12.96875 2 12.9375 2 12.90625 2 C 12.875 2 12.84375 2 12.8125 2 Z M 14 4 L 36 4 L 36 45.25 L 25.5 39.125 C 25.191406 38.945313 24.808594 38.945313 24.5 39.125 L 14 45.25 Z{% endif %}"></path></svg></span></button>
+                        <div class="job-action-cluster">
+                          <button class="action-btn action-btn--secondary" type="button" data-view-job="{{ job.id }}"><i class="ph ph-eye" aria-hidden="true"></i>View</button>
+                          <button
+                            class="action-btn action-btn--primary"
+                            type="button"
+                            data-apply-vacancy="{{ job.id }}"
+                            {% if is_candidate_user and job.has_applied %}disabled{% endif %}
+                          >
+                            <i class="ph {% if is_candidate_user and job.has_applied %}ph-check-circle{% else %}ph-arrow-up-right{% endif %}" aria-hidden="true"></i>{% if is_candidate_user and job.has_applied %}{{ job.application_label }}{% else %}Apply Now{% endif %}
+                          </button>
+                        </div>
+                        <div class="job-secondary-actions" aria-hidden="true">
+                          <button class="action-btn visually-hidden" type="button" data-hide-vacancy="{{ job.id }}">Hide</button>
+                          {% if is_candidate_user and job.can_cancel_application %}
+                            <button class="action-btn visually-hidden" type="button" data-cancel-vacancy="{{ job.id }}">Withdraw</button>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+
+                      <div class="inline-message" data-job-message="{{ job.id }}"></div>
+                    </article>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="empty-state">
+                  <strong>No jobs matched the current filters</strong>
+                  <p>Try a broader search, reset filters, or change the posting range to see more roles.</p>
+                </div>
+              {% endif %}
+            </section>
+
+            <section class="results-panel" id="jobsPanelSaved" role="tabpanel" aria-labelledby="jobsTabSaved" data-results-panel="saved" hidden>
+              <section class="saved-strip" id="savedJobsSection">
+                <div class="results-head">
+                  <div class="section-heading">
+                    <h2><i class="ph ph-bookmarks-simple" aria-hidden="true"></i>Bookmarked Roles</h2>
+                    <p>Keep promising roles close while you continue reviewing the live market.</p>
+                  </div>
+                  <div class="results-summary"><i class="ph ph-bookmark-simple" aria-hidden="true"></i><span id="savedJobCount">{{ saved_job_count }}</span><span>saved</span></div>
+                </div>
+
+                <div class="saved-grid jobs-grid" id="savedJobsGrid" {% if not saved_job_cards %}hidden{% endif %}>
+                  {% for job in saved_job_cards %}
+                    <article
+                      class="job-card surface"
+                      data-saved-item="{{ job.id }}"
+                      data-job-card="{{ job.id }}"
+                      data-job-role="{{ job.role|default:'' }}"
+                      data-job-openings="{{ job.position|default:'' }}"
+                      data-job-type="{{ job.job_type|default:'' }}"
+                      data-job-location="{{ job.location|default:'' }}"
+                      data-job-salary-range="{{ job.salary_range|default:'' }}"
+                      data-job-experience-required="{{ job.experience_required|default:'' }}"
+                      data-job-posted="{{ job.date_display|default:'' }}"
+                      data-job-status="{{ job.status_label|default:'' }}"
+                      data-job-full-description="{{ job.description|default:'' }}"
+                      data-job-description-preview="{{ job.description_preview|default:'' }}"
+                      data-job-recruiters="{{ job.recruiters|join:', '|default:'' }}"
+                      data-job-recruiter="{{ job.recruiter_name|default:'' }}"
+                      data-job-hr="{{ job.admin_name|default:'' }}"
+                      data-job-apply-label="{{ job.application_label|default:'' }}"
+                      data-job-applied="{% if job.has_applied %}true{% else %}false{% endif %}"
+                      data-job-saved="true"
+                      data-job-company-name="{% if job.company %}{{ job.company.display_name|default:job.company.legal_name }}{% endif %}"
+                      data-job-company-industry="{% if job.company %}{{ job.company.industry|default:'' }}{% endif %}"
+                      data-job-company-website="{% if job.company %}{{ job.company.website|default:'' }}{% endif %}"
+                      data-job-company-location="{% if job.company %}{{ job.company.headquarters|default:job.company.city }}{% endif %}"
+                      data-job-company-city="{% if job.company %}{{ job.company.city|default:'' }}{% endif %}"
+                      data-job-company-state="{% if job.company %}{{ job.company.state|default:'' }}{% endif %}"
+                      data-job-company-country="{% if job.company %}{{ job.company.country|default:'' }}{% endif %}"
+                      data-job-company-logo="{% if job.company %}{{ job.company.logo_url|default:'' }}{% endif %}"
+                    >
+                      <div class="job-top">
+                        <div class="job-main">
+                          <div class="job-role-row">
+                            <span class="job-role-mark" aria-hidden="true"><i class="ph ph-bookmark-simple"></i></span>
+                            <h3 class="job-role">{{ job.role }}</h3>
+                          </div>
+
+                          <div class="job-company-line">
+                            <span class="job-company-name">{% if job.company %}{{ job.company.display_name|default:job.company.legal_name }}{% else %}Company details unavailable{% endif %}</span>
+                            {% if job.company and job.company.industry %}
+                              <span class="job-company-separator">•</span>
+                              <span class="job-company-subline">{{ job.company.industry }}</span>
+                            {% endif %}
+                          </div>
+
+                          <div class="job-info-row">
+                            <div class="job-detail-item">
+                              <span class="job-detail-icon"><i class="ph ph-users-three" aria-hidden="true"></i></span>
+                              <span>{{ job.position }} openings</span>
+                            </div>
+                            {% if job.job_type %}
+                              <div class="job-detail-item">
+                                <span class="job-detail-icon"><i class="ph ph-briefcase" aria-hidden="true"></i></span>
+                                <span>{{ job.job_type }}</span>
+                              </div>
+                            {% endif %}
+                            <div class="job-detail-item">
+                              <span class="job-detail-icon"><i class="ph ph-map-pin" aria-hidden="true"></i></span>
+                              <span>
+                                {% if job.location %}
+                                  {{ job.location }}
+                                {% elif job.company and job.company.headquarters %}
+                                  {{ job.company.headquarters }}
+                                {% elif job.company and job.company.city %}
+                                  {{ job.company.city }}{% if job.company.country %}, {{ job.company.country }}{% endif %}
+                                {% elif job.recruiter_name %}
+                                  Recruiter {{ job.recruiter_name }}
+                                {% else %}
+                                  Location not specified
+                                {% endif %}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div class="job-summary-line">
+                            <span class="job-detail-icon"><i class="ph ph-note-pencil" aria-hidden="true"></i></span>
+                            <span>{{ job.description_preview|default:"This role is currently open and available for review." }}</span>
+                          </div>
+
+                          <div class="job-tags">
+                            {% if job.highlights %}
+                              {% for point in job.highlights|slice:":3" %}
+                                <span class="tag">{{ point }}</span>
+                              {% endfor %}
+                            {% elif job.company and job.company.industry %}
+                              <span class="tag">{{ job.company.industry }}</span>
+                            {% endif %}
+                            {% if job.job_type %}
+                              <span class="tag">{{ job.job_type }}</span>
+                            {% endif %}
+                            {% if job.location %}
+                              <span class="tag">{{ job.location }}</span>
+                            {% endif %}
+                            {% if job.experience_required %}
+                              <span class="tag">{{ job.experience_required }}</span>
+                            {% endif %}
+                          </div>
+                        </div>
+
+                        <div class="job-brand-box">
+                          {% if job.company and job.company.logo_url %}
+                            <div class="company-logo">
+                              <img src="{{ job.company.logo_url }}" alt="{% if job.company.display_name %}{{ job.company.display_name }}{% else %}Company{% endif %} logo">
+                            </div>
+                          {% else %}
+                            <div class="company-monogram">
+                              {% if job.company and job.company.display_name %}
+                                {{ job.company.display_name|slice:":1"|upper }}
+                              {% else %}
+                                C
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      <div class="job-bottom">
+                        <div class="job-meta-stack">
+                          <div class="job-footer-meta">
+                            <span class="status-tag status-tag--saved">Saved</span>
+                            <span class="status-tag">{{ job.status_label }}</span>
+                            {% if job.has_applied %}
+                              <span class="status-tag status-tag--applied">{{ job.application_label }}</span>
+                            {% elif not is_candidate_user %}
+                              <span class="status-tag status-tag--warning">Candidate login required</span>
+                            {% endif %}
+                            {% if job.recruiters %}
+                              <span class="job-footer-note"><i class="ph ph-users-three" aria-hidden="true"></i><span><strong>Panel:</strong> {{ job.recruiters|join:", " }}</span></span>
+                            {% endif %}
+                          </div>
+                          <div class="job-posted-line"><i class="ph ph-calendar-dots" aria-hidden="true"></i>Posted <strong>{{ job.date_display }}</strong></div>
+                        </div>
+
+                        <div class="job-actions">
+                          <button
+                            class="action-btn save-toggle is-saved"
+                            type="button"
+                            data-unsave-vacancy="{{ job.id }}"
+                            title="Saved posting"
+                            aria-label="Saved posting"
+                          ><span class="save-toggle-icon" aria-hidden="true"><svg viewBox="0 0 50 50" focusable="false"><path d="M 37 48 C 36.824219 48 36.652344 47.953125 36.496094 47.863281 L 25 41.15625 L 13.503906 47.863281 C 13.195313 48.042969 12.8125 48.046875 12.503906 47.867188 C 12.191406 47.6875 12 47.359375 12 47 L 12 3 C 12 2.449219 12.449219 2 13 2 L 37 2 C 37.554688 2 38 2.449219 38 3 L 38 47 C 38 47.359375 37.808594 47.6875 37.496094 47.867188 C 37.34375 47.957031 37.171875 48 37 48 Z"></path></svg></span></button>
+                          <div class="job-action-cluster">
+                            <button class="action-btn action-btn--secondary" type="button" data-view-job="{{ job.id }}"><i class="ph ph-eye" aria-hidden="true"></i>View</button>
+                            <button
+                              class="action-btn action-btn--primary"
+                              type="button"
+                              data-apply-vacancy="{{ job.id }}"
+                              {% if is_candidate_user and job.has_applied %}disabled{% endif %}
+                            >
+                              <i class="ph {% if is_candidate_user and job.has_applied %}ph-check-circle{% else %}ph-arrow-up-right{% endif %}" aria-hidden="true"></i>{% if is_candidate_user and job.has_applied %}{{ job.application_label }}{% else %}Apply Now{% endif %}
+                            </button>
+                          </div>
+                          <div class="job-secondary-actions" aria-hidden="true">
+                            <button class="action-btn visually-hidden" type="button" data-hide-vacancy="{{ job.id }}">Hide</button>
+                            {% if is_candidate_user and job.can_cancel_application %}
+                              <button class="action-btn visually-hidden" type="button" data-cancel-vacancy="{{ job.id }}">Withdraw</button>
+                            {% endif %}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="inline-message" data-job-message="{{ job.id }}"></div>
+                    </article>
+                  {% endfor %}
+                </div>
+                <div class="saved-strip-empty" id="savedJobsEmptyState" {% if saved_job_cards %}hidden{% endif %}>
+                  {% if is_candidate_user %}
+                    <strong>No bookmarked roles yet</strong>
+                    <p>Save roles from the Current Openings tab to build your shortlist and revisit promising opportunities faster.</p>
+                    <div class="saved-strip-empty-actions">
+                      <button class="action-btn action-btn--primary" type="button" data-results-tab-trigger="openings"><i class="ph ph-compass" aria-hidden="true"></i>Browse Current Openings</button>
+                    </div>
+                  {% else %}
+                    <strong>Sign in to create a bookmarked shortlist</strong>
+                    <p>Candidate access unlocks saved roles, quicker follow-up, and a smoother way to manage roles you want to revisit.</p>
+                    <div class="saved-strip-empty-actions">
+                      <a class="action-btn action-btn--primary" href="{{ candidate_login_url }}"><i class="ph ph-sign-in" aria-hidden="true"></i>Candidate Login</a>
+                      <button class="action-btn" type="button" data-results-tab-trigger="openings"><i class="ph ph-compass" aria-hidden="true"></i>Keep Browsing</button>
+                    </div>
+                  {% endif %}
+                </div>
+              </section>
+            </section>
+
+            <section class="results-panel" id="jobsPanelAiPool" role="tabpanel" aria-labelledby="jobsTabAiPool" data-results-panel="ai-pool" hidden>
+              <section class="ai-pool-panel">
+                <div class="results-head">
+                  <div class="section-heading">
+                    <h2><i class="ph ph-cpu" aria-hidden="true"></i>AI Jobs Pool</h2>
+                    <p>Use AI-guided matching signals to move from browsing into a more curated role discovery workflow.</p>
+                  </div>
+                  <div class="results-summary"><i class="ph ph-sparkle" aria-hidden="true"></i><span>Premium</span><span>workspace tab</span></div>
+                </div>
+
+              <div class="ai-pool-grid">
+                <div class="ai-pool-copy">
+                  <div class="ai-pool-copy-head">
+                    <span class="ai-pool-kicker">AI-assisted discovery</span>
+                    <h3>Surface stronger-fit roles with faster context and better follow-up.</h3>
+                    <p>The AI jobs pool experience is designed for candidates who want more signal than a flat list: better role context, smarter prioritization, and faster decision-making once a role stands out.</p>
+                  </div>
+
+                  <div class="ai-pool-feature-list">
+                    <article class="ai-pool-feature">
+                      <div class="ai-pool-feature-icon"><i class="ph ph-sparkle" aria-hidden="true"></i></div>
+                      <div>
+                        <strong>Signal-led role discovery</strong>
+                        <span>Spot roles with stronger fit indicators and less manual back-and-forth.</span>
+                      </div>
+                    </article>
+                    <article class="ai-pool-feature">
+                      <div class="ai-pool-feature-icon"><i class="ph ph-brain" aria-hidden="true"></i></div>
+                      <div>
+                        <strong>Sharper shortlisting flow</strong>
+                        <span>Use bookmarks and AI insights together to focus only on roles worth pursuing.</span>
+                      </div>
+                    </article>
+                    <article class="ai-pool-feature">
+                      <div class="ai-pool-feature-icon"><i class="ph ph-lightning" aria-hidden="true"></i></div>
+                      <div>
+                        <strong>Faster next-step clarity</strong>
+                        <span>Move from browsing to action with clearer role context, hiring signals, and application readiness.</span>
+                      </div>
+                    </article>
+                  </div>
+
+                  <div class="ai-pool-actions">
+                    {% if is_candidate_user %}
+                      <a class="action-btn action-btn--primary" href="{% url 'candidate-dashboard' %}"><i class="ph ph-layout" aria-hidden="true"></i>Open Candidate Dashboard</a>
+                      <button class="action-btn" type="button" data-results-tab-trigger="saved"><i class="ph ph-bookmarks-simple" aria-hidden="true"></i>Review Bookmarked Roles</button>
+                    {% elif is_authenticated %}
+                      <a class="action-btn action-btn--primary" href="/dashboard/?tab=ai-talent-pool"><i class="ph ph-cpu" aria-hidden="true"></i>Open AI Talent Pool</a>
+                      <button class="action-btn" type="button" data-results-tab-trigger="openings"><i class="ph ph-arrow-left" aria-hidden="true"></i>Back to Openings</button>
+                    {% else %}
+                      <a class="action-btn action-btn--primary" href="{{ candidate_login_url }}"><i class="ph ph-sign-in" aria-hidden="true"></i>Login for AI Role Discovery</a>
+                      <button class="action-btn" type="button" data-results-tab-trigger="openings"><i class="ph ph-compass" aria-hidden="true"></i>Explore Current Openings</button>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <aside class="ai-pool-side" aria-label="AI jobs pool highlights">
+                  <article class="ai-pool-metric-card">
+                    <span>Open Roles Available</span>
+                    <strong>{{ job_count }}</strong>
+                  </article>
+                  <article class="ai-pool-metric-card">
+                    <span>Bookmarked Roles</span>
+                    <strong id="savedMetricCountPanel">{{ saved_job_count }}</strong>
+                  </article>
+                  <div class="ai-pool-note">
+                    Pair the <strong>Current Openings</strong> stream with <strong>Bookmarked</strong> roles to create a cleaner shortlist, then step into the AI workspace when you want deeper role-discovery support.
+                  </div>
+                </aside>
+              </div>
+            </section>
+          </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="jobDetailsModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="jobDetailsTitle">
+      <button class="modal-close" type="button" data-close-modal="jobDetailsModal" aria-label="Close job details">&times;</button>
+      <span class="modal-kicker">Role Details</span>
+      <h2 class="modal-title" id="jobDetailsTitle">Job title</h2>
+
+      <div class="modal-shell">
+        <div class="modal-panel">
+          <div class="modal-overview">
+            <div class="modal-overview-head">
+              <div class="modal-overview-copy">
+                <span class="modal-overview-kicker"><i class="ph ph-chart-line-up" aria-hidden="true"></i>Role Snapshot</span>
+                <p>Review the role context, hiring posture, and key candidate-fit signals in one connected summary.</p>
+              </div>
+              <div class="modal-overview-badges">
+                <span class="modal-overview-pill"><i class="ph ph-users-three" aria-hidden="true"></i><strong id="jobDetailsOpenings">-</strong> openings</span>
+                <span class="modal-overview-pill"><i class="ph ph-pulse" aria-hidden="true"></i><span id="jobDetailsStatus">-</span></span>
+                <span class="modal-overview-pill"><i class="ph ph-calendar-dots" aria-hidden="true"></i><span id="jobDetailsPosted">-</span></span>
+              </div>
+            </div>
+
+            <div class="modal-details-grid">
+              <div class="modal-detail-card">
+                <span class="modal-detail-label"><i class="ph ph-users-three" aria-hidden="true"></i>Recruiters</span>
+                <strong id="jobDetailsRecruiter">-</strong>
+              </div>
+              <div class="modal-detail-card">
+                <span class="modal-detail-label"><i class="ph ph-briefcase" aria-hidden="true"></i>Job Type</span>
+                <strong id="jobDetailsJobType">-</strong>
+              </div>
+              <div class="modal-detail-card">
+                <span class="modal-detail-label"><i class="ph ph-map-pin" aria-hidden="true"></i>Location</span>
+                <strong id="jobDetailsLocation">-</strong>
+              </div>
+              <div class="modal-detail-card">
+                <span class="modal-detail-label"><i class="ph ph-rocket-launch" aria-hidden="true"></i>Experience</span>
+                <strong id="jobDetailsExperience">-</strong>
+              </div>
+              <div class="modal-detail-card">
+                <span class="modal-detail-label"><i class="ph ph-currency-circle-dollar" aria-hidden="true"></i>Salary Range</span>
+                <strong id="jobDetailsSalary">-</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-brief-hero">
+            <div class="modal-section-head">
+              <span class="modal-section-icon" aria-hidden="true"><i class="ph ph-file-text"></i></span>
+              <div class="modal-section-copy">
+                <strong>Role Brief</strong>
+                <span>Role context, mission, and key responsibilities in one executive-style summary.</span>
+              </div>
+            </div>
+            <div class="modal-story">
+              <p class="modal-copy" id="jobDetailsDescription"></p>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="modal-action modal-action--primary" type="button" id="jobDetailsApplyButton"><i class="ph ph-arrow-up-right" aria-hidden="true"></i>Apply Now</button>
+            <button class="modal-action" type="button" id="jobDetailsHideButton"><i class="ph ph-eye-slash" aria-hidden="true"></i>Hide This Post</button>
+            <button class="modal-action" type="button" id="jobDetailsWithdrawButton" hidden><i class="ph ph-arrow-u-up-left" aria-hidden="true"></i>Withdraw Application</button>
+          </div>
+        </div>
+
+        <aside class="modal-panel">
+          <div class="modal-company-block">
+            <div class="modal-section-head">
+              <span class="modal-section-icon" aria-hidden="true"><i class="ph ph-buildings"></i></span>
+              <div class="modal-section-copy">
+                <strong>Company Snapshot</strong>
+                <span>Business context and where the role is anchored.</span>
+              </div>
+            </div>
+            <div class="modal-company-head">
+              <div class="company-logo" id="jobDetailsCompanyLogoWrap" hidden>
+                <img id="jobDetailsCompanyLogo" src="" alt="Company logo">
+              </div>
+              <div class="company-monogram" id="jobDetailsCompanyFallback">C</div>
+              <div class="modal-company-copy">
+                <strong id="jobDetailsCompanyName">Company</strong>
+                <span><i class="ph ph-map-pin" aria-hidden="true"></i><span id="jobDetailsCompanyLocation">Location unavailable</span></span>
+              </div>
+            </div>
+
+            <div class="company-data-list">
+              <div class="company-data-row">
+                <span><i class="ph ph-briefcase" aria-hidden="true"></i>Industry</span>
+                <strong id="jobDetailsCompanyIndustry">TBD</strong>
+              </div>
+              <div class="company-data-row">
+                <span><i class="ph ph-map-trifold" aria-hidden="true"></i>Headquarters</span>
+                <strong id="jobDetailsCompanyHeadquarters">TBD</strong>
+              </div>
+              <div class="company-data-row">
+                <span><i class="ph ph-globe-hemisphere-west" aria-hidden="true"></i>Website</span>
+                <a id="jobDetailsCompanyWebsite" href="#" target="_blank" rel="noopener noreferrer">Visit company website</a>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="loginContinueModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="loginContinueTitle">
+      <button class="modal-close" type="button" data-close-modal="loginContinueModal" aria-label="Close login modal">&times;</button>
+      <span class="modal-kicker">Candidate Access</span>
+      <h2 class="modal-title" id="loginContinueTitle">Login to continue</h2>
+      <p class="modal-copy">
+        You can browse roles without signing in. Save, apply, and hide actions are available after candidate login.
+      </p>
+      <div class="modal-actions">
+        <a class="modal-action modal-action--primary" href="{{ candidate_login_url }}">Candidate Login</a>
+        <button class="modal-action" type="button" data-close-modal="loginContinueModal">Keep Browsing</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const isCandidateUser = document.body.dataset.isCandidateUser === 'true';
+      const jobDetailsModal = document.getElementById('jobDetailsModal');
+      const loginContinueModal = document.getElementById('loginContinueModal');
+      const detailsTitle = document.getElementById('jobDetailsTitle');
+      const detailsOpenings = document.getElementById('jobDetailsOpenings');
+      const detailsStatus = document.getElementById('jobDetailsStatus');
+      const detailsPosted = document.getElementById('jobDetailsPosted');
+      const detailsRecruiter = document.getElementById('jobDetailsRecruiter');
+      const detailsJobType = document.getElementById('jobDetailsJobType');
+      const detailsLocation = document.getElementById('jobDetailsLocation');
+      const detailsExperience = document.getElementById('jobDetailsExperience');
+      const detailsSalary = document.getElementById('jobDetailsSalary');
+      const detailsDescription = document.getElementById('jobDetailsDescription');
+      const detailsApplyButton = document.getElementById('jobDetailsApplyButton');
+      const detailsHideButton = document.getElementById('jobDetailsHideButton');
+      const detailsWithdrawButton = document.getElementById('jobDetailsWithdrawButton');
+      const detailsCompanyName = document.getElementById('jobDetailsCompanyName');
+      const detailsCompanyLocation = document.getElementById('jobDetailsCompanyLocation');
+      const detailsCompanyIndustry = document.getElementById('jobDetailsCompanyIndustry');
+      const detailsCompanyHeadquarters = document.getElementById('jobDetailsCompanyHeadquarters');
+      const detailsCompanyWebsite = document.getElementById('jobDetailsCompanyWebsite');
+      const detailsCompanyLogoWrap = document.getElementById('jobDetailsCompanyLogoWrap');
+      const detailsCompanyLogo = document.getElementById('jobDetailsCompanyLogo');
+      const detailsCompanyFallback = document.getElementById('jobDetailsCompanyFallback');
+      const resultsTabs = Array.from(document.querySelectorAll('[data-results-tab]'));
+      const resultsPanels = Array.from(document.querySelectorAll('[data-results-panel]'));
+      const savedJobsSection = document.getElementById('savedJobsSection');
+      const savedJobsGrid = document.getElementById('savedJobsGrid');
+      const savedJobCount = document.getElementById('savedJobCount');
+      const savedMetricCount = document.getElementById('savedMetricCount');
+      const savedMetricCountTab = document.getElementById('savedMetricCountTab');
+      const savedMetricCountPanel = document.getElementById('savedMetricCountPanel');
+      const savedJobsEmptyState = document.getElementById('savedJobsEmptyState');
+      const filtersPanel = document.querySelector('.panel--filters');
+      const filterForm = document.querySelector('.filter-form');
+      const filterPanelLinks = Array.from(document.querySelectorAll('.panel--filters a[href]'));
+      const recruiterSearchInput = document.getElementById('recruiterSearchInput');
+      const recruiterValueInput = document.getElementById('recruiterValueInput');
+      const recruiterSuggestions = document.getElementById('recruiterSuggestions');
+      const recruiterChoiceList = Array.from(document.querySelectorAll('#recruiterChoices option'));
+      let filtersPanelLoading = false;
+      let activeRecruiterSuggestionIndex = -1;
+      let activeVacancyId = null;
+
+      function normalizeValue(value) {
+        return (value || '').trim().toLowerCase();
+      }
+
+      function findRecruiterChoice(value) {
+        const needle = normalizeValue(value);
+        if (!needle) return null;
+        return recruiterChoiceList.find(function (option) {
+          return normalizeValue(option.value) === needle || normalizeValue(option.dataset.value) === needle;
+        }) || null;
+      }
+
+      function syncRecruiterFilterValue() {
+        if (!recruiterSearchInput || !recruiterValueInput) return;
+        const rawValue = recruiterSearchInput.value.trim();
+        if (!rawValue) {
+          recruiterValueInput.value = '';
+          return;
+        }
+        const matchedChoice = findRecruiterChoice(rawValue);
+        recruiterValueInput.value = matchedChoice ? matchedChoice.dataset.value : '';
+      }
+
+      function closeRecruiterSuggestions() {
+        if (!recruiterSuggestions || !recruiterSearchInput) return;
+        recruiterSuggestions.hidden = true;
+        recruiterSearchInput.setAttribute('aria-expanded', 'false');
+        activeRecruiterSuggestionIndex = -1;
+      }
+
+      function getRecruiterSuggestionButtons() {
+        if (!recruiterSuggestions) return [];
+        return Array.from(recruiterSuggestions.querySelectorAll('[data-recruiter-option]'));
+      }
+
+      function setActiveRecruiterSuggestion(index) {
+        const suggestions = getRecruiterSuggestionButtons();
+        activeRecruiterSuggestionIndex = suggestions.length ? Math.max(0, Math.min(index, suggestions.length - 1)) : -1;
+        suggestions.forEach(function (button, buttonIndex) {
+          const isActive = buttonIndex === activeRecruiterSuggestionIndex;
+          button.classList.toggle('is-active', isActive);
+          button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+      }
+
+      function applyRecruiterChoice(choice) {
+        if (!choice || !recruiterSearchInput || !recruiterValueInput) return;
+        recruiterSearchInput.value = choice.value;
+        recruiterValueInput.value = choice.dataset.value || '';
+        closeRecruiterSuggestions();
+      }
+
+      function renderRecruiterSuggestions() {
+        if (!recruiterSearchInput || !recruiterSuggestions) return;
+        const query = recruiterSearchInput.value.trim();
+        const normalizedQuery = normalizeValue(query);
+
+        recruiterSuggestions.innerHTML = '';
+
+        if (normalizedQuery.length < 3) {
+          closeRecruiterSuggestions();
+          return;
+        }
+
+        const matches = recruiterChoiceList.filter(function (option) {
+          return normalizeValue(option.value).includes(normalizedQuery);
+        }).slice(0, 8);
+
+        if (!matches.length) {
+          recruiterSuggestions.innerHTML = '<div class="recruiter-suggestion-empty">No recruiter matches found.</div>';
+          recruiterSuggestions.hidden = false;
+          recruiterSearchInput.setAttribute('aria-expanded', 'true');
+          activeRecruiterSuggestionIndex = -1;
+          return;
+        }
+
+        matches.forEach(function (option, index) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'recruiter-suggestion';
+          button.setAttribute('role', 'option');
+          button.setAttribute('data-recruiter-option', option.dataset.value || '');
+          button.setAttribute('aria-selected', 'false');
+          button.textContent = option.value;
+          button.addEventListener('mousedown', function (event) {
+            event.preventDefault();
+            applyRecruiterChoice(option);
+          });
+          recruiterSuggestions.appendChild(button);
+          if (index === 0) {
+            activeRecruiterSuggestionIndex = 0;
+          }
+        });
+
+        recruiterSuggestions.hidden = false;
+        recruiterSearchInput.setAttribute('aria-expanded', 'true');
+        setActiveRecruiterSuggestion(activeRecruiterSuggestionIndex);
+      }
+
+      if (recruiterSearchInput && recruiterValueInput) {
+        const selectedRecruiter = findRecruiterChoice(recruiterSearchInput.dataset.selectedValue);
+        if (selectedRecruiter) {
+          recruiterSearchInput.value = selectedRecruiter.value;
+        }
+
+        recruiterSearchInput.addEventListener('input', function () {
+          syncRecruiterFilterValue();
+          renderRecruiterSuggestions();
+        });
+
+        recruiterSearchInput.addEventListener('focus', function () {
+          renderRecruiterSuggestions();
+        });
+
+        recruiterSearchInput.addEventListener('change', function () {
+          syncRecruiterFilterValue();
+          renderRecruiterSuggestions();
+        });
+
+        recruiterSearchInput.addEventListener('keydown', function (event) {
+          const suggestions = getRecruiterSuggestionButtons();
+          if (!suggestions.length || recruiterSuggestions.hidden) {
+            if (event.key === 'Escape') {
+              closeRecruiterSuggestions();
+            }
+            return;
+          }
+
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActiveRecruiterSuggestion(activeRecruiterSuggestionIndex + 1);
+            return;
+          }
+
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActiveRecruiterSuggestion(activeRecruiterSuggestionIndex - 1);
+            return;
+          }
+
+          if (event.key === 'Enter' && activeRecruiterSuggestionIndex >= 0) {
+            event.preventDefault();
+            const selectedButton = suggestions[activeRecruiterSuggestionIndex];
+            const selectedChoice = recruiterChoiceList.find(function (option) {
+              return option.dataset.value === selectedButton.getAttribute('data-recruiter-option');
+            });
+            applyRecruiterChoice(selectedChoice);
+            return;
+          }
+
+          if (event.key === 'Escape') {
+            closeRecruiterSuggestions();
+          }
+        });
+
+        recruiterSearchInput.addEventListener('blur', function () {
+          window.setTimeout(function () {
+            closeRecruiterSuggestions();
+            syncRecruiterFilterValue();
+          }, 120);
+        });
+      }
+
+      if (filterForm) {
+        filterForm.addEventListener('submit', function (event) {
+          syncRecruiterFilterValue();
+          if (!activateFiltersPanelLoading()) {
+            return;
+          }
+          event.preventDefault();
+          window.setTimeout(function () {
+            filterForm.submit();
+          }, 70);
+        });
+      }
+
+      filterPanelLinks.forEach(function (link) {
+        link.addEventListener('click', function (event) {
+          const href = link.getAttribute('href');
+          if (!href || href.charAt(0) === '#' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target === '_blank') {
+            return;
+          }
+          if (!activateFiltersPanelLoading()) {
+            return;
+          }
+          event.preventDefault();
+          window.setTimeout(function () {
+            window.location.href = href;
+          }, 70);
+        });
+      });
+
+      function activateResultsTab(tabKey, focusTab) {
+        resultsTabs.forEach(function (tab) {
+          const isActive = tab.getAttribute('data-results-tab') === tabKey;
+          tab.classList.toggle('is-active', isActive);
+          const tabItem = tab.closest('.results-tab-item');
+          if (tabItem) {
+            tabItem.classList.toggle('tab-current', isActive);
+          }
+          tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          tab.setAttribute('tabindex', isActive ? '0' : '-1');
+          if (isActive && focusTab) {
+            tab.focus();
+          }
+        });
+
+        resultsPanels.forEach(function (panel) {
+          panel.hidden = panel.getAttribute('data-results-panel') !== tabKey;
+        });
+      }
+
+      function showCompanyFallback(companyName) {
+        detailsCompanyLogoWrap.hidden = true;
+        detailsCompanyFallback.hidden = false;
+        detailsCompanyFallback.textContent = (companyName || 'C').trim().slice(0, 1).toUpperCase();
+      }
+
+      function openModal(modal) {
+        if (!modal) return;
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal(modal) {
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+
+      function openLoginPopup() {
+        openModal(loginContinueModal);
+      }
+
+      function getBookmarkIconSvg(isFilled) {
+        const path = isFilled
+          ? 'M 37 48 C 36.824219 48 36.652344 47.953125 36.496094 47.863281 L 25 41.15625 L 13.503906 47.863281 C 13.195313 48.042969 12.8125 48.046875 12.503906 47.867188 C 12.191406 47.6875 12 47.359375 12 47 L 12 3 C 12 2.449219 12.449219 2 13 2 L 37 2 C 37.554688 2 38 2.449219 38 3 L 38 47 C 38 47.359375 37.808594 47.6875 37.496094 47.867188 C 37.34375 47.957031 37.171875 48 37 48 Z'
+          : 'M 12.8125 2 C 12.335938 2.089844 11.992188 2.511719 12 3 L 12 47 C 11.996094 47.359375 12.1875 47.691406 12.496094 47.871094 C 12.804688 48.054688 13.1875 48.054688 13.5 47.875 L 25 41.15625 L 36.5 47.875 C 36.8125 48.054688 37.195313 48.054688 37.503906 47.871094 C 37.8125 47.691406 38.003906 47.359375 38 47 L 38 3 C 38 2.449219 37.550781 2 37 2 L 13 2 C 12.96875 2 12.9375 2 12.90625 2 C 12.875 2 12.84375 2 12.8125 2 Z M 14 4 L 36 4 L 36 45.25 L 25.5 39.125 C 25.191406 38.945313 24.808594 38.945313 24.5 39.125 L 14 45.25 Z';
+        return '<span class="save-toggle-icon" aria-hidden="true"><svg viewBox="0 0 50 50" focusable="false"><path d="' + path + '"></path></svg></span>';
+      }
+
+      function getJobCards(vacancyId) {
+        return Array.from(document.querySelectorAll('[data-job-card="' + vacancyId + '"]'));
+      }
+
+      function setJobCardsBusy(vacancyId, isBusy) {
+        getJobCards(vacancyId).forEach(function (card) {
+          if (!isBusy && card.classList.contains('is-removing')) {
+            return;
+          }
+          card.classList.toggle('is-busy', isBusy);
+          card.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+        });
+      }
+
+      function wait(ms) {
+        return new Promise(function (resolve) {
+          window.setTimeout(resolve, ms);
+        });
+      }
+
+      function normalizeModalText(value) {
+        return (value || '')
+          .toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      function isRoleSectionHeading(line) {
+        return /^(key responsibilities|responsibilities|requirements|skills required|about the role|role overview|what you ll do)$/i.test((line || '').trim());
+      }
+
+      function getSanitizedDescriptionLines(card) {
+        if (!card) return [];
+        const rawDescription = card.dataset.jobFullDescription || card.dataset.jobDescriptionPreview || '';
+        const factValues = [
+          card.dataset.jobRole,
+          card.dataset.jobType,
+          card.dataset.jobLocation,
+          card.dataset.jobExperienceRequired,
+          card.dataset.jobSalaryRange,
+          card.dataset.jobStatus,
+          card.dataset.jobPosted,
+          card.dataset.jobRecruiters,
+          card.dataset.jobRecruiter,
+          card.dataset.jobHr,
+        ].filter(Boolean);
+        const openings = (card.dataset.jobOpenings || '').trim();
+        if (openings) {
+          factValues.push(openings);
+          factValues.push(openings + ' openings');
+        }
+
+        const factSet = new Set();
+        factValues.forEach(function (value) {
+          const normalized = normalizeModalText(value);
+          if (!normalized) return;
+          factSet.add(normalized);
+          factSet.add('status ' + normalized);
+          factSet.add('job type ' + normalized);
+          factSet.add('location ' + normalized);
+          factSet.add('experience ' + normalized);
+          factSet.add('salary range ' + normalized);
+          factSet.add('recruiters ' + normalized);
+          factSet.add('posted ' + normalized);
+        });
+
+        const seenLines = new Set();
+        return rawDescription
+          .split(/\r?\n+/)
+          .map(function (line) {
+            return line.replace(/^[\s\-*•\d.)]+/, '').trim();
+          })
+          .filter(function (line) {
+            const normalized = normalizeModalText(line);
+            if (!normalized) return false;
+            if (factSet.has(normalized)) return false;
+            if (seenLines.has(normalized)) return false;
+            seenLines.add(normalized);
+            return true;
+          });
+      }
+
+      function buildModalDescription(card) {
+        const cleanedLines = getSanitizedDescriptionLines(card);
+        const contentLines = cleanedLines.filter(function (line) {
+          return !isRoleSectionHeading(line);
+        });
+        if (!contentLines.length) {
+          return card.dataset.jobDescriptionPreview || 'No description available.';
+        }
+
+        const intro = contentLines[0];
+        const responsibilities = contentLines.slice(1, 5);
+        if (!responsibilities.length) {
+          return intro;
+        }
+
+        return intro + '\n\nKey Responsibilities\n' + responsibilities.map(function (line) {
+          return '• ' + line;
+        }).join('\n');
+      }
+
+      function setModalApplyButtonState(isApplied, label) {
+        if (!detailsApplyButton) return;
+        const iconClass = isApplied ? 'ph-check-circle' : 'ph-arrow-up-right';
+        const buttonLabel = label || (isApplied ? 'Applied' : 'Apply Now');
+        detailsApplyButton.innerHTML = '<i class="ph ' + iconClass + '" aria-hidden="true"></i>' + buttonLabel;
+        detailsApplyButton.disabled = isCandidateUser && isApplied;
+      }
+
+      function activateFiltersPanelLoading() {
+        if (!filtersPanel || filtersPanelLoading) return false;
+        filtersPanelLoading = true;
+        filtersPanel.classList.add('is-loading');
+        closeRecruiterSuggestions();
+        return true;
+      }
+
+      function updateCardState(vacancyId, payload) {
+        const applyButtons = Array.from(document.querySelectorAll('[data-apply-vacancy="' + vacancyId + '"]'));
+        const cancelButtons = Array.from(document.querySelectorAll('[data-cancel-vacancy="' + vacancyId + '"]'));
+        const saveButtons = Array.from(document.querySelectorAll('[data-save-vacancy="' + vacancyId + '"], [data-unsave-vacancy="' + vacancyId + '"]'));
+        const cards = getJobCards(vacancyId);
+        const messages = Array.from(document.querySelectorAll('[data-job-message="' + vacancyId + '"]'));
+
+        messages.forEach(function (message) {
+          message.textContent = payload.message || '';
+          message.classList.remove('is-error', 'is-success');
+          if (payload.message) {
+            message.classList.add(payload.Success === false ? 'is-error' : 'is-success');
+          }
+        });
+
+        if (payload.action === 'applied') {
+          cards.forEach(function (card) {
+            card.dataset.jobApplied = 'true';
+            card.dataset.jobApplyLabel = payload.statusLabel || 'Pending Review';
+          });
+          applyButtons.forEach(function (applyButton) {
+            applyButton.textContent = payload.statusLabel || 'Pending Review';
+            applyButton.disabled = true;
+          });
+          cancelButtons.forEach(function (cancelButton) {
+            cancelButton.style.display = '';
+          });
+          if (String(activeVacancyId) === String(vacancyId)) {
+            setModalApplyButtonState(true, payload.statusLabel || 'Pending Review');
+            if (detailsWithdrawButton) {
+              detailsWithdrawButton.hidden = false;
+              detailsWithdrawButton.disabled = false;
+            }
+          }
+        }
+
+        if (payload.action === 'withdrawn') {
+          cards.forEach(function (card) {
+            card.dataset.jobApplied = 'false';
+            card.dataset.jobApplyLabel = 'Apply Now';
+          });
+          applyButtons.forEach(function (applyButton) {
+            applyButton.textContent = 'Apply Now';
+            applyButton.disabled = false;
+          });
+          cancelButtons.forEach(function (cancelButton) {
+            cancelButton.style.display = 'none';
+          });
+          if (String(activeVacancyId) === String(vacancyId)) {
+            setModalApplyButtonState(false, 'Apply Now');
+            if (detailsWithdrawButton) {
+              detailsWithdrawButton.hidden = true;
+              detailsWithdrawButton.disabled = true;
+            }
+          }
+        }
+
+        if (payload.action === 'hidden') {
+          cards.forEach(function (card) {
+            card.style.display = 'none';
+          });
+        }
+
+        if (payload.action === 'saved' || payload.action === 'unsaved') {
+          const isSaved = payload.action === 'saved';
+          cards.forEach(function (card) {
+            card.dataset.jobSaved = isSaved ? 'true' : 'false';
+          });
+          saveButtons.forEach(function (saveButton) {
+            saveButton.classList.toggle('is-saved', isSaved);
+            saveButton.setAttribute('title', isSaved ? 'Saved posting' : 'Save posting');
+            saveButton.setAttribute('aria-label', isSaved ? 'Saved posting' : 'Save posting');
+            saveButton.innerHTML = getBookmarkIconSvg(isSaved);
+            if (isSaved) {
+              saveButton.setAttribute('data-unsave-vacancy', vacancyId);
+              saveButton.removeAttribute('data-save-vacancy');
+            } else {
+              saveButton.setAttribute('data-save-vacancy', vacancyId);
+              saveButton.removeAttribute('data-unsave-vacancy');
+            }
+          });
+        }
+      }
+
+      async function submitVacancyAction(url, vacancyId, action, trigger) {
+        const formData = new FormData();
+        formData.append('vacancy_id', vacancyId);
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: formData
+        });
+        const payload = await response.json();
+        if (!payload.Success) {
+          if (trigger) trigger.disabled = false;
+          updateCardState(vacancyId, { Success: false, message: payload.Error || 'Something went wrong.' });
+          return false;
+        }
+        updateCardState(vacancyId, {
+          Success: true,
+          message: payload.Data.message || '',
+          action: action,
+          statusLabel: payload.Data.status_label || ''
+        });
+        if (action === 'hidden') closeModal(jobDetailsModal);
+        if (trigger && action !== 'applied') trigger.disabled = false;
+        return true;
+      }
+
+      function applyCompanyBrand(card) {
+        const companyName = card.dataset.jobCompanyName || 'Company';
+        const companyWebsite = card.dataset.jobCompanyWebsite || '';
+        const companyLocation = card.dataset.jobCompanyLocation || [card.dataset.jobCompanyCity, card.dataset.jobCompanyState, card.dataset.jobCompanyCountry].filter(Boolean).join(', ') || 'Location unavailable';
+        const companyIndustry = card.dataset.jobCompanyIndustry || 'Not specified';
+        const companyHeadquarters = card.dataset.jobCompanyLocation || 'Not specified';
+        const companyLogo = card.dataset.jobCompanyLogo || '';
+
+        detailsCompanyName.textContent = companyName;
+        detailsCompanyLocation.textContent = companyLocation;
+        detailsCompanyIndustry.textContent = companyIndustry;
+        detailsCompanyHeadquarters.textContent = companyHeadquarters;
+        detailsCompanyWebsite.textContent = companyWebsite ? companyWebsite.replace(/^https?:\/\//, '') : 'Company website unavailable';
+        detailsCompanyWebsite.href = companyWebsite || '#';
+        detailsCompanyWebsite.style.pointerEvents = companyWebsite ? 'auto' : 'none';
+        detailsCompanyWebsite.style.opacity = companyWebsite ? '1' : '0.72';
+
+        if (companyLogo) {
+          detailsCompanyLogo.src = companyLogo;
+          detailsCompanyLogo.alt = companyName + ' logo';
+          detailsCompanyLogoWrap.hidden = false;
+          detailsCompanyFallback.hidden = true;
+        } else {
+          showCompanyFallback(companyName);
+        }
+      }
+
+      detailsCompanyLogo.addEventListener('error', function () {
+        showCompanyFallback(detailsCompanyName.textContent || 'C');
+      });
+
+      function populateJobDetails(vacancyId, sourceCard) {
+        const card = sourceCard || document.querySelector('[data-job-card="' + vacancyId + '"]');
+        if (!card) return;
+        activeVacancyId = vacancyId;
+        detailsTitle.textContent = card.dataset.jobRole || 'Job title';
+        detailsOpenings.textContent = card.dataset.jobOpenings || '-';
+        detailsStatus.textContent = card.dataset.jobStatus || '-';
+        detailsPosted.textContent = card.dataset.jobPosted || '-';
+        detailsRecruiter.textContent = card.dataset.jobRecruiters || card.dataset.jobRecruiter || card.dataset.jobHr || '-';
+        detailsJobType.textContent = card.dataset.jobType || 'Not specified';
+        detailsLocation.textContent = card.dataset.jobLocation || 'Not specified';
+        detailsExperience.textContent = card.dataset.jobExperienceRequired || 'Not specified';
+        detailsSalary.textContent = card.dataset.jobSalaryRange || 'Not specified';
+        detailsDescription.textContent = buildModalDescription(card);
+        const isApplied = card.dataset.jobApplied === 'true';
+        setModalApplyButtonState(isApplied, isApplied ? (card.dataset.jobApplyLabel || 'Applied') : 'Apply Now');
+        if (detailsWithdrawButton) {
+          const cancelButton = document.querySelector('[data-cancel-vacancy="' + vacancyId + '"]');
+          const hasWithdrawButton = isApplied && !!(cancelButton && cancelButton.style.display !== 'none');
+          detailsWithdrawButton.hidden = !hasWithdrawButton;
+          detailsWithdrawButton.disabled = !hasWithdrawButton;
+        }
+
+        applyCompanyBrand(card);
+      }
+
+      function refreshSavedSectionVisibility() {
+        if (!savedJobsSection || !savedJobsGrid) return;
+        const count = savedJobsGrid.querySelectorAll('[data-saved-item]').length;
+        if (savedJobCount) savedJobCount.textContent = String(count);
+        if (savedMetricCount) savedMetricCount.textContent = String(count);
+        if (savedMetricCountTab) savedMetricCountTab.textContent = String(count);
+        if (savedMetricCountPanel) savedMetricCountPanel.textContent = String(count);
+        savedJobsGrid.hidden = count === 0;
+        if (savedJobsEmptyState) savedJobsEmptyState.hidden = count !== 0;
+      }
+
+      function buildSavedItem(vacancyId) {
+        const card = document.querySelector('#jobsGrid [data-job-card="' + vacancyId + '"]') || document.querySelector('[data-job-card="' + vacancyId + '"]');
+        if (!card || !savedJobsGrid) return;
+        if (savedJobsGrid.querySelector('[data-saved-item="' + vacancyId + '"]')) return;
+
+        const item = card.cloneNode(true);
+        item.setAttribute('data-saved-item', vacancyId);
+        item.style.display = '';
+        item.dataset.jobSaved = 'true';
+        const message = item.querySelector('[data-job-message]');
+        if (message) {
+          message.textContent = '';
+          message.classList.remove('is-error', 'is-success');
+        }
+        const saveButton = item.querySelector('[data-save-vacancy], [data-unsave-vacancy]');
+        if (saveButton) {
+          saveButton.classList.add('is-saved');
+          saveButton.setAttribute('data-unsave-vacancy', vacancyId);
+          saveButton.removeAttribute('data-save-vacancy');
+          saveButton.setAttribute('title', 'Saved posting');
+          saveButton.setAttribute('aria-label', 'Saved posting');
+          saveButton.innerHTML = getBookmarkIconSvg(true);
+        }
+        savedJobsGrid.prepend(item);
+        refreshSavedSectionVisibility();
+      }
+
+      function removeSavedItem(vacancyId) {
+        if (!savedJobsGrid) return;
+        const items = Array.from(savedJobsGrid.querySelectorAll('[data-saved-item="' + vacancyId + '"]'));
+        if (!items.length) {
+          refreshSavedSectionVisibility();
+          return;
+        }
+        items.forEach(function (item) {
+          item.classList.add('is-busy', 'is-removing');
+          item.setAttribute('aria-busy', 'true');
+          window.setTimeout(function () {
+            item.remove();
+            refreshSavedSectionVisibility();
+          }, 220);
+        });
+      }
+
+      document.querySelectorAll('[data-close-modal]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const modal = document.getElementById(button.getAttribute('data-close-modal'));
+          closeModal(modal);
+        });
+      });
+
+      document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+        overlay.addEventListener('click', function (event) {
+          if (event.target === overlay) closeModal(overlay);
+        });
+      });
+
+      resultsTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          activateResultsTab(tab.getAttribute('data-results-tab'), false);
+        });
+
+        tab.addEventListener('keydown', function (event) {
+          if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft' && event.key !== 'Home' && event.key !== 'End') {
+            return;
+          }
+
+          event.preventDefault();
+          const currentIndex = resultsTabs.indexOf(tab);
+          let nextIndex = currentIndex;
+
+          if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % resultsTabs.length;
+          if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + resultsTabs.length) % resultsTabs.length;
+          if (event.key === 'Home') nextIndex = 0;
+          if (event.key === 'End') nextIndex = resultsTabs.length - 1;
+
+          const nextTab = resultsTabs[nextIndex];
+          activateResultsTab(nextTab.getAttribute('data-results-tab'), true);
+        });
+      });
+
+      document.addEventListener('click', function (event) {
+        const resultsTabTrigger = event.target.closest('[data-results-tab-trigger]');
+        if (resultsTabTrigger) {
+          event.preventDefault();
+          activateResultsTab(resultsTabTrigger.getAttribute('data-results-tab-trigger'), true);
+          return;
+        }
+
+        const viewButton = event.target.closest('[data-view-job]');
+        if (viewButton) {
+          event.preventDefault();
+          populateJobDetails(viewButton.getAttribute('data-view-job'), viewButton.closest('[data-job-card]'));
+          openModal(jobDetailsModal);
+          return;
+        }
+
+        const applyButton = event.target.closest('[data-apply-vacancy]');
+        if (applyButton) {
+          event.preventDefault();
+          if (!isCandidateUser) {
+            openLoginPopup();
+            return;
+          }
+          if (applyButton.disabled) return;
+          applyButton.disabled = true;
+          submitVacancyAction("{% url 'candidate-apply-to-vacancy' %}", applyButton.getAttribute('data-apply-vacancy'), 'applied', applyButton);
+          return;
+        }
+
+        const hideButton = event.target.closest('[data-hide-vacancy]');
+        if (hideButton) {
+          event.preventDefault();
+          if (!isCandidateUser) {
+            openLoginPopup();
+            return;
+          }
+          hideButton.disabled = true;
+          submitVacancyAction("{% url 'candidate-vacancy-not-interested' %}", hideButton.getAttribute('data-hide-vacancy'), 'hidden', hideButton);
+          return;
+        }
+
+        const saveButton = event.target.closest('[data-save-vacancy], [data-unsave-vacancy]');
+        if (saveButton) {
+          event.preventDefault();
+          if (!isCandidateUser) {
+            openLoginPopup();
+            return;
+          }
+          const vacancyId = saveButton.getAttribute('data-save-vacancy') || saveButton.getAttribute('data-unsave-vacancy');
+          const card = saveButton.closest('[data-job-card]') || document.querySelector('[data-job-card="' + vacancyId + '"]');
+          const isSavedAction = !(card && card.dataset.jobSaved === 'true');
+          saveButton.disabled = true;
+          setJobCardsBusy(vacancyId, true);
+          const startedAt = Date.now();
+          submitVacancyAction(
+            isSavedAction ? "{% url 'candidate-save-vacancy' %}" : "{% url 'candidate-unsave-vacancy' %}",
+            vacancyId,
+            isSavedAction ? 'saved' : 'unsaved',
+            saveButton
+          ).then(async function (success) {
+            const remaining = Math.max(0, 320 - (Date.now() - startedAt));
+            if (remaining) {
+              await wait(remaining);
+            }
+            if (!success) return;
+            if (isSavedAction) buildSavedItem(vacancyId);
+            else removeSavedItem(vacancyId);
+          }).finally(function () {
+            setJobCardsBusy(vacancyId, false);
+          });
+          return;
+        }
+
+        const cancelButton = event.target.closest('[data-cancel-vacancy]');
+        if (cancelButton) {
+          event.preventDefault();
+          if (!isCandidateUser) {
+            openLoginPopup();
+            return;
+          }
+          cancelButton.disabled = true;
+          submitVacancyAction("{% url 'candidate-cancel-vacancy-application' %}", cancelButton.getAttribute('data-cancel-vacancy'), 'withdrawn', cancelButton);
+        }
+      });
+
+      detailsApplyButton.addEventListener('click', function () {
+        if (!activeVacancyId) return;
+        const cardButton = document.querySelector('[data-apply-vacancy="' + activeVacancyId + '"]');
+        if (cardButton) cardButton.click();
+        else if (!isCandidateUser) openLoginPopup();
+      });
+
+      detailsHideButton.addEventListener('click', function () {
+        if (!activeVacancyId) return;
+        const hideButton = document.querySelector('[data-hide-vacancy="' + activeVacancyId + '"]');
+        if (hideButton) hideButton.click();
+        else if (!isCandidateUser) openLoginPopup();
+      });
+
+      if (detailsWithdrawButton) {
+        detailsWithdrawButton.addEventListener('click', function () {
+          if (!activeVacancyId) return;
+          const cancelButton = document.querySelector('[data-cancel-vacancy="' + activeVacancyId + '"]');
+          if (cancelButton) cancelButton.click();
+          else if (!isCandidateUser) openLoginPopup();
+        });
+      }
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+          closeModal(jobDetailsModal);
+          closeModal(loginContinueModal);
+        }
+      });
+
+      activateResultsTab('openings', false);
+      refreshSavedSectionVisibility();
+    }());
+  </script>
+</body>
+</html>

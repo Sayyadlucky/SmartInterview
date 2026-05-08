@@ -1,0 +1,39 @@
+{% extends "smartInterview/emails/base.html" %}
+
+{% block title %}Welcome to Shortlistii{% endblock %}
+{% block preheader %}Your Shortlistii candidate account is ready.{% endblock %}
+
+{% block content %}
+<h1 class="email-title" style="margin:0 0 12px 0;font-size:34px;line-height:1.15;color:#0f172a;">Welcome, {{ recipient_name|default:"there" }}</h1>
+<p style="margin:0 0 14px 0;font-size:16px;line-height:1.75;color:#334155;">
+  Your Shortlistii candidate workspace is ready{% if role_name %} for <strong>{{ role_name }}</strong>{% endif %}.
+</p>
+<p style="margin:0 0 24px 0;font-size:16px;line-height:1.75;color:#475569;">
+  Keep your profile current, complete your verification steps, and stay close to new opportunities and interview updates from one calm dashboard.
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px 0;">
+  <tr>
+    <td style="padding:18px;border:1px solid #dbe5f1;border-radius:14px;background-color:#f8fbff;">
+      <p style="margin:0 0 12px 0;font-size:13px;line-height:1.5;color:#475569;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;">
+        Next steps
+      </p>
+      <ul style="margin:0;padding-left:20px;color:#0f172a;font-size:15px;line-height:1.8;">
+        {% for step in next_steps %}
+        <li>{{ step }}</li>
+        {% endfor %}
+      </ul>
+    </td>
+  </tr>
+</table>
+{% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
+<p style="margin:0 0 12px 0;font-size:14px;line-height:1.75;color:#475569;">
+  To complete your profile setup, verify your email from your profile here:
+  <a href="{{ email_verification_url }}" style="color:#2563eb;text-decoration:none;font-weight:700;">{{ email_verification_url }}</a>
+</p>
+<p style="margin:0 0 10px 0;font-size:14px;line-height:1.75;color:#475569;">
+  Sign in directly: <a href="{{ candidate_login_url }}" style="color:#2563eb;text-decoration:none;">{{ candidate_login_url }}</a>
+</p>
+<p style="margin:0;font-size:14px;line-height:1.75;color:#475569;">
+  Explore current roles: <a href="{{ jobs_url }}" style="color:#2563eb;text-decoration:none;">{{ jobs_url }}</a>
+</p>
+{% endblock %}

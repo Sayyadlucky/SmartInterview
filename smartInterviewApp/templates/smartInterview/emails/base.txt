@@ -1,0 +1,4 @@
+{% block body %}{% endblock %}
+
+Need help? {{ support_email }}
+{{ sent_by_note }}{% if footer_note %} | {{ footer_note }}{% endif %}

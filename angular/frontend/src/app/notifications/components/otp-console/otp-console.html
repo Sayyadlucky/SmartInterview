@@ -1,0 +1,12 @@
+<div class="notify-card">
+  <h4>OTP Console</h4>
+  <input [(ngModel)]="phone" placeholder="Phone (e.g. 919876543210)" inputmode="numeric" appDigitsOnly />
+  <input [(ngModel)]="purpose" placeholder="Purpose (login/signup)" />
+  <input [(ngModel)]="otp" placeholder="OTP" inputmode="numeric" appDigitsOnly />
+  <div class="btn-row">
+    <button (click)="requestOtp()" [disabled]="loading">Request</button>
+    <button (click)="verifyOtp()" [disabled]="loading">Verify</button>
+    <button (click)="resendOtp()" [disabled]="loading">Resend</button>
+  </div>
+  <p class="result" *ngIf="result">{{ result }}</p>
+</div>

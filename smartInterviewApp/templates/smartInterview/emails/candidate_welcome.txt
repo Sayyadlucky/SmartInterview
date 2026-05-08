@@ -1,0 +1,23 @@
+{% extends "smartInterview/emails/base.txt" %}
+
+{% block body %}
+Welcome, {{ recipient_name|default:"there" }}.
+
+Your Shortlistii candidate account is ready{% if role_name %} for {{ role_name }}{% endif %}.
+
+Open your candidate portal:
+{{ candidate_portal_url }}
+
+Verify your email:
+{{ email_verification_url }}
+
+Sign in directly:
+{{ candidate_login_url }}
+
+Explore current jobs:
+{{ jobs_url }}
+
+Next steps:
+{% for step in next_steps %}- {{ step }}
+{% endfor %}
+{% endblock %}

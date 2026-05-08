@@ -1,0 +1,21 @@
+{% extends "smartInterview/emails/base.txt" %}
+
+{% block body %}
+Hello {{ recipient_name|default:"there" }},
+
+{% if is_rescheduled %}Your interview has been rescheduled.{% else %}Your interview has been scheduled.{% endif %}
+
+Role: {{ role_name }}
+Date: {{ interview_date }}
+Time: {{ interview_time }}{% if timezone_label %} ({{ timezone_label }}){% endif %}
+Interview Type: {{ interview_type_label }}
+Recruiter: {{ recruiter_name }}
+Interviewer: {{ interviewer_name }}
+{% if is_rescheduled and previous_interview_date and previous_interview_time %}Previous Schedule: {{ previous_interview_date }} at {{ previous_interview_time }}
+{% endif %}
+
+Open Interview Link:
+{{ interview_link }}
+
+Join a few minutes early and make sure your device, internet connection, and audio setup are ready before the interview begins.
+{% endblock %}
