@@ -33,6 +33,8 @@ logger = logging.getLogger('smartInterview.question_banks')
 cloud_tasks_scheduler = CloudTasksScheduler()
 
 MAX_SKILL_CONTEXT_CHARS = 1200
+DEFAULT_PRIMARY_CODING_BANK_TARGET = 10
+DEFAULT_LITIO_CODING_ASK_COUNT = 3
 QUESTION_FILLER_TOKENS = {
     'a',
     'an',
@@ -326,12 +328,12 @@ def enqueue_skill_question_generation(skill_id: int, target_count: int | None = 
     )
 
 
-def enqueue_skill_coding_generation(skill_id: int, target_count: int | None = None) -> dict[str, Any]:
+def enqueue_skill_coding_generation(skill_id: int, target_count: int | None = None, batch_size: int | None = None) -> dict[str, Any]:
     return _enqueue_skill_generation(
         skill_id=skill_id,
         task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
         target_count=target_count or int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)),
-        batch_size=max(1, int(getattr(settings, 'INTERVIEW_CODING_GENERATION_BATCH_SIZE', 2))),
+        batch_size=max(1, int(batch_size or getattr(settings, 'INTERVIEW_CODING_GENERATION_BATCH_SIZE', 2))),
     )
 
 
@@ -370,7 +372,7 @@ def _enqueue_skill_generation(skill_id: int, task_type: str, target_count: int, 
         'skill_id': skill.id,
         'skill_key': skill.key,
         'target_verbal_questions': int(getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100)),
-        'target_coding_questions': int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)),
+        'target_coding_questions': int(target_count) if task_type == QuestionGenerationJob.TaskType.CODING_GENERATION else int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)),
         'missing_verbal_questions': missing_count if task_type == QuestionGenerationJob.TaskType.QUESTION_GENERATION else 0,
         'missing_coding_questions': missing_count if task_type == QuestionGenerationJob.TaskType.CODING_GENERATION else 0,
         'batch_size': min(batch_size, missing_count),
@@ -432,9 +434,11 @@ def process_question_generation_task(
         return {'ok': False, 'status': 'invalid_payload', 'message': 'Skill id is required.'}
     if resolved_task_type not in {QuestionGenerationJob.TaskType.QUESTION_GENERATION, QuestionGenerationJob.TaskType.CODING_GENERATION}:
         return {'ok': False, 'status': 'invalid_payload', 'message': 'Task type is invalid.'}
+    payload = generation_job.payload if generation_job and isinstance(generation_job.payload, dict) else {}
+    resolved_coding_target = int(payload.get('target_coding_questions') or getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0) or 0)
     if (
         resolved_task_type == QuestionGenerationJob.TaskType.CODING_GENERATION
-        and int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)) <= 0
+        and resolved_coding_target <= 0
     ):
         result = {
             'ok': True,
@@ -442,7 +446,7 @@ def process_question_generation_task(
             'skill_id': resolved_skill_id,
             'task_type': resolved_task_type,
             'generation_job_id': getattr(generation_job, 'id', None),
-            'message': 'Coding question generation is disabled because INTERVIEW_SKILL_CODING_TARGET_COUNT is 0.',
+            'message': 'Coding question generation is disabled because no coding target count was provided.',
         }
         if generation_job and generation_job.status != QuestionGenerationJob.Status.SKIPPED:
             generation_job.status = QuestionGenerationJob.Status.SKIPPED
@@ -632,6 +636,93 @@ def process_question_generation_queue(limit: int | None = None) -> list[dict[str
 
 def process_queued_question_generation_jobs(limit: int | None = None) -> list[dict[str, Any]]:
     return process_question_generation_queue(limit=limit)
+
+
+def coding_bank_target_count() -> int:
+    configured = int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0) or 0)
+    return configured if configured > 0 else DEFAULT_PRIMARY_CODING_BANK_TARGET
+
+
+def litio_coding_ask_count() -> int:
+    return max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_CODING_QUESTIONS', DEFAULT_LITIO_CODING_ASK_COUNT) or DEFAULT_LITIO_CODING_ASK_COUNT))
+
+
+def primary_skill_plan_for_interview(interview_id: int) -> dict[str, Any]:
+    interview = Interview.objects.select_related('role').filter(id=interview_id).first()
+    if not interview:
+        return {'ok': False, 'status': 'not_found', 'interview_id': interview_id, 'message': 'Interview not found.'}
+    job = interview.role
+    if not job:
+        return {'ok': False, 'status': 'no_job', 'interview_id': interview.id, 'message': 'Interview has no related job.'}
+    blueprint = JobInterviewBlueprint.objects.filter(job=job).first()
+    if not blueprint:
+        return {'ok': False, 'status': 'no_blueprint', 'interview_id': interview.id, 'message': 'No JobInterviewBlueprint found.'}
+    primary_plan = (
+        JobInterviewSkill.objects
+        .select_related('skill')
+        .filter(blueprint=blueprint, is_active=True, skill__is_active=True, skill_role=JobInterviewSkill.SkillRole.PRIMARY)
+        .order_by('priority', 'id')
+        .first()
+    )
+    if not primary_plan:
+        return {'ok': False, 'status': 'no_primary_skill', 'interview_id': interview.id, 'message': 'No active primary skill found.'}
+    return {'ok': True, 'interview': interview, 'job': job, 'blueprint': blueprint, 'primary_plan': primary_plan}
+
+
+def enqueue_missing_coding_questions_for_interview(interview_id: int, *, apply: bool = False) -> dict[str, Any]:
+    resolved = primary_skill_plan_for_interview(interview_id)
+    if not resolved.get('ok'):
+        return resolved
+    interview = resolved['interview']
+    job = resolved['job']
+    primary_plan = resolved['primary_plan']
+    skill = primary_plan.skill
+    target_count = DEFAULT_PRIMARY_CODING_BANK_TARGET
+    active_count = CodingQuestion.objects.filter(skill=skill, is_active=True).count()
+    missing_count = max(0, target_count - active_count)
+    existing_job = (
+        QuestionGenerationJob.objects
+        .filter(
+            skill=skill,
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status__in=[QuestionGenerationJob.Status.QUEUED, QuestionGenerationJob.Status.RUNNING],
+        )
+        .order_by('-created_at', '-id')
+        .first()
+    )
+    result: dict[str, Any] = {
+        'ok': True,
+        'mode': 'apply' if apply else 'dry-run',
+        'interview_id': interview.id,
+        'role': _job_title(job),
+        'primary_skill': skill.name,
+        'coding_bank_target_count': target_count,
+        'available_active_coding_count': active_count,
+        'missing_bank_count': missing_count,
+        'would_enqueue': False,
+        'enqueued': False,
+        'status': 'enough_coding_questions' if missing_count <= 0 else 'missing_coding_questions',
+    }
+    if missing_count <= 0:
+        return result
+    if existing_job:
+        result.update({
+            'status': 'already_queued_or_running',
+            'generation_job_id': existing_job.id,
+            'would_enqueue': False,
+        })
+        return result
+    result['would_enqueue'] = True
+    if not apply:
+        return result
+    enqueue_result = enqueue_skill_coding_generation(skill.id, target_count=target_count, batch_size=missing_count)
+    result.update({
+        'enqueued': bool(enqueue_result.get('queued')),
+        'status': enqueue_result.get('status', result['status']),
+        'generation_job_id': enqueue_result.get('generation_job_id'),
+        'enqueue_result': enqueue_result,
+    })
+    return result
 
 
 def process_missing_question_bank_for_interview(interview_id: int, *, apply: bool = False) -> dict[str, Any]:
@@ -1313,6 +1404,9 @@ def generate_coding_questions_with_openai(skill: Skill, batch_size: int) -> list
         f'Generate {batch_size} reusable coding interview tasks for the skill {skill.name}. '
         'These tasks should be suitable across many jobs where this skill is required. '
         'Generate only for the requested Skill. Do not mention any company, job, candidate, or job description. '
+        'Generate practical coding tasks, not theory questions. Each task must include a clear problem statement, '
+        'function signature or input/output format when applicable, constraints, edge cases, sample tests, and hidden-test guidance. '
+        'Use explanation as the evaluation rubric: include what a correct solution must handle, complexity expectations, and common failure modes. '
         'Be conservative and practical. Avoid duplicate tasks within the response.\n\n'
         f'Skill category: {skill.category}\n'
         f'Skill aliases: {", ".join(_json_list(skill.aliases))[:MAX_SKILL_CONTEXT_CHARS]}'
@@ -1594,6 +1688,16 @@ def _missing_verbal_question_schema() -> dict[str, Any]:
 
 
 def _coding_question_schema() -> dict[str, Any]:
+    test_case_schema = {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'input': {'type': 'string'},
+            'expected_output': {'type': 'string'},
+            'explanation': {'type': 'string'},
+        },
+        'required': ['input', 'expected_output', 'explanation'],
+    }
     question_schema = {
         'type': 'object',
         'additionalProperties': False,
@@ -1607,9 +1711,17 @@ def _coding_question_schema() -> dict[str, Any]:
             'input_format': {'type': 'string'},
             'output_format': {'type': 'string'},
             'constraints': {'type': 'string'},
-            'starter_code': {'type': 'object'},
-            'test_cases': {'type': 'array'},
-            'hidden_test_cases': {'type': 'array'},
+            'starter_code': {
+                'type': 'object',
+                'additionalProperties': False,
+                'properties': {
+                    'language': {'type': 'string'},
+                    'code': {'type': 'string'},
+                },
+                'required': ['language', 'code'],
+            },
+            'test_cases': {'type': 'array', 'items': test_case_schema},
+            'hidden_test_cases': {'type': 'array', 'items': test_case_schema},
             'expected_solution': {'type': 'string'},
             'explanation': {'type': 'string'},
             'time_limit_ms': {'type': 'integer'},
