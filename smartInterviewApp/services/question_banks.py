@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from smartInterviewApp.models import (
     CodingQuestion,
+    Interview,
     JobInterviewBlueprint,
     JobInterviewSkill,
     QuestionGenerationJob,
@@ -95,6 +96,33 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'rest-api',
     'soql',
     'sql',
+}
+GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS = {
+    'agile',
+    'communication-skills',
+    'industry-trends-awareness',
+    'leadership',
+    'scrum',
+    'stakeholder-management',
+    'teamwork',
+}
+TECHNICAL_ROLE_KEYWORDS = {
+    'api',
+    'backend',
+    'code',
+    'coding',
+    'database',
+    'developer',
+    'development',
+    'devops',
+    'django',
+    'engineer',
+    'frontend',
+    'javascript',
+    'python',
+    'software',
+    'sql',
+    'technical',
 }
 
 
@@ -580,6 +608,407 @@ def process_queued_question_generation_jobs(limit: int | None = None) -> list[di
     return process_question_generation_queue(limit=limit)
 
 
+def process_missing_question_bank_for_interview(interview_id: int, *, apply: bool = False) -> dict[str, Any]:
+    interview = Interview.objects.select_related('role').filter(id=interview_id).first()
+    if not interview:
+        return {'ok': False, 'status': 'not_found', 'interview_id': interview_id, 'message': 'Interview not found.'}
+
+    job = interview.role
+    role_title = _job_title(job)
+    if not job:
+        return {
+            'ok': False,
+            'status': 'not_ready',
+            'interview_id': interview.id,
+            'role': role_title,
+            'planned_gaps': [],
+            'generated_count': 0,
+            'approved_count': 0,
+            'rejected_count': 0,
+            'skipped_skills': [],
+            'remaining_not_ready_reasons': ['no_job'],
+            'message': 'Interview has no related job.',
+        }
+
+    blueprint = JobInterviewBlueprint.objects.filter(job=job).first()
+    if not blueprint:
+        return {
+            'ok': True,
+            'status': 'preview' if not apply else 'completed',
+            'interview_id': interview.id,
+            'role': role_title,
+            'primary_skill': '',
+            'selected_sub_skills': [],
+            'planned_gaps': [],
+            'generated_count': 0,
+            'approved_count': 0,
+            'rejected_count': 0,
+            'skipped_skills': [],
+            'remaining_not_ready_reasons': ['no_blueprint'],
+        }
+
+    plans = list(
+        JobInterviewSkill.objects
+        .select_related('skill')
+        .filter(blueprint=blueprint, is_active=True, skill__is_active=True)
+        .order_by('priority', 'id')
+    )
+    primary_plan = next((plan for plan in plans if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
+    sub_skill_plans = [plan for plan in plans if plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL]
+    selected_plans = ([primary_plan] if primary_plan else []) + sub_skill_plans
+
+    skipped_skills: list[dict[str, Any]] = []
+    planned_gaps: list[dict[str, Any]] = []
+    remaining_not_ready_reasons: list[str] = []
+    if not selected_plans:
+        remaining_not_ready_reasons.append('no_selected_skills')
+    if not primary_plan:
+        remaining_not_ready_reasons.append('no_primary_skill')
+
+    for plan in selected_plans:
+        audit = _question_bank_readiness_for_plan(plan)
+        if not audit['reasons']:
+            skipped_skills.append(_skip_summary(plan, 'ready', audit))
+            continue
+        if _should_skip_missing_only_skill(job, plan):
+            skipped_skills.append(_skip_summary(plan, 'technical_role_skill_not_explicit_in_jd', audit))
+            remaining_not_ready_reasons.extend(_skill_reason_labels(plan, audit['reasons']))
+            continue
+        missing_count = _missing_question_count_for_plan(plan.skill_role, audit)
+        if missing_count <= 0:
+            skipped_skills.append(_skip_summary(plan, 'no_question_count_gap', audit))
+            remaining_not_ready_reasons.extend(_skill_reason_labels(plan, audit['reasons']))
+            continue
+        planned_gaps.append({
+            'skill_id': plan.skill_id,
+            'skill_name': plan.skill.name,
+            'skill_key': plan.skill.key,
+            'skill_role': plan.skill_role,
+            'approved_count': audit['approved_count'],
+            'distinct_family_count': audit['distinct_family_count'],
+            'coverage_area_count': audit['coverage_area_count'],
+            'missing_count': missing_count,
+            'reasons': audit['reasons'],
+        })
+
+    generated_count = 0
+    approved_count = 0
+    rejected_count = 0
+    generation_results: list[dict[str, Any]] = []
+    if apply:
+        for gap in planned_gaps:
+            plan = next((item for item in selected_plans if item and item.skill_id == gap['skill_id']), None)
+            if not plan:
+                continue
+            generated = generate_missing_skill_questions_with_openai(job, blueprint, plan, gap['missing_count'])
+            inserted = insert_missing_skill_questions(job, plan.skill, generated)
+            generated_count += inserted['generated_count']
+            approved_count += inserted['approved_count']
+            rejected_count += inserted['rejected_count']
+            generation_results.append({
+                'skill_id': plan.skill_id,
+                'skill_name': plan.skill.name,
+                **inserted,
+            })
+
+    if apply:
+        remaining_not_ready_reasons = []
+        for plan in selected_plans:
+            audit = _question_bank_readiness_for_plan(plan)
+            if audit['reasons']:
+                remaining_not_ready_reasons.extend(_skill_reason_labels(plan, audit['reasons']))
+    elif planned_gaps:
+        for gap in planned_gaps:
+            remaining_not_ready_reasons.extend(_skill_reason_labels_from_gap(gap))
+
+    return {
+        'ok': True,
+        'status': 'completed' if apply else 'preview',
+        'interview_id': interview.id,
+        'role': role_title,
+        'primary_skill': primary_plan.skill.name if primary_plan else '',
+        'selected_sub_skills': [plan.skill.name for plan in sub_skill_plans],
+        'planned_gaps': planned_gaps,
+        'generated_count': generated_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
+        'skipped_skills': skipped_skills,
+        'remaining_not_ready_reasons': remaining_not_ready_reasons,
+        'generation_results': generation_results,
+        'apply': apply,
+    }
+
+
+def generate_missing_skill_questions_with_openai(
+    job,
+    blueprint: JobInterviewBlueprint,
+    plan: JobInterviewSkill,
+    missing_count: int,
+) -> list[dict[str, Any]]:
+    prompt = _missing_question_prompt(job, blueprint, plan, missing_count)
+    parsed = _call_openai_json(prompt, _missing_verbal_question_schema(), 'missing_skill_question_bank')
+    questions = parsed.get('questions') if isinstance(parsed, dict) else []
+    return [item for item in questions or [] if isinstance(item, dict)]
+
+
+def insert_missing_skill_questions(job, skill: Skill, questions: list[dict[str, Any]]) -> dict[str, Any]:
+    batch_id = f'missing-{timezone.now().strftime("%Y%m%d%H%M%S%f")[:20]}-{skill.id}'
+    stats: dict[str, Any] = {
+        'generation_batch_id': batch_id,
+        'generated_count': len(questions),
+        'approved_count': 0,
+        'rejected_count': 0,
+        'duplicate_skipped_count': 0,
+        'failed_count': 0,
+        'rejections': [],
+    }
+    existing = list(SkillQuestion.objects.filter(skill=skill).values('question_text', 'question_hash', 'family_key'))
+    seen_normalized = {_normalize_question_text(item['question_text']) for item in existing}
+    seen_hashes = {item['question_hash'] for item in existing if item['question_hash']}
+    seen_family_texts = [(normalize_skill_key(item['family_key'] or ''), _normalize_question_text(item['question_text'])) for item in existing]
+
+    for item in questions:
+        validation = _validate_missing_skill_question(job, skill, item, seen_normalized, seen_hashes, seen_family_texts)
+        if not validation['ok']:
+            stats['rejected_count'] += 1
+            stats['rejections'].append(validation['reason'])
+            if validation['reason'] == 'duplicate_question':
+                stats['duplicate_skipped_count'] += 1
+            continue
+        try:
+            with transaction.atomic():
+                SkillQuestion.objects.create(
+                    skill=skill,
+                    question_text=validation['question_text'][:4000],
+                    question_hash=validation['question_hash'],
+                    difficulty=_choice(item.get('difficulty'), SkillQuestion.Difficulty.values, SkillQuestion.Difficulty.INTERMEDIATE),
+                    question_type=_choice(item.get('question_type'), SkillQuestion.QuestionType.values, SkillQuestion.QuestionType.SCENARIO),
+                    family_key=validation['family_key'][:120],
+                    coverage_area=validation['coverage_area'][:80],
+                    expected_signal=validation['expected_signal'][:2000],
+                    ideal_answer_points=_json_list(item.get('ideal_answer_points')),
+                    evaluation_rubric=item.get('evaluation_rubric') if isinstance(item.get('evaluation_rubric'), dict) else {},
+                    tags=_json_list(item.get('tags'))[:12],
+                    source=SkillQuestion.Source.OPENAI,
+                    quality_status=SkillQuestion.QualityStatus.APPROVED,
+                    generation_batch_id=batch_id,
+                    is_active=True,
+                )
+            seen_normalized.add(validation['normalized'])
+            seen_hashes.add(validation['question_hash'])
+            seen_family_texts.append((validation['family_key'], validation['normalized']))
+            stats['approved_count'] += 1
+        except IntegrityError:
+            stats['rejected_count'] += 1
+            stats['duplicate_skipped_count'] += 1
+            stats['rejections'].append('duplicate_question')
+        except Exception:
+            logger.exception('Missing-only SkillQuestion insert failed skill_id=%s', skill.id)
+            stats['rejected_count'] += 1
+            stats['failed_count'] += 1
+            stats['rejections'].append('insert_failed')
+    return stats
+
+
+def _question_bank_readiness_for_plan(plan: JobInterviewSkill) -> dict[str, Any]:
+    questions = SkillQuestion.objects.filter(
+        skill=plan.skill,
+        is_active=True,
+        quality_status=SkillQuestion.QualityStatus.APPROVED,
+    )
+    approved_count = questions.count()
+    coverage_area_count = (
+        questions
+        .exclude(coverage_area='')
+        .values('coverage_area')
+        .distinct()
+        .count()
+    )
+    distinct_family_count = (
+        questions
+        .exclude(family_key='')
+        .values('family_key')
+        .distinct()
+        .count()
+    )
+    reasons: list[str] = []
+    if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY:
+        if approved_count < 12:
+            reasons.append('approved_question_count_below_12')
+        if coverage_area_count == 0:
+            reasons.append('coverage_area_missing_or_unclassified')
+        elif coverage_area_count < 5:
+            reasons.append('coverage_area_count_too_low')
+    elif plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL:
+        if approved_count < 4:
+            reasons.append('approved_question_count_below_4')
+        if coverage_area_count == 0:
+            reasons.append('coverage_area_missing_or_unclassified')
+        if distinct_family_count < 2:
+            reasons.append('distinct_family_count_too_low')
+    return {
+        'approved_count': approved_count,
+        'coverage_area_count': coverage_area_count,
+        'distinct_family_count': distinct_family_count,
+        'reasons': reasons,
+    }
+
+
+def _missing_question_count_for_plan(skill_role: str, audit: dict[str, Any]) -> int:
+    approved_count = int(audit.get('approved_count') or 0)
+    distinct_family_count = int(audit.get('distinct_family_count') or 0)
+    coverage_area_count = int(audit.get('coverage_area_count') or 0)
+    if skill_role == JobInterviewSkill.SkillRole.PRIMARY:
+        approved_gap = max(0, 12 - approved_count)
+        coverage_gap = max(0, 5 - coverage_area_count) if coverage_area_count > 0 else 1
+        return max(approved_gap, coverage_gap)
+    if skill_role == JobInterviewSkill.SkillRole.SUB_SKILL:
+        return max(0, 4 - approved_count, 2 - distinct_family_count)
+    return 0
+
+
+def _skip_summary(plan: JobInterviewSkill, reason: str, audit: dict[str, Any]) -> dict[str, Any]:
+    return {
+        'skill_id': plan.skill_id,
+        'skill_name': plan.skill.name,
+        'skill_key': plan.skill.key,
+        'skill_role': plan.skill_role,
+        'reason': reason,
+        'readiness_reasons': audit.get('reasons') or [],
+        'approved_count': audit.get('approved_count', 0),
+        'distinct_family_count': audit.get('distinct_family_count', 0),
+        'coverage_area_count': audit.get('coverage_area_count', 0),
+    }
+
+
+def _skill_reason_labels(plan: JobInterviewSkill, reasons: list[str]) -> list[str]:
+    return [f'{plan.skill.name}:{reason}' for reason in reasons]
+
+
+def _skill_reason_labels_from_gap(gap: dict[str, Any]) -> list[str]:
+    return [f'{gap["skill_name"]}:{reason}' for reason in gap.get('reasons') or []]
+
+
+def _should_skip_missing_only_skill(job, plan: JobInterviewSkill) -> bool:
+    if not _is_technical_role_job(job):
+        return False
+    skill = plan.skill
+    category = (skill.category or '').strip().lower()
+    generic_category = category in {'soft skills', 'human resources', 'digital marketing', 'sales', 'operations'}
+    generic_key = skill.key in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS
+    if not generic_key and not generic_category:
+        return False
+    return not _skill_explicitly_mentioned(job, skill)
+
+
+def _is_technical_role_job(job) -> bool:
+    text = _search_text(' '.join([
+        getattr(job, 'role', '') or '',
+        getattr(job, 'position', '') or '',
+        getattr(job, 'description', '') or '',
+        getattr(job, 'experience_required', '') or '',
+    ]))
+    return any(f' {keyword} ' in text for keyword in TECHNICAL_ROLE_KEYWORDS)
+
+
+def _skill_explicitly_mentioned(job, skill: Skill) -> bool:
+    text = _search_text(' '.join([
+        getattr(job, 'role', '') or '',
+        getattr(job, 'position', '') or '',
+        getattr(job, 'description', '') or '',
+    ]))
+    candidates = [skill.name, skill.key.replace('-', ' ')]
+    candidates.extend(_json_list(skill.aliases))
+    for candidate in candidates:
+        phrase = _search_text(candidate).strip()
+        if phrase and f' {phrase} ' in text:
+            return True
+    return False
+
+
+def _missing_question_prompt(job, blueprint: JobInterviewBlueprint, plan: JobInterviewSkill, missing_count: int) -> str:
+    role_title = _job_title(job)
+    experience_level = blueprint.experience_level or getattr(job, 'experience_required', '') or ''
+    description = (getattr(job, 'description', '') or '')[:MAX_SKILL_CONTEXT_CHARS]
+    return (
+        f'Generate exactly {missing_count} missing interview question(s) for this job-specific question bank gap.\n'
+        'Generate only for the requested skill. Do not generate broad, random, culture-fit, or generic soft-skill questions. '
+        'Questions must be practical and job-relevant, using scenario, debugging, implementation, or tradeoff framing. '
+        'Do not include coding tasks that require writing a complete program. '
+        'Each question must include non-empty expected_signal, family_key, question_type, difficulty, and coverage_area. '
+        'coverage_area must be a short snake_case label for the exact concept being tested. '
+        'family_key must be short, stable, snake_case, and group near-equivalent questions. '
+        'question_type must be one of scenario, debugging, practical, or concept, preferring scenario/debugging/practical. '
+        'No duplicate questions within the response.\n\n'
+        f'Role title: {role_title}\n'
+        f'Experience level: {experience_level}\n'
+        f'Skill name: {plan.skill.name}\n'
+        f'Skill category: {plan.skill.category}\n'
+        f'Skill role: {plan.skill_role}\n'
+        f'Missing count: {missing_count}\n'
+        f'Job description context:\n{description}'
+    )
+
+
+def _validate_missing_skill_question(
+    job,
+    skill: Skill,
+    item: dict[str, Any],
+    seen_normalized: set[str],
+    seen_hashes: set[str],
+    seen_family_texts: list[tuple[str, str]],
+) -> dict[str, Any]:
+    question_text = _clean_string(item.get('question_text'))
+    expected_signal = _clean_string(item.get('expected_signal'))
+    family_key = normalize_skill_key(_clean_string(item.get('family_key'))[:120])
+    coverage_area = normalize_skill_key(_clean_string(item.get('coverage_area'))[:80])
+    if not question_text:
+        return {'ok': False, 'reason': 'question_text_empty'}
+    if not expected_signal:
+        return {'ok': False, 'reason': 'expected_signal_empty'}
+    if not family_key:
+        return {'ok': False, 'reason': 'family_key_empty'}
+    if not coverage_area:
+        return {'ok': False, 'reason': 'coverage_area_empty'}
+    if _is_technical_role_job(job) and _should_skip_missing_only_skill(job, _PlanLike(skill)):
+        return {'ok': False, 'reason': 'generic_soft_skill_for_technical_role'}
+
+    normalized = _normalize_question_text(question_text)
+    question_hash = _hash_text(normalized)
+    if (
+        not normalized
+        or question_hash in seen_hashes
+        or _is_near_duplicate(normalized, seen_normalized)
+        or _is_family_duplicate(family_key, normalized, seen_family_texts)
+    ):
+        return {'ok': False, 'reason': 'duplicate_question'}
+    return {
+        'ok': True,
+        'question_text': question_text,
+        'expected_signal': expected_signal,
+        'family_key': family_key,
+        'coverage_area': coverage_area,
+        'normalized': normalized,
+        'question_hash': question_hash,
+    }
+
+
+class _PlanLike:
+    def __init__(self, skill: Skill):
+        self.skill = skill
+
+
+def _job_title(job) -> str:
+    if not job:
+        return ''
+    return getattr(job, 'role', '') or getattr(job, 'position', '') or ''
+
+
+def _search_text(value: str) -> str:
+    cleaned = re.sub(r'[^a-z0-9+#.]+', ' ', (value or '').lower()).strip()
+    return f' {cleaned} '
+
+
 def _job_error_type(generation_job: QuestionGenerationJob) -> str:
     result = generation_job.result if isinstance(generation_job.result, dict) else {}
     return str(result.get('error_type') or result.get('status') or '').strip()
@@ -993,6 +1422,45 @@ def _verbal_question_schema() -> dict[str, Any]:
             'tags': {'type': 'array', 'items': {'type': 'string'}},
         },
         'required': ['question_text', 'difficulty', 'question_type', 'family_key', 'expected_signal', 'ideal_answer_points', 'evaluation_rubric', 'tags'],
+    }
+    return {'type': 'object', 'additionalProperties': False, 'properties': {'questions': {'type': 'array', 'items': question_schema}}, 'required': ['questions']}
+
+
+def _missing_verbal_question_schema() -> dict[str, Any]:
+    question_schema = {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'question_text': {'type': 'string'},
+            'difficulty': {'type': 'string', 'enum': SkillQuestion.Difficulty.values},
+            'question_type': {'type': 'string', 'enum': SkillQuestion.QuestionType.values},
+            'family_key': {'type': 'string'},
+            'coverage_area': {'type': 'string'},
+            'expected_signal': {'type': 'string'},
+            'ideal_answer_points': {'type': 'array', 'items': {'type': 'string'}},
+            'evaluation_rubric': {
+                'type': 'object',
+                'additionalProperties': False,
+                'properties': {
+                    'strong': {'type': 'string'},
+                    'average': {'type': 'string'},
+                    'weak': {'type': 'string'},
+                },
+                'required': ['strong', 'average', 'weak'],
+            },
+            'tags': {'type': 'array', 'items': {'type': 'string'}},
+        },
+        'required': [
+            'question_text',
+            'difficulty',
+            'question_type',
+            'family_key',
+            'coverage_area',
+            'expected_signal',
+            'ideal_answer_points',
+            'evaluation_rubric',
+            'tags',
+        ],
     }
     return {'type': 'object', 'additionalProperties': False, 'properties': {'questions': {'type': 'array', 'items': question_schema}}, 'required': ['questions']}
 
