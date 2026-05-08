@@ -830,17 +830,29 @@ class SkillQuestion(models.Model):
         OPENAI = 'openai', 'OpenAI'
         IMPORTED = 'imported', 'Imported'
 
+    class QualityStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        NEEDS_REVIEW = 'needs_review', 'Needs Review'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
     skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name='verbal_questions')
     question_text = models.TextField()
     question_hash = models.CharField(max_length=64, blank=True, default='', db_index=True)
     difficulty = models.CharField(max_length=20, choices=Difficulty.choices)
     question_type = models.CharField(max_length=30, choices=QuestionType.choices)
     family_key = models.CharField(max_length=120, db_index=True)
+    coverage_area = models.CharField(max_length=80, blank=True, default='', db_index=True)
     expected_signal = models.TextField(blank=True, default='')
     ideal_answer_points = models.JSONField(default=list, blank=True)
     evaluation_rubric = models.JSONField(default=dict, blank=True)
     tags = models.JSONField(default=list, blank=True)
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    quality_status = models.CharField(max_length=20, choices=QualityStatus.choices, default=QualityStatus.APPROVED, db_index=True)
+    quality_score = models.FloatField(default=0)
+    jd_relevance_score = models.FloatField(default=0)
+    quality_notes = models.JSONField(default=dict, blank=True)
+    generation_batch_id = models.CharField(max_length=64, blank=True, default='', db_index=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -853,6 +865,8 @@ class SkillQuestion(models.Model):
         indexes = [
             models.Index(fields=['skill', 'difficulty', 'is_active']),
             models.Index(fields=['skill', 'family_key']),
+            models.Index(fields=['skill', 'coverage_area']),
+            models.Index(fields=['skill', 'quality_status', 'is_active']),
             models.Index(fields=['question_type']),
             models.Index(fields=['source']),
         ]
