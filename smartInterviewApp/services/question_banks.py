@@ -124,6 +124,32 @@ TECHNICAL_ROLE_KEYWORDS = {
     'sql',
     'technical',
 }
+MOBILE_SKILL_KEYS = {
+    'flutter',
+    'react-native',
+    'reactnative',
+}
+CORE_TECHNICAL_SKILL_KEYS = {
+    'angular',
+    'django',
+    'django-rest-framework',
+    'djangorestframework',
+    'html-css',
+    'htmlcss',
+    'javascript',
+    'mongodb',
+    'mysql',
+    'next-js',
+    'nextjs',
+    'node-js',
+    'nodejs',
+    'postgresql',
+    'python',
+    'react',
+    'rest-api',
+    'restapi',
+    'sql',
+}
 
 
 class OpenAIQuestionGenerationError(RuntimeError):
@@ -655,7 +681,12 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
     )
     primary_plan = next((plan for plan in plans if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
     sub_skill_plans = [plan for plan in plans if plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL]
-    selected_plans = ([primary_plan] if primary_plan else []) + sub_skill_plans
+    audits_by_skill_id = {
+        plan.skill_id: _question_bank_readiness_for_plan(plan)
+        for plan in ([primary_plan] if primary_plan else []) + sub_skill_plans
+    }
+    runtime_sub_skill_plans, runtime_skip_reasons = _runtime_required_sub_skill_plans(job, sub_skill_plans, audits_by_skill_id)
+    selected_plans = ([primary_plan] if primary_plan else []) + runtime_sub_skill_plans
 
     skipped_skills: list[dict[str, Any]] = []
     planned_gaps: list[dict[str, Any]] = []
@@ -665,8 +696,15 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
     if not primary_plan:
         remaining_not_ready_reasons.append('no_primary_skill')
 
+    runtime_sub_skill_ids = {plan.skill_id for plan in runtime_sub_skill_plans}
+    for plan in sub_skill_plans:
+        if plan.skill_id in runtime_sub_skill_ids:
+            continue
+        audit = audits_by_skill_id.get(plan.skill_id) or _question_bank_readiness_for_plan(plan)
+        skipped_skills.append(_skip_summary(plan, runtime_skip_reasons.get(plan.skill_id, 'outside_runtime_required_scope'), audit))
+
     for plan in selected_plans:
-        audit = _question_bank_readiness_for_plan(plan)
+        audit = audits_by_skill_id.get(plan.skill_id) or _question_bank_readiness_for_plan(plan)
         if not audit['reasons']:
             skipped_skills.append(_skip_summary(plan, 'ready', audit))
             continue
@@ -727,7 +765,7 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
         'interview_id': interview.id,
         'role': role_title,
         'primary_skill': primary_plan.skill.name if primary_plan else '',
-        'selected_sub_skills': [plan.skill.name for plan in sub_skill_plans],
+        'selected_sub_skills': [plan.skill.name for plan in runtime_sub_skill_plans],
         'planned_gaps': planned_gaps,
         'generated_count': generated_count,
         'approved_count': approved_count,
@@ -808,6 +846,96 @@ def insert_missing_skill_questions(job, skill: Skill, questions: list[dict[str, 
             stats['failed_count'] += 1
             stats['rejections'].append('insert_failed')
     return stats
+
+
+def _runtime_required_sub_skill_plans(
+    job,
+    sub_skill_plans: list[JobInterviewSkill],
+    audits_by_skill_id: dict[int, dict[str, Any]],
+) -> tuple[list[JobInterviewSkill], dict[int, str]]:
+    if not sub_skill_plans:
+        return [], {}
+
+    target_count = max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_SUB_SKILLS_TO_PICK', 3) or 3))
+    eligible_plans = [
+        plan for plan in sub_skill_plans
+        if not _is_mobile_specific_skill(plan.skill) or _skill_explicitly_mentioned(job, plan.skill)
+    ]
+    ready_plans = [
+        plan for plan in eligible_plans
+        if not (audits_by_skill_id.get(plan.skill_id) or {}).get('reasons')
+    ]
+    ready_threshold = min(2, target_count)
+    if len(ready_plans) >= ready_threshold:
+        selected = _rank_runtime_sub_skill_plans(job, ready_plans, audits_by_skill_id)[:target_count]
+        skip_reason = 'enough_ready_sub_skills'
+    else:
+        selected = _rank_runtime_sub_skill_plans(job, eligible_plans, audits_by_skill_id)[:target_count]
+        skip_reason = 'outside_runtime_required_scope'
+
+    selected_ids = {plan.skill_id for plan in selected}
+    skip_reasons: dict[int, str] = {}
+    for plan in sub_skill_plans:
+        if plan.skill_id in selected_ids:
+            continue
+        if _is_mobile_specific_skill(plan.skill) and not _skill_explicitly_mentioned(job, plan.skill):
+            skip_reasons[plan.skill_id] = 'outside_runtime_required_scope'
+        else:
+            skip_reasons[plan.skill_id] = skip_reason
+    return selected, skip_reasons
+
+
+def _rank_runtime_sub_skill_plans(
+    job,
+    plans: list[JobInterviewSkill],
+    audits_by_skill_id: dict[int, dict[str, Any]],
+) -> list[JobInterviewSkill]:
+    return sorted(
+        plans,
+        key=lambda plan: (
+            -_runtime_sub_skill_score(job, plan, audits_by_skill_id.get(plan.skill_id) or {}),
+            plan.priority,
+            plan.id,
+        ),
+    )
+
+
+def _runtime_sub_skill_score(job, plan: JobInterviewSkill, audit: dict[str, Any]) -> int:
+    skill = plan.skill
+    score = 0
+    if not audit.get('reasons'):
+        score += 1000
+    if _skill_explicitly_mentioned(job, skill):
+        score += 200
+    if _is_core_technical_skill(skill):
+        score += 120
+    if _has_existing_approved_bank(audit):
+        score += 80
+    if _is_mobile_specific_skill(skill):
+        score -= 50
+    score += max(0, 50 - int(plan.priority or 0))
+    score += min(40, int(audit.get('approved_count') or 0))
+    return score
+
+
+def _has_existing_approved_bank(audit: dict[str, Any]) -> bool:
+    return int(audit.get('approved_count') or 0) > 0
+
+
+def _is_core_technical_skill(skill: Skill) -> bool:
+    category = (skill.category or '').strip().lower()
+    return skill.key in CORE_TECHNICAL_SKILL_KEYS or category in {
+        'backend development',
+        'database',
+        'frontend development',
+        'programming language',
+        'web services',
+    }
+
+
+def _is_mobile_specific_skill(skill: Skill) -> bool:
+    category = (skill.category or '').strip().lower()
+    return skill.key in MOBILE_SKILL_KEYS or category == 'mobile development'
 
 
 def _question_bank_readiness_for_plan(plan: JobInterviewSkill) -> dict[str, Any]:
