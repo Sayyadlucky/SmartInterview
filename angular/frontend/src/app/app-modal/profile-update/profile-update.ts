@@ -15,6 +15,8 @@ import { of } from 'rxjs';
 export class ProfileUpdate implements OnInit {
   candidate: any;
   filteredStatuses: any = {};
+  updatingStatus = false;
+  statusInFlight = '';
 
   constructor(
     public dialogRef: MatDialogRef<ProfileUpdate>,
@@ -115,12 +117,19 @@ export class ProfileUpdate implements OnInit {
   }
 
   changeStatus(newStatus: string) {
+    if (this.updatingStatus || !this.candidate?.id) {
+      return;
+    }
+    const previousStatus = this.candidate.status;
     // Update the candidate's status
     this.candidate.status = newStatus;
-    this.updateStatusInDb();
+    this.updateStatusInDb(previousStatus);
   }
 
-  updateStatusInDb(): void{
+  updateStatusInDb(previousStatus?: string): void{
+    this.updatingStatus = true;
+    this.statusInFlight = this.candidate.status;
+    this.dialogRef.disableClose = true;
     let port_number = ''
     if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
       port_number = '8000'
@@ -153,10 +162,18 @@ export class ProfileUpdate implements OnInit {
             }
           }));
           this.closeDialog();
+          } else {
+            this.candidate.status = previousStatus;
           }
         })
         .catch(error => {
           console.error('Error fetching data', error);
+          this.candidate.status = previousStatus;
+        })
+        .finally(() => {
+          this.updatingStatus = false;
+          this.statusInFlight = '';
+          this.dialogRef.disableClose = false;
         });
     }
 
@@ -166,6 +183,9 @@ export class ProfileUpdate implements OnInit {
   }
 
   cancel() {
+    if (this.updatingStatus) {
+      return;
+    }
     this.dialogRef.close(null); // nothing changed
   }
 }

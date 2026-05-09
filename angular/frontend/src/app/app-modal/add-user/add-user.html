@@ -1,6 +1,6 @@
 <div class="modal-overlay" *ngIf="isAddUser">
   <div class="modal-card modal-card--candidate">
-    <button class="modal-close" type="button" (click)="closeModal()">×</button>
+    <button class="modal-close" type="button" (click)="closeModal()" [disabled]="isSubmitting">×</button>
 
     <div class="modal-head">
       <h2>{{ userType === 'Candidate' ? 'Assign Candidate' : 'Add ' + userType }}</h2>
@@ -23,6 +23,7 @@
               appDigitsOnly
               [(ngModel)]="phone"
               (ngModelChange)="onPhoneInput($event)"
+              [disabled]="isSubmitting"
               required
               placeholder="Enter mobile number"
             />
@@ -42,6 +43,7 @@
               name="email"
               type="email"
               [(ngModel)]="email"
+              [disabled]="isSubmitting"
               required
               placeholder="e.g. user@company.com"
             />
@@ -57,6 +59,7 @@
               name="name"
               type="text"
               [(ngModel)]="name"
+              [disabled]="isSubmitting"
               required
               pattern=".*\s+.*"
               placeholder="e.g. Ankush Pawar"
@@ -73,6 +76,7 @@
               name="password"
               type="password"
               [(ngModel)]="password"
+              [disabled]="isSubmitting"
               required
               minlength="8"
               placeholder="Minimum 8 characters"
@@ -103,6 +107,7 @@
               <button
                 type="button"
                 class="multi-option"
+                [disabled]="isSubmitting"
                 *ngFor="let r of filteredCandidateRoles"
                 (mousedown)="selectCandidateRole(r.id, r.name)"
               >
@@ -154,7 +159,7 @@
           <label for="gender">Gender</label>
           <div class="input-shell">
             <i [class]="getGenderIconClass()"></i>
-            <select id="gender" name="gender" [(ngModel)]="gender" required>
+            <select id="gender" name="gender" [(ngModel)]="gender" [disabled]="isSubmitting" required>
               <option value="" disabled>Select Gender</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
@@ -166,10 +171,22 @@
       </section>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
-        <button type="button" class="btn btn-primary" (click)="addCandidate()">
-          <i class="ph ph-user-check"></i>
-          {{ userType === 'Candidate' ? 'Assign Candidate' : 'Add ' + userType }}
+        <button type="button" class="btn btn-ghost" (click)="closeModal()" [disabled]="isSubmitting">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [class.is-loading]="isSubmitting"
+          [disabled]="isSubmitting"
+          [attr.aria-busy]="isSubmitting"
+          (click)="addCandidate()"
+        >
+          <span class="btn-spinner" *ngIf="isSubmitting"></span>
+          <i class="ph ph-user-check" *ngIf="!isSubmitting"></i>
+          {{
+            isSubmitting
+              ? (userType === 'Candidate' ? 'Assigning...' : 'Adding...')
+              : (userType === 'Candidate' ? 'Assign Candidate' : 'Add ' + userType)
+          }}
         </button>
       </div>
     </form>
@@ -178,7 +195,7 @@
 
 <div class="modal-overlay" *ngIf="!isAddUser">
   <div class="modal-card modal-card--role">
-    <button class="modal-close" type="button" (click)="closeModal()">×</button>
+    <button class="modal-close" type="button" (click)="closeModal()" [disabled]="isSubmitting">×</button>
 
     <div class="modal-head">
       <h2>Post Job</h2>
@@ -211,6 +228,7 @@
               name="name"
               type="text"
               [(ngModel)]="name"
+              [disabled]="isSubmitting"
               required
               placeholder="e.g. Python Fullstack Developer"
             />
@@ -229,6 +247,7 @@
               name="description"
               class="custom-quill"
               [formControl]="descriptionControl"
+              [readOnly]="isSubmitting"
               style="height: 170px;"
               [modules]="{
                 toolbar: [
@@ -247,7 +266,7 @@
         <div class="field">
           <label for="vacancies">No. of Vacancies</label>
           <div class="vacancy-stepper">
-            <button type="button" class="step-btn" (click)="decrementVacancies()">−</button>
+            <button type="button" class="step-btn" (click)="decrementVacancies()" [disabled]="isSubmitting">−</button>
             <div class="input-shell">
             <i class="ph ph-hash"></i>
             <input
@@ -257,11 +276,12 @@
               inputmode="numeric"
               appDigitsOnly
               [(ngModel)]="vacancies"
+              [disabled]="isSubmitting"
               required
               placeholder="e.g. 3"
             />
             </div>
-            <button type="button" class="step-btn" (click)="incrementVacancies()">+</button>
+            <button type="button" class="step-btn" (click)="incrementVacancies()" [disabled]="isSubmitting">+</button>
           </div>
         </div>
 
@@ -273,6 +293,7 @@
               id="jobType"
               name="jobType"
               [(ngModel)]="jobType"
+              [disabled]="isSubmitting"
               required
             >
               <option value="">Select job type</option>
@@ -292,6 +313,7 @@
               name="location"
               type="text"
               [(ngModel)]="location"
+              [disabled]="isSubmitting"
               required
               placeholder="e.g. Noida Sector 62 / Remote"
             />
@@ -307,6 +329,7 @@
               name="salaryRange"
               type="text"
               [(ngModel)]="salaryRange"
+              [disabled]="isSubmitting"
               required
               placeholder="e.g. 8 LPA - 12 LPA"
             />
@@ -322,6 +345,7 @@
               name="experienceRequired"
               type="text"
               [(ngModel)]="experienceRequired"
+              [disabled]="isSubmitting"
               required
               placeholder="e.g. 2-5 years"
             />
@@ -338,7 +362,7 @@
                 name="recruiterSearch"
                 type="text"
                 [(ngModel)]="recruiterSearchQuery"
-                [disabled]="isSharedRecruiterListLoading"
+                [disabled]="isSharedRecruiterListLoading || isSubmitting"
                 [placeholder]="isSharedRecruiterListLoading ? 'Loading recruiters...' : 'Type at least 3 characters to search recruiter'"
                 (focus)="openRoleRecruiterMenu()"
                 (blur)="closeRoleRecruiterMenu()"
@@ -349,6 +373,7 @@
               <button
                 type="button"
                 class="multi-option"
+                [disabled]="isSubmitting"
                 *ngFor="let recruiter of filteredRoleRecruiters"
                 (mousedown)="addRoleRecruiter(recruiter.id)"
               >
@@ -360,7 +385,7 @@
             <div class="selected-chips" *ngIf="selectedRoleRecruiterIds.length">
               <span class="chip" *ngFor="let recruiterId of selectedRoleRecruiterIds">
                 {{ getRoleRecruiterName(recruiterId) }}
-                <button type="button" (click)="removeRoleRecruiter(recruiterId)">×</button>
+                <button type="button" (click)="removeRoleRecruiter(recruiterId)" [disabled]="isSubmitting">×</button>
               </span>
             </div>
           </div>
@@ -372,10 +397,18 @@
       </section>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" (click)="closeModal()">Cancel</button>
-        <button type="button" class="btn btn-primary" (click)="addRole()">
-          <i class="ph ph-plus"></i>
-          Post Job
+        <button type="button" class="btn btn-ghost" (click)="closeModal()" [disabled]="isSubmitting">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [class.is-loading]="isSubmitting"
+          [disabled]="isSubmitting"
+          [attr.aria-busy]="isSubmitting"
+          (click)="addRole()"
+        >
+          <span class="btn-spinner" *ngIf="isSubmitting"></span>
+          <i class="ph ph-plus" *ngIf="!isSubmitting"></i>
+          {{ isSubmitting ? 'Posting...' : 'Post Job' }}
         </button>
       </div>
     </form>

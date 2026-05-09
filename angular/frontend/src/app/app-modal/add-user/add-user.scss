@@ -43,6 +43,11 @@
   cursor: pointer;
 }
 
+.modal-close:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 .modal-head h2 {
   margin: 0;
   color: #7ee7ff;
@@ -243,6 +248,11 @@
   border-color: rgba(102, 228, 255, 0.55);
 }
 
+.step-btn:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .multi-select-wrap {
   position: relative;
   display: grid;
@@ -280,6 +290,11 @@
   background: rgba(34, 116, 180, 0.34);
 }
 
+.multi-option:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .multi-empty {
   color: #8aaece;
   font-size: 0.76rem;
@@ -313,6 +328,11 @@
   line-height: 1;
   cursor: pointer;
   padding: 0;
+}
+
+.chip button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .modal-actions {
@@ -349,6 +369,26 @@
 
 .btn:hover {
   filter: brightness(1.06);
+}
+
+.btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  filter: none;
+}
+
+.btn-primary.is-loading {
+  min-width: 128px;
+}
+
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(6, 16, 32, 0.28);
+  border-top-color: #061020;
+  border-radius: 50%;
+  display: inline-block;
+  animation: lookupSpin 0.8s linear infinite;
 }
 
 /* Quill Theme */
