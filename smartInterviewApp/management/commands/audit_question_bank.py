@@ -6,6 +6,7 @@ from collections import Counter
 from django.core.management.base import BaseCommand, CommandError
 
 from smartInterviewApp.models import Interview, JobInterviewBlueprint, JobInterviewSkill, SkillQuestion
+from smartInterviewApp.services.question_banks import _runtime_required_sub_skill_plans, _question_bank_readiness_for_plan
 
 
 class Command(BaseCommand):
@@ -52,10 +53,20 @@ class Command(BaseCommand):
             plan for plan in plans
             if plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL
         ]
+        audits_by_skill_id = {
+            plan.skill_id: _question_bank_readiness_for_plan(plan)
+            for plan in ([primary_plan] if primary_plan else []) + sub_skill_plans
+        }
+        runtime_sub_skill_plans, _ = _runtime_required_sub_skill_plans(
+            job,
+            sub_skill_plans,
+            audits_by_skill_id,
+            blueprint=blueprint,
+        )
         selected_plans = []
         if primary_plan:
             selected_plans.append(primary_plan)
-        selected_plans.extend(sub_skill_plans)
+        selected_plans.extend(runtime_sub_skill_plans)
 
         if blueprint and not selected_plans:
             top_level_reasons.append('no_selected_skills')
@@ -65,7 +76,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Interview: {interview.id}')
         self.stdout.write(f'Role: {self._job_title(job)}')
         self.stdout.write(f'Primary skill: {primary_plan.skill.name if primary_plan else ""}')
-        self.stdout.write(f'Selected sub-skills: {", ".join(plan.skill.name for plan in sub_skill_plans)}')
+        self.stdout.write(f'Selected sub-skills: {", ".join(plan.skill.name for plan in runtime_sub_skill_plans)}')
 
         if top_level_reasons:
             self.stdout.write(f'Status: not-ready')

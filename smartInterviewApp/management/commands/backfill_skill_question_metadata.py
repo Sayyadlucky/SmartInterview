@@ -10,6 +10,14 @@ from smartInterviewApp.models import Interview, JobInterviewBlueprint, JobInterv
 
 
 AREA_RULES = {
+    'technical_concepts': {
+        'core_principles': ['principle', 'concept', 'fundamental', 'basic', 'core idea'],
+        'design_tradeoffs': ['tradeoff', 'design', 'architecture', 'approach', 'decision'],
+        'abstraction_modeling': ['abstraction', 'model', 'interface', 'contract', 'encapsulation'],
+        'implementation_practices': ['implement', 'code', 'class', 'method', 'function', 'module'],
+        'maintainability_quality': ['maintain', 'readable', 'quality', 'refactor', 'clean', 'solid'],
+        'testing_debugging': ['test', 'debug', 'bug', 'failure', 'fix', 'verify'],
+    },
     'programming_language': {
         'core_language_data_structures': ['list', 'dict', 'dictionary', 'array', 'map', 'set', 'tuple', 'data structure', 'collection', 'string'],
         'oop_or_design': ['class', 'object', 'inheritance', 'polymorphism', 'interface', 'abstract', 'design pattern', 'solid'],
@@ -463,7 +471,7 @@ def should_note_classification_failure(question, proposal, force):
 def classify_coverage_area(skill, text):
     group = coverage_group_for_skill(skill)
     if not group:
-        return ''
+        group = 'technical_concepts'
     rules = AREA_RULES[group]
     for area, keywords in rules.items():
         if any(keyword in text for keyword in keywords):
@@ -472,6 +480,8 @@ def classify_coverage_area(skill, text):
         for fallback in ['testing_debugging', 'query_debugging', 'api_testing_debugging']:
             if fallback in rules:
                 return fallback
+    if group == 'technical_concepts':
+        return 'core_principles'
     return ''
 
 
@@ -489,6 +499,10 @@ def coverage_group_for_skill(skill):
         return 'node_backend'
     if category == 'programming language' or key in {'python', 'javascript', 'core-java', 'php', 'apex'}:
         return 'programming_language'
+    if any(term in category for term in ['programming', 'software', 'technical', 'backend', 'frontend', 'framework']):
+        return 'technical_concepts'
+    if any(term in name for term in ['concept', 'principle', 'design', 'architecture', 'pattern', 'object']):
+        return 'technical_concepts'
     return ''
 
 

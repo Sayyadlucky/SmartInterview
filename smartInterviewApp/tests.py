@@ -47,6 +47,7 @@ from smartInterviewApp.services.question_banks import (
     ensure_question_bank_for_blueprint,
     ensure_question_bank_for_skill,
     insert_skill_questions,
+    process_missing_question_bank_for_interview,
     process_question_generation_queue,
     process_question_generation_task,
 )
@@ -387,6 +388,10 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(payload['Notification']['channels']['sms']['sent'])
         self.assertTrue(payload['Notification']['channels']['whatsapp']['sent'])
         self.assertTrue(send_sms_mock.called)
+        sms_metadata = send_sms_mock.call_args.kwargs['metadata']
+        self.assertEqual(sms_metadata['msg91_flow_variables']['url'], payload['Notification']['signup_url'])
+        self.assertEqual(sms_metadata['msg91_flow_variables']['signup_url'], payload['Notification']['signup_url'])
+        self.assertEqual(sms_metadata['msg91_flow_variables']['link'], payload['Notification']['signup_url'])
         self.assertTrue(send_whatsapp_mock.called)
 
     @patch('smartInterviewApp.commonViews.send_template_message')
@@ -2957,6 +2962,275 @@ class InterviewBlueprintFoundationTests(TestCase):
         agile = next(item for item in blueprint.blueprint_plan['optional_skills'] if item['name'] == 'Agile')
         self.assertEqual(agile['interview_weight'], 'low')
         self.assertFalse(agile['eligible_for_random_sub_skill'])
+
+    def test_core_java_developer_promotes_concrete_technical_primary(self):
+        vacancy = self._vacancy(
+            role='Core Java Developer',
+            description='Core Java collections, JVM fundamentals, multithreading and REST API development.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Core Java Developer',
+            primary='Communication Skills',
+            sub_skills=[
+                {'name': 'Core Java', 'category': 'Programming Language', 'confidence': 0.95},
+                {'name': 'REST API', 'category': 'API/Web Services', 'confidence': 0.8},
+            ],
+        )
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Core Java')
+        primary_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill_role=JobInterviewSkill.SkillRole.PRIMARY)
+        self.assertEqual(primary_plan.skill.name, 'Core Java')
+        self.assertNotEqual(primary_plan.skill.name, 'Communication Skills')
+
+    def test_core_java_runtime_sections_are_authoritative_and_exclude_database(self):
+        vacancy = self._vacancy(
+            role='Core Java Developer',
+            description='Core Java collections, JVM fundamentals, multithreading and REST API development. SQL is only a nice-to-have.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Core Java Developer',
+            primary='Core Java',
+            sub_skills=[
+                {'name': 'Multithreading', 'category': 'Programming Language', 'confidence': 0.92},
+                {'name': 'REST API', 'category': 'API/Web Services', 'confidence': 0.86},
+                {'name': 'SQL', 'category': 'Database', 'confidence': 0.65},
+            ],
+            optional_skills=[{'name': 'SQL', 'category': 'Database', 'confidence': 0.65}],
+        )
+        payload.update({
+            'role_domain': 'Technology',
+            'role_subdomain': 'Backend Java',
+            'runtime_sections': [
+                {'name': 'Core Java', 'category': 'Programming Language', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'primary skill in title and JD', 'reason': 'Central execution skill.', 'confidence': 0.96},
+                {'name': 'Multithreading', 'category': 'Programming Language', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'Java-adjacent JD requirement', 'reason': 'Explicitly required for runtime behavior.', 'confidence': 0.92},
+                {'name': 'REST API', 'category': 'API/Web Services', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'Java-adjacent service work', 'reason': 'Explicit API development responsibility.', 'confidence': 0.86},
+            ],
+            'coding_required': True,
+            'coding_primary_skill': 'Core Java',
+            'coding_questions_to_ask': 1,
+            'excluded_skills': [{'name': 'SQL', 'category': 'Database', 'reason': 'Useful but not central to this Core Java JD.'}],
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        runtime_names = [section['name'] for section in blueprint.blueprint_plan['runtime_sections']]
+        self.assertEqual(runtime_names, ['Core Java', 'Multithreading', 'REST API'])
+        self.assertEqual(blueprint.blueprint_plan['excluded_skills'][0]['name'], 'SQL')
+        sql_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill__name='SQL')
+        self.assertEqual(sql_plan.skill_role, JobInterviewSkill.SkillRole.OPTIONAL)
+
+    def test_missing_only_uses_runtime_sections_without_ready_section_replacement(self):
+        vacancy = self._vacancy(
+            role='Core Java Developer',
+            description='Core Java collections, multithreading and REST API development. SQL is only a nice-to-have.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Core Java Developer',
+            primary='Core Java',
+            sub_skills=[
+                {'name': 'Multithreading', 'category': 'Programming Language', 'confidence': 0.92},
+                {'name': 'REST API', 'category': 'API/Web Services', 'confidence': 0.86},
+                {'name': 'SQL', 'category': 'Database', 'confidence': 0.65},
+            ],
+            optional_skills=[{'name': 'SQL', 'category': 'Database', 'confidence': 0.65}],
+        )
+        payload.update({
+            'runtime_sections': [
+                {'name': 'Core Java', 'category': 'Programming Language', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'primary skill in title and JD', 'reason': 'Central execution skill.', 'confidence': 0.96},
+                {'name': 'Multithreading', 'category': 'Programming Language', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'Java-adjacent JD requirement', 'reason': 'Explicitly required for runtime behavior.', 'confidence': 0.92},
+                {'name': 'REST API', 'category': 'API/Web Services', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'Java-adjacent service work', 'reason': 'Explicit API development responsibility.', 'confidence': 0.86},
+            ],
+            'coding_required': True,
+            'coding_primary_skill': 'Core Java',
+            'coding_questions_to_ask': 1,
+            'excluded_skills': [{'name': 'SQL', 'category': 'Database', 'reason': 'Useful but not central to this Core Java JD.'}],
+        })
+        self._build_with_mocked_openai(vacancy, payload)
+        sql = Skill.objects.get(name='SQL')
+        for index in range(4):
+            SkillQuestion.objects.create(
+                skill=sql,
+                question_text=f'SQL ready question {index}',
+                question_hash=f'sql-ready-{index}',
+                family_key=f'sql_family_{index}',
+                coverage_area=f'sql_area_{index}',
+                quality_status=SkillQuestion.QualityStatus.APPROVED,
+                is_active=True,
+            )
+        candidate = User.objects.create_user(username='java-runtime-candidate', password='pass1234', email='java-runtime@example.com')
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919999999992', gender='other', hr=self.admin)
+        interview = Interview.objects.create(candidate=candidate, recruiter=self.recruiter, hr=self.admin, role=vacancy, status='scheduled')
+
+        result = process_missing_question_bank_for_interview(interview.id, apply=False)
+
+        self.assertEqual(result['selected_sub_skills'], ['Multithreading', 'REST API'])
+        self.assertNotIn('SQL', result['selected_sub_skills'])
+        self.assertTrue(any(gap['skill_name'] == 'Multithreading' for gap in result['planned_gaps']))
+
+    def test_python_fullstack_developer_promotes_python_primary(self):
+        vacancy = self._vacancy(
+            role='Python Fullstack Developer',
+            description='Build Python APIs with React frontends and clear stakeholder communication.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Python Fullstack Developer',
+            primary='Communication Skills',
+            sub_skills=[
+                {'name': 'Python', 'category': 'Programming Language', 'confidence': 0.95},
+                {'name': 'React', 'category': 'Frontend Framework', 'confidence': 0.9},
+            ],
+        )
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Python')
+        primary_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill_role=JobInterviewSkill.SkillRole.PRIMARY)
+        self.assertEqual(primary_plan.skill.name, 'Python')
+
+    def test_framework_developer_roles_promote_named_framework_primary(self):
+        scenarios = [
+            ('React Developer', 'Build React UI components and consume REST APIs.', 'React', 'Frontend Framework'),
+            ('Node.js Backend Developer', 'Build Node.js services with Express and PostgreSQL.', 'Node.js', 'Backend Framework'),
+        ]
+        for role, description, expected_primary, category in scenarios:
+            vacancy = self._vacancy(role=role, description=description, experience_required='3-5 years')
+            payload = self._mock_payload(
+                role_title=role,
+                primary='Communication Skills',
+                sub_skills=[
+                    {'name': expected_primary, 'category': category, 'confidence': 0.95},
+                    {'name': 'REST API', 'category': 'API/Web Services', 'confidence': 0.8},
+                ],
+            )
+
+            self._build_with_mocked_openai(vacancy, payload)
+
+            blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+            self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], expected_primary)
+            primary_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill_role=JobInterviewSkill.SkillRole.PRIMARY)
+            self.assertEqual(primary_plan.skill.name, expected_primary)
+
+    def test_non_technical_hr_recruiter_keeps_non_technical_primary(self):
+        vacancy = self._vacancy(
+            role='HR Recruiter',
+            description='Source candidates, communicate with hiring managers, and coordinate interviews.',
+            experience_required='1-3 years',
+        )
+        payload = self._mock_payload(
+            role_title='HR Recruiter',
+            primary='Communication Skills',
+            sub_skills=[
+                {'name': 'Candidate Sourcing', 'category': 'Human Resources', 'confidence': 0.9},
+                {'name': 'Talent Acquisition', 'category': 'Human Resources', 'confidence': 0.9},
+            ],
+        )
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Communication Skills')
+        primary_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill_role=JobInterviewSkill.SkillRole.PRIMARY)
+        self.assertEqual(primary_plan.skill.name, 'Communication Skills')
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=4,
+    )
+    def test_coding_generation_auto_enqueue_uses_technical_primary_and_target_count(self):
+        technical_vacancy = self._vacancy(
+            role='Python Fullstack Developer',
+            description='Python APIs and React UI. Communication is useful but not the execution skill.',
+            experience_required='3-5 years',
+        )
+        technical_payload = self._mock_payload(
+            role_title='Python Fullstack Developer',
+            primary='Communication Skills',
+            sub_skills=[
+                {'name': 'Python', 'category': 'Programming Language', 'confidence': 0.95},
+                {'name': 'React', 'category': 'Frontend Framework', 'confidence': 0.9},
+            ],
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._build_with_mocked_openai(technical_vacancy, technical_payload)
+
+        technical_blueprint = JobInterviewBlueprint.objects.get(job=technical_vacancy)
+        python_plan = JobInterviewSkill.objects.get(blueprint=technical_blueprint, skill__name='Python')
+        self.assertEqual(python_plan.skill_role, JobInterviewSkill.SkillRole.PRIMARY)
+        coding_jobs = QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION)
+        self.assertEqual(coding_jobs.count(), 1)
+        self.assertEqual(coding_jobs.get().skill.name, 'Python')
+
+        hr_vacancy = self._vacancy(
+            role='HR Recruiter',
+            description='Communication, sourcing, screening and interview coordination.',
+            experience_required='1-3 years',
+        )
+        hr_payload = self._mock_payload(
+            role_title='HR Recruiter',
+            primary='Communication Skills',
+            sub_skills=[{'name': 'Candidate Sourcing', 'category': 'Human Resources', 'confidence': 0.9}],
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._build_with_mocked_openai(hr_vacancy, hr_payload)
+
+        self.assertEqual(QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).count(), 1)
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=4,
+    )
+    def test_coding_generation_target_does_not_require_runtime_ask_count(self):
+        skill = Skill.objects.create(name='Python', key='python', category='Programming Language')
+        vacancy = self._vacancy(role='Python Developer', description='Python APIs.', experience_required='3-5 years')
+        blueprint = JobInterviewBlueprint.objects.create(
+            job=vacancy,
+            status=JobInterviewBlueprint.Status.READY,
+            role_title=vacancy.role,
+            experience_level='Mid-level (3-5 years)',
+            blueprint_plan={
+                'primary_skill': {
+                    'skill_id': skill.id,
+                    'skill_key': skill.key,
+                    'interview_weight': 'normal',
+                    'eligible_for_random_sub_skill': True,
+                },
+                'primary_skill_candidates': [],
+                'sub_skills': [],
+                'optional_skills': [],
+            },
+            minimum_ready=True,
+            fully_ready=True,
+        )
+        JobInterviewSkill.objects.create(
+            blueprint=blueprint,
+            job=vacancy,
+            skill=skill,
+            skill_role=JobInterviewSkill.SkillRole.PRIMARY,
+            priority=1,
+            questions_to_ask=5,
+            coding_questions_to_ask=0,
+            is_active=True,
+        )
+
+        results = ensure_question_bank_for_blueprint(blueprint.id)
+
+        self.assertEqual(results[0]['coding']['status'], 'queued')
+        self.assertEqual(QuestionGenerationJob.objects.filter(skill=skill, task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).count(), 1)
 
     def test_canonical_mapped_name_is_used_in_snapshots(self):
         sql = Skill.objects.create(name='SQL', key='sql', category='Database', aliases=['Database Query'])

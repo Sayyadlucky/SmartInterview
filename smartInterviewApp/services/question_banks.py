@@ -62,17 +62,25 @@ QUESTION_FILLER_TOKENS = {
 TECHNICAL_CODING_CATEGORIES = {
     'backend',
     'backend development',
+    'backend framework',
     'cloud',
+    'cloud platform',
     'database',
+    'database query language',
+    'data engineering platform',
     'devops',
     'frontend',
     'frontend development',
+    'frontend framework',
+    'framework',
     'mobile development',
+    'mobile framework',
     'operating system',
     'programming language',
+    'crm platform',
     'salesforce',
+    'salesforce development',
     'software development',
-    'version control',
     'web services',
 }
 TECHNICAL_CODING_SKILL_KEYS = {
@@ -81,11 +89,16 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'core-java',
     'django',
     'django-rest-framework',
+    'express',
+    'fastapi',
+    'flask',
     'flutter',
     'html-css',
+    'java',
     'javascript',
     'laravel',
     'linux',
+    'lwc',
     'mongodb',
     'mysql',
     'next-js',
@@ -96,17 +109,27 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'react',
     'react-native',
     'rest-api',
+    'salesforce',
     'soql',
+    'spring',
+    'spring-boot',
     'sql',
 }
 GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS = {
     'agile',
+    'communication-skill',
     'communication-skills',
+    'documentation',
+    'git',
     'industry-trends-awareness',
     'leadership',
+    'problem-solving',
     'scrum',
+    'soft-skill',
+    'soft-skills',
     'stakeholder-management',
     'teamwork',
+    'version-control',
 }
 TECHNICAL_ROLE_KEYWORDS = {
     'api',
@@ -152,6 +175,17 @@ CORE_TECHNICAL_SKILL_KEYS = {
     'restapi',
     'sql',
 }
+UNUSABLE_COVERAGE_AREAS = {
+    '',
+    'general',
+    'generic',
+    'misc',
+    'miscellaneous',
+    'uncategorized',
+    'unclassified',
+    'unknown',
+    'other',
+}
 
 
 class OpenAIQuestionGenerationError(RuntimeError):
@@ -192,7 +226,11 @@ def enqueue_question_generation_jobs(blueprint_id: int) -> list[dict[str, Any]]:
         .filter(blueprint=blueprint, is_active=True, skill__is_active=True)
         .order_by('priority', 'id')
     )
+    runtime_skill_ids = _runtime_section_skill_ids(blueprint)
+    if runtime_skill_ids:
+        plans = plans.filter(skill_id__in=runtime_skill_ids)
     generation_metadata_by_skill_id = _question_bank_generation_metadata_by_skill(blueprint)
+    coding_target = max(0, int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)))
     for plan in plans:
         metadata = generation_metadata_by_skill_id.get(plan.skill_id, {})
         interview_weight = str(metadata.get('interview_weight') or 'normal').strip().lower()
@@ -238,7 +276,8 @@ def enqueue_question_generation_jobs(blueprint_id: int) -> list[dict[str, Any]]:
             )
             continue
         eligible_processed += 1
-        results.append(ensure_question_bank_for_skill(plan.skill_id, include_coding=plan.coding_questions_to_ask > 0))
+        include_coding = _should_include_coding_generation_for_plan(plan, coding_target)
+        results.append(ensure_question_bank_for_skill(plan.skill_id, include_coding=include_coding))
     return results
 
 
@@ -252,6 +291,9 @@ def _question_bank_generation_metadata_by_skill(blueprint: JobInterviewBlueprint
         group = plan.get(group_key)
         if isinstance(group, list):
             items.extend(item for item in group if isinstance(item, dict))
+    runtime_sections = plan.get('runtime_sections')
+    if isinstance(runtime_sections, list):
+        items.extend(item for item in runtime_sections if isinstance(item, dict))
 
     metadata: dict[int, dict[str, Any]] = {}
     for item in items:
@@ -264,8 +306,53 @@ def _question_bank_generation_metadata_by_skill(blueprint: JobInterviewBlueprint
         metadata[skill_id] = {
             'interview_weight': str(item.get('interview_weight') or 'normal').strip().lower(),
             'eligible_for_random_sub_skill': bool(item.get('eligible_for_random_sub_skill', True)),
+            'target_questions': item.get('target_questions'),
+            'selection_basis': item.get('selection_basis'),
+            'reason': item.get('reason'),
         }
     return metadata
+
+
+def _runtime_section_skill_ids(blueprint: JobInterviewBlueprint) -> set[int]:
+    return set(_runtime_section_plan_order(blueprint))
+
+
+def _runtime_section_sub_skill_ids(blueprint: JobInterviewBlueprint) -> list[int]:
+    plan = blueprint.blueprint_plan if isinstance(blueprint.blueprint_plan, dict) else {}
+    sections = plan.get('runtime_sections')
+    if not isinstance(sections, list):
+        return []
+    ids: list[int] = []
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        if section.get('skill_role') != JobInterviewSkill.SkillRole.SUB_SKILL:
+            continue
+        try:
+            skill_id = int(section.get('skill_id') or 0)
+        except (TypeError, ValueError):
+            continue
+        if skill_id and skill_id not in ids:
+            ids.append(skill_id)
+    return ids
+
+
+def _runtime_section_plan_order(blueprint: JobInterviewBlueprint) -> list[int]:
+    plan = blueprint.blueprint_plan if isinstance(blueprint.blueprint_plan, dict) else {}
+    sections = plan.get('runtime_sections')
+    if not isinstance(sections, list):
+        return []
+    ids: list[int] = []
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        try:
+            skill_id = int(section.get('skill_id') or 0)
+        except (TypeError, ValueError):
+            continue
+        if skill_id and skill_id not in ids:
+            ids.append(skill_id)
+    return ids
 
 
 def _should_auto_generate_for_plan(plan: JobInterviewSkill, interview_weight: str, eligible_for_random_sub_skill: bool) -> bool:
@@ -278,6 +365,14 @@ def _should_auto_generate_for_plan(plan: JobInterviewSkill, interview_weight: st
     if plan.skill_role in {JobInterviewSkill.SkillRole.PRIMARY, JobInterviewSkill.SkillRole.PRIMARY_CANDIDATE}:
         return True
     return plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL
+
+
+def _should_include_coding_generation_for_plan(plan: JobInterviewSkill, coding_target: int) -> bool:
+    if coding_target <= 0:
+        return plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY and int(plan.coding_questions_to_ask or 0) > 0
+    if plan.skill_role != JobInterviewSkill.SkillRole.PRIMARY:
+        return False
+    return _is_coding_skill(plan.skill)
 
 
 def ensure_question_bank_for_skill(skill_id: int, include_coding: bool = False) -> dict[str, Any]:
@@ -776,7 +871,7 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
         plan.skill_id: _question_bank_readiness_for_plan(plan)
         for plan in ([primary_plan] if primary_plan else []) + sub_skill_plans
     }
-    runtime_sub_skill_plans, runtime_skip_reasons = _runtime_required_sub_skill_plans(job, sub_skill_plans, audits_by_skill_id)
+    runtime_sub_skill_plans, runtime_skip_reasons = _runtime_required_sub_skill_plans(job, sub_skill_plans, audits_by_skill_id, blueprint=blueprint)
     selected_plans = ([primary_plan] if primary_plan else []) + runtime_sub_skill_plans
 
     skipped_skills: list[dict[str, Any]] = []
@@ -803,7 +898,7 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
             skipped_skills.append(_skip_summary(plan, 'technical_role_skill_not_explicit_in_jd', audit))
             remaining_not_ready_reasons.extend(_skill_reason_labels(plan, audit['reasons']))
             continue
-        missing_count = _missing_question_count_for_plan(plan.skill_role, audit)
+        missing_count = _missing_question_count_for_plan(audit)
         if missing_count <= 0:
             skipped_skills.append(_skip_summary(plan, 'no_question_count_gap', audit))
             remaining_not_ready_reasons.extend(_skill_reason_labels(plan, audit['reasons']))
@@ -814,6 +909,8 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
             'skill_key': plan.skill.key,
             'skill_role': plan.skill_role,
             'approved_count': audit['approved_count'],
+            'coverage_ready_count': audit['coverage_ready_count'],
+            'target_count': audit['target_count'],
             'distinct_family_count': audit['distinct_family_count'],
             'coverage_area_count': audit['coverage_area_count'],
             'missing_count': missing_count,
@@ -911,7 +1008,7 @@ def insert_missing_skill_questions(job, skill: Skill, questions: list[dict[str, 
                     question_text=validation['question_text'][:4000],
                     question_hash=validation['question_hash'],
                     difficulty=_choice(item.get('difficulty'), SkillQuestion.Difficulty.values, SkillQuestion.Difficulty.INTERMEDIATE),
-                    question_type=_choice(item.get('question_type'), SkillQuestion.QuestionType.values, SkillQuestion.QuestionType.SCENARIO),
+                    question_type=validation['question_type'],
                     family_key=validation['family_key'][:120],
                     coverage_area=validation['coverage_area'][:80],
                     expected_signal=validation['expected_signal'][:2000],
@@ -943,9 +1040,23 @@ def _runtime_required_sub_skill_plans(
     job,
     sub_skill_plans: list[JobInterviewSkill],
     audits_by_skill_id: dict[int, dict[str, Any]],
+    blueprint: JobInterviewBlueprint | None = None,
 ) -> tuple[list[JobInterviewSkill], dict[int, str]]:
     if not sub_skill_plans:
         return [], {}
+
+    if blueprint:
+        runtime_sub_skill_ids = _runtime_section_sub_skill_ids(blueprint)
+        if runtime_sub_skill_ids:
+            plans_by_id = {plan.skill_id: plan for plan in sub_skill_plans}
+            selected = [plans_by_id[skill_id] for skill_id in runtime_sub_skill_ids if skill_id in plans_by_id]
+            selected_ids = {plan.skill_id for plan in selected}
+            skip_reasons = {
+                plan.skill_id: 'outside_authoritative_runtime_sections'
+                for plan in sub_skill_plans
+                if plan.skill_id not in selected_ids
+            }
+            return selected, skip_reasons
 
     target_count = max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_SUB_SKILLS_TO_PICK', 3) or 3))
     eligible_plans = [
@@ -1036,54 +1147,61 @@ def _question_bank_readiness_for_plan(plan: JobInterviewSkill) -> dict[str, Any]
         quality_status=SkillQuestion.QualityStatus.APPROVED,
     )
     approved_count = questions.count()
-    coverage_area_count = (
-        questions
-        .exclude(coverage_area='')
-        .values('coverage_area')
-        .distinct()
-        .count()
-    )
-    distinct_family_count = (
-        questions
-        .exclude(family_key='')
-        .values('family_key')
-        .distinct()
-        .count()
-    )
+    coverage_ready_questions = [
+        question
+        for question in questions
+        if _skill_question_has_required_metadata(question)
+    ]
+    coverage_ready_count = len(coverage_ready_questions)
+    coverage_area_count = len({
+        normalize_skill_key(question.coverage_area)
+        for question in coverage_ready_questions
+        if _usable_coverage_area(question.coverage_area)
+    })
+    distinct_family_count = len({
+        normalize_skill_key(question.family_key)
+        for question in coverage_ready_questions
+        if normalize_skill_key(question.family_key)
+    })
+    target_count = _runtime_target_count_for_plan(plan)
     reasons: list[str] = []
-    if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY:
-        if approved_count < 12:
-            reasons.append('approved_question_count_below_12')
+    if plan.skill_role in {JobInterviewSkill.SkillRole.PRIMARY, JobInterviewSkill.SkillRole.SUB_SKILL}:
+        if coverage_ready_count < target_count:
+            reasons.append('coverage_ready_count_below_target')
         if coverage_area_count == 0:
             reasons.append('coverage_area_missing_or_unclassified')
-        elif coverage_area_count < 5:
-            reasons.append('coverage_area_count_too_low')
-    elif plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL:
-        if approved_count < 4:
-            reasons.append('approved_question_count_below_4')
-        if coverage_area_count == 0:
-            reasons.append('coverage_area_missing_or_unclassified')
-        if distinct_family_count < 2:
-            reasons.append('distinct_family_count_too_low')
     return {
         'approved_count': approved_count,
+        'coverage_ready_count': coverage_ready_count,
+        'target_count': target_count,
         'coverage_area_count': coverage_area_count,
         'distinct_family_count': distinct_family_count,
         'reasons': reasons,
     }
 
 
-def _missing_question_count_for_plan(skill_role: str, audit: dict[str, Any]) -> int:
-    approved_count = int(audit.get('approved_count') or 0)
-    distinct_family_count = int(audit.get('distinct_family_count') or 0)
-    coverage_area_count = int(audit.get('coverage_area_count') or 0)
-    if skill_role == JobInterviewSkill.SkillRole.PRIMARY:
-        approved_gap = max(0, 12 - approved_count)
-        coverage_gap = max(0, 5 - coverage_area_count) if coverage_area_count > 0 else 1
-        return max(approved_gap, coverage_gap)
-    if skill_role == JobInterviewSkill.SkillRole.SUB_SKILL:
-        return max(0, 4 - approved_count, 2 - distinct_family_count)
-    return 0
+def _missing_question_count_for_plan(audit: dict[str, Any]) -> int:
+    coverage_ready_count = int(audit.get('coverage_ready_count') or 0)
+    target_count = int(audit.get('target_count') or 0)
+    return max(0, target_count - coverage_ready_count)
+
+
+def _runtime_target_count_for_plan(plan: JobInterviewSkill) -> int:
+    fallback = 5 if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY else 3
+    return max(1, int(plan.questions_to_ask or fallback))
+
+
+def _skill_question_has_required_metadata(question: SkillQuestion) -> bool:
+    return (
+        _usable_coverage_area(question.coverage_area)
+        and bool(normalize_skill_key(question.family_key))
+        and question.question_type in SkillQuestion.QuestionType.values
+        and bool(_clean_string(question.expected_signal))
+    )
+
+
+def _usable_coverage_area(value: Any) -> bool:
+    return normalize_skill_key(_clean_string(value)) not in UNUSABLE_COVERAGE_AREAS
 
 
 def _skip_summary(plan: JobInterviewSkill, reason: str, audit: dict[str, Any]) -> dict[str, Any]:
@@ -1095,6 +1213,8 @@ def _skip_summary(plan: JobInterviewSkill, reason: str, audit: dict[str, Any]) -
         'reason': reason,
         'readiness_reasons': audit.get('reasons') or [],
         'approved_count': audit.get('approved_count', 0),
+        'coverage_ready_count': audit.get('coverage_ready_count', 0),
+        'target_count': audit.get('target_count', 0),
         'distinct_family_count': audit.get('distinct_family_count', 0),
         'coverage_area_count': audit.get('coverage_area_count', 0),
     }
@@ -1149,6 +1269,7 @@ def _missing_question_prompt(job, blueprint: JobInterviewBlueprint, plan: JobInt
     role_title = _job_title(job)
     experience_level = blueprint.experience_level or getattr(job, 'experience_required', '') or ''
     description = (getattr(job, 'description', '') or '')[:MAX_SKILL_CONTEXT_CHARS]
+    section = _runtime_section_metadata_for_skill(blueprint, plan.skill_id)
     return (
         f'Generate exactly {missing_count} missing interview question(s) for this job-specific question bank gap.\n'
         'Generate only for the requested skill. Do not generate broad, random, culture-fit, or generic soft-skill questions. '
@@ -1164,9 +1285,29 @@ def _missing_question_prompt(job, blueprint: JobInterviewBlueprint, plan: JobInt
         f'Skill name: {plan.skill.name}\n'
         f'Skill category: {plan.skill.category}\n'
         f'Skill role: {plan.skill_role}\n'
+        f'Runtime section target_questions: {section.get("target_questions", plan.questions_to_ask)}\n'
+        f'Runtime section selection_basis: {section.get("selection_basis", "")}\n'
+        f'Runtime section reason: {section.get("reason", "")}\n'
         f'Missing count: {missing_count}\n'
         f'Job description context:\n{description}'
     )
+
+
+def _runtime_section_metadata_for_skill(blueprint: JobInterviewBlueprint, skill_id: int) -> dict[str, Any]:
+    plan = blueprint.blueprint_plan if isinstance(blueprint.blueprint_plan, dict) else {}
+    sections = plan.get('runtime_sections')
+    if not isinstance(sections, list):
+        return {}
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        try:
+            section_skill_id = int(section.get('skill_id') or 0)
+        except (TypeError, ValueError):
+            continue
+        if section_skill_id == skill_id:
+            return section
+    return {}
 
 
 def _validate_missing_skill_question(
@@ -1181,14 +1322,17 @@ def _validate_missing_skill_question(
     expected_signal = _clean_string(item.get('expected_signal'))
     family_key = normalize_skill_key(_clean_string(item.get('family_key'))[:120])
     coverage_area = normalize_skill_key(_clean_string(item.get('coverage_area'))[:80])
+    question_type = _clean_string(item.get('question_type'))
     if not question_text:
         return {'ok': False, 'reason': 'question_text_empty'}
     if not expected_signal:
         return {'ok': False, 'reason': 'expected_signal_empty'}
     if not family_key:
         return {'ok': False, 'reason': 'family_key_empty'}
-    if not coverage_area:
+    if not _usable_coverage_area(coverage_area):
         return {'ok': False, 'reason': 'coverage_area_empty'}
+    if question_type not in SkillQuestion.QuestionType.values:
+        return {'ok': False, 'reason': 'question_type_empty'}
     if _is_technical_role_job(job) and _should_skip_missing_only_skill(job, _PlanLike(skill)):
         return {'ok': False, 'reason': 'generic_soft_skill_for_technical_role'}
 
@@ -1207,6 +1351,51 @@ def _validate_missing_skill_question(
         'expected_signal': expected_signal,
         'family_key': family_key,
         'coverage_area': coverage_area,
+        'question_type': question_type,
+        'normalized': normalized,
+        'question_hash': question_hash,
+    }
+
+
+def _validate_skill_question_payload(
+    skill: Skill,
+    item: dict[str, Any],
+    seen_normalized: set[str],
+    seen_hashes: set[str],
+    seen_family_texts: list[tuple[str, str]],
+) -> dict[str, Any]:
+    question_text = _clean_string(item.get('question_text'))
+    expected_signal = _clean_string(item.get('expected_signal'))
+    family_key = normalize_skill_key(_clean_string(item.get('family_key'))[:120])
+    coverage_area = normalize_skill_key(_clean_string(item.get('coverage_area'))[:80])
+    question_type = _clean_string(item.get('question_type'))
+    if not question_text:
+        return {'ok': False, 'reason': 'question_text_empty'}
+    if not expected_signal:
+        return {'ok': False, 'reason': 'expected_signal_empty'}
+    if not family_key:
+        return {'ok': False, 'reason': 'family_key_empty'}
+    if not _usable_coverage_area(coverage_area):
+        return {'ok': False, 'reason': 'coverage_area_empty'}
+    if question_type not in SkillQuestion.QuestionType.values:
+        return {'ok': False, 'reason': 'question_type_empty'}
+
+    normalized = _normalize_question_text(question_text)
+    question_hash = _hash_text(normalized)
+    if (
+        not normalized
+        or question_hash in seen_hashes
+        or _is_near_duplicate(normalized, seen_normalized)
+        or _is_family_duplicate(family_key, normalized, seen_family_texts)
+    ):
+        return {'ok': False, 'reason': 'duplicate_question'}
+    return {
+        'ok': True,
+        'question_text': question_text,
+        'expected_signal': expected_signal,
+        'family_key': family_key,
+        'coverage_area': coverage_area,
+        'question_type': question_type,
         'normalized': normalized,
         'question_hash': question_hash,
     }
@@ -1389,6 +1578,8 @@ def generate_skill_questions_with_openai(skill: Skill, batch_size: int) -> list[
         'Generate only for the requested Skill. Do not mention any company, job, candidate, or job description. '
         'Do not generate coding tasks here. Avoid generic useless questions. Mix basic, intermediate, and advanced difficulty. '
         'Include practical, scenario, and debugging questions where relevant. For non-technical skills, generate role-appropriate interview questions. '
+        'Each question must include non-empty coverage_area, family_key, question_type, difficulty, and expected_signal. '
+        'coverage_area must be a short snake_case label for the exact concept being tested, never general/unclassified/other. '
         'family_key must be short and stable and group similar questions. question_text should be concise and interviewer-friendly. '
         'No duplicate questions within the response.\n\n'
         f'Skill category: {skill.category}\n'
@@ -1417,40 +1608,45 @@ def generate_coding_questions_with_openai(skill: Skill, batch_size: int) -> list
 
 
 def insert_skill_questions(skill: Skill, questions: list[dict[str, Any]]) -> dict[str, int]:
-    stats = {'generated_count': len(questions), 'inserted_count': 0, 'duplicate_skipped_count': 0, 'failed_count': 0}
+    stats = {'generated_count': len(questions), 'inserted_count': 0, 'duplicate_skipped_count': 0, 'rejected_count': 0, 'failed_count': 0}
     existing = list(SkillQuestion.objects.filter(skill=skill).values('question_text', 'question_hash', 'family_key'))
     seen_normalized = {_normalize_question_text(item['question_text']) for item in existing}
     seen_hashes = {item['question_hash'] for item in existing if item['question_hash']}
     seen_family_texts = [(normalize_skill_key(item['family_key'] or ''), _normalize_question_text(item['question_text'])) for item in existing]
 
     for item in questions:
-        question_text = _clean_string(item.get('question_text'))
-        normalized = _normalize_question_text(question_text)
-        question_hash = _hash_text(normalized)
-        family_key = normalize_skill_key(_clean_string(item.get('family_key'))[:120] or skill.key)
-        if not normalized or question_hash in seen_hashes or _is_near_duplicate(normalized, seen_normalized) or _is_family_duplicate(family_key, normalized, seen_family_texts):
+        validation = _validate_skill_question_payload(skill, item, seen_normalized, seen_hashes, seen_family_texts)
+        if not validation['ok']:
+            stats['rejected_count'] += 1
+            if validation['reason'] == 'duplicate_question':
+                stats['duplicate_skipped_count'] += 1
+            logger.info('SkillQuestion rejected skill_id=%s reason=%s question=%s', skill.id, validation['reason'], _clean_string(item.get('question_text'))[:120])
+            continue
+        if validation['question_hash'] in seen_hashes or _is_near_duplicate(validation['normalized'], seen_normalized) or _is_family_duplicate(validation['family_key'], validation['normalized'], seen_family_texts):
             stats['duplicate_skipped_count'] += 1
-            logger.info('Duplicate SkillQuestion skipped skill_id=%s family_key=%s question=%s', skill.id, family_key, question_text[:120])
+            logger.info('Duplicate SkillQuestion skipped skill_id=%s family_key=%s question=%s', skill.id, validation['family_key'], validation['question_text'][:120])
             continue
         try:
             with transaction.atomic():
                 SkillQuestion.objects.create(
                     skill=skill,
-                    question_text=question_text[:4000],
-                    question_hash=question_hash,
+                    question_text=validation['question_text'][:4000],
+                    question_hash=validation['question_hash'],
                     difficulty=_choice(item.get('difficulty'), SkillQuestion.Difficulty.values, SkillQuestion.Difficulty.INTERMEDIATE),
-                    question_type=_choice(item.get('question_type'), SkillQuestion.QuestionType.values, SkillQuestion.QuestionType.CONCEPT),
-                    family_key=family_key[:120],
-                    expected_signal=_clean_string(item.get('expected_signal'))[:2000],
+                    question_type=validation['question_type'],
+                    family_key=validation['family_key'][:120],
+                    coverage_area=validation['coverage_area'][:80],
+                    expected_signal=validation['expected_signal'][:2000],
                     ideal_answer_points=_json_list(item.get('ideal_answer_points')),
                     evaluation_rubric=item.get('evaluation_rubric') if isinstance(item.get('evaluation_rubric'), dict) else {},
                     tags=_json_list(item.get('tags'))[:12],
                     source=SkillQuestion.Source.OPENAI,
+                    quality_status=SkillQuestion.QualityStatus.APPROVED,
                     is_active=True,
                 )
-            seen_normalized.add(normalized)
-            seen_hashes.add(question_hash)
-            seen_family_texts.append((family_key, normalized))
+            seen_normalized.add(validation['normalized'])
+            seen_hashes.add(validation['question_hash'])
+            seen_family_texts.append((validation['family_key'], validation['normalized']))
             stats['inserted_count'] += 1
         except IntegrityError:
             stats['duplicate_skipped_count'] += 1
@@ -1629,6 +1825,7 @@ def _verbal_question_schema() -> dict[str, Any]:
             'difficulty': {'type': 'string', 'enum': SkillQuestion.Difficulty.values},
             'question_type': {'type': 'string', 'enum': SkillQuestion.QuestionType.values},
             'family_key': {'type': 'string'},
+            'coverage_area': {'type': 'string'},
             'expected_signal': {'type': 'string'},
             'ideal_answer_points': {'type': 'array', 'items': {'type': 'string'}},
             'evaluation_rubric': {
@@ -1643,7 +1840,7 @@ def _verbal_question_schema() -> dict[str, Any]:
             },
             'tags': {'type': 'array', 'items': {'type': 'string'}},
         },
-        'required': ['question_text', 'difficulty', 'question_type', 'family_key', 'expected_signal', 'ideal_answer_points', 'evaluation_rubric', 'tags'],
+        'required': ['question_text', 'difficulty', 'question_type', 'family_key', 'coverage_area', 'expected_signal', 'ideal_answer_points', 'evaluation_rubric', 'tags'],
     }
     return {'type': 'object', 'additionalProperties': False, 'properties': {'questions': {'type': 'array', 'items': question_schema}}, 'required': ['questions']}
 
@@ -1814,6 +2011,8 @@ def _unique_coding_slug(skill: Skill, title: str, prompt_hash: str) -> str:
 
 
 def _is_coding_skill(skill: Skill) -> bool:
+    if skill.key in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS:
+        return False
     category = (skill.category or '').strip().lower()
     return category in TECHNICAL_CODING_CATEGORIES or skill.key in TECHNICAL_CODING_SKILL_KEYS
 

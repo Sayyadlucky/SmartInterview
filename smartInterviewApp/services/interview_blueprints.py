@@ -123,18 +123,99 @@ NOISY_SKILL_KEYS = {
 }
 
 TECHNICAL_ROLE_TERMS = {
-    'developer',
-    'engineer',
-    'software',
+    'api',
+    'automation',
     'backend',
+    'cloud',
+    'code',
+    'coding',
+    'developer',
+    'development',
+    'devops',
+    'engineer',
     'frontend',
     'fullstack',
     'full-stack',
-    'devops',
-    'data',
+    'ios',
+    'mobile',
+    'programmer',
+    'qa',
     'salesforce',
-    'python',
-    'java',
+    'sdet',
+    'software',
+}
+
+TECHNICAL_ROLE_PHRASES = {
+    'android developer',
+    'automation engineer',
+    'backend developer',
+    'backend engineer',
+    'cloud engineer',
+    'data engineer',
+    'devops engineer',
+    'front end developer',
+    'front end engineer',
+    'frontend developer',
+    'frontend engineer',
+    'full stack developer',
+    'full stack engineer',
+    'fullstack developer',
+    'fullstack engineer',
+    'ios developer',
+    'java developer',
+    'mobile developer',
+    'node developer',
+    'python developer',
+    'qa automation',
+    'react developer',
+    'salesforce developer',
+    'site reliability engineer',
+    'software developer',
+    'software engineer',
+    'web developer',
+}
+
+HIGH_PRIORITY_TECHNICAL_CATEGORIES = {
+    'programming_language',
+    'framework',
+    'backend_framework',
+    'frontend_framework',
+    'mobile_framework',
+    'platform_development',
+    'database_query_language',
+    'data_engineering_platform',
+    'development_platform',
+}
+MEDIUM_PRIORITY_TECHNICAL_CATEGORIES = {
+    'api',
+    'api_web_services',
+    'backend',
+    'backend_development',
+    'build_tool',
+    'database',
+    'devops_tool',
+    'frontend',
+    'frontend_development',
+    'mobile_development',
+    'software_development',
+    'testing_debugging',
+    'web_services',
+}
+CLOUD_PRIMARY_CATEGORIES = {'cloud', 'cloud_platform'}
+AUTOMATION_PRIMARY_CATEGORIES = {'automation_framework', 'test_automation', 'qa_automation'}
+CRM_PRIMARY_CATEGORIES = {'crm_platform', 'salesforce', 'salesforce_development', 'development_platform'}
+LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES = {
+    'agile',
+    'communication',
+    'documentation',
+    'industry_trends',
+    'leadership',
+    'problem_solving',
+    'process',
+    'soft_skill',
+    'soft_skills',
+    'teamwork',
+    'version_control',
 }
 
 CENTRAL_SOFT_SKILL_KEYS = {
@@ -151,7 +232,16 @@ PROCESS_SKILL_KEYS = {
     'documentation',
     'collaboration',
     'communication',
+    'communication-skill',
     'communication-skills',
+    'industry-trends',
+    'industry-trends-awareness',
+    'leadership',
+    'problem-solving',
+    'soft-skill',
+    'soft-skills',
+    'stakeholder-management',
+    'teamwork',
 }
 
 
@@ -162,6 +252,7 @@ class ExtractedSkill:
     skill_role: str = JobInterviewSkill.SkillRole.SUB_SKILL
     priority: int = 1
     questions_to_ask: int = 4
+    coding_required: bool | None = None
     coding_questions_to_ask: int = 0
     difficulty_mix: dict[str, int] | None = None
     coding_difficulty_mix: dict[str, int] | None = None
@@ -178,13 +269,17 @@ class ExtractedSkill:
         if not name:
             return None
         questions_to_ask = _default_questions_to_ask(skill_role)
+        raw_questions_to_ask = payload.get('questions_to_ask')
+        if raw_questions_to_ask is None:
+            raw_questions_to_ask = payload.get('target_questions')
         difficulty_mix = _difficulty_mix_for(experience_level, skill_role)
         return cls(
             name=name[:120],
             category=_clean_string(payload.get('category'))[:80],
             skill_role=skill_role,
             priority=_clamp_int(payload.get('priority'), priority, 1, 99),
-            questions_to_ask=_clamp_int(payload.get('questions_to_ask'), questions_to_ask, 1, 8),
+            questions_to_ask=_clamp_int(raw_questions_to_ask, questions_to_ask, 1, 8),
+            coding_required=_clean_bool_or_none(payload.get('coding_required')),
             coding_questions_to_ask=_clamp_int(payload.get('coding_questions_to_ask'), 0, 0, 3),
             difficulty_mix=_clean_int_map(payload.get('difficulty_mix'), difficulty_mix),
             coding_difficulty_mix=_clean_int_map(payload.get('coding_difficulty_mix'), DEFAULT_CODING_DIFFICULTY_MIX),
@@ -363,6 +458,9 @@ def build_job_interview_blueprint(job_id: int) -> dict[str, Any]:
     experience_level = _determine_experience_level(job, extracted_payload)
     raw_skills = _normalize_extracted_skill_groups(extracted_payload, experience_level, job)
     selected_skills, unmapped_skills, rejected_skills = _map_extracted_skills(raw_skills, job)
+    selected_skills = _apply_runtime_section_selection(selected_skills, extracted_payload, job, experience_level)
+    if not _has_authoritative_runtime_sections(extracted_payload) or _primary_selection_needs_repair(selected_skills, job):
+        selected_skills = _ensure_primary_skill_selection(selected_skills, job, experience_level)
     selected_skills = sorted(selected_skills, key=lambda item: item[0].priority)
     selected_skill_ids = {skill.id for _, skill in selected_skills}
     selected_by_role = _selected_by_role(selected_skills, job, experience_level)
@@ -496,13 +594,22 @@ def extract_skills_with_openai(job: Vacancies) -> dict[str, Any]:
         raise RuntimeError('OpenAI API key is not configured.')
 
     prompt = (
-        'Extract interview skill requirements from this job description for any role or domain. '
+        'Extract an authoritative runtime interview blueprint from this job description for any role or domain. '
         'Return JSON only using the requested schema. Extract skills exactly from the JD and infer only obvious related skills. '
         'Do not limit yourself to any predefined skill list. Do not invent unrelated skills. '
         'Preserve role-specific skills for non-technical roles. Do not force software categories for non-technical roles. '
         'Extract all meaningful skills from the JD; do not collapse the pool into only five items. '
         'Keep one primary skill separate from sub-skills. Include optional or alternate skills when the JD says "or". '
+        'runtime_sections is the final interview runtime plan: include exactly one primary section and up to three most relevant sub-skill sections. '
+        'Every runtime section must include target_questions, selection_basis, and reason. '
+        'For technical roles, choose a concrete technical primary skill such as Core Java, Python, React, Node.js, Salesforce, or QA Automation. '
+        'Do not choose soft skills, communication, agile/process, documentation, teamwork, or stakeholder management as the primary skill for technical roles. '
+        'Choose sub-skill runtime sections based on JD relevance and adjacency to the primary skill, not generic availability. '
+        'Do not choose database, devops, cloud, deployment, or version-control skills unless they are central responsibilities or strongly emphasized in the JD. '
         'For full-stack roles, the primary skill should usually be a central programming/backend/frontend skill, not a database. '
+        'Exclude useful-but-not-critical skills from runtime_sections and list them in excluded_skills with concrete reasons. '
+        'For Core Java Developer roles, prefer Core Java as primary and Java-adjacent sections such as OOP, collections, JVM, multithreading, Spring, or REST API when supported by the JD; do not select SQL/MySQL/PostgreSQL unless the JD strongly emphasizes database work. '
+        'For HR Recruiter roles, set coding_required false and choose recruiting, sourcing, screening, interview coordination, ATS, or communication sections as supported by the JD. '
         'Avoid employment type, education, personality adjectives, vague generic phrases, tasks, projects, and compliance boilerplate as skills. '
         'Use concise stable skill names such as REST API, React, React Native, Node.js, MongoDB, Talent Acquisition, SEO, Tally, GST, or Communication Skills.\n\n'
         f'Job title: {job.role}\n'
@@ -587,13 +694,40 @@ def fallback_extract_skills(job: Vacancies) -> dict[str, Any]:
             })
         if len(extracted) >= max_extracted:
             break
+    primary_skill = extracted[0] if extracted else {}
+    sub_skills = extracted[1:]
+    runtime_sections = []
+    if primary_skill:
+        runtime_sections.append({
+            **primary_skill,
+            'skill_role': JobInterviewSkill.SkillRole.PRIMARY,
+            'target_questions': _default_questions_to_ask(JobInterviewSkill.SkillRole.PRIMARY),
+            'selection_basis': 'fallback_primary_match',
+            'reason': 'Best available fallback match from the job description.',
+        })
+    for item in sub_skills[:3]:
+        runtime_sections.append({
+            **item,
+            'skill_role': JobInterviewSkill.SkillRole.SUB_SKILL,
+            'target_questions': _default_questions_to_ask(JobInterviewSkill.SkillRole.SUB_SKILL),
+            'selection_basis': 'fallback_sub_skill_match',
+            'reason': 'Relevant fallback match from the job description.',
+        })
+    coding_required = bool(primary_skill and _is_coding_role(job, Skill(name=primary_skill.get('name', ''), category=primary_skill.get('category', ''))))
     return {
         'role_title': job.role,
+        'role_domain': '',
+        'role_subdomain': '',
         'experience_level': _determine_experience_level(job, {}),
-        'primary_skill': extracted[0] if extracted else {},
+        'primary_skill': primary_skill,
         'primary_skill_candidates': extracted[:2],
-        'sub_skills': extracted[1:],
+        'sub_skills': sub_skills,
         'optional_skills': [],
+        'runtime_sections': runtime_sections,
+        'coding_required': coding_required,
+        'coding_primary_skill': primary_skill.get('name', '') if coding_required else '',
+        'coding_questions_to_ask': 1 if coding_required else 0,
+        'excluded_skills': [],
     }
 
 
@@ -639,6 +773,167 @@ def _map_extracted_skills(extracted_skills: list[ExtractedSkill], job: Vacancies
     return mapped, unmapped, rejected
 
 
+def _has_authoritative_runtime_sections(payload: dict[str, Any]) -> bool:
+    return bool(_runtime_sections_from_payload(payload))
+
+
+def _runtime_sections_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    sections = payload.get('runtime_sections')
+    if not isinstance(sections, list):
+        return []
+    cleaned: list[dict[str, Any]] = []
+    primary_seen = False
+    sub_count = 0
+    for item in sections:
+        if not isinstance(item, dict):
+            continue
+        name = _clean_string(item.get('name') or item.get('skill_name'))
+        if not name:
+            continue
+        role = _clean_string(item.get('skill_role') or item.get('section_role')).lower()
+        if role not in {JobInterviewSkill.SkillRole.PRIMARY, JobInterviewSkill.SkillRole.SUB_SKILL}:
+            role = JobInterviewSkill.SkillRole.PRIMARY if not primary_seen else JobInterviewSkill.SkillRole.SUB_SKILL
+        if role == JobInterviewSkill.SkillRole.PRIMARY:
+            if primary_seen:
+                continue
+            primary_seen = True
+        else:
+            if sub_count >= 3:
+                continue
+            sub_count += 1
+        cleaned.append({
+            **item,
+            'name': name,
+            'skill_role': role,
+            'target_questions': _clamp_int(
+                item.get('target_questions') or item.get('questions_to_ask'),
+                _default_questions_to_ask(role),
+                1,
+                8,
+            ),
+            'selection_basis': _clean_string(item.get('selection_basis'))[:500],
+            'reason': _clean_string(item.get('reason'))[:500],
+        })
+    return cleaned if primary_seen else []
+
+
+def _apply_runtime_section_selection(
+    selected_skills: list[tuple[ExtractedSkill, Skill]],
+    payload: dict[str, Any],
+    job: Vacancies,
+    experience_level: str,
+) -> list[tuple[ExtractedSkill, Skill]]:
+    sections = _runtime_sections_from_payload(payload)
+    if not selected_skills or not sections:
+        return selected_skills
+
+    selected_by_key: dict[str, tuple[ExtractedSkill, Skill]] = {}
+    for extracted, skill in selected_skills:
+        keys = {
+            _skill_match_key(extracted.name),
+            _skill_match_key(extracted.original_name),
+            _skill_match_key(skill.name),
+            _skill_match_key(skill.key.replace('-', ' ')),
+        }
+        keys.update(_skill_match_key(alias) for alias in _json_list(skill.aliases))
+        for key in keys:
+            if key:
+                selected_by_key.setdefault(key, (extracted, skill))
+
+    section_by_skill_id: dict[int, dict[str, Any]] = {}
+    for index, section in enumerate(sections, start=1):
+        key = _skill_match_key(section['name'])
+        matched = selected_by_key.get(key)
+        if not matched:
+            continue
+        _, skill = matched
+        section_by_skill_id[skill.id] = {**section, 'priority': index}
+
+    if not any(section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY for section in section_by_skill_id.values()):
+        return selected_skills
+    primary_skill_id = next(
+        (skill_id for skill_id, section in section_by_skill_id.items() if section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY),
+        None,
+    )
+    primary_match = next(((extracted, skill) for extracted, skill in selected_skills if skill.id == primary_skill_id), None)
+    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    if primary_match and _is_technical_role_text(role_text) and _is_low_priority_technical_primary(primary_match[0], primary_match[1]):
+        logger.warning(
+            'Rejected impossible runtime primary skill for technical role job_id=%s skill=%s',
+            job.id,
+            primary_match[1].name,
+        )
+        return _ensure_primary_skill_selection(selected_skills, job, experience_level)
+
+    coding_required = _clean_bool_or_none(payload.get('coding_required'))
+    coding_questions_to_ask = _clamp_int(payload.get('coding_questions_to_ask'), 0, 0, 3)
+    if coding_required and coding_questions_to_ask <= 0:
+        coding_questions_to_ask = 1
+
+    rebalanced: list[tuple[ExtractedSkill, Skill]] = []
+    for extracted, skill in selected_skills:
+        section = section_by_skill_id.get(skill.id)
+        if section:
+            rebalanced.append((
+                _with_runtime_section(
+                    extracted,
+                    section,
+                    experience_level,
+                    coding_required=coding_required if section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY else False,
+                    coding_questions_to_ask=coding_questions_to_ask if section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY else 0,
+                ),
+                skill,
+            ))
+            continue
+        rebalanced.append((
+            ExtractedSkill(
+                name=extracted.name,
+                category=extracted.category,
+                skill_role=JobInterviewSkill.SkillRole.OPTIONAL,
+                priority=max(50, extracted.priority),
+                questions_to_ask=_default_questions_to_ask(JobInterviewSkill.SkillRole.OPTIONAL),
+                coding_required=False,
+                coding_questions_to_ask=0,
+                difficulty_mix=_difficulty_mix_for(experience_level, JobInterviewSkill.SkillRole.OPTIONAL),
+                coding_difficulty_mix=extracted.coding_difficulty_mix,
+                confidence=extracted.confidence,
+                reason=extracted.reason or 'Excluded from authoritative runtime_sections.',
+                original_name=extracted.original_name,
+                interview_weight='low',
+                eligible_for_random_sub_skill=False,
+            ),
+            skill,
+        ))
+    return rebalanced
+
+
+def _with_runtime_section(
+    skill: ExtractedSkill,
+    section: dict[str, Any],
+    experience_level: str,
+    *,
+    coding_required: bool | None,
+    coding_questions_to_ask: int,
+) -> ExtractedSkill:
+    skill_role = section['skill_role']
+    return ExtractedSkill(
+        name=skill.name,
+        category=skill.category or _clean_string(section.get('category'))[:80],
+        skill_role=skill_role,
+        priority=_clamp_int(section.get('priority'), skill.priority, 1, 99),
+        questions_to_ask=_clamp_int(section.get('target_questions'), _default_questions_to_ask(skill_role), 1, 8),
+        coding_required=coding_required,
+        coding_questions_to_ask=coding_questions_to_ask,
+        difficulty_mix=_difficulty_mix_for(experience_level, skill_role),
+        coding_difficulty_mix=skill.coding_difficulty_mix,
+        confidence=skill.confidence,
+        reason=_clean_string(section.get('reason'))[:500] or skill.reason,
+        original_name=skill.original_name,
+        interview_weight='normal',
+        eligible_for_random_sub_skill=True,
+    )
+
+
 def _skill_lookup() -> dict[str, Skill]:
     lookup: dict[str, Skill] = {}
     for skill in Skill.objects.filter(is_active=True):
@@ -671,6 +966,7 @@ def _apply_blueprint_skill_quality_rules(skill: ExtractedSkill, job: Vacancies) 
         skill_role=skill_role,
         priority=skill.priority,
         questions_to_ask=_default_questions_to_ask(skill_role),
+        coding_required=skill.coding_required,
         coding_questions_to_ask=skill.coding_questions_to_ask,
         difficulty_mix=_difficulty_mix_for(job.experience_required, skill_role) if skill_role != skill.skill_role else skill.difficulty_mix,
         coding_difficulty_mix=skill.coding_difficulty_mix,
@@ -703,6 +999,8 @@ def _normalize_extracted_skill_groups(payload: dict[str, Any], experience_level:
     for item in payload.get('optional_skills') or []:
         if isinstance(item, dict):
             raw_entries.append((JobInterviewSkill.SkillRole.OPTIONAL, item))
+    for item in _runtime_sections_from_payload(payload):
+        raw_entries.append((item['skill_role'], item))
     for item in payload.get('skills') or []:
         if not isinstance(item, dict):
             continue
@@ -726,6 +1024,7 @@ def _normalize_extracted_skill_groups(payload: dict[str, Any], experience_level:
                 skill_role=skill.skill_role,
                 priority=min(existing.priority, skill.priority),
                 questions_to_ask=_default_questions_to_ask(skill.skill_role),
+                coding_required=skill.coding_required if skill.coding_required is not None else existing.coding_required,
                 coding_questions_to_ask=max(existing.coding_questions_to_ask, skill.coding_questions_to_ask),
                 difficulty_mix=_difficulty_mix_for(experience_level, skill.skill_role),
                 coding_difficulty_mix=skill.coding_difficulty_mix or existing.coding_difficulty_mix,
@@ -738,6 +1037,175 @@ def _normalize_extracted_skill_groups(payload: dict[str, Any], experience_level:
         normalized_by_key[key] = skill
 
     return sorted(normalized_by_key.values(), key=lambda skill: skill.priority)[:max_extracted]
+
+
+def _ensure_primary_skill_selection(
+    selected_skills: list[tuple[ExtractedSkill, Skill]],
+    job: Vacancies,
+    experience_level: str,
+) -> list[tuple[ExtractedSkill, Skill]]:
+    if not selected_skills:
+        return selected_skills
+
+    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    is_technical_role = _is_technical_role_text(role_text)
+    chosen_skill_id: int | None = None
+
+    if is_technical_role:
+        technical_candidates = [
+            (_technical_primary_score(extracted, skill, job), extracted.priority, skill.id)
+            for extracted, skill in selected_skills
+            if _is_concrete_technical_primary_candidate(extracted, skill, job)
+        ]
+        if technical_candidates:
+            chosen_skill_id = max(technical_candidates, key=lambda item: (item[0], -item[1]))[2]
+
+    if chosen_skill_id is None:
+        current_primary = next((skill.id for extracted, skill in selected_skills if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
+        chosen_skill_id = current_primary or min(selected_skills, key=lambda item: item[0].priority)[1].id
+
+    rebalanced: list[tuple[ExtractedSkill, Skill]] = []
+    primary_priority = min(extracted.priority for extracted, _ in selected_skills)
+    for extracted, skill in selected_skills:
+        if skill.id == chosen_skill_id:
+            rebalanced.append((_with_skill_role(extracted, JobInterviewSkill.SkillRole.PRIMARY, experience_level, primary_priority), skill))
+            continue
+        if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY:
+            demoted_role = _demoted_primary_role(extracted, skill, job, is_technical_role)
+            rebalanced.append((_with_skill_role(extracted, demoted_role, experience_level), skill))
+            continue
+        rebalanced.append((extracted, skill))
+    return rebalanced
+
+
+def _primary_selection_needs_repair(selected_skills: list[tuple[ExtractedSkill, Skill]], job: Vacancies) -> bool:
+    if not selected_skills:
+        return False
+    primary = next(((extracted, skill) for extracted, skill in selected_skills if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
+    if not primary:
+        return True
+    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    return _is_technical_role_text(role_text) and _is_low_priority_technical_primary(primary[0], primary[1])
+
+
+def _with_skill_role(
+    skill: ExtractedSkill,
+    skill_role: str,
+    experience_level: str,
+    priority: int | None = None,
+) -> ExtractedSkill:
+    return ExtractedSkill(
+        name=skill.name,
+        category=skill.category,
+        skill_role=skill_role,
+        priority=skill.priority if priority is None else priority,
+        questions_to_ask=_default_questions_to_ask(skill_role),
+        coding_required=skill.coding_required,
+        coding_questions_to_ask=skill.coding_questions_to_ask,
+        difficulty_mix=_difficulty_mix_for(experience_level, skill_role),
+        coding_difficulty_mix=skill.coding_difficulty_mix,
+        confidence=skill.confidence,
+        reason=skill.reason,
+        original_name=skill.original_name,
+        interview_weight=skill.interview_weight,
+        eligible_for_random_sub_skill=skill.eligible_for_random_sub_skill,
+    )
+
+
+def _demoted_primary_role(extracted: ExtractedSkill, skill: Skill, job: Vacancies, is_technical_role: bool) -> str:
+    if not is_technical_role:
+        return JobInterviewSkill.SkillRole.PRIMARY_CANDIDATE
+    if _is_low_priority_technical_primary(extracted, skill):
+        return JobInterviewSkill.SkillRole.OPTIONAL if _is_soft_or_process_skill(extracted, skill) else JobInterviewSkill.SkillRole.SUB_SKILL
+    return JobInterviewSkill.SkillRole.PRIMARY_CANDIDATE
+
+
+def _is_concrete_technical_primary_candidate(extracted: ExtractedSkill, skill: Skill, job: Vacancies) -> bool:
+    return _technical_primary_score(extracted, skill, job) > 0
+
+
+def _technical_primary_score(extracted: ExtractedSkill, skill: Skill, job: Vacancies) -> int:
+    if _is_low_priority_technical_primary(extracted, skill):
+        return 0
+
+    categories = _category_keys(extracted.category, skill.category)
+    key = _skill_match_key(skill.name)
+    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    score = 0
+
+    if _is_cloud_or_devops_role(role_text) and categories & CLOUD_PRIMARY_CATEGORIES:
+        score = max(score, 1000)
+    if _is_qa_automation_role(role_text) and categories & AUTOMATION_PRIMARY_CATEGORIES:
+        score = max(score, 1000)
+    if _is_salesforce_role(role_text) and (categories & CRM_PRIMARY_CATEGORIES or key in {'apex', 'lwc', 'salesforce', 'soql'}):
+        score = max(score, 1000)
+    if categories & HIGH_PRIORITY_TECHNICAL_CATEGORIES:
+        score = max(score, 900)
+    if _is_technical_skill(skill):
+        score = max(score, 800)
+    if categories & MEDIUM_PRIORITY_TECHNICAL_CATEGORIES:
+        score = max(score, 500)
+
+    if score <= 0:
+        return 0
+
+    title_text = _normalized_search_text(job.role or '')
+    candidates = [skill.name, skill.key.replace('-', ' '), extracted.original_name, extracted.name]
+    candidates.extend(_json_list(skill.aliases))
+    if any(_term_matches(title_text, candidate) for candidate in candidates):
+        score += 250
+    elif any(_term_matches(role_text, candidate) for candidate in candidates):
+        score += 80
+    score += max(0, 50 - int(extracted.priority or 0))
+    score += int((extracted.confidence or 0) * 20)
+    return score
+
+
+def _category_keys(*values: str) -> set[str]:
+    keys: set[str] = set()
+    for value in values:
+        normalized = normalize_skill_key(value or '').replace('-', '_')
+        if normalized:
+            keys.add(normalized)
+    return keys
+
+
+def _is_low_priority_technical_primary(extracted: ExtractedSkill, skill: Skill) -> bool:
+    key = _skill_match_key(skill.name)
+    categories = _category_keys(extracted.category, skill.category)
+    return (
+        key in PROCESS_SKILL_KEYS
+        or key in {'debugging', 'git', 'problem-solving', 'version-control'}
+        or bool(categories & LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES)
+    )
+
+
+def _is_soft_or_process_skill(extracted: ExtractedSkill, skill: Skill) -> bool:
+    key = _skill_match_key(skill.name)
+    categories = _category_keys(extracted.category, skill.category)
+    return key in PROCESS_SKILL_KEYS or bool(categories & {
+        'agile',
+        'communication',
+        'documentation',
+        'industry_trends',
+        'leadership',
+        'process',
+        'soft_skill',
+        'soft_skills',
+        'teamwork',
+    })
+
+
+def _is_cloud_or_devops_role(role_text: str) -> bool:
+    return any(_term_matches(role_text, term) for term in ['cloud', 'cloud engineer', 'devops', 'devops engineer', 'site reliability engineer', 'sre'])
+
+
+def _is_qa_automation_role(role_text: str) -> bool:
+    return any(_term_matches(role_text, term) for term in ['qa automation', 'automation engineer', 'sdet', 'test automation'])
+
+
+def _is_salesforce_role(role_text: str) -> bool:
+    return any(_term_matches(role_text, term) for term in ['salesforce', 'apex', 'lwc'])
 
 
 def _openai_response_schema() -> dict[str, Any]:
@@ -762,18 +1230,63 @@ def _openai_response_schema() -> dict[str, Any]:
         },
         'required': ['name', 'category', 'confidence'],
     }
+    runtime_section_schema = {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'name': {'type': 'string'},
+            'category': {'type': 'string'},
+            'skill_role': {'type': 'string', 'enum': [JobInterviewSkill.SkillRole.PRIMARY, JobInterviewSkill.SkillRole.SUB_SKILL]},
+            'target_questions': {'type': 'integer', 'minimum': 1, 'maximum': 8},
+            'selection_basis': {'type': 'string'},
+            'reason': {'type': 'string'},
+            'confidence': {'type': 'number'},
+        },
+        'required': ['name', 'category', 'skill_role', 'target_questions', 'selection_basis', 'reason', 'confidence'],
+    }
+    excluded_skill_schema = {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'name': {'type': 'string'},
+            'category': {'type': 'string'},
+            'reason': {'type': 'string'},
+        },
+        'required': ['name', 'category', 'reason'],
+    }
     return {
         'type': 'object',
         'additionalProperties': False,
         'properties': {
             'role_title': {'type': 'string'},
+            'role_domain': {'type': 'string'},
+            'role_subdomain': {'type': 'string'},
             'experience_level': {'type': 'string'},
             'primary_skill': skill_schema,
             'primary_skill_candidates': {'type': 'array', 'items': candidate_schema, 'maxItems': 8},
             'sub_skills': {'type': 'array', 'items': candidate_schema, 'maxItems': 20},
             'optional_skills': {'type': 'array', 'items': candidate_schema, 'maxItems': 12},
+            'runtime_sections': {'type': 'array', 'items': runtime_section_schema, 'minItems': 1, 'maxItems': 4},
+            'coding_required': {'type': 'boolean'},
+            'coding_primary_skill': {'type': 'string'},
+            'coding_questions_to_ask': {'type': 'integer', 'minimum': 0, 'maximum': 3},
+            'excluded_skills': {'type': 'array', 'items': excluded_skill_schema, 'maxItems': 20},
         },
-        'required': ['role_title', 'experience_level', 'primary_skill', 'primary_skill_candidates', 'sub_skills', 'optional_skills'],
+        'required': [
+            'role_title',
+            'role_domain',
+            'role_subdomain',
+            'experience_level',
+            'primary_skill',
+            'primary_skill_candidates',
+            'sub_skills',
+            'optional_skills',
+            'runtime_sections',
+            'coding_required',
+            'coding_primary_skill',
+            'coding_questions_to_ask',
+            'excluded_skills',
+        ],
     }
 
 
@@ -841,27 +1354,95 @@ def _build_blueprint_plan(
     rejected_skills: list[dict[str, Any]],
 ) -> dict[str, Any]:
     primary = (selected_by_role.get(JobInterviewSkill.SkillRole.PRIMARY) or [{}])[0]
+    runtime_sections = _build_runtime_sections(extracted_payload, selected_by_role)
+    primary_coding_questions = _clamp_int(primary.get('coding_questions_to_ask'), 0, 0, 3) if primary else 0
+    coding_required = _clean_bool_or_none(extracted_payload.get('coding_required'))
+    if coding_required is None:
+        coding_required = primary_coding_questions > 0
+    coding_questions_to_ask = _clamp_int(extracted_payload.get('coding_questions_to_ask'), primary_coding_questions, 0, 3)
+    if coding_required and coding_questions_to_ask <= 0:
+        coding_questions_to_ask = max(1, primary_coding_questions)
     return {
         'blueprint_version': 2,
         'role_title': _clean_string(extracted_payload.get('role_title'))[:255] or job.role,
+        'role_domain': _clean_string(extracted_payload.get('role_domain'))[:120],
+        'role_subdomain': _clean_string(extracted_payload.get('role_subdomain'))[:120],
         'experience_level': experience_level,
         'primary_skill': primary,
         'primary_skill_candidates': selected_by_role.get(JobInterviewSkill.SkillRole.PRIMARY_CANDIDATE, []),
         'sub_skills': selected_by_role.get(JobInterviewSkill.SkillRole.SUB_SKILL, []),
         'optional_skills': selected_by_role.get(JobInterviewSkill.SkillRole.OPTIONAL, []),
+        'runtime_sections': runtime_sections,
+        'coding_required': bool(coding_required),
+        'coding_primary_skill': _clean_string(extracted_payload.get('coding_primary_skill'))[:120] or (primary.get('name') if coding_required and primary else ''),
+        'coding_questions_to_ask': coding_questions_to_ask if coding_required else 0,
+        'excluded_skills': _excluded_skills_from_payload(extracted_payload),
         'unmapped_skills': unmapped_skills,
         'rejected_skills': rejected_skills,
         'runtime_policy': {
-            'selection_strategy': 'primary_plus_random_sub_skills',
+            'selection_strategy': 'authoritative_runtime_sections',
+            'runtime_sections_authoritative': bool(runtime_sections),
             'primary_questions_to_ask': max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_PRIMARY_QUESTIONS', 5))),
-            'sub_skills_to_pick': max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_SUB_SKILLS_TO_PICK', 3))),
+            'sub_skills_to_pick': len([section for section in runtime_sections if section.get('skill_role') == JobInterviewSkill.SkillRole.SUB_SKILL]) or max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_SUB_SKILLS_TO_PICK', 3))),
             'questions_per_sub_skill': max(1, int(getattr(settings, 'INTERVIEW_RUNTIME_SUB_SKILL_QUESTIONS', 3))),
-            'coding_questions_per_primary': 1,
+            'coding_questions_per_primary': coding_questions_to_ask if coding_required else 0,
             'prefer_mapped_skills': True,
-            'prefer_skills_with_question_bank': True,
+            'prefer_skills_with_question_bank': False,
             'avoid_same_family_key_repeats': True,
         },
     }
+
+
+def _build_runtime_sections(
+    extracted_payload: dict[str, Any],
+    selected_by_role: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    payload_sections = _runtime_sections_from_payload(extracted_payload)
+    metadata_by_key = {
+        _skill_match_key(section.get('name', '')): section
+        for section in payload_sections
+        if _skill_match_key(section.get('name', ''))
+    }
+    mapped_sections: list[dict[str, Any]] = []
+    primary = (selected_by_role.get(JobInterviewSkill.SkillRole.PRIMARY) or [])[:1]
+    sub_skills = (selected_by_role.get(JobInterviewSkill.SkillRole.SUB_SKILL) or [])[:3]
+    for item in [*primary, *sub_skills]:
+        key = _skill_match_key(item.get('original_name') or item.get('name') or item.get('skill_key') or '')
+        metadata = metadata_by_key.get(key) or metadata_by_key.get(_skill_match_key(item.get('name', ''))) or {}
+        role = item.get('skill_role') or metadata.get('skill_role') or JobInterviewSkill.SkillRole.SUB_SKILL
+        mapped_sections.append({
+            **item,
+            'skill_role': role,
+            'target_questions': _clamp_int(
+                metadata.get('target_questions') or item.get('questions_to_ask'),
+                _default_questions_to_ask(role),
+                1,
+                8,
+            ),
+            'selection_basis': _clean_string(metadata.get('selection_basis'))[:500] or 'mapped_runtime_section',
+            'reason': _clean_string(metadata.get('reason'))[:500] or item.get('reason', ''),
+        })
+    return mapped_sections
+
+
+def _excluded_skills_from_payload(extracted_payload: dict[str, Any]) -> list[dict[str, str]]:
+    excluded = extracted_payload.get('excluded_skills')
+    if not isinstance(excluded, list):
+        return []
+    cleaned: list[dict[str, str]] = []
+    for item in excluded:
+        if not isinstance(item, dict):
+            continue
+        name = _clean_string(item.get('name') or item.get('skill_name'))[:120]
+        reason = _clean_string(item.get('reason'))[:500]
+        if not name or not reason:
+            continue
+        cleaned.append({
+            'name': name,
+            'category': _clean_string(item.get('category'))[:80],
+            'reason': reason,
+        })
+    return cleaned[:20]
 
 
 def _mapped_skill_snapshot(extracted: ExtractedSkill, skill: Skill, job: Vacancies | None = None, experience_level: str = '') -> dict[str, Any]:
@@ -900,6 +1481,7 @@ def _skill_snapshot(skill: ExtractedSkill) -> dict[str, Any]:
         'skill_role': skill.skill_role,
         'priority': skill.priority,
         'questions_to_ask': skill.questions_to_ask,
+        'coding_required': skill.coding_required,
         'coding_questions_to_ask': skill.coding_questions_to_ask,
         'difficulty_mix': skill.difficulty_mix or DEFAULT_DIFFICULTY_MIX,
         'coding_difficulty_mix': skill.coding_difficulty_mix or DEFAULT_CODING_DIFFICULTY_MIX,
@@ -956,16 +1538,14 @@ def _is_noisy_skill(extracted: ExtractedSkill, job: Vacancies) -> bool:
         return True
     if re.fullmatch(r'\d+[-+]?\d*\s*(years?|yrs?)?', extracted.name.lower()):
         return True
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '']))
-    role_tokens = set(role_text.split())
-    is_technical_role = bool(role_tokens & TECHNICAL_ROLE_TERMS)
-    if is_technical_role and key in CENTRAL_SOFT_SKILL_KEYS:
-        return True
     return False
 
 
 def _is_technical_role_text(normalized_role_text: str) -> bool:
-    return bool(set(normalized_role_text.split()) & TECHNICAL_ROLE_TERMS)
+    text = normalized_role_text if normalized_role_text.startswith(' ') else _normalized_search_text(normalized_role_text)
+    if set(text.split()) & TECHNICAL_ROLE_TERMS:
+        return True
+    return any(_term_matches(text, phrase) for phrase in TECHNICAL_ROLE_PHRASES)
 
 
 def _is_technical_skill(skill: Skill) -> bool:
@@ -980,7 +1560,9 @@ def _is_technical_skill(skill: Skill) -> bool:
         'flutter',
         'html-css',
         'javascript',
+        'java',
         'laravel',
+        'lwc',
         'mongodb',
         'mysql',
         'next-js',
@@ -991,14 +1573,21 @@ def _is_technical_skill(skill: Skill) -> bool:
         'react',
         'react-native',
         'rest-api',
+        'salesforce',
         'soql',
+        'spring',
+        'spring-boot',
         'sql',
-    } or any(term in category for term in ['backend', 'frontend', 'programming', 'database', 'mobile', 'web services', 'salesforce'])
+    } or any(term in category for term in ['backend', 'frontend', 'programming', 'framework', 'database', 'mobile', 'web services', 'salesforce', 'cloud', 'devops', 'automation'])
 
 
 def _coding_questions_to_ask_for(job: Vacancies, extracted: ExtractedSkill, skill: Skill) -> int:
     if extracted.skill_role != JobInterviewSkill.SkillRole.PRIMARY:
         return 0
+    if extracted.coding_required is False:
+        return 0
+    if extracted.coding_required is True:
+        return _clamp_int(extracted.coding_questions_to_ask, 1, 1, 3)
     role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', skill.name or '', skill.category or '']))
     if _is_technical_role_text(role_text) and _is_technical_skill(skill):
         return 1
@@ -1040,6 +1629,20 @@ def _clean_confidence(value: Any) -> float | None:
     except (TypeError, ValueError):
         return None
     return max(0.0, min(1.0, parsed))
+
+
+def _clean_bool_or_none(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {'true', '1', 'yes'}:
+            return True
+        if normalized in {'false', '0', 'no'}:
+            return False
+    return None
 
 
 def _json_list(value: Any) -> list[str]:

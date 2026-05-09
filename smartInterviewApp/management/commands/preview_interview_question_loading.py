@@ -46,7 +46,7 @@ class Command(BaseCommand):
             plan.skill_id: _question_bank_readiness_for_plan(plan)
             for plan in ([primary_plan] if primary_plan else []) + sub_skill_plans
         }
-        runtime_sub_skills, skip_reasons = _runtime_required_sub_skill_plans(job, sub_skill_plans, audits_by_skill_id)
+        runtime_sub_skills, skip_reasons = _runtime_required_sub_skill_plans(job, sub_skill_plans, audits_by_skill_id, blueprint=blueprint)
         selected_plans = ([primary_plan] if primary_plan else []) + runtime_sub_skills
 
         skipped = []

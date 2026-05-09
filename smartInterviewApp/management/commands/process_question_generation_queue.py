@@ -48,7 +48,9 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"- {gap['skill_name']} ({gap['skill_role']}): "
                     f"missing_count={gap['missing_count']}, "
+                    f"target_count={gap.get('target_count', '')}, "
                     f"approved_count={gap['approved_count']}, "
+                    f"coverage_ready_count={gap.get('coverage_ready_count', '')}, "
                     f"distinct_family_count={gap['distinct_family_count']}, "
                     f"coverage_area_count={gap['coverage_area_count']}, "
                     f"reasons={','.join(gap.get('reasons') or [])}"
