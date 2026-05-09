@@ -1,12 +1,14 @@
 import json
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from smartInterviewApp.commonViews import sanitize_resume_builder_payload
-from smartInterviewApp.models import CandidateResumeBuilderDraft, UserProfile
+from smartInterviewApp.models import CandidateResumeBuilderDraft, Interview, UserProfile, Vacancies
 
 
 class ResumeBuilderViewTests(TestCase):
@@ -102,6 +104,29 @@ class ResumeBuilderViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse('candidate-resume-builder'))
+
+    def test_candidate_dashboard_shows_next_interview_link(self):
+        role = Vacancies.objects.create(
+            role='Python Developer',
+            description='Backend role',
+            position='1',
+            status='active',
+            admin=self.admin,
+        )
+        interview = Interview.objects.create(
+            candidate=self.candidate,
+            hr=self.admin,
+            role=role,
+            status='scheduled',
+            date=timezone.now() + timedelta(days=1),
+        )
+
+        response = self.client.get(reverse('candidate-dashboard'))
+
+        interview.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Open Interview')
+        self.assertContains(response, f'https://litio.shortlistii.com/i/{interview.litio_interview_token}')
 
     def test_public_resume_builder_renders_signup_prompt(self):
         self.client.logout()

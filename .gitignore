@@ -11,3 +11,4 @@ media/
 *.zip
 test_db.sqlite3
 .idea/
+smartinterview_old_messy_backup/

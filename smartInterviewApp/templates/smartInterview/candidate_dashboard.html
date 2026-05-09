@@ -2335,6 +2335,9 @@
 	          </p>
             <div class="card-actions">
             {% if analytics.next_interview %}
+              {% if analytics.next_interview_link %}
+                <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Open Interview</a>
+              {% endif %}
               <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>Review Profile</button>
             {% elif not verification.phone_verified_at %}
               <button class="card-link" type="button" data-open-verification="phone"><i class="ph ph-phone" aria-hidden="true"></i>Verify Phone</button>
@@ -3205,6 +3208,9 @@
         <div class="modal-card">
           <span>Next Interview</span>
           <strong>{% if analytics.next_interview %}{{ analytics.next_interview|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</strong>
+          {% if analytics.next_interview_link %}
+            <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out" aria-hidden="true"></i>Open Interview</a>
+          {% endif %}
         </div>
         <div class="modal-card">
           <span>Average Score</span>

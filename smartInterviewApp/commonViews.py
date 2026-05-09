@@ -2206,6 +2206,8 @@ def send_new_candidate_signup_sms(request, candidate: User, interview: Interview
         'msg91_flow_variables': {
             'name': (candidate.first_name or 'Candidate').strip().title(),
             'role': role_name,
+            'signup_url': signup_url,
+            'link': signup_url,
             'url': signup_url,
         },
     })
@@ -3876,6 +3878,10 @@ def build_candidate_dashboard_context(
     completed_scores = [float(item.score) for item in interviews if item.score is not None]
     average_score = round(sum(completed_scores) / len(completed_scores), 1) if completed_scores else None
     next_interview = next((item for item in sorted(interviews, key=lambda x: x.date or timezone.now()) if item.date and item.date >= timezone.now()), None)
+    next_interview_token = ''
+    next_interview_link = ''
+    if next_interview:
+        next_interview_token, next_interview_link = build_litio_interview_link(request, next_interview)
 
     profile_checks = [
         bool(prefs.phone_verified_at),
@@ -4099,6 +4105,8 @@ def build_candidate_dashboard_context(
             'average_score': average_score,
             'resume_status': resume_data.get('status', 'missing'),
             'next_interview': next_interview.date if next_interview else None,
+            'next_interview_token': next_interview_token,
+            'next_interview_link': next_interview_link,
             'readiness_label': readiness_label,
             'current_recruiter': current_recruiter,
             'missing_profile_uploads': missing_profile_uploads,

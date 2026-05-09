@@ -56,6 +56,7 @@ export class AddUser {
   isSharedRecruiterListLoading = false;
   sharedRecruiterListMessage = '';
   gender: string = '';
+  isSubmitting = false;
 
   newCandidate: any = {};
   userType: any;
@@ -266,6 +267,7 @@ export class AddUser {
   }
 
   selectCandidateRole(roleId: any, roleName: string): void {
+    if (this.isSubmitting) return;
     this.role = String(roleId);
     this.roleQuery = `${roleName} - ${roleId}`;
     this.isRoleSearchActive = false;
@@ -279,6 +281,9 @@ export class AddUser {
   }
 
   get isRecruiterSelectDisabled(): boolean {
+    if (this.isSubmitting) {
+      return true;
+    }
     if (this.userType === 'Candidate') {
       return !this.role || this.isRoleSearchActive || this.isRecruiterListLoading;
     }
@@ -289,7 +294,7 @@ export class AddUser {
   }
 
   get isCandidateRoleInputDisabled(): boolean {
-    return this.userType === 'Candidate' && this.isRoleListLoading;
+    return this.userType === 'Candidate' && (this.isRoleListLoading || this.isSubmitting);
   }
 
   getHrList() {
@@ -319,10 +324,26 @@ export class AddUser {
           });
   }
 
+  private setSubmitting(value: boolean): void {
+    this.isSubmitting = value;
+    this.dialogRef.disableClose = value;
+    if (value) {
+      this.descriptionControl.disable({ emitEvent: false });
+    } else {
+      this.descriptionControl.enable({ emitEvent: false });
+    }
+  }
+
   closeModal() {
+    if (this.isSubmitting) {
+      return;
+    }
     this.dialogRef.close();
   }
   addCandidate() {
+    if (this.isSubmitting) {
+      return;
+    }
     if (!this.name || !this.email || !this.phone || !this.gender) {
       this.errorMessage = 'All fields are required.';
       return;
@@ -354,6 +375,7 @@ export class AddUser {
       return;
     }
     this.errorMessage = '';
+    this.setSubmitting(true);
      const apiBaseUrl = this.getApiBaseUrl();
       const addUrl = `${apiBaseUrl}/add-user/`;
 
@@ -423,9 +445,15 @@ export class AddUser {
         .catch(error => {
           this.errorMessage = error.Message || 'Error adding candidate. Please try again.';
           this.toast.showError('Unable to save record', this.errorMessage);
+        })
+        .finally(() => {
+          this.setSubmitting(false);
         });
   }
   addRole() {
+    if (this.isSubmitting) {
+      return;
+    }
     if (!this.name || !this.descriptionControl.value || !this.vacancies || !this.jobType || !this.location || !this.salaryRange || !this.experienceRequired) {
       this.errorMessage = 'All fields are required.';
       return;
@@ -440,6 +468,7 @@ export class AddUser {
       return;
     }
     this.errorMessage = '';
+    this.setSubmitting(true);
      const apiBaseUrl = this.getApiBaseUrl();
       const addUrl = `${apiBaseUrl}/add-role/`;
 
@@ -493,6 +522,9 @@ export class AddUser {
         .catch(error => {
           this.errorMessage = error.Message || 'Error adding role. Please try again.';
           this.toast.showError('Unable to create role', this.errorMessage);
+        })
+        .finally(() => {
+          this.setSubmitting(false);
         });
   }
 
@@ -517,12 +549,14 @@ export class AddUser {
   }
 
   incrementVacancies(): void {
+    if (this.isSubmitting) return;
     const current = Number(this.vacancies || 0);
     const next = Math.max(0, current) + 1;
     this.vacancies = String(next);
   }
 
   decrementVacancies(): void {
+    if (this.isSubmitting) return;
     const current = Number(this.vacancies || 0);
     const next = Math.max(1, current - 1);
     this.vacancies = String(next);
@@ -551,6 +585,7 @@ export class AddUser {
   }
 
   addRoleRecruiter(id: any): void {
+    if (this.isSubmitting) return;
     const value = String(id);
     if (!value || this.selectedRoleRecruiterIds.includes(value)) return;
     this.selectedRoleRecruiterIds = [...this.selectedRoleRecruiterIds, value];
@@ -559,6 +594,7 @@ export class AddUser {
   }
 
   removeRoleRecruiter(id: any): void {
+    if (this.isSubmitting) return;
     const value = String(id);
     this.selectedRoleRecruiterIds = this.selectedRoleRecruiterIds.filter((x) => x !== value);
   }
