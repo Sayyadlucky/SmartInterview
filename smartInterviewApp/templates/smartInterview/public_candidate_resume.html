@@ -318,6 +318,76 @@
       font-weight: 700;
     }
 
+    .expertise-board {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .expertise-card {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-width: 0;
+      padding: 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(135, 198, 255, 0.14);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025)),
+        rgba(13, 28, 54, 0.7);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.06);
+    }
+
+    .expertise-card__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .expertise-card__head strong {
+      color: #eff8ff;
+      font-size: 0.9rem;
+      line-height: 1.3;
+      letter-spacing: 0.01em;
+    }
+
+    .expertise-card__meta {
+      flex: 0 0 auto;
+      border-radius: var(--radius-pill);
+      padding: 5px 9px;
+      border: 1px solid rgba(82, 213, 255, 0.18);
+      background: rgba(82, 213, 255, 0.08);
+      color: #bfefff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .expertise-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .expertise-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      max-width: 100%;
+      border-radius: 10px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.052);
+      color: #d8eaff;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
     .experience-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -511,6 +581,23 @@
       color: #17324a;
     }
 
+    body.is-export .expertise-card {
+      background: #ffffff;
+      border-color: #d8e1ea;
+      box-shadow: none;
+    }
+
+    body.is-export .expertise-card__head strong {
+      color: #17324a;
+    }
+
+    body.is-export .expertise-card__meta,
+    body.is-export .expertise-chip {
+      background: #f6f9fc;
+      border-color: #d8e1ea;
+      color: #445668;
+    }
+
     body.is-export .status-pill,
     body.is-export .experience-meta span {
       border-radius: 10px;
@@ -577,7 +664,8 @@
 
     @media (max-width: 900px) {
       .modal-grid,
-      .experience-grid {
+      .experience-grid,
+      .expertise-board {
         grid-template-columns: 1fr;
       }
     }
@@ -644,6 +732,7 @@
       }
 
       .experience-grid,
+      .expertise-board,
       .box-list {
         break-inside: auto;
       }
@@ -788,6 +877,26 @@
                   </article>
                 {% endfor %}
               </div>
+            {% elif section.section_key == 'technical_expertise' %}
+              {% if section.expertise_items %}
+                <div class="expertise-board">
+                  {% for item in section.expertise_items %}
+                    <article class="expertise-card">
+                      <div class="expertise-card__head">
+                        <strong>{{ item.label }}</strong>
+                        <span class="expertise-card__meta">{{ item.count }} skill{{ item.count|pluralize }}</span>
+                      </div>
+                      <div class="expertise-chip-list">
+                        {% for skill in item.skills %}
+                          <span class="expertise-chip">{{ skill }}</span>
+                        {% endfor %}
+                      </div>
+                    </article>
+                  {% endfor %}
+                </div>
+              {% elif section.text %}
+                <p>{{ section.text }}</p>
+              {% endif %}
             {% elif section.items %}
               <div class="box-list box-list--stacked">
                 {% for item in section.items %}

@@ -1041,6 +1041,84 @@ def normalize_public_section_item(item):
     return normalized
 
 
+def split_public_expertise_values(value: str) -> list[str]:
+    text = str(value or '').strip()
+    if not text:
+        return []
+    return [
+        item.strip()
+        for item in re.split(r'\s*(?:,|;|\||\n)\s*', text)
+        if item.strip()
+    ]
+
+
+def normalize_public_expertise_items(items: list[dict], section_text: str = '') -> list[dict]:
+    candidates: list[dict] = []
+
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+
+        label = str(item.get('label') or item.get('title') or '').strip()
+        value = str(item.get('value') or item.get('description') or '').strip()
+
+        if not label and ':' in value:
+            possible_label, possible_value = value.split(':', 1)
+            if possible_label.strip() and possible_value.strip():
+                label = possible_label.strip()
+                value = possible_value.strip()
+
+        if label and value.lower().startswith(f'{label.lower()}:'):
+            value = value[len(label) + 1:].strip()
+
+        skills = split_public_expertise_values(value)
+        if skills:
+            candidates.append({
+                'label': label or 'Technical Skills',
+                'skills': skills,
+                'count': len(skills),
+            })
+
+    if not candidates and section_text:
+        for line in str(section_text or '').splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if ':' in line:
+                label, value = line.split(':', 1)
+            else:
+                label, value = 'Technical Skills', line
+            skills = split_public_expertise_values(value)
+            if skills:
+                candidates.append({
+                    'label': label.strip() or 'Technical Skills',
+                    'skills': skills,
+                    'count': len(skills),
+                })
+
+    normalized: list[dict] = []
+    grouped: dict[str, dict] = {}
+    seen_by_label: dict[str, set[str]] = {}
+    for item in candidates:
+        label = item['label']
+        label_key = label.lower()
+        target = grouped.get(label_key)
+        if not target:
+            target = {'label': label, 'skills': [], 'count': 0}
+            grouped[label_key] = target
+            normalized.append(target)
+            seen_by_label[label_key] = set()
+
+        for skill in item['skills']:
+            skill_key = skill.lower()
+            if skill_key in seen_by_label[label_key]:
+                continue
+            seen_by_label[label_key].add(skill_key)
+            target['skills'].append(skill)
+        target['count'] = len(target['skills'])
+    return normalized
+
+
 def _parse_serialized_section_item(value):
     if not isinstance(value, str):
         return None
@@ -1095,11 +1173,16 @@ def build_public_resume_context(request, candidate: User) -> dict:
             normalized_item = normalize_public_section_item(item)
             if normalized_item:
                 normalized_items.append(normalized_item)
+        section_key = section.get('section_key') or ''
+        expertise_items = []
+        if str(section_key).strip().lower() == 'technical_expertise':
+            expertise_items = normalize_public_expertise_items(normalized_items, section_text)
         sections.append({
             'title': section.get('title') or 'Section',
-            'section_key': section.get('section_key') or '',
+            'section_key': section_key,
             'text': section_text,
             'items': normalized_items,
+            'expertise_items': expertise_items,
         })
 
     experience_section = next((section for section in sections if (section.get('section_key') or '').lower() in {'experience', 'work_history'}), None)
@@ -3917,13 +4000,20 @@ def build_candidate_dashboard_context(
         'share': int((value / total_roles) * 100) if total_roles else 0,
     } for key, value in sorted(status_counts.items(), key=lambda entry: (-entry[1], entry[0]))]
 
-    timeline = [{
-        'role': item.role.role if item.role else 'Role pending',
-        'status': normalize_interview_status(item.status),
-        'date': item.date,
-        'recruiter': f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title() if item.recruiter else 'Not assigned',
-        'score': item.score,
-    } for item in interviews[:8]]
+    timeline = []
+    for item in interviews[:8]:
+        interview_token, interview_link = build_litio_interview_link(request, item)
+        status = normalize_interview_status(item.status)
+        timeline.append({
+            'role': item.role.role if item.role else 'Role pending',
+            'status': status,
+            'status_label': status.replace('_', ' ').title(),
+            'interview_date': item.date,
+            'interview_token': interview_token,
+            'interview_link': interview_link,
+            'recruiter': f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title() if item.recruiter else 'Not assigned',
+            'score': item.score,
+        })
 
     resume_skills = (resume_data.get('skills') or [])[:10]
     profile_picture_url = request.build_absolute_uri(reverse('candidate-secure-profile-picture')) if profile.profile_picture else ''

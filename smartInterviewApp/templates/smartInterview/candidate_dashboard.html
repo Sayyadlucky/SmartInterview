@@ -199,7 +199,7 @@
     }
 
     .page {
-      width: min(1280px, 100%);
+      width: min(1440px, 100%);
       margin: 0 auto;
       display: grid;
       gap: var(--space-3);
@@ -207,6 +207,221 @@
       z-index: 10;
       isolation: isolate;
       padding: var(--header-offset) var(--space-3) var(--space-4);
+    }
+
+    .dashboard-shell {
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+      align-items: start;
+      gap: var(--space-3);
+      min-width: 0;
+    }
+
+    .dashboard-section-sidebar {
+      position: sticky;
+      top: calc(var(--header-offset) - var(--space-1));
+      min-height: calc(100vh - var(--header-offset));
+      display: grid;
+      align-content: start;
+      gap: var(--space-2);
+      padding: var(--space-3) 0 var(--space-2);
+      overflow: hidden;
+      border: 1px solid rgba(106, 185, 255, 0.12);
+      border-radius: var(--radius-lg);
+      background:
+        linear-gradient(180deg, rgba(7, 14, 27, 0.97), rgba(3, 9, 19, 0.98)),
+        radial-gradient(circle at 50% 0%, rgba(73, 201, 255, 0.14), transparent 34%);
+      box-shadow: var(--shadow-3), inset 1px 0 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(8px);
+    }
+
+    .dashboard-section-sidebar::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 118px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent);
+      pointer-events: none;
+    }
+
+    .dashboard-section-profile {
+      position: relative;
+      display: grid;
+      min-width: 0;
+    }
+
+    .dashboard-section-profile--compact {
+      grid-template-columns: 64px minmax(0, 1fr);
+      justify-items: stretch;
+      align-items: center;
+      text-align: left;
+      gap: 12px;
+      padding: 0 var(--space-2) var(--space-2);
+    }
+
+    .dashboard-section-profile::after {
+      content: "";
+      grid-column: 1 / -1;
+      width: 100%;
+      height: 1px;
+      margin-top: 6px;
+      background: linear-gradient(90deg, transparent, rgba(122, 192, 255, 0.18), transparent);
+    }
+
+    .dashboard-section-profile--compact .avatar {
+      width: 64px;
+      height: 64px;
+      --avatar-radius: 999px;
+      font-size: 0.9rem;
+    }
+
+    .dashboard-section-profile__copy {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .dashboard-section-profile__copy strong {
+      color: var(--text-strong);
+      font-size: 0.95rem;
+      line-height: 1.18;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dashboard-section-profile__copy span {
+      max-width: 100%;
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dashboard-section-actions {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      padding: 0 var(--space-2);
+    }
+
+    .dashboard-section-actions a,
+    .dashboard-section-actions button {
+      min-height: 38px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.04);
+      color: #d8efff;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-start;
+      padding: 0 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .dashboard-section-actions a:hover,
+    .dashboard-section-actions button:hover {
+      border-color: rgba(86, 211, 255, 0.22);
+      background: rgba(86, 211, 255, 0.08);
+    }
+
+    .dashboard-section-actions i {
+      color: #8fdfff;
+      font-size: 0.95rem;
+    }
+
+    .dashboard-section-nav {
+      position: relative;
+      display: grid;
+      gap: 4px;
+      padding: 0;
+    }
+
+    .dashboard-section-nav a {
+      position: relative;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 0 var(--space-2);
+      color: #8fa2b4;
+      text-decoration: none;
+      font-weight: 700;
+      transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .dashboard-section-nav a::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: transparent;
+      box-shadow: none;
+      transition: background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .dashboard-section-nav a i {
+      color: #6f8397;
+      font-size: 1.22rem;
+      transition: color 0.18s ease;
+    }
+
+    .dashboard-section-nav a:hover,
+    .dashboard-section-nav a:focus-visible,
+    .dashboard-section-nav a.is-active {
+      color: #eef8ff;
+      background: rgba(150, 184, 221, 0.12);
+      transform: translateX(1px);
+    }
+
+    .dashboard-section-nav a:hover::before,
+    .dashboard-section-nav a:focus-visible::before,
+    .dashboard-section-nav a.is-active::before {
+      background: linear-gradient(180deg, #38d9ff, #4a88ff);
+      box-shadow: 0 0 20px rgba(47, 211, 255, 0.54);
+    }
+
+    .dashboard-section-nav a:hover i,
+    .dashboard-section-nav a:focus-visible i,
+    .dashboard-section-nav a.is-active i {
+      color: #39d7ff;
+    }
+
+    .dashboard-section-sidebar__footer {
+      display: grid;
+      gap: var(--space-1);
+      margin: var(--space-1) var(--space-2) 0;
+      padding: var(--space-2);
+      border: 1px solid rgba(113, 193, 255, 0.11);
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .dashboard-section-sidebar__footer span {
+      color: #8ba3ba;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .dashboard-section-sidebar__footer strong {
+      color: #f3fbff;
+      font-size: 1.18rem;
+      letter-spacing: -0.03em;
+    }
+
+    .dashboard-section-content {
+      display: grid;
+      gap: var(--space-3);
+      min-width: 0;
     }
 
     .section-anchor {
@@ -255,50 +470,6 @@
       display: none;
     }
 
-    .dashboard-hero__top {
-      display: grid;
-      grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
-      gap: var(--space-2);
-      align-items: start;
-    }
-
-    .dashboard-hero__intro {
-      display: grid;
-      gap: var(--space-2);
-      min-width: 0;
-    }
-
-    .dashboard-hero__identity {
-      display: flex;
-      gap: var(--space-2);
-      align-items: center;
-    }
-
-    .dashboard-hero__copy {
-      display: grid;
-      gap: var(--space-1);
-      min-width: 0;
-    }
-
-    .dashboard-hero__title-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: var(--space-1);
-    }
-
-    .dashboard-hero__title-row .btn {
-      min-height: 40px;
-      padding: var(--space-1) 14px;
-      flex: 0 0 auto;
-      box-shadow: none;
-    }
-
-    .dashboard-hero__title-row .btn-primary {
-      background: linear-gradient(92deg, rgba(83, 206, 255, 0.94), rgba(90, 121, 255, 0.88));
-      border: 1px solid rgba(143, 223, 255, 0.14);
-    }
-
     .dashboard-hero__eyebrow {
       color: #8fdfff;
       font-size: 0.76rem;
@@ -313,45 +484,6 @@
       font-size: 0.92rem;
       line-height: 1.6;
       max-width: 58ch;
-    }
-
-    .dashboard-hero__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-1);
-      align-items: center;
-      margin-top: var(--space-1);
-    }
-
-    .dashboard-hero__actions-primary,
-    .dashboard-hero__actions-secondary {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-1);
-      align-items: center;
-    }
-
-    .dashboard-hero__actions .btn,
-    .dashboard-hero__actions .btn-link {
-      min-height: 44px;
-      padding: 0 16px;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .dashboard-hero__side {
-      display: grid;
-      gap: var(--space-2);
-      align-content: start;
-    }
-
-    .dashboard-next-step {
-      display: grid;
-      gap: var(--space-2);
-      align-content: start;
-      border-color: rgba(86, 211, 255, 0.14);
-      background: linear-gradient(180deg, rgba(15, 28, 52, 0.86), rgba(11, 21, 39, 0.92));
-      box-shadow: var(--shadow-3), inset 0 1px 0 rgba(177, 226, 255, 0.05);
     }
 
     .dashboard-next-step__label {
@@ -374,21 +506,6 @@
       font-size: 0.84rem;
       line-height: 1;
       flex: 0 0 auto;
-    }
-
-    .dashboard-next-step h3,
-    .dashboard-next-step p {
-      margin: 0;
-    }
-
-    .dashboard-next-step .card-actions {
-      margin-top: var(--space-1);
-    }
-
-    .dashboard-status-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: var(--space-2);
     }
 
     .status-card {
@@ -731,6 +848,9 @@
       padding: 7px 11px;
       font-size: 0.76rem;
       line-height: 1.35;
+      max-width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
     .check-badge {
@@ -821,6 +941,7 @@
     .signal-head strong {
       color: #eef8ff;
       font-size: 1rem;
+      min-width: 0;
     }
 
     .workspace-progress,
@@ -923,22 +1044,6 @@
       letter-spacing: -0.03em;
     }
 
-    .surface-grid,
-    .metrics-grid,
-    .dashboard-grid {
-      display: grid;
-      gap: var(--space-3);
-    }
-
-    .surface-grid,
-    .dashboard-grid {
-      grid-template-columns: 1.08fr 0.92fr;
-    }
-
-    .metrics-grid {
-      grid-template-columns: 1.08fr 0.92fr;
-    }
-
     .surface-stack,
     .signal-board,
     .ops-grid,
@@ -988,6 +1093,7 @@
       display: grid;
       gap: var(--space-1);
       box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+      min-width: 0;
     }
 
     .signal-card__score,
@@ -1007,6 +1113,32 @@
       gap: calc(var(--space-1) - 2px);
       color: #bdd8ee;
       font-size: 0.8rem;
+    }
+
+    .signal-head,
+    .signal-meta,
+    .posting-meta,
+    .pill-row,
+    .card-actions,
+    .btn-row {
+      min-width: 0;
+    }
+
+    .signal-meta .chip,
+    .posting-meta .chip,
+    .pill-row .status-pill,
+    .section-head__meta .status-pill {
+      white-space: normal;
+      text-align: left;
+    }
+
+    .signal-card p,
+    .metric-card small,
+    .posting-subtitle,
+    .recent-activity__cell,
+    .empty-state p {
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
     .ops-card strong {
@@ -1167,7 +1299,7 @@
     .data-table__head,
     .recent-activity__row {
       display: grid;
-      grid-template-columns: 1.3fr 1fr 1fr 0.7fr 0.8fr;
+      grid-template-columns: 1.22fr 1fr 1.08fr 0.55fr 1.05fr 0.62fr;
       gap: var(--space-2);
       align-items: center;
     }
@@ -1197,6 +1329,10 @@
       color: #c4ddef;
       font-size: 0.82rem;
       line-height: 1.5;
+    }
+
+    .activity-table .status-badge {
+      white-space: nowrap;
     }
 
     .stage-row {
@@ -1940,6 +2076,298 @@
     .u-mt-2 { margin-top: var(--space-2) !important; }
     .u-mb-1 { margin-bottom: var(--space-1) !important; }
 
+    .dashboard-command {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) 190px minmax(260px, 0.82fr);
+      gap: var(--space-3);
+      align-items: stretch;
+      background:
+        radial-gradient(circle at 82% 8%, rgba(82, 213, 255, 0.12), transparent 30%),
+        linear-gradient(180deg, rgba(14, 25, 47, 0.92), rgba(8, 16, 31, 0.96));
+    }
+
+    .command-profile {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--space-3);
+      align-items: center;
+      min-width: 0;
+    }
+
+    .command-profile .avatar {
+      width: 128px;
+      height: 128px;
+      --avatar-radius: 26px;
+      font-size: 1.35rem;
+    }
+
+    .command-profile__copy {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .command-profile__copy h1 {
+      font-size: clamp(1.68rem, 3vw, 2.42rem);
+      max-width: 14ch;
+    }
+
+    .command-profile__copy p {
+      margin: 0;
+      color: #b9cee2;
+      font-size: 0.92rem;
+      line-height: 1.62;
+      max-width: 64ch;
+    }
+
+    .command-profile__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .command-profile__meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 32px;
+      padding: 0 10px;
+      border: 1px solid rgba(135, 198, 255, 0.11);
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.04);
+      color: #c9dff0;
+      font-size: 0.78rem;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .command-profile__meta i {
+      color: #8fdfff;
+    }
+
+    .command-score {
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: var(--space-1);
+      padding: var(--space-2);
+      border: 1px solid rgba(135, 198, 255, 0.11);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.035);
+      text-align: center;
+    }
+
+    .command-score__ring {
+      --score: inherit;
+      width: 132px;
+      height: 132px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 4px;
+      background:
+        radial-gradient(circle, rgba(9, 18, 34, 0.98) 0 58%, transparent 59%),
+        conic-gradient(rgba(82, 213, 255, 0.96) var(--score), rgba(255, 255, 255, 0.08) 0);
+      box-shadow: inset 0 0 0 9px rgba(7, 16, 30, 0.9), 0 16px 32px rgba(0, 0, 0, 0.22);
+    }
+
+    .command-score__ring strong {
+      color: var(--text-strong);
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+
+    .command-score__ring span,
+    .command-score p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .command-next-action {
+      display: grid;
+      gap: var(--space-1);
+      align-content: start;
+      padding: var(--space-2);
+      border: 1px solid rgba(82, 213, 255, 0.14);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, rgba(18, 32, 58, 0.78), rgba(10, 19, 36, 0.88));
+    }
+
+    .command-next-action h2,
+    .command-next-action p {
+      margin: 0;
+    }
+
+    .command-next-action h2 {
+      font-size: 1.08rem;
+      color: var(--text-strong);
+    }
+
+    .command-next-action p {
+      color: #b9cee2;
+      font-size: 0.84rem;
+      line-height: 1.56;
+    }
+
+    .metric-strip {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .metric-card,
+    .readiness-card {
+      display: grid;
+      gap: var(--space-1);
+      padding: var(--space-2);
+      border: 1px solid rgba(135, 198, 255, 0.1);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.045);
+      min-width: 0;
+    }
+
+    .metric-card span,
+    .metric-card small {
+      color: #8ea8bf;
+      font-size: 0.75rem;
+      line-height: 1.35;
+    }
+
+    .metric-card span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 800;
+    }
+
+    .metric-card span i {
+      color: #8fdfff;
+    }
+
+    .metric-card strong,
+    .readiness-card strong {
+      color: var(--text-strong);
+      font-size: 1.24rem;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .readiness-grid {
+      display: grid;
+      grid-template-columns: 0.9fr 1fr 1.35fr;
+      gap: var(--space-2);
+    }
+
+    .readiness-card p {
+      margin: 0;
+      color: #b9cee2;
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+
+    .readiness-card--wide {
+      min-width: 0;
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .insight-card-premium {
+      min-height: 190px;
+      align-content: start;
+      background:
+        linear-gradient(180deg, rgba(16, 29, 52, 0.72), rgba(10, 19, 36, 0.86)),
+        radial-gradient(circle at 94% 0%, rgba(82, 213, 255, 0.08), transparent 32%);
+    }
+
+    .insight-card-salary .signal-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      justify-content: start;
+      gap: var(--space-1);
+    }
+
+    .insight-card-salary .signal-card__score {
+      justify-self: start;
+      max-width: 100%;
+      min-width: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: normal;
+      text-align: left;
+    }
+
+    .career-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .career-actions-grid .action-card {
+      align-content: space-between;
+      min-height: 184px;
+    }
+
+    .opportunity-card {
+      grid-template-columns: minmax(0, 1fr) 148px;
+      align-items: stretch;
+      background:
+        linear-gradient(180deg, rgba(15, 28, 51, 0.72), rgba(9, 18, 34, 0.86));
+    }
+
+    .opportunity-card .posting-actions .card-link:first-child {
+      background: linear-gradient(92deg, #35c9ff, #5a79ff);
+      color: #03111f;
+      border-color: transparent;
+      font-weight: 800;
+    }
+
+    .activity-board .activity-table {
+      background: rgba(8, 17, 32, 0.52);
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      align-items: center;
+    }
+
+    .settings-actions .card-link {
+      min-height: 42px;
+    }
+
+    .profile-modal {
+      border-radius: 18px;
+    }
+
+    .modal-close {
+      position: sticky;
+      top: var(--space-1);
+      margin-left: auto;
+      z-index: 2;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(135, 198, 255, 0.12);
+      line-height: 1;
+    }
+
     .inline-alert-row {
       margin: 0;
       display: flex;
@@ -2018,14 +2446,72 @@
     }
 
     @media (max-width: 1180px) {
-      .dashboard-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .dashboard-hero__top,
-      .surface-grid,
-      .metrics-grid,
-      .dashboard-grid,
+      .dashboard-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-section-sidebar {
+        position: relative;
+        top: auto;
+        min-height: 0;
+        padding: var(--space-2);
+      }
+
+      .dashboard-section-nav {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-1);
+      }
+
+      .dashboard-section-nav a {
+        border-radius: var(--radius-sm);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0 var(--space-1);
+      }
+
+      .dashboard-section-nav a::before {
+        display: none;
+      }
+
+      .dashboard-section-sidebar__footer {
+        margin: 0;
+      }
+
       .modal-grid,
       .experience-grid {
         grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 1260px) {
+      .dashboard-command {
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 0.72fr);
+      }
+
+      .command-score {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      .command-next-action {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+      }
+
+      .metric-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .readiness-grid,
+      .insight-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .readiness-card--wide {
+        grid-column: 1 / -1;
+      }
+
+      .career-actions-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
 
@@ -2037,7 +2523,10 @@
     }
 
     @media (max-width: 860px) {
-      .dashboard-status-grid,
+      .dashboard-section-nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .stats-grid,
       .form-grid,
       .verification-choices {
@@ -2059,6 +2548,30 @@
 
       .recent-activity__row {
         gap: var(--space-1);
+      }
+
+      .dashboard-command,
+      .readiness-grid,
+      .insight-grid,
+      .career-actions-grid,
+      .opportunity-card {
+        grid-template-columns: 1fr;
+      }
+
+      .command-score,
+      .command-next-action,
+      .metric-strip {
+        grid-column: auto;
+        grid-row: auto;
+      }
+
+      .command-profile {
+        grid-template-columns: 1fr;
+      }
+
+      .command-profile .avatar {
+        width: 96px;
+        height: 96px;
       }
     }
 
@@ -2088,6 +2601,22 @@
       }
 
       .page { padding: calc(var(--header-offset) - var(--space-1)) var(--space-2) var(--space-3); }
+
+      .dashboard-section-sidebar {
+        border-radius: var(--radius-md);
+      }
+
+      .dashboard-section-nav {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .command-profile__copy h1 {
+        max-width: none;
+      }
 
       .posting-toolbar,
       .posting-toolbar__filters,
@@ -2119,18 +2648,6 @@
         width: 100%;
       }
 
-      .dashboard-hero__identity {
-        flex-direction: column;
-      }
-
-      .dashboard-hero__title-row {
-        align-items: stretch;
-      }
-
-      .dashboard-hero__title-row .btn {
-        width: 100%;
-      }
-
       .inline-form,
       .submit-row,
       .btn-row {
@@ -2145,17 +2662,6 @@
       .card-link,
       .filter-btn,
       .sort-select {
-        width: 100%;
-      }
-
-      .dashboard-hero__actions-primary,
-      .dashboard-hero__actions-secondary {
-        width: 100%;
-      }
-
-      .dashboard-hero__actions-primary > .btn,
-      .dashboard-hero__actions-secondary > .btn,
-      .dashboard-hero__actions-secondary > .btn-link {
         width: 100%;
       }
 
@@ -2227,191 +2733,200 @@
   </header>
 
   <div class="page">
-    <span class="section-anchor" id="overview"></span>
-
-    <section class="panel dashboard-hero reveal" aria-label="Workspace overview">
-      <div class="dashboard-hero__top">
-        <div class="dashboard-hero__intro">
-          <div class="dashboard-hero__identity">
+    <div class="dashboard-shell">
+      <aside class="dashboard-section-sidebar" aria-label="Candidate dashboard sections">
+        <div class="dashboard-section-profile dashboard-section-profile--compact">
           <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}" id="dashboardAvatar">
             {% if candidate.profile_picture_url %}
               <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
             {% endif %}
             <span class="avatar-fallback">{{ candidate.initials }}</span>
           </div>
+          <div class="dashboard-section-profile__copy">
+            <strong>{{ candidate.name }}</strong>
+            <span>{% if resume.headline %}{{ resume.headline }}{% else %}Candidate Profile{% endif %}</span>
+          </div>
+        </div>
 
-            <div class="dashboard-hero__copy">
-              <span class="dashboard-hero__eyebrow">Welcome back</span>
-              <div class="dashboard-hero__title-row">
-                <h1>{{ candidate.name }}</h1>
-                <button class="btn btn-primary" type="button" data-open-update-profile><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Edit Profile</button>
-              </div>
-              <p class="dashboard-hero__status">
-                {{ analytics.active_roles }} active opportunities, resume status {{ analytics.resume_status|title }}, and {{ analytics.profile_completion }}% of your profile is complete.
+        <nav class="dashboard-section-nav" aria-label="Dashboard sections">
+          <a class="is-active" href="#overview"><i class="ph ph-squares-four" aria-hidden="true"></i><span>Command Center</span></a>
+          <a href="#readiness"><i class="ph ph-shield-check" aria-hidden="true"></i><span>Readiness</span></a>
+          <a href="#insights"><i class="ph ph-brain" aria-hidden="true"></i><span>AI Insights</span></a>
+          <a href="#career-actions"><i class="ph ph-compass" aria-hidden="true"></i><span>Career Actions</span></a>
+          <a href="#opportunities"><i class="ph ph-briefcase" aria-hidden="true"></i><span>Opportunities</span></a>
+          <a href="#activity"><i class="ph ph-activity" aria-hidden="true"></i><span>Activity</span></a>
+          <a href="#profile-edit"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span>Settings</span></a>
+        </nav>
+
+        <div class="dashboard-section-actions">
+          <button type="button" data-open-update-profile><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Edit Profile</button>
+          <a href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</a>
+          <button type="button" data-open-share-resume><i class="ph ph-share-network" aria-hidden="true"></i>Share Resume</button>
+        </div>
+
+      </aside>
+
+      <main class="dashboard-section-content">
+        <span class="section-anchor" id="overview"></span>
+
+        <section class="panel section reveal dashboard-command" aria-label="Candidate command center">
+          <div class="command-profile">
+            <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}">
+              {% if candidate.profile_picture_url %}
+                <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+              {% endif %}
+              <span class="avatar-fallback">{{ candidate.initials }}</span>
+            </div>
+            <div class="command-profile__copy">
+              <span class="section-kicker">Command Center</span>
+              <h1>{{ candidate.name }}</h1>
+              <p>
+                {% if resume.headline %}
+                  {{ resume.headline }}
+                {% elif resume.career_objective %}
+                  {{ resume.career_objective }}
+                {% else %}
+                  Candidate workspace for profile readiness, AI career signals, and matched opportunities.
+                {% endif %}
               </p>
-              <p class="hero-lead">
-              {% if resume.career_objective %}
-                {{ resume.career_objective }}
+              <div class="command-profile__meta" aria-label="Candidate contact details">
+                <span><i class="ph ph-envelope-simple" aria-hidden="true"></i>{{ candidate.email }}</span>
+                <span><i class="ph ph-phone" aria-hidden="true"></i>{{ candidate.phone }}</span>
+                <span><i class="ph ph-user" aria-hidden="true"></i>{{ candidate.gender|title }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="command-score" style="--score: {{ analytics.profile_completion }}%;">
+            <div class="command-score__ring">
+              <strong>{{ analytics.profile_completion }}%</strong>
+              <span>Ready</span>
+            </div>
+            <p>Profile readiness</p>
+          </div>
+
+          <aside class="command-next-action" aria-label="Next best action">
+            <span class="dashboard-next-step__label"><i class="ph ph-arrow-circle-right" aria-hidden="true"></i>Next best action</span>
+            <h2>
+              {% if analytics.next_interview %}
+                Prepare for your next interview
+              {% elif not verification.phone_verified_at %}
+                Verify your phone number
+              {% elif not verification.email_verified_at %}
+                Verify your email address
+              {% elif not verification.identity_verified %}
+                Complete identity verification
+              {% elif analytics.has_missing_profile_uploads %}
+                Upload profile assets
+              {% elif analytics.profile_completion < 100 %}
+                Complete remaining profile fields
               {% else %}
-                Keep your profile, resume, verification, and applications in one clear workspace.
+                Review matched opportunities
+              {% endif %}
+            </h2>
+            <p>
+              {% if analytics.next_interview %}
+                Scheduled for {{ analytics.next_interview|date:"M d, Y h:i A" }}. Review your profile and open roles before the discussion.
+              {% elif not verification.phone_verified_at %}
+                Phone verification keeps account communication reliable.
+              {% elif not verification.email_verified_at %}
+                Email verification helps interview updates reach you.
+              {% elif not verification.identity_verified %}
+                Identity verification completes your account trust checks.
+              {% elif analytics.has_missing_profile_uploads %}
+                Upload your {{ analytics.missing_profile_uploads|join:" and " }} to complete your profile.
+              {% elif analytics.profile_completion < 100 %}
+                Finish the remaining fields to strengthen your candidate profile.
+              {% else %}
+                Your profile is in good shape. Keep reviewing matched roles and new activity.
               {% endif %}
             </p>
-
-            <div class="pill-row">
-                <span class="status-pill status-pill--accent">Profile {{ analytics.profile_completion }}% complete</span>
-	              <span class="status-pill" id="heroResumeStatusPill">Resume {{ analytics.resume_status|title }}</span>
-              <span class="status-pill">Contact {{ analytics.current_recruiter }}</span>
-              {% if analytics.next_interview %}
-                <span class="status-pill">Next interview {{ analytics.next_interview|date:"M d, Y h:i A" }}</span>
-              {% endif %}
-            </div>
-
-              <div class="dashboard-hero__actions">
-                <div class="dashboard-hero__actions-secondary">
-                  <button class="btn btn-ghost" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>View Profile</button>
-                  <a class="btn btn-ghost" href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</a>
-                  <button class="btn btn-ghost" type="button" data-open-share-resume><i class="ph ph-share-network" aria-hidden="true"></i>Share Resume</button>
-                  {% if candidate.resume_file_url %}
-                    <a class="btn-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener"><i class="ph ph-file-arrow-up" aria-hidden="true"></i>Open Resume</a>
-                  {% endif %}
-                  <a class="btn-link" href="#activity"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>Recent Activity</a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        <div class="hero-meta">
-          <div class="hero-meta-card">
-            <span>Email</span>
-            <strong>{{ candidate.email }}</strong>
-          </div>
-          <div class="hero-meta-card">
-            <span>Mobile</span>
-            <strong>{{ candidate.phone }}</strong>
-          </div>
-          <div class="hero-meta-card">
-            <span>Gender</span>
-            <strong>{{ candidate.gender|title }}</strong>
-          </div>
-        </div>
-        </div>
-
-        <aside class="dashboard-hero__side">
-          <div class="workspace-card dashboard-next-step">
-            <span class="dashboard-next-step__label"><i class="ph ph-arrow-circle-right" aria-hidden="true"></i>Next step</span>
-          <h3>
-            {% if analytics.next_interview %}
-              Prepare for your next interview
-            {% elif not verification.phone_verified_at %}
-              Verify your phone number
-            {% elif not verification.email_verified_at %}
-              Verify your email address
-            {% elif not verification.identity_verified %}
-              Complete identity verification
-	            {% elif analytics.has_missing_profile_uploads %}
-	              Upload profile assets
-	            {% elif analytics.profile_completion < 100 %}
-	              Complete remaining profile fields
-	            {% else %}
-	              Review matched opportunities
-            {% endif %}
-          </h3>
-          <p>
-            {% if analytics.next_interview %}
-              Your next interview is scheduled for {{ analytics.next_interview|date:"M d, Y h:i A" }}. Review your resume, recent activity, and open roles before the discussion.
-            {% elif not verification.phone_verified_at %}
-              Phone verification helps you complete your account and receive updates reliably.
-            {% elif not verification.email_verified_at %}
-              Email verification helps ensure interview updates and messages reach you.
-            {% elif not verification.identity_verified %}
-              Identity verification helps complete your account setup.
-	            {% elif analytics.has_missing_profile_uploads %}
-	              Uploading your {{ analytics.missing_profile_uploads|join:" and " }} completes your profile and improves your application context.
-	            {% elif analytics.profile_completion < 100 %}
-	              Completing the remaining fields gives you a stronger and more complete profile.
-	            {% else %}
-              Your profile is in good shape. Review your active opportunities and keep an eye on updates.
-	            {% endif %}
-	          </p>
             <div class="card-actions">
-            {% if analytics.next_interview %}
-              {% if analytics.next_interview_link %}
-                <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Open Interview</a>
+              {% if analytics.next_interview %}
+                {% if analytics.next_interview_link %}
+                  <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Open Interview</a>
+                {% endif %}
+                <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>Review Profile</button>
+              {% elif not verification.phone_verified_at %}
+                <button class="card-link" type="button" data-open-verification="phone"><i class="ph ph-phone" aria-hidden="true"></i>Verify Phone</button>
+              {% elif not verification.email_verified_at %}
+                <button class="card-link" type="button" data-open-verification="email"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Verify Email</button>
+              {% elif not verification.identity_verified %}
+                <button class="card-link" type="button" data-open-verification="identity"><i class="ph ph-identification-card" aria-hidden="true"></i>Verify Identity</button>
+              {% elif analytics.has_missing_profile_uploads %}
+                <button class="card-link" type="button" data-open-update-profile><i class="ph ph-upload-simple" aria-hidden="true"></i>Upload Now</button>
+              {% else %}
+                <a class="card-link" href="#opportunities"><i class="ph ph-binoculars" aria-hidden="true"></i>Review Matches</a>
               {% endif %}
-              <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>Review Profile</button>
-            {% elif not verification.phone_verified_at %}
-              <button class="card-link" type="button" data-open-verification="phone"><i class="ph ph-phone" aria-hidden="true"></i>Verify Phone</button>
-            {% elif not verification.email_verified_at %}
-              <button class="card-link" type="button" data-open-verification="email"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Verify Email</button>
-            {% elif not verification.identity_verified %}
-              <button class="card-link" type="button" data-open-verification="identity"><i class="ph ph-identification-card" aria-hidden="true"></i>Verify Identity</button>
-	            {% elif analytics.has_missing_profile_uploads %}
-	              <button class="card-link" type="button" data-open-update-profile><i class="ph ph-upload-simple" aria-hidden="true"></i>Upload Now</button>
-	            {% else %}
-	              <a class="card-link" href="#activity"><i class="ph ph-binoculars" aria-hidden="true"></i>Review Matches</a>
-	            {% endif %}
-	          </div>
+            </div>
+          </aside>
+
+          <div class="metric-strip" aria-label="Dashboard metrics">
+            <article class="metric-card">
+              <span><i class="ph ph-user-check" aria-hidden="true"></i>Profile Completion</span>
+              <strong>{{ analytics.profile_completion }}%</strong>
+            </article>
+            <article class="metric-card">
+              <span><i class="ph ph-file-text" aria-hidden="true"></i>Resume Status</span>
+              <strong id="resumeStatusSummaryValue">{{ analytics.resume_status|title }}</strong>
+              <small id="resumeProcessedSummaryText">{% if resume.processed_at %}Processed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting structured extraction{% endif %}</small>
+            </article>
+            <article class="metric-card">
+              <span><i class="ph ph-briefcase" aria-hidden="true"></i>Active Opportunities</span>
+              <strong>{{ analytics.active_roles }}</strong>
+            </article>
+            <article class="metric-card">
+              <span><i class="ph ph-gauge" aria-hidden="true"></i>Average Score</span>
+              <strong>{% if analytics.average_score is not None %}{{ analytics.average_score }}{% else %}N/A{% endif %}</strong>
+            </article>
+          </div>
+        </section>
+
+        <span class="section-anchor" id="readiness"></span>
+
+        <section class="panel section reveal" aria-label="Readiness and verification">
+          <div class="section-head">
+            <div class="section-head__copy">
+              <span class="section-kicker">Readiness</span>
+              <h2 class="title-with-icon"><i class="ph ph-shield-check" aria-hidden="true"></i>Readiness & Verification</h2>
+              <p class="subtle u-m-0">A compact view of profile completion, resume processing, and trust checks.</p>
+            </div>
           </div>
 
-          <div class="workspace-card">
-            <div class="readiness-card__top">
-              <strong>Verification</strong>
-              <span class="readiness-card__score">
-                {% if verification.phone_verified_at and verification.email_verified_at and verification.identity_verified %}
-                  3/3
-                {% elif verification.phone_verified_at and verification.email_verified_at %}
-                  2/3
-                {% elif verification.phone_verified_at and verification.identity_verified %}
-                  2/3
-                {% elif verification.email_verified_at and verification.identity_verified %}
-                  2/3
-                {% elif verification.phone_verified_at or verification.email_verified_at or verification.identity_verified %}
-                  1/3
-                {% else %}
-                  0/3
-                {% endif %}
-              </span>
+          {% if analytics.has_missing_profile_uploads %}
+            <div class="alert alert-error inline-alert-row">
+              <span>Upload your {{ analytics.missing_profile_uploads|join:" and " }} to complete your profile.</span>
+              <button class="card-link" type="button" data-open-update-profile>Upload Now</button>
             </div>
+          {% endif %}
 
-            <div class="verification-compact">
-              <div class="verification-summary">
-                <div class="verification-summary__row">
-                  <span>Account checks</span>
-                  <span class="verification-summary__meta">
-                    {% if verification.phone_verified_at and verification.email_verified_at and verification.identity_verified %}
-                      Fully verified
-                    {% elif verification.phone_verified_at or verification.email_verified_at or verification.identity_verified %}
-                      Partially verified
-                    {% else %}
-                      Verification pending
-                    {% endif %}
-                  </span>
-                </div>
-                <div
-                  class="workspace-progress"
-                  style="--fill:
-                    {% if verification.phone_verified_at and verification.email_verified_at and verification.identity_verified %}100%
-                    {% elif verification.phone_verified_at and verification.email_verified_at %}66%
-                    {% elif verification.phone_verified_at and verification.identity_verified %}66%
-                    {% elif verification.email_verified_at and verification.identity_verified %}66%
-                    {% elif verification.phone_verified_at or verification.email_verified_at or verification.identity_verified %}33%
-                    {% else %}8%
-                    {% endif %};"
-                >
-                  <span></span>
-                </div>
+          <div class="readiness-grid">
+            <article class="readiness-card">
+              <span class="status-card__label"><i class="ph ph-user-circle-plus" aria-hidden="true"></i>Profile Completion</span>
+              <strong>{{ analytics.profile_completion }}%</strong>
+              <div class="workspace-progress" style="--fill: {{ analytics.profile_completion }}%;"><span></span></div>
+              <p>Keep core details, contact information, and profile assets current.</p>
+            </article>
+
+            <article class="readiness-card">
+              <span class="status-card__label"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Processing</span>
+              <strong id="workspaceResumeStatusValue">{{ analytics.resume_status|title }}</strong>
+              <p id="resumeProcessedDetailPill">{% if resume.processed_at %}Processed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting structured extraction{% endif %}</p>
+              <div class="card-actions">
+                <button class="card-link" type="button" id="refreshResumeDetailsBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Refresh Resume</button>
+                <span class="status-pill" id="resumeStatusDetailPill">Status: {{ resume.status|title }}</span>
               </div>
+            </article>
 
+            <article class="readiness-card readiness-card--wide">
+              <span class="status-card__label"><i class="ph ph-checks" aria-hidden="true"></i>Verification Checklist</span>
               <div class="verification-grid">
                 <button class="verification-item" type="button" data-open-verification="phone">
                   <span class="verification-item__head">
                     <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-phone"></i></span>
                     <span class="verification-item__label">Phone</span>
                   </span>
-                  <span
-                    class="check-badge {% if verification.phone_verified_at %}check-badge--done{% else %}check-badge--todo{% endif %}"
-                    id="phoneChecklistBadge"
-                  >
+                  <span class="check-badge {% if verification.phone_verified_at %}check-badge--done{% else %}check-badge--todo{% endif %}" id="phoneChecklistBadge">
                     {% if verification.phone_verified_at %}Done{% else %}Verify{% endif %}
                   </span>
                 </button>
@@ -2421,10 +2936,7 @@
                     <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-envelope-simple"></i></span>
                     <span class="verification-item__label">Email</span>
                   </span>
-                  <span
-                    class="check-badge {% if verification.email_verified_at %}check-badge--done{% else %}check-badge--todo{% endif %}"
-                    id="emailChecklistBadge"
-                  >
+                  <span class="check-badge {% if verification.email_verified_at %}check-badge--done{% else %}check-badge--todo{% endif %}" id="emailChecklistBadge">
                     {% if verification.email_verified_at %}Done{% else %}Verify{% endif %}
                   </span>
                 </button>
@@ -2434,312 +2946,192 @@
                     <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-identification-card"></i></span>
                     <span class="verification-item__label">Identity</span>
                   </span>
-                  <span
-                    class="check-badge {% if verification.identity_verified %}check-badge--done{% else %}check-badge--todo{% endif %}"
-                    id="identityChecklistBadge"
-                  >
+                  <span class="check-badge {% if verification.identity_verified %}check-badge--done{% else %}check-badge--todo{% endif %}" id="identityChecklistBadge">
                     {% if verification.identity_verified %}Done{% else %}Verify{% endif %}
                   </span>
                 </button>
               </div>
-            </div>
+            </article>
           </div>
-        </aside>
-      </div>
+        </section>
 
-      <div class="dashboard-status-grid">
-        <article class="status-card">
-          <span class="status-card__label"><i class="ph ph-user-check" aria-hidden="true"></i>Profile status</span>
-          <strong>{{ analytics.profile_completion }}%</strong>
-          <p>Complete details and uploads make your profile easier to review.</p>
-          <div class="workspace-progress" style="--fill: {{ analytics.profile_completion }}%;">
-            <span></span>
-          </div>
-        </article>
+        <span class="section-anchor" id="insights"></span>
 
-        <article class="status-card">
-          <span class="status-card__label"><i class="ph ph-file-text" aria-hidden="true"></i>Resume</span>
-          <strong id="resumeStatusSummaryValue">{{ analytics.resume_status|title }}</strong>
-          <p id="resumeProcessedSummaryText">{% if resume.processed_at %}Processed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting structured extraction{% endif %}</p>
-          <div class="card-actions">
-            <button class="card-link" type="button" id="refreshResumeDetailsBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Refresh Resume Details</button>
-            <span class="status-pill" id="workspaceResumeStatusValue">{{ analytics.resume_status|title }}</span>
-          </div>
-        </article>
-
-        <article class="status-card">
-          <span class="status-card__label"><i class="ph ph-shield-check" aria-hidden="true"></i>Verification</span>
-          <strong>
-            {% if verification.phone_verified_at %}1{% else %}0{% endif %}/{% if verification.email_verified_at %}1{% else %}0{% endif %}/{% if verification.identity_verified %}1{% else %}0{% endif %}
-          </strong>
-          <p>Phone, email, and identity checks help complete your account setup.</p>
-        </article>
-
-        <article class="status-card">
-          <span class="status-card__label"><i class="ph ph-briefcase" aria-hidden="true"></i>Applications</span>
-          <strong>{{ analytics.active_roles }}</strong>
-          <p>{{ analytics.total_roles }} total assigned roles across your current hiring pipeline.</p>
-        </article>
-      </div>
-
-      {% if analytics.has_missing_profile_uploads %}
-        <div class="alert alert-error inline-alert-row">
-          <span>
-            Upload your {{ analytics.missing_profile_uploads|join:" and " }} to complete your profile and keep your dashboard up to date.
-          </span>
-          <button class="card-link" type="button" data-open-update-profile>Upload Now</button>
-        </div>
-      {% endif %}
-    </section>
-
-    <section class="panel section reveal" aria-label="Candidate analytics">
-      <div class="section-head">
-        <div class="section-head__copy">
-          <h2 class="title-with-icon"><i class="ph ph-chart-bar" aria-hidden="true"></i>Your Progress</h2>
-          <p class="subtle u-m-0">A simple view of the key metrics that matter most on your dashboard.</p>
-        </div>
-        <div class="section-head__meta">
-          <span class="last-updated">Live dashboard view</span>
-        </div>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="meta-label stat-card__label"><i class="ph ph-user-circle-plus" aria-hidden="true"></i>Profile Completion</span>
-          <strong data-count="{{ analytics.profile_completion }}">{{ analytics.profile_completion }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="meta-label stat-card__label"><i class="ph ph-briefcase-metal" aria-hidden="true"></i>Roles Assigned</span>
-          <strong data-count="{{ analytics.total_roles }}">{{ analytics.total_roles }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="meta-label stat-card__label"><i class="ph ph-lightning" aria-hidden="true"></i>Active Opportunities</span>
-          <strong data-count="{{ analytics.active_roles }}">{{ analytics.active_roles }}</strong>
-        </div>
-        <div class="stat-card">
-          <span class="meta-label stat-card__label"><i class="ph ph-gauge" aria-hidden="true"></i>Average Score</span>
-          <strong {% if analytics.average_score is not None %}data-count="{{ analytics.average_score }}"{% endif %}>
-            {% if analytics.average_score is not None %}{{ analytics.average_score }}{% else %}N/A{% endif %}
-          </strong>
-        </div>
-      </div>
-    </section>
-
-    <section class="surface-grid reveal">
-      <div class="panel section">
-        <div class="section-head">
-          <div class="section-head__copy">
-            <span class="section-kicker">Profile & Resume</span>
-            <h2 class="title-with-icon"><i class="ph ph-brain" aria-hidden="true"></i>Profile Insights</h2>
-            <p class="subtle u-m-0">Helpful summaries based on your profile, resume, and current opportunities.</p>
-          </div>
-          <div class="section-head__meta">
-            <span class="last-updated" id="insightsFreshnessLabel">
-              {% if resume.processed_at %}Context refreshed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting latest insight refresh{% endif %}
-            </span>
-          </div>
-        </div>
-
-        <div
-          class="insight-loading"
-          id="aiInsightsLoading"
-          data-insights-loading="{{ insights.loading|yesno:'true,false' }}"
-          data-insights-stale="{{ insights.stale|yesno:'true,false' }}"
-          data-insights-available="{{ insights.available|yesno:'true,false' }}"
-          {% if not insights.loading and insights.available and not insights.stale %}style="display:none;"{% endif %}
-        >
-          <span class="insight-loading__dot"></span>
-          <span id="aiInsightsLoadingText">
-            {% if insights.loading %}
-              Refreshing AI insight snapshot...
-            {% else %}
-              AI insight snapshot will be generated after your profile and resume context are ready.
-            {% endif %}
-          </span>
-        </div>
-
-        <div class="signal-board" id="aiInsightsBoard">
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-chart-line-up" aria-hidden="true"></i>Profile Strength</strong>
-              <span class="signal-card__score" id="resumeScoreValue">{% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}--{% endif %}</span>
-            </div>
-            <div class="signal-meter"><span id="resumeScoreBar" style="width: {% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}{{ analytics.profile_completion }}{% endif %}%"></span></div>
-            <p class="subtle u-m-0" id="executiveSummaryText">
-              {% if insights.executive_summary %}
-                {{ insights.executive_summary }}
-              {% else %}
-                Your profile completion, verification status, and resume freshness shape how complete your dashboard looks today.
-              {% endif %}
-            </p>
-            <div class="card-actions">
-              <button class="card-link" type="button" data-open-profile>View Profile</button>
-              <button class="card-link" type="button" data-open-verification="phone">Complete Setup</button>
-            </div>
-          </article>
-
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-lightning-charge" aria-hidden="true"></i>Current Demand</strong>
-              <span class="signal-card__score" id="marketDemandScoreValue">{% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}--{% endif %}</span>
-            </div>
-            <div class="signal-meter"><span id="marketDemandBar" style="width: {% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}52{% endif %}%"></span></div>
-            <p class="subtle u-m-0" id="marketDemandSummaryText">
-              {% if insights.market_demand_summary %}
-                {{ insights.market_demand_summary }}
-              {% else %}
-                Market demand insight will appear here after your first AI snapshot is generated.
-              {% endif %}
-            </p>
-          </article>
-
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-stack" aria-hidden="true"></i>Skills Snapshot</strong>
-              <span class="signal-card__score" id="skillsImpactScoreValue">{% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}--{% endif %}</span>
-            </div>
-            <div class="signal-meter"><span id="skillsImpactBar" style="width: {% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}48{% endif %}%"></span></div>
-            <p class="subtle u-m-0" id="skillsImpactSummaryText">
-              {% if insights.current_skills_impact_summary %}
-                {{ insights.current_skills_impact_summary }}
-              {% else %}
-                Skill impact insight will appear here after AI analysis completes.
-              {% endif %}
-            </p>
-            <div class="card-actions">
-              <button class="card-link" type="button" data-open-profile>View Profile</button>
-              {% if candidate.resume_file_url %}
-                <a class="card-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener">Resume Context</a>
-              {% endif %}
-            </div>
-          </article>
-
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-target" aria-hidden="true"></i>Role Fit</strong>
-              <span class="signal-card__score" id="roleFitScoreValue">{% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}--{% endif %}</span>
-            </div>
-            <div class="signal-meter"><span id="roleFitBar" style="width: {% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}54{% endif %}%"></span></div>
-            <p class="subtle u-m-0" id="roleFitSummaryText">
-              {% if insights.executive_summary %}
-                {{ insights.executive_summary }}
-              {% else %}
-                Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.
-              {% endif %}
-            </p>
-          </article>
-
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-trend-up" aria-hidden="true"></i>Market Trend</strong>
-              <span class="signal-card__score" id="marketDemandLabelValue">{% if insights.market_demand_label %}{{ insights.market_demand_label }}{% else %}Pending{% endif %}</span>
-            </div>
-            <p class="subtle u-m-0" id="marketTrendSummaryText">
-              {% if insights.market_demand_summary %}
-                {{ insights.market_demand_summary }}
-              {% else %}
-                Current market trend for your skill profile will appear here after AI analysis completes.
-              {% endif %}
-            </p>
-            <div class="signal-meta">
-              <span class="chip" id="marketTrendMetric1">{% if insights.market_demand_score is not None %}Demand {{ insights.market_demand_score }}/100{% else %}Awaiting score{% endif %}</span>
-              <span class="chip" id="marketTrendMetric2">{% if insights.current_skills_impact_score is not None %}Impact {{ insights.current_skills_impact_score }}/100{% else %}Awaiting impact{% endif %}</span>
-            </div>
-          </article>
-
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-currency-inr" aria-hidden="true"></i>Salary Trend</strong>
-              <span class="signal-card__score" id="salaryRangeInsightValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Pending{% endif %}</span>
-            </div>
-            <p class="subtle u-m-0" id="salaryTrendInsightText">
-              {% if insights.salary_trend_summary %}
-                {{ insights.salary_trend_summary }}
-              {% else %}
-                Salary trend insight will appear here after AI analysis completes. It will be shown as directional guidance only.
-              {% endif %}
-            </p>
-          </article>
-
-          <article class="signal-card">
-            <div class="signal-head">
-              <strong class="title-with-icon"><i class="ph ph-sparkle" aria-hidden="true"></i>Recommended Roles</strong>
-              <span class="signal-card__score">AI</span>
-            </div>
-            <p class="subtle u-m-0">Adjacent roles inferred from your current resume signals and experience footprint.</p>
-            <div class="signal-meta">
-              <span class="chip" id="recommendedRole1">{% if insights.recommended_roles|length > 0 %}{{ insights.recommended_roles.0 }}{% else %}Pending{% endif %}</span>
-              <span class="chip" id="recommendedRole2">{% if insights.recommended_roles|length > 1 %}{{ insights.recommended_roles.1 }}{% else %}Pending{% endif %}</span>
-              <span class="chip" id="recommendedRole3">{% if insights.recommended_roles|length > 2 %}{{ insights.recommended_roles.2 }}{% else %}Pending{% endif %}</span>
-            </div>
-          </article>
-        </div>
-      </div>
-
-      <div class="surface-stack">
-        <div class="panel section">
+        <section class="panel section reveal" aria-label="AI career insights">
           <div class="section-head">
             <div class="section-head__copy">
-            <span class="section-kicker">Next Steps</span>
-            <h2 class="title-with-icon"><i class="ph ph-compass" aria-hidden="true"></i>Recommendations</h2>
-            <p class="subtle u-m-0">Suggested areas to improve your profile and explore stronger-fit opportunities.</p>
+              <span class="section-kicker">AI Career Intelligence</span>
+              <h2 class="title-with-icon"><i class="ph ph-brain" aria-hidden="true"></i>AI Career Insights</h2>
+              <p class="subtle u-m-0">Focused signals from your profile, resume, and current role context.</p>
+            </div>
+            <div class="section-head__meta">
+              <span class="last-updated" id="insightsFreshnessLabel">
+                {% if resume.processed_at %}Context refreshed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting latest insight refresh{% endif %}
+              </span>
             </div>
           </div>
 
-          <div class="ops-grid">
-            <article class="ops-card">
-              <strong class="title-with-icon"><i class="ph ph-currency-inr" aria-hidden="true"></i>Estimated Salary Trend</strong>
-              <p id="salaryTrendSummaryText">
-                {% if insights.salary_trend_summary %}
-                  {{ insights.salary_trend_summary }}
-                {% else %}
-                  Salary trend insight will appear here after AI analysis completes. It will be positioned as directional guidance, not an authoritative benchmark.
-                {% endif %}
-              </p>
-              <div class="ops-meta">
-                <span class="chip" id="salaryRangeValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Awaiting snapshot{% endif %}</span>
-                <span class="chip">{% if analytics.current_recruiter %}{{ analytics.current_recruiter }}{% else %}Contact pending{% endif %}</span>
-              </div>
-            </article>
+          <div
+            class="insight-loading"
+            id="aiInsightsLoading"
+            data-insights-loading="{{ insights.loading|yesno:'true,false' }}"
+            data-insights-stale="{{ insights.stale|yesno:'true,false' }}"
+            data-insights-available="{{ insights.available|yesno:'true,false' }}"
+            {% if not insights.loading and insights.available and not insights.stale %}style="display:none;"{% endif %}
+          >
+            <span class="insight-loading__dot"></span>
+            <span id="aiInsightsLoadingText">
+              {% if insights.loading %}
+                Refreshing AI insight snapshot...
+              {% else %}
+                AI insight snapshot will be generated after your profile and resume context are ready.
+              {% endif %}
+            </span>
+          </div>
 
-            <article class="ops-card">
-              <strong class="title-with-icon"><i class="ph ph-star-four" aria-hidden="true"></i>Top Strengths</strong>
-              <p>These are the strongest signals currently inferred from your profile and resume context.</p>
-              <div class="ops-meta">
+          <div class="insight-grid" id="aiInsightsBoard">
+            <article class="signal-card insight-card-premium">
+              <div class="signal-head">
+                <strong class="title-with-icon"><i class="ph ph-chart-line-up" aria-hidden="true"></i>Profile Strength</strong>
+                <span class="signal-card__score" id="resumeScoreValue">{% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}--{% endif %}</span>
+              </div>
+              <div class="signal-meter"><span id="resumeScoreBar" style="width: {% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}{{ analytics.profile_completion }}{% endif %}%"></span></div>
+              <p class="subtle u-m-0" id="executiveSummaryText">
+                {% if insights.executive_summary %}{{ insights.executive_summary }}{% else %}Profile completion, verification, and resume freshness shape your current candidate readiness.{% endif %}
+              </p>
+              <div class="signal-meta">
                 <span class="chip" id="strengthChip1">{% if insights.top_strengths|length > 0 %}{{ insights.top_strengths.0 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="strengthChip2">{% if insights.top_strengths|length > 1 %}{{ insights.top_strengths.1 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="strengthChip3">{% if insights.top_strengths|length > 2 %}{{ insights.top_strengths.2 }}{% else %}Pending{% endif %}</span>
               </div>
             </article>
 
-            <article class="ops-card">
-              <strong class="title-with-icon"><i class="ph ph-graduation-cap" aria-hidden="true"></i>Recommended Next Skills</strong>
-              <p>Suggested areas that can improve role fit, strengthen your profile, and open up more relevant opportunities.</p>
-              <div class="ops-meta">
-                <span class="chip" id="recommendedSkill1">{% if insights.recommended_skills|length > 0 %}{{ insights.recommended_skills.0 }}{% else %}Pending{% endif %}</span>
-                <span class="chip" id="recommendedSkill2">{% if insights.recommended_skills|length > 1 %}{{ insights.recommended_skills.1 }}{% else %}Pending{% endif %}</span>
-                <span class="chip" id="recommendedSkill3">{% if insights.recommended_skills|length > 2 %}{{ insights.recommended_skills.2 }}{% else %}Pending{% endif %}</span>
+            <article class="signal-card insight-card-premium">
+              <div class="signal-head">
+                <strong class="title-with-icon"><i class="ph ph-target" aria-hidden="true"></i>Role Fit</strong>
+                <span class="signal-card__score" id="roleFitScoreValue">{% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}--{% endif %}</span>
               </div>
+              <div class="signal-meter"><span id="roleFitBar" style="width: {% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}54{% endif %}%"></span></div>
+              <p class="subtle u-m-0" id="roleFitSummaryText">
+                {% if insights.executive_summary %}{{ insights.executive_summary }}{% else %}Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.{% endif %}
+              </p>
             </article>
 
-            <article class="ops-card">
-              <strong class="title-with-icon"><i class="ph ph-rocket-launch" aria-hidden="true"></i>Growth Areas</strong>
-              <p>Use these guidance points to improve how your current profile reads against hiring demand.</p>
-              <div class="ops-meta">
+            <article class="signal-card insight-card-premium">
+              <div class="signal-head">
+                <strong class="title-with-icon"><i class="ph ph-stack" aria-hidden="true"></i>Skill Impact</strong>
+                <span class="signal-card__score" id="skillsImpactScoreValue">{% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}--{% endif %}</span>
+              </div>
+              <div class="signal-meter"><span id="skillsImpactBar" style="width: {% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}48{% endif %}%"></span></div>
+              <p class="subtle u-m-0" id="skillsImpactSummaryText">
+                {% if insights.current_skills_impact_summary %}{{ insights.current_skills_impact_summary }}{% else %}Skill impact insight will appear here after AI analysis completes.{% endif %}
+              </p>
+              <div class="signal-meta">
                 <span class="chip" id="growthArea1">{% if insights.growth_areas|length > 0 %}{{ insights.growth_areas.0 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="growthArea2">{% if insights.growth_areas|length > 1 %}{{ insights.growth_areas.1 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="growthArea3">{% if insights.growth_areas|length > 2 %}{{ insights.growth_areas.2 }}{% else %}Pending{% endif %}</span>
               </div>
             </article>
-          </div>
-        </div>
 
-        <div class="panel section">
+            <article class="signal-card insight-card-premium">
+              <div class="signal-head">
+                <strong class="title-with-icon"><i class="ph ph-lightning-charge" aria-hidden="true"></i>Market Demand</strong>
+                <span class="signal-card__score" id="marketDemandScoreValue">{% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}--{% endif %}</span>
+              </div>
+              <div class="signal-meter"><span id="marketDemandBar" style="width: {% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}52{% endif %}%"></span></div>
+              <p class="subtle u-m-0" id="marketDemandSummaryText">
+                {% if insights.market_demand_summary %}{{ insights.market_demand_summary }}{% else %}Market demand insight will appear here after your first AI snapshot is generated.{% endif %}
+              </p>
+              <div class="signal-meta">
+                <span class="chip" id="marketTrendMetric1">{% if insights.market_demand_score is not None %}Demand {{ insights.market_demand_score }}/100{% else %}Awaiting score{% endif %}</span>
+                <span class="chip" id="marketTrendMetric2">{% if insights.current_skills_impact_score is not None %}Impact {{ insights.current_skills_impact_score }}/100{% else %}Awaiting impact{% endif %}</span>
+                <span class="chip" id="marketDemandLabelValue">{% if insights.market_demand_label %}{{ insights.market_demand_label }}{% else %}Pending{% endif %}</span>
+              </div>
+              <span class="visually-hidden" id="marketTrendSummaryText">{% if insights.market_demand_summary %}{{ insights.market_demand_summary }}{% else %}Current market trend for your skill profile will appear here after AI analysis completes.{% endif %}</span>
+            </article>
+
+            <article class="signal-card insight-card-premium insight-card-salary">
+              <div class="signal-head">
+                <strong class="title-with-icon"><i class="ph ph-currency-inr" aria-hidden="true"></i>Salary Guidance</strong>
+                <span class="signal-card__score" id="salaryRangeInsightValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Pending{% endif %}</span>
+              </div>
+              <p class="subtle u-m-0" id="salaryTrendInsightText">
+                {% if insights.salary_trend_summary %}{{ insights.salary_trend_summary }}{% else %}Salary trend insight will appear here after AI analysis completes. It will be shown as directional guidance only.{% endif %}
+              </p>
+              <span class="visually-hidden" id="salaryRangeValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Awaiting snapshot{% endif %}</span>
+              <span class="visually-hidden" id="salaryTrendSummaryText">{% if insights.salary_trend_summary %}{{ insights.salary_trend_summary }}{% else %}Salary trend insight will appear here after AI analysis completes. It will be positioned as directional guidance, not an authoritative benchmark.{% endif %}</span>
+            </article>
+
+            <article class="signal-card insight-card-premium">
+              <div class="signal-head">
+                <strong class="title-with-icon"><i class="ph ph-sparkle" aria-hidden="true"></i>Recommended Roles & Skills</strong>
+                <span class="signal-card__score">AI</span>
+              </div>
+              <p class="subtle u-m-0">Role paths and skill priorities inferred from your current profile signal.</p>
+              <div class="signal-meta">
+                <span class="chip" id="recommendedRole1">{% if insights.recommended_roles|length > 0 %}{{ insights.recommended_roles.0 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedRole2">{% if insights.recommended_roles|length > 1 %}{{ insights.recommended_roles.1 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedRole3">{% if insights.recommended_roles|length > 2 %}{{ insights.recommended_roles.2 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedSkill1">{% if insights.recommended_skills|length > 0 %}{{ insights.recommended_skills.0 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedSkill2">{% if insights.recommended_skills|length > 1 %}{{ insights.recommended_skills.1 }}{% else %}Pending{% endif %}</span>
+                <span class="chip" id="recommendedSkill3">{% if insights.recommended_skills|length > 2 %}{{ insights.recommended_skills.2 }}{% else %}Pending{% endif %}</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <span class="section-anchor" id="career-actions"></span>
+
+        <section class="panel section reveal" aria-label="Career actions">
+          <div class="section-head">
+            <div class="section-head__copy">
+              <span class="section-kicker">Career Actions</span>
+              <h2 class="title-with-icon"><i class="ph ph-compass" aria-hidden="true"></i>Career Actions</h2>
+              <p class="subtle u-m-0">Fast actions that improve profile quality and keep applications moving.</p>
+            </div>
+          </div>
+
+          <div class="career-actions-grid">
+            <article class="action-card">
+              <strong class="title-with-icon"><i class="ph ph-user-circle-plus" aria-hidden="true"></i>Complete Profile</strong>
+              <p>Update contact details, photo, resume, and missing fields.</p>
+              <button class="card-link" type="button" data-open-update-profile>Edit Profile</button>
+            </article>
+            <article class="action-card">
+              <strong class="title-with-icon"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Refresh Resume</strong>
+              <p>Pull the latest structured resume details after an upload or extraction update.</p>
+              <a class="card-link" href="#readiness"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Go to Resume Status</a>
+            </article>
+            <article class="action-card">
+              <strong class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</strong>
+              <p>Open the builder to maintain a polished candidate resume.</p>
+              <a class="card-link" href="{% url 'candidate-resume-builder' %}">Open Builder</a>
+            </article>
+            <article class="action-card">
+              <strong class="title-with-icon"><i class="ph ph-shield-check" aria-hidden="true"></i>Verify Account</strong>
+              <p>Complete phone, email, or identity checks from one trusted flow.</p>
+              <div class="card-actions">
+                <button class="card-link" type="button" data-open-verification="phone">Phone</button>
+                <button class="card-link" type="button" data-open-verification="email">Email</button>
+                <button class="card-link" type="button" data-open-verification="identity">Identity</button>
+              </div>
+            </article>
+            <article class="action-card">
+              <strong class="title-with-icon"><i class="ph ph-briefcase" aria-hidden="true"></i>Review Opportunities</strong>
+              <p>Check current matches, apply, withdraw, or hide roles that are not relevant.</p>
+              <a class="card-link" href="#opportunities">View Matches</a>
+            </article>
+          </div>
+        </section>
+
+        <span class="section-anchor" id="opportunities"></span>
+
+        <section class="panel section reveal" aria-label="Recommended opportunities">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">Opportunities</span>
-              <h2 class="title-with-icon"><i class="ph ph-briefcase" aria-hidden="true"></i>Recommended Job Matches</h2>
-              <p class="subtle u-m-0">Browse your current role matches and focus on the opportunities that fit best.</p>
+              <h2 class="title-with-icon"><i class="ph ph-briefcase" aria-hidden="true"></i>Recommended Opportunities</h2>
+              <p class="subtle u-m-0">Current role matches, sorted by AI fit and posting freshness.</p>
             </div>
             <div class="section-head__meta">
               <span class="last-updated">Latest updates</span>
@@ -2768,7 +3160,7 @@
             <div class="posting-list" id="jobPostingList">
               {% for posting in recent_job_postings %}
                 <article
-                  class="posting-card {% if posting.is_recommended %}posting-card--recommended{% endif %}"
+                  class="posting-card opportunity-card {% if posting.is_recommended %}posting-card--recommended{% endif %}"
                   data-vacancy-card="{{ posting.id }}"
                   data-posting-status="{{ posting.status|lower }}"
                   data-posting-date="{{ posting.date|date:'Y-m-d' }}"
@@ -2779,6 +3171,7 @@
                   <div class="posting-main">
                     <div class="posting-head">
                       <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
+                        {# WARNING: posting.role must be sanitized server-side before using |safe #}
                         <strong>{{ posting.role|safe }}</strong>
                       </button>
                       <span class="status-badge">{{ posting.status|title }}</span>
@@ -2789,9 +3182,10 @@
                     </div>
 
                     {% if posting.description %}
+                      {# WARNING: posting.description must be sanitized server-side before using |safe #}
                       <div class="posting-desc">{{ posting.description|safe }}</div>
                     {% else %}
-                      <p class="posting-desc">New role added to the hiring pipeline. Open details to review fit and current application options.</p>
+                      <p class="posting-desc">Open details to review role fit and application options.</p>
                     {% endif %}
 
                     <div class="posting-meta">
@@ -2811,33 +3205,10 @@
 
                   <div class="posting-side">
                     <div class="posting-actions">
+                      <button class="card-link" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}>Apply</button>
                       <button class="card-link" type="button" data-open-vacancy="{{ posting.modal_id }}">View Details</button>
-
-                      <button
-                        class="card-link"
-                        type="button"
-                        data-apply-vacancy="{{ posting.id }}"
-                        {% if posting.has_applied %}style="display:none;"{% endif %}
-                      >
-                        Apply
-                      </button>
-
-                      <button
-                        class="card-link"
-                        type="button"
-                        data-cancel-vacancy="{{ posting.id }}"
-                        {% if not posting.can_cancel_application %}style="display:none;"{% endif %}
-                      >
-                        Withdraw
-                      </button>
-
-                      <button
-                        class="card-link"
-                        type="button"
-                        data-vacancy-not-interested="{{ posting.id }}"
-                      >
-                        Hide
-                      </button>
+                      <button class="card-link" type="button" data-cancel-vacancy="{{ posting.id }}" {% if not posting.can_cancel_application %}style="display:none;"{% endif %}>Withdraw</button>
+                      <button class="card-link" type="button" data-vacancy-not-interested="{{ posting.id }}">Hide</button>
                     </div>
                   </div>
                 </article>
@@ -2852,192 +3223,90 @@
           {% else %}
             <div class="empty-state">
               <strong>No recent postings available</strong>
-              <p>As new vacancies are added by your hiring team, the latest role postings will appear here for quick visibility.</p>
+              <p>As new vacancies are added by your hiring team, role matches will appear here.</p>
               <div class="card-actions">
                 <button class="card-link" type="button" data-open-profile>Review Profile</button>
               </div>
             </div>
           {% endif %}
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <div class="metrics-grid reveal">
-      <section class="panel section">
-        <div class="section-head">
-          <div class="section-head__copy">
-          <h2 class="title-with-icon"><i class="ph ph-activity" aria-hidden="true"></i>Recent Activity</h2>
-          <p class="subtle u-m-0">See the latest updates across your applications and profile activity.</p>
-          </div>
-          <div class="section-head__meta">
-            <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>View Profile</button>
-            {% if candidate.resume_file_url %}
-              <a class="card-link" href="{{ candidate.resume_file_url }}" target="_blank" rel="noopener"><i class="ph ph-file-arrow-up" aria-hidden="true"></i>Open Resume</a>
-            {% endif %}
-          </div>
-        </div>
+        <span class="section-anchor" id="activity"></span>
 
-        {% if timeline %}
-          <div class="data-table">
-            <div class="data-table__head">
-              <div>Role</div>
-              <div>Contact</div>
-              <div>Updated</div>
-              <div>Score</div>
-              <div>Status</div>
-            </div>
-
-            {% for item in timeline|slice:":4" %}
-              <div class="recent-activity__row">
-                <div class="recent-activity__cell"><strong>{{ item.role }}</strong></div>
-                <div class="recent-activity__cell">{{ item.recruiter }}</div>
-                <div class="recent-activity__cell">{{ item.date|date:"M d, Y h:i A" }}</div>
-                <div class="recent-activity__cell">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
-                <div class="recent-activity__cell"><span class="status-badge">{{ item.status|title }}</span></div>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">
-            <strong>No recent activity yet</strong>
-            <p>Your latest recruiter movement, role updates, and recent pipeline changes will appear here once the profile starts moving through the hiring flow.</p>
-            <div class="card-actions">
-              <button class="card-link" type="button" data-open-update-profile>Complete Profile</button>
+        <section class="panel section reveal activity-board" aria-label="Activity">
+          <div class="section-head">
+            <div class="section-head__copy">
+              <span class="section-kicker">Activity</span>
+              <h2 class="title-with-icon"><i class="ph ph-activity" aria-hidden="true"></i>Activity</h2>
+              <p class="subtle u-m-0">Latest recruiter movement, application status, and score updates.</p>
             </div>
           </div>
-        {% endif %}
-      </section>
 
-      <section class="panel section">
-        <div class="section-head">
-          <div class="section-head__copy">
-            <h2 class="title-with-icon"><i class="ph ph-kanban" aria-hidden="true"></i>Application Stages</h2>
-            <p class="subtle u-m-0">See where your current opportunities sit in the process.</p>
-          </div>
-        </div>
-
-        {% if stage_breakdown %}
-          <div class="stage-list">
-            {% for item in stage_breakdown %}
-              <div class="stage-row">
-                <div class="stage-meta">
-                  <span>{{ item.label }}</span>
-                  <span>{{ item.count }} roles · {{ item.share }}%</span>
-                </div>
-                <div class="stage-bar"><span style="width: {{ item.share }}%"></span></div>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">
-            <strong>No stage data yet</strong>
-            <p>Once a recruiter assigns roles or moves your profile through the pipeline, stage analytics will appear here with a clearer distribution of progress.</p>
-            <div class="card-actions">
-              <button class="card-link" type="button" data-open-profile>View Profile</button>
-            </div>
-          </div>
-        {% endif %}
-      </section>
-    </div>
-
-    <span class="section-anchor" id="activity"></span>
-
-    <div class="dashboard-grid reveal">
-      <section class="panel section">
-        <div class="section-head">
-          <div class="section-head__copy">
-            <h2 class="title-with-icon"><i class="ph ph-identification-card" aria-hidden="true"></i>Profile & Resume</h2>
-            <p class="subtle u-m-0">Review your timeline, resume highlights, and profile context in one place.</p>
-          </div>
-        </div>
-
-        <div class="section-tabs" role="tablist" aria-label="Activity tabs">
-          <button class="tab-btn is-active" type="button" role="tab" aria-selected="true" aria-controls="timelineTab" id="timelineTabButton" data-tab-target="timelineTab">Timeline</button>
-          <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="resumeTab" id="resumeTabButton" data-tab-target="resumeTab">Resume Signals</button>
-          <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="insightsTab" id="insightsTabButton" data-tab-target="insightsTab">Insights</button>
-        </div>
-
-        <div class="tab-panel is-active" id="timelineTab" role="tabpanel" aria-labelledby="timelineTabButton">
           {% if timeline %}
-            <div class="timeline">
+            <div class="data-table activity-table">
+              <div class="data-table__head">
+                <div>Role</div>
+                <div>Contact</div>
+                <div>Interview Date</div>
+                <div>Score</div>
+                <div>Status</div>
+                <div>Link</div>
+              </div>
+
               {% for item in timeline %}
-                <article class="timeline-card">
-                  <div class="timeline-top">
-                    <strong>{{ item.role }}</strong>
-                    <span class="status-badge">{{ item.status|title }}</span>
+                <div class="recent-activity__row">
+                  <div class="recent-activity__cell"><strong>{{ item.role }}</strong></div>
+                  <div class="recent-activity__cell">{{ item.recruiter }}</div>
+                  <div class="recent-activity__cell">{% if item.interview_date %}{{ item.interview_date|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</div>
+                  <div class="recent-activity__cell">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
+                  <div class="recent-activity__cell"><span class="status-badge">{{ item.status_label }}</span></div>
+                  <div class="recent-activity__cell">
+                    {% if item.interview_link %}
+                      <a class="card-link" href="{{ item.interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Open</a>
+                    {% else %}
+                      <span class="status-pill">Not available</span>
+                    {% endif %}
                   </div>
-                  <span class="subtle">Contact: {{ item.recruiter }}</span>
-                  <span class="subtle">Updated: {{ item.date|date:"M d, Y h:i A" }}</span>
-                  <span class="subtle">Score: {% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</span>
-                </article>
+                </div>
               {% endfor %}
             </div>
           {% else %}
             <div class="empty-state">
-              <strong>No pipeline activity yet</strong>
-              <p>Your role assignments and recruiter updates will appear here. As soon as a vacancy is mapped to your profile, this stream becomes your live hiring timeline.</p>
-            </div>
-          {% endif %}
-        </div>
-
-        <div class="tab-panel" id="resumeTab" role="tabpanel" aria-labelledby="resumeTabButton">
-          {% if resume.headline %}
-            <strong>{{ resume.headline }}</strong>
-          {% endif %}
-
-          {% if resume.summary %}
-            <p class="subtle u-mt-1">{{ resume.summary }}</p>
-          {% else %}
-            <div class="empty-state u-mt-1">
-              <strong>Resume intelligence pending</strong>
-              <p>Your structured summary will appear here after the latest resume is processed. Keeping resume data fresh improves the signal quality recruiters see.</p>
+              <strong>No recent activity yet</strong>
+              <p>Your role assignments and recruiter updates will appear here once your profile starts moving through the hiring flow.</p>
+              <div class="card-actions">
+                <button class="card-link" type="button" data-open-update-profile>Complete Profile</button>
+              </div>
             </div>
           {% endif %}
 
-	          <div class="pill-row u-mt-2">
-	            <span class="status-pill" id="resumeStatusDetailPill">Status: {{ resume.status|title }}</span>
-	            {% if resume.source_file %}<span class="status-pill">{{ resume.source_file }}</span>{% endif %}
-	            <span class="status-pill" id="resumeProcessedDetailPill">{% if resume.processed_at %}Processed {{ resume.processed_at|date:"M d, Y h:i A" }}{% else %}Awaiting structured extraction{% endif %}</span>
-	          </div>
-
-          {% if resume.skills %}
-            <div class="chip-list u-mt-2">
-              {% for skill in resume.skills %}
-                <span class="chip">{{ skill }}</span>
+          {% if stage_breakdown %}
+            <div class="stage-list u-mt-2">
+              {% for item in stage_breakdown %}
+                <div class="stage-row">
+                  <div class="stage-meta">
+                    <span>{{ item.label }}</span>
+                    <span>{{ item.count }} roles · {{ item.share }}%</span>
+                  </div>
+                  <div class="stage-bar"><span style="width: {{ item.share }}%"></span></div>
+                </div>
               {% endfor %}
             </div>
           {% endif %}
-        </div>
+        </section>
 
-        <div class="tab-panel" id="insightsTab" role="tabpanel" aria-labelledby="insightsTabButton">
-          <div class="insight-stack">
-            <div class="insight-card">
-              <strong>Current Contact</strong>
-              <p>Your current contact is {{ analytics.current_recruiter }}. Keeping your profile complete helps make every review more useful.</p>
-            </div>
-            <div class="insight-card">
-              <strong>Resume Signal</strong>
-              <p>Resume status is {{ resume.status|title }}{% if resume.source_file %}, sourced from {{ resume.source_file }}{% endif %}. Uploading a better version will refresh extracted data automatically.</p>
-            </div>
-            <div class="insight-card">
-              <strong>Application Progress</strong>
-              <p>{{ analytics.active_roles }} of {{ analytics.total_roles }} assigned roles are still active. {% if analytics.average_score is not None %}Your average evaluated score is {{ analytics.average_score }}.{% else %}Scoring data is still pending.{% endif %}</p>
+        <span class="section-anchor" id="profile-edit"></span>
+
+        <section class="panel section reveal" aria-label="Profile settings">
+          <div class="section-head">
+            <div class="section-head__copy">
+              <span class="section-kicker">Settings</span>
+              <h2 class="title-with-icon"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i>Profile Settings</h2>
+              <p class="subtle u-m-0">Compact profile actions without duplicating your profile details.</p>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section class="panel section" id="profile-edit">
-        <div class="section-head">
-          <div class="section-head__copy">
-            <span class="section-kicker">Manage Profile</span>
-            <h2 class="title-with-icon"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i>Profile Settings</h2>
-            <p class="subtle u-m-0">Update your contact details, photo, and resume without leaving your dashboard.</p>
-          </div>
-        </div>
-
-        <div class="profile-modal-summary">
-          <div class="card-actions">
+          <div class="settings-actions">
             <button class="card-link" type="button" data-open-update-profile><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Edit Profile</button>
             <a class="card-link" href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</a>
             <button class="card-link" type="button" data-open-share-resume><i class="ph ph-share-network" aria-hidden="true"></i>Share Resume</button>
@@ -3046,8 +3315,8 @@
             {% endif %}
             <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>View Profile</button>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
     </div>
   </div>
 
@@ -3446,6 +3715,7 @@
               <div class="posting-main">
                 <div class="posting-head">
                   <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
+                    {# WARNING: posting.role must be sanitized server-side before using |safe #}
                     <strong>{{ posting.role|safe }}</strong>
                   </button>
                   <span class="status-badge">{{ posting.status|title }}</span>
@@ -3466,6 +3736,7 @@
                 {% endif %}
 
                 {% if posting.description %}
+                  {# WARNING: posting.description must be sanitized server-side before using |safe #}
                   <div class="posting-desc">{{ posting.description|safe }}</div>
                 {% else %}
                   <p class="posting-desc">Detailed vacancy description is not available yet for this role.</p>
@@ -3505,7 +3776,7 @@
 
         <div class="section-head u-mb-1">
           <div class="section-head__copy">
-            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{{ posting.role|safe }}</h2>
+            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{# WARNING: posting.role must be sanitized server-side before using |safe #}{{ posting.role|safe }}</h2>
             <div class="pill-row">
               <span class="status-pill">{{ posting.position }} openings</span>
               {% if posting.job_type %}<span class="status-pill">{{ posting.job_type }}</span>{% endif %}
@@ -3529,6 +3800,7 @@
         <section class="resume-section">
           <h4 class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>Role Description</h4>
           {% if posting.description %}
+            {# WARNING: posting.description must be sanitized server-side before using |safe #}
             <div class="posting-rich">{{ posting.description|safe }}</div>
           {% else %}
             <p>No detailed role description is available for this posting yet.</p>
@@ -3555,7 +3827,7 @@
 
         <div class="section-head u-mb-1">
           <div class="section-head__copy">
-            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{{ posting.role|safe }}</h2>
+            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{# WARNING: posting.role must be sanitized server-side before using |safe #}{{ posting.role|safe }}</h2>
             <div class="pill-row">
               <span class="status-pill">{{ posting.position }} openings</span>
               {% if posting.job_type %}<span class="status-pill">{{ posting.job_type }}</span>{% endif %}
@@ -3579,6 +3851,7 @@
         <section class="resume-section">
           <h4 class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>Role Description</h4>
           {% if posting.description %}
+            {# WARNING: posting.description must be sanitized server-side before using |safe #}
             <div class="posting-rich">{{ posting.description|safe }}</div>
           {% else %}
             <p>No detailed role description is available for this posting yet.</p>
@@ -3806,6 +4079,86 @@
         item.style.transitionDelay = `${Math.min(index * 60, 220)}ms`;
         observer.observe(item);
       });
+    }());
+
+    (function () {
+      const navLinks = Array.from(document.querySelectorAll('.dashboard-section-nav a[href^="#"]'));
+      if (!navLinks.length) return;
+
+      const navItems = navLinks.map(function (link) {
+        const id = link.getAttribute('href').slice(1);
+        return {
+          id: id,
+          link: link,
+          anchor: document.getElementById(id),
+        };
+      }).filter(function (item) {
+        return item.id && item.anchor;
+      });
+
+      if (!navItems.length) return;
+
+      function setActiveSection(id) {
+        navItems.forEach(function (item) {
+          const isActive = item.id === id;
+          item.link.classList.toggle('is-active', isActive);
+          if (isActive) {
+            item.link.setAttribute('aria-current', 'location');
+          } else {
+            item.link.removeAttribute('aria-current');
+          }
+        });
+      }
+
+      function getHeaderOffset() {
+        const cssValue = window.getComputedStyle(document.documentElement).getPropertyValue('--header-offset');
+        const parsed = parseInt(cssValue, 10);
+        return Number.isFinite(parsed) ? parsed : 104;
+      }
+
+      function updateActiveSection() {
+        const activationLine = getHeaderOffset() + 80;
+        let currentId = navItems[0].id;
+
+        navItems.forEach(function (item) {
+          if (item.anchor.getBoundingClientRect().top <= activationLine) {
+            currentId = item.id;
+          }
+        });
+
+        const documentHeight = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight
+        );
+        const isNearBottom = window.scrollY + window.innerHeight >= documentHeight - 4;
+        if (isNearBottom) {
+          currentId = navItems[navItems.length - 1].id;
+        }
+
+        setActiveSection(currentId);
+      }
+
+      let ticking = false;
+      function scheduleUpdate() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function () {
+          updateActiveSection();
+          ticking = false;
+        });
+      }
+
+      navItems.forEach(function (item) {
+        item.link.addEventListener('click', function () {
+          setActiveSection(item.id);
+        });
+      });
+
+      window.addEventListener('scroll', scheduleUpdate, { passive: true });
+      window.addEventListener('resize', scheduleUpdate);
+      window.addEventListener('hashchange', scheduleUpdate);
+      window.addEventListener('load', scheduleUpdate);
+      updateActiveSection();
     }());
 
     (function () {
@@ -4511,7 +4864,6 @@
       const refreshResumeBtn = document.getElementById('refreshResumeDetailsBtn');
       const resumeStatusSummaryValue = document.getElementById('resumeStatusSummaryValue');
       const resumeProcessedSummaryText = document.getElementById('resumeProcessedSummaryText');
-      const heroResumeStatusPill = document.getElementById('heroResumeStatusPill');
       const workspaceResumeStatusValue = document.getElementById('workspaceResumeStatusValue');
       const resumeStatusDetailPill = document.getElementById('resumeStatusDetailPill');
       const resumeProcessedDetailPill = document.getElementById('resumeProcessedDetailPill');
@@ -4531,7 +4883,6 @@
 
               if (resumeStatusSummaryValue) resumeStatusSummaryValue.textContent = status;
               if (resumeProcessedSummaryText) resumeProcessedSummaryText.textContent = processedText;
-              if (heroResumeStatusPill) heroResumeStatusPill.textContent = `Resume ${status}`;
               if (workspaceResumeStatusValue) workspaceResumeStatusValue.textContent = status;
               if (resumeStatusDetailPill) resumeStatusDetailPill.textContent = `Status: ${status}`;
               if (resumeProcessedDetailPill) resumeProcessedDetailPill.textContent = processedText;
