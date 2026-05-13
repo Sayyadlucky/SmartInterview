@@ -1,5 +1,6 @@
 import ast
 import base64
+import copy
 import csv
 import hashlib
 import html
@@ -1119,6 +1120,71 @@ def normalize_public_expertise_items(items: list[dict], section_text: str = '') 
     return normalized
 
 
+WORD_TECHNICAL_EXPERTISE_ORDER = (
+    'Languages',
+    'Operating Systems',
+    'Databases',
+    'Frameworks',
+    'Web Technologies',
+    'Tools',
+)
+
+WORD_TECHNICAL_EXPERTISE_ALIASES = {
+    'language': 'Languages',
+    'languages': 'Languages',
+    'programming language': 'Languages',
+    'programming languages': 'Languages',
+    'operating system': 'Operating Systems',
+    'operating systems': 'Operating Systems',
+    'os': 'Operating Systems',
+    'database': 'Databases',
+    'databases': 'Databases',
+    'framework': 'Frameworks',
+    'frameworks': 'Frameworks',
+    'libraries': 'Frameworks',
+    'library': 'Frameworks',
+    'libraries/frameworks': 'Frameworks',
+    'web': 'Web Technologies',
+    'web technologies': 'Web Technologies',
+    'web technology': 'Web Technologies',
+    'tool': 'Tools',
+    'tools': 'Tools',
+    'developer tools': 'Tools',
+}
+
+
+def normalize_word_expertise_items(items: list[dict]) -> list[dict]:
+    grouped = {label: [] for label in WORD_TECHNICAL_EXPERTISE_ORDER}
+    seen = {label: set() for label in WORD_TECHNICAL_EXPERTISE_ORDER}
+    for item in items or []:
+        label_key = str(item.get('label') or '').strip().lower()
+        target = WORD_TECHNICAL_EXPERTISE_ALIASES.get(label_key)
+        if not target:
+            continue
+        for skill in item.get('skills') or []:
+            clean_skill = str(skill or '').strip()
+            skill_key = clean_skill.lower()
+            if not clean_skill or skill_key in seen[target]:
+                continue
+            seen[target].add(skill_key)
+            grouped[target].append(clean_skill)
+    return [
+        {'label': label, 'skills': grouped[label]}
+        for label in WORD_TECHNICAL_EXPERTISE_ORDER
+        if grouped[label]
+    ]
+
+
+def build_word_export_context(public_context: dict) -> dict:
+    context = copy.deepcopy(public_context)
+    for section in context.get('resume', {}).get('sections') or []:
+        section_key = str(section.get('section_key') or '').strip().lower()
+        title = str(section.get('title') or '').strip().lower()
+        if section_key == 'technical_expertise' or title == 'technical expertise':
+            section['word_expertise_items'] = normalize_word_expertise_items(section.get('expertise_items') or [])
+    return context
+
+
 def _parse_serialized_section_item(value):
     if not isinstance(value, str):
         return None
@@ -1602,13 +1668,17 @@ def build_resume_export_html(public_context: dict, export_mode: str, renderer_hi
     template_name = 'smartInterview/public_candidate_resume.html'
     if export_mode == 'pdf':
         template_name = 'smartInterview/resume_export_pdf_xhtml.html'
-    elif export_mode == 'word':
+    elif export_mode in ('word', 'doc', 'docx'):
         template_name = 'smartInterview/public_candidate_resume.html'
+    is_word_export = export_mode in ('word', 'doc', 'docx')
+    if is_word_export:
+        public_context = build_word_export_context(public_context)
     return render_to_string(
         template_name,
         {
             **public_context,
             'export_mode': export_mode,
+            'is_word_export': is_word_export,
             'renderer_hint': renderer_hint,
         },
     )
@@ -3360,12 +3430,11 @@ def publicCandidateResumeWord(request, short_code: str):
     )
     CandidatePublicResume.objects.filter(id=public_resume.id).update(download_count=F('download_count') + 1)
     context = build_public_resume_context(request, public_resume.candidate)
+    word_html = build_resume_export_html(context, 'word')
     try:
-        document_rtf = build_resume_export_rtf(context)
-        document_bytes = render_word_document_from_rtf(document_rtf)
+        document_bytes = render_word_document_from_html(word_html)
     except Exception:
-        fallback_html = build_resume_export_html(context, '')
-        document_bytes = render_word_document_from_html(fallback_html)
+        document_bytes = word_html.encode('utf-8')
     filename = f"{context['candidate']['name'].replace(' ', '_').lower() or 'candidate'}_resume.doc"
     response = HttpResponse(document_bytes, content_type='application/msword')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'

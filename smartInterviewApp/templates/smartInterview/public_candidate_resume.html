@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en"{% if export_mode == 'word' %} xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"{% endif %}>
+<html lang="en"{% if is_word_export %} xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  {% if export_mode == 'word' %}
+  {% if is_word_export %}
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="ProgId" content="Word.Document">
     <meta name="Generator" content="SmartInterview">
@@ -11,36 +11,41 @@
   <title>{{ candidate.name }} | Digital Resume</title>
   <style>
     :root {
-      --bg-0: #040811;
-      --bg-1: #070f1f;
-      --bg-2: #101c3d;
-      --panel: linear-gradient(145deg, rgba(12, 22, 44, 0.68), rgba(7, 12, 28, 0.7));
-      --panel-soft: rgba(11, 22, 44, 0.56);
-      --panel-border: rgba(135, 198, 255, 0.16);
-      --card: rgba(255, 255, 255, 0.035);
-      --card-2: linear-gradient(180deg, rgba(20, 58, 97, 0.34), rgba(10, 38, 67, 0.54));
-      --text: #ecf4ff;
-      --muted: #9eb0d0;
-      --muted-2: #86a5c5;
-      --accent: #52d5ff;
-      --accent-strong: #5f7cff;
-      --accent-soft: rgba(82, 213, 255, 0.12);
-      --accent-glow: rgba(82, 213, 255, 0.18);
-      --radius-panel: 24px;
-      --radius-card: 18px;
-      --radius-pill: 999px;
-      --shadow: 0 25px 60px rgba(3, 8, 18, 0.55);
-      --shadow-strong: 0 28px 70px rgba(0, 0, 0, 0.42);
+      --app-bg: #030815;
+      --app-bg-2: #07162b;
+      --app-panel: rgba(8, 19, 38, 0.78);
+      --app-border: rgba(116, 210, 255, 0.2);
+      --app-text: #edf7ff;
+      --app-muted: #9db4cc;
+      --accent: #10a8d8;
+      --accent-strong: #047ea7;
+      --accent-soft: #e8f8fc;
+      --accent-line: #55c9e8;
+      --warm-accent: #f59e0b;
+      --paper: #ffffff;
+      --ink: #172033;
+      --ink-soft: #374151;
+      --muted: #6b7280;
+      --muted-light: #eef2f5;
+      --rule: #d9e2ea;
+      --sheet-shadow: 0 34px 90px rgba(0, 0, 0, 0.38);
     }
 
     * { box-sizing: border-box; }
 
+    html {
+      background: var(--app-bg);
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Segoe UI", sans-serif;
-      color: var(--text);
-      background: radial-gradient(circle at 20% -20%, #1e3770 0%, #070f1f 42%, #03060e 100%);
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--app-text);
+      background:
+        radial-gradient(circle at 15% -10%, rgba(16, 168, 216, 0.32), transparent 34%),
+        radial-gradient(circle at 82% 0%, rgba(63, 117, 255, 0.2), transparent 30%),
+        linear-gradient(145deg, #030815 0%, #07172c 48%, #02050d 100%);
       padding: 28px;
       position: relative;
       overflow-x: hidden;
@@ -53,120 +58,185 @@
       inset: 0;
       pointer-events: none;
       z-index: 0;
-      filter: blur(52px);
     }
 
     body::before {
-      background: radial-gradient(circle at 40% 20%, #122754, #050913 55%, transparent 100%);
-      opacity: 0.9;
-      mix-blend-mode: screen;
+      background-image:
+        linear-gradient(rgba(116, 210, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(116, 210, 255, 0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.75), transparent 70%);
     }
 
     body::after {
-      background: radial-gradient(circle at 50% 50%, transparent 42%, rgba(1, 4, 10, 0.58) 100%);
+      background: radial-gradient(circle at 50% 50%, transparent 40%, rgba(2, 5, 13, 0.72) 100%);
     }
 
     #particles {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 0;
+      z-index: 1;
       width: 100%;
       height: 100%;
-      opacity: 0.9;
+      opacity: 1;
     }
 
     .page {
       width: min(1080px, 100%);
       margin: 0 auto;
+      position: relative;
+      z-index: 2;
       display: grid;
       gap: 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .resume-shell {
-      background: linear-gradient(165deg, rgba(9, 32, 64, 0.96), rgba(5, 23, 49, 0.96));
-      border: 1px solid var(--panel-border);
-      border-radius: var(--radius-panel);
-      box-shadow: var(--shadow);
-      padding: 24px;
-      display: grid;
-      gap: 14px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .resume-shell::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(140deg, rgba(255,255,255,0.04), transparent 30%, transparent 70%, rgba(82, 213, 255, 0.035));
-      pointer-events: none;
     }
 
     .topbar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--app-border);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(9, 24, 48, 0.88), rgba(5, 13, 28, 0.82));
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(16px);
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      border-radius: var(--radius-pill);
-      padding: 8px 12px;
-      font-size: 0.78rem;
+      color: #bcefff;
+      font-size: 0.76rem;
+      font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--accent);
-      background: var(--accent-soft);
-      border: 1px solid var(--accent-glow);
+      white-space: nowrap;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--accent-line);
+      box-shadow: 0 0 18px rgba(85, 201, 232, 0.9);
     }
 
     .action-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      justify-content: flex-end;
+      gap: 8px;
     }
 
     .action-link {
-      border-radius: var(--radius-pill);
-      padding: 10px 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      border-radius: 999px;
+      padding: 9px 13px;
+      border: 1px solid rgba(116, 210, 255, 0.24);
+      color: var(--app-text);
+      background: rgba(255, 255, 255, 0.06);
+      font: inherit;
+      font-size: 0.84rem;
+      font-weight: 700;
       text-decoration: none;
-      color: var(--text);
-      background: rgba(11, 22, 44, 0.48);
-      border: 1px solid rgba(135, 198, 255, 0.12);
-      font-size: 0.85rem;
       cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
     }
 
-    .hero {
-      display: flex;
+    .action-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(116, 210, 255, 0.5);
+      background: rgba(16, 168, 216, 0.14);
+    }
+
+    .resume-document {
+      width: min(900px, 100%);
+      min-height: auto;
+      margin: 0 auto;
+      padding: 34px 40px 40px;
+      color: var(--ink);
+      background: var(--paper);
+      border-radius: 18px;
+      box-shadow: var(--sheet-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .resume-document::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 10px;
+      background: linear-gradient(180deg, var(--accent), var(--warm-accent));
+    }
+
+    .resume-header {
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr) minmax(218px, 0.54fr);
       gap: 18px;
-      align-items: center;
-      padding: 18px;
-      border-radius: var(--radius-card);
-      background: linear-gradient(145deg, rgba(12, 22, 44, 0.78), rgba(7, 12, 28, 0.8));
-      border: 1px solid var(--panel-border);
+      align-items: start;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .identity-block {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(2.2rem, 4vw, 3.6rem);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .resume-title {
+      margin: 10px 0 0;
+      color: var(--accent-strong);
+      font-size: 1rem;
+      line-height: 1.35;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .profile-text {
+      display: -webkit-box;
+      margin: 8px 0 0;
+      max-width: 62ch;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 4;
     }
 
     .avatar {
-      width: 86px;
-      height: 86px;
-      border-radius: 24px;
+      grid-column: 1;
+      grid-row: 1;
+      width: 116px;
+      height: 158px;
+      border-radius: 6px;
       overflow: hidden;
-      border: 1px solid rgba(82, 213, 255, 0.22);
-      background: linear-gradient(150deg, rgba(12, 32, 56, 0.98), rgba(7, 19, 34, 0.95));
+      background: linear-gradient(145deg, #edf6fa, #dfeaf0);
+      border: 1px solid var(--rule);
       display: grid;
       place-items: center;
-      font-size: 1.7rem;
+      color: var(--accent-strong);
+      font-size: 2.6rem;
       font-weight: 800;
-      color: #d8f3ff;
-      flex: 0 0 auto;
     }
 
     .avatar img {
@@ -176,100 +246,149 @@
       display: block;
     }
 
-    h1 {
-      margin: 0 0 8px;
-      font-size: clamp(2rem, 4vw, 2.7rem);
-      line-height: 1.05;
-    }
-
-    .name-inline-role {
-      font-size: 0.42em;
-      font-weight: 400;
-      color: var(--muted);
-      margin-left: 8px;
-      vertical-align: middle;
-      letter-spacing: 0;
-    }
-
-    .hero-subline {
-      margin: 0;
-      color: var(--muted);
-      font-size: 1rem;
-      line-height: 1.65;
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .status-pill,
-    .box-item {
-      border-radius: var(--radius-pill);
-      padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.045);
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      color: var(--text);
-    }
-
-    .modal-grid {
+    .header-card {
+      grid-column: 3;
+      grid-row: 1;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      gap: 14px;
+      padding-left: 20px;
+      border-left: 4px solid var(--accent-line);
     }
 
-    .modal-card,
-    .resume-section {
-      border: 1px solid var(--panel-border);
-      border-radius: var(--radius-card);
-      background: var(--card);
-      padding: 14px;
-    }
-
-    .modal-card span {
-      display: block;
-      color: var(--muted-2);
-      font-size: 0.72rem;
-      margin-bottom: 4px;
+    .header-card__title {
+      margin: 0;
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
     }
 
-    .modal-card strong {
-      color: var(--text);
-      font-size: 0.95rem;
+    .contact-list,
+    .snapshot-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .contact-list li,
+    .snapshot-list li {
+      color: var(--muted);
+      font-size: 0.78rem;
       line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .resume-side-column .snapshot-list {
+      gap: 6px;
+    }
+
+    .resume-side-column .snapshot-list li {
+      font-size: 0.73rem;
+      line-height: 1.38;
+    }
+
+    .contact-list strong,
+    .snapshot-list strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--ink);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .resume-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+      gap: 32px;
+      align-items: start;
+      padding-top: 22px;
+    }
+
+    .resume-main-column,
+    .resume-side-column {
+      display: grid;
+      gap: 22px;
+      align-content: start;
+      min-width: 0;
+    }
+
+    .resume-side-column {
+      border-left: 1px solid var(--rule);
+      padding-left: 22px;
+    }
+
+    .resume-section {
+      min-width: 0;
+      padding: 0 0 20px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .resume-section:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .resume-section--hidden {
+      display: none !important;
+    }
+
+    .resume-side-column .resume-section {
+      padding-bottom: 16px;
+    }
+
+    .resume-main-column .resume-section {
+      padding-bottom: 22px;
+    }
+
+    .resume-main-column .resume-section:last-child,
+    .resume-side-column .resume-section:last-child {
+      padding-bottom: 0;
     }
 
     .resume-section h2 {
-      margin: 0 0 12px;
-      color: var(--accent);
-      font-size: 0.86rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 14px;
+      color: var(--ink);
+      font-size: 0.82rem;
+      line-height: 1.2;
+      font-weight: 900;
+      letter-spacing: 0.09em;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+    }
+
+    .resume-side-column .resume-section h2 {
+      margin-bottom: 10px;
+      font-size: 0.75rem;
+    }
+
+    .resume-section h2::before {
+      content: "";
+      width: 28px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--accent-line);
+      flex: 0 0 auto;
     }
 
     .resume-section p {
       margin: 0;
-      color: var(--muted);
-      font-size: 0.84rem;
-      line-height: 1.7;
+      color: var(--ink-soft);
+      font-size: 0.88rem;
+      line-height: 1.68;
       white-space: pre-line;
-    }
-
-    .resume-section,
-    .experience-card,
-    .box-item {
-      page-break-inside: avoid;
-      break-inside: avoid-page;
     }
 
     .box-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 7px;
     }
 
     .box-list--stacked {
@@ -278,44 +397,72 @@
     }
 
     .box-item {
-      font-size: 0.82rem;
-      line-height: 1.45;
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      max-width: 100%;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 0.7rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .resume-side-column .box-list {
+      gap: 6px;
+    }
+
+    .resume-side-column .box-item {
+      min-height: 22px;
+      padding: 3px 7px;
+      font-size: 0.68rem;
     }
 
     .box-item--section {
       display: grid;
       gap: 6px;
       width: 100%;
-      border-radius: 16px;
-      padding: 14px 16px;
+      min-height: 0;
+      padding: 11px 0 11px 13px;
+      border-left: 3px solid var(--accent-line);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .section-projects .box-item--section,
+    .section-title-projects .box-item--section {
+      padding: 12px 0 12px 16px;
+      border-left: 3px solid var(--accent);
+      background: #fbfdff;
     }
 
     .box-item strong {
       display: block;
-      margin-bottom: 4px;
-      color: var(--text);
-      font-size: 0.84rem;
+      color: var(--ink);
+      font-size: 0.86rem;
+      line-height: 1.35;
     }
 
     .box-item div {
       color: var(--muted);
-      font-size: 0.78rem;
-      line-height: 1.5;
+      font-size: 0.76rem;
+      line-height: 1.48;
     }
 
     .field-line {
       color: var(--muted);
-      font-size: 0.78rem;
-      line-height: 1.55;
+      font-size: 0.76rem;
+      line-height: 1.52;
       white-space: pre-line;
     }
 
     .field-line strong {
       display: inline;
-      margin: 0;
-      color: var(--text);
+      color: var(--ink);
       font-size: inherit;
-      font-weight: 700;
+      font-weight: 800;
     }
 
     .expertise-board {
@@ -326,127 +473,159 @@
 
     .expertise-card {
       display: grid;
-      gap: 12px;
+      gap: 10px;
       align-content: start;
       min-width: 0;
-      padding: 15px;
-      border-radius: 16px;
-      border: 1px solid rgba(135, 198, 255, 0.14);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025)),
-        rgba(13, 28, 54, 0.7);
-      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.06);
+      padding: 13px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: #fbfdff;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
     }
 
     .expertise-card__head {
       display: flex;
+      align-items: flex-start;
       justify-content: space-between;
-      align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
     }
 
     .expertise-card__head strong {
-      color: #eff8ff;
-      font-size: 0.9rem;
-      line-height: 1.3;
-      letter-spacing: 0.01em;
+      color: var(--ink);
+      font-size: 0.82rem;
+      line-height: 1.35;
     }
 
     .expertise-card__meta {
       flex: 0 0 auto;
-      border-radius: var(--radius-pill);
-      padding: 5px 9px;
-      border: 1px solid rgba(82, 213, 255, 0.18);
-      background: rgba(82, 213, 255, 0.08);
-      color: #bfefff;
-      font-size: 0.7rem;
-      font-weight: 700;
+      border-radius: 999px;
+      padding: 4px 7px;
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      font-size: 0.66rem;
+      font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       white-space: nowrap;
     }
 
     .expertise-chip-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
 
     .expertise-chip {
       display: inline-flex;
       align-items: center;
-      min-height: 30px;
+      min-height: 25px;
       max-width: 100%;
-      border-radius: 10px;
-      padding: 6px 10px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.052);
-      color: #d8eaff;
-      font-size: 0.78rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--muted-light);
+      color: var(--ink-soft);
+      font-size: 0.72rem;
       line-height: 1.3;
       overflow-wrap: anywhere;
     }
 
     .experience-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      gap: 16px;
     }
 
     .experience-card {
-      border-radius: var(--radius-card);
-      padding: 16px;
-      background: var(--card-2);
-      border: 1px solid var(--panel-border);
+      position: relative;
       display: grid;
-      gap: 12px;
-      align-content: start;
+      gap: 9px;
+      padding: 0 0 0 22px;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
+    }
+
+    .experience-card::before {
+      content: "";
+      position: absolute;
+      top: 0.4rem;
+      left: 4px;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+      z-index: 1;
+    }
+
+    .experience-card::after {
+      content: "";
+      position: absolute;
+      top: 0.55rem;
+      bottom: -16px;
+      left: 8px;
+      width: 1px;
+      background: var(--rule);
+    }
+
+    .experience-card:last-child::after {
+      display: none;
     }
 
     .experience-head {
       display: grid;
-      gap: 6px;
+      gap: 4px;
     }
 
     .experience-head strong {
-      color: #eff8ff;
-      font-size: 0.98rem;
-      line-height: 1.35;
+      color: var(--ink);
+      font-size: 1rem;
+      line-height: 1.32;
+      font-weight: 900;
     }
 
     .experience-company {
-      color: #d8efff;
-      font-size: 0.86rem;
-      font-weight: 600;
-      line-height: 1.45;
+      color: var(--ink-soft);
+      font-size: 0.84rem;
+      font-weight: 800;
+      line-height: 1.4;
     }
 
     .experience-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 5px 12px;
     }
 
     .experience-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.45;
+      font-weight: 700;
+    }
+
+    .experience-meta span + span::before {
+      content: "";
+      width: 4px;
+      height: 4px;
       border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 0.74rem;
-      color: #d0e9fb;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--accent-line);
+      flex: 0 0 auto;
     }
 
     .experience-role {
-      color: #cde8fb;
-      font-size: 0.82rem;
-      font-weight: 600;
+      color: var(--ink-soft);
+      font-size: 0.8rem;
+      font-weight: 800;
       line-height: 1.45;
     }
 
     .detail-list {
       display: grid;
-      gap: 8px;
+      gap: 6px;
       margin: 0;
       padding: 0;
       list-style: none;
@@ -454,329 +633,674 @@
 
     .detail-list li {
       position: relative;
-      padding-left: 14px;
-      color: #bdd8ee;
+      padding-left: 13px;
+      color: var(--ink-soft);
       font-size: 0.79rem;
-      line-height: 1.55;
+      line-height: 1.52;
     }
 
     .detail-list li::before {
       content: "";
       position: absolute;
       left: 0;
-      top: 0.62em;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: rgba(86, 211, 255, 0.85);
+      top: 0.65em;
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--accent-strong);
     }
 
     .footer-note {
-      color: #8cb1cf;
-      font-size: 0.79rem;
+      margin-top: 26px;
+      padding-top: 14px;
+      border-top: 1px solid var(--rule);
+      color: var(--muted);
+      font-size: 0.74rem;
       text-align: center;
     }
 
     body.is-export {
-      background: #ffffff;
-      color: #1f2f3d;
-      padding: 0;
       min-height: 0;
+      background: #ffffff;
+      padding: 0;
+      color: var(--ink);
       overflow: visible;
     }
 
     body.is-export::before,
-    body.is-export::after,
-    body.is-export .resume-shell::before {
+    body.is-export::after {
       content: none;
       display: none;
+    }
+
+    body.is-export .topbar {
+      display: none !important;
     }
 
     body.is-export .page {
       width: 100%;
       margin: 0;
-      gap: 12px;
+      display: block;
     }
 
-    body.is-export .resume-shell {
-      background: #ffffff;
-      border: 0;
-      border-radius: 0;
+    body.is-export .resume-document {
+      width: 900px;
+      margin: 0 auto;
       box-shadow: none;
-      padding: 0;
-      gap: 12px;
+      border-radius: 0;
     }
 
-    body.is-export .topbar {
+    {% if is_word_export %}
+    body.is-word-export {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #172033;
+    }
+
+    body.is-word-export::before,
+    body.is-word-export::after {
+      content: none;
       display: none;
     }
 
-    body.is-export .hero {
-      padding: 0 0 12px;
-      border-radius: 0;
-      border: 0;
-      border-bottom: 2px solid #183c5c;
+    body.is-word-export .page {
+      width: 100%;
+      margin: 0;
+      display: block;
+    }
+
+    .word-document {
+      width: 900px;
+      margin: 0 auto;
+      font-family: Arial, sans-serif;
+      color: #172033;
       background: #ffffff;
     }
 
-    body.is-export .avatar {
-      border-color: #d5e0ea;
-      background: #f4f7fa;
-      color: #183c5c;
+    .word-header-table,
+    .word-content-table {
+      width: 100%;
+      border-collapse: collapse;
     }
 
-    body.is-export h1,
-    body.is-export .hero-subline,
-    body.is-export .box-item strong,
-    body.is-export .modal-card strong,
-    body.is-export .experience-head strong,
-    body.is-export .experience-company,
-    body.is-export .experience-role {
-      color: #17324a;
+    .word-photo-cell {
+      width: 125px;
+      vertical-align: top;
+      padding: 0 18px 18px 0;
     }
 
-    body.is-export .hero-subline,
-    body.is-export .resume-section p,
-    body.is-export .box-item div,
-    body.is-export .detail-list li {
-      color: #445668;
+    .word-photo {
+      width: 110px;
+      height: 135px;
+      object-fit: cover;
+      border: 1px solid #d9e2ea;
     }
 
-    body.is-export .hero-subline {
-      font-size: 0.88rem;
-      line-height: 1.48;
-      max-width: 92%;
+    .word-avatar-fallback {
+      width: 110px;
+      height: 135px;
+      border: 1px solid #d9e2ea;
+      background: #edf6fa;
+      color: #047ea7;
+      font-size: 38px;
+      font-weight: bold;
+      text-align: center;
+      line-height: 135px;
     }
 
-    body.is-export .status-pill,
-    body.is-export .modal-card,
-    body.is-export .resume-section,
-    body.is-export .experience-card,
-    body.is-export .experience-meta span {
-      background: #ffffff;
-      border-color: #d8e1ea;
-      color: #1f2f3d;
-      box-shadow: none;
+    .word-identity-cell {
+      vertical-align: top;
+      padding: 0 20px 18px 0;
     }
 
-    body.is-export .box-item {
-      background: #ffffff;
-      border: 1px solid #d8e1ea;
-      color: #1f2f3d;
-      box-shadow: none;
-      border-radius: 10px;
+    .word-contact-cell {
+      width: 220px;
+      vertical-align: top;
+      padding-left: 18px;
+      border-left: 4px solid #55c9e8;
     }
 
-    body.is-export .box-item--section {
-      border-radius: 12px;
-      padding: 12px 14px;
-    }
-
-    body.is-export .field-line,
-    body.is-export .box-item div {
-      color: #445668;
-    }
-
-    body.is-export .field-line strong {
-      color: #17324a;
-    }
-
-    body.is-export .expertise-card {
-      background: #ffffff;
-      border-color: #d8e1ea;
-      box-shadow: none;
-    }
-
-    body.is-export .expertise-card__head strong {
-      color: #17324a;
-    }
-
-    body.is-export .expertise-card__meta,
-    body.is-export .expertise-chip {
-      background: #f6f9fc;
-      border-color: #d8e1ea;
-      color: #445668;
-    }
-
-    body.is-export .status-pill,
-    body.is-export .experience-meta span {
-      border-radius: 10px;
-    }
-
-    body.is-export .modal-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-
-    body.is-export .resume-section h2 {
-      color: #1d5677;
-      border-bottom: 1px solid #d8e1ea;
-      padding-bottom: 6px;
-    }
-
-    body.is-export .resume-section.section-work-history .experience-card,
-    body.is-export .resume-section.section-professional-experience .experience-card,
-    body.is-export .resume-section.section-experience .experience-card {
-      gap: 10px;
-      padding: 14px 15px;
-    }
-
-    body.is-export .resume-section.section-work-history .experience-head,
-    body.is-export .resume-section.section-professional-experience .experience-head,
-    body.is-export .resume-section.section-experience .experience-head {
-      gap: 5px;
-    }
-
-    body.is-export .resume-section.section-work-history .experience-head strong,
-    body.is-export .resume-section.section-professional-experience .experience-head strong,
-    body.is-export .resume-section.section-experience .experience-head strong {
-      line-height: 1.22;
-    }
-
-    body.is-export .resume-section.section-work-history .experience-company,
-    body.is-export .resume-section.section-professional-experience .experience-company,
-    body.is-export .resume-section.section-experience .experience-company,
-    body.is-export .resume-section.section-work-history .experience-role,
-    body.is-export .resume-section.section-professional-experience .experience-role,
-    body.is-export .resume-section.section-experience .experience-role {
-      line-height: 1.4;
-    }
-
-    body.is-export .resume-section.section-work-history .detail-list,
-    body.is-export .resume-section.section-professional-experience .detail-list,
-    body.is-export .resume-section.section-experience .detail-list {
-      gap: 7px;
-    }
-
-    body.is-export .resume-section.section-work-history .detail-list li,
-    body.is-export .resume-section.section-professional-experience .detail-list li,
-    body.is-export .resume-section.section-experience .detail-list li {
-      line-height: 1.34;
+    .word-name {
+      font-size: 34px;
+      line-height: 1;
+      font-weight: bold;
+      color: #172033;
       margin: 0;
     }
 
-    body.is-export .footer-note {
-      color: #7b8b9b;
-      text-align: left;
-      border-top: 1px solid #d8e1ea;
-      padding-top: 10px;
+    .word-title {
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #047ea7;
+      margin: 8px 0 8px;
     }
 
-    @media (max-width: 900px) {
-      .modal-grid,
-      .experience-grid,
+    .word-summary {
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: #374151;
+      margin: 0;
+    }
+
+    .word-contact-title {
+      margin: 0 0 10px;
+      color: #172033;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .word-contact-item {
+      margin-bottom: 7px;
+    }
+
+    .word-label {
+      color: #172033;
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .word-value {
+      color: #6b7280;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .word-divider {
+      border-top: 1px solid #d9e2ea;
+      height: 18px;
+    }
+
+    .word-main-cell {
+      width: 620px;
+      vertical-align: top;
+      padding-right: 24px;
+    }
+
+    .word-side-cell {
+      width: 250px;
+      vertical-align: top;
+      border-left: 1px solid #d9e2ea;
+      padding-left: 20px;
+    }
+
+    .word-section {
+      margin-top: 18px;
+    }
+
+    .word-section-title {
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #172033;
+      border-top: 3px solid #55c9e8;
+      padding-top: 7px;
+      margin: 0 0 9px;
+    }
+
+    .word-side-cell .word-section-title {
+      font-size: 10px;
+    }
+
+    .word-text {
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: #374151;
+    }
+
+    .word-chip {
+      display: inline-block;
+      background: #f1f5f9;
+      color: #475569;
+      padding: 3px 7px;
+      margin: 2px;
+      font-size: 9.5px;
+    }
+
+    .word-entry {
+      margin: 0 0 13px;
+      padding-left: 12px;
+      border-left: 3px solid #55c9e8;
+    }
+
+    .word-entry-title {
+      margin: 0;
+      color: #172033;
+      font-size: 13px;
+      line-height: 1.32;
+      font-weight: bold;
+    }
+
+    .word-entry-company,
+    .word-entry-role {
+      color: #374151;
+      font-size: 11px;
+      line-height: 1.4;
+      font-weight: bold;
+    }
+
+    .word-meta,
+    .word-field-line {
+      color: #6b7280;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .word-detail-list {
+      margin: 6px 0 0 16px;
+      padding: 0;
+      color: #374151;
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+
+    .word-detail-list li {
+      margin: 0 0 4px;
+      padding: 0;
+    }
+
+    .word-box {
+      margin: 0 0 10px;
+      padding: 9px 0 9px 12px;
+      border-left: 3px solid #55c9e8;
+    }
+
+    .word-box-title {
+      display: block;
+      color: #172033;
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: bold;
+    }
+
+    .word-footer-note {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid #d9e2ea;
+      color: #6b7280;
+      font-size: 10px;
+      text-align: center;
+    }
+    {% endif %}
+
+    @media screen and (max-width: 920px) {
+      .resume-header,
+      .resume-content {
+        grid-template-columns: 1fr;
+      }
+
+      .identity-block,
+      .avatar,
+      .header-card {
+        grid-column: 1;
+        grid-row: auto;
+      }
+
+      .resume-side-column {
+        border-left: 0;
+        border-top: 1px solid var(--rule);
+        padding-left: 0;
+        padding-top: 22px;
+      }
+
+      .avatar {
+        order: -1;
+      }
+
       .expertise-board {
         grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 720px) {
+    @media screen and (max-width: 720px) {
       body {
         padding: 14px;
       }
 
-      .resume-shell {
-        padding: 18px;
-      }
-
-      .hero {
+      .topbar {
         align-items: flex-start;
         flex-direction: column;
+      }
+
+      .action-row {
+        justify-content: flex-start;
+        width: 100%;
+      }
+
+      .action-link {
+        flex: 1 1 auto;
+      }
+
+      .resume-document {
+        min-height: 0;
+        padding: 28px 22px;
+        border-radius: 14px;
+      }
+
+      .resume-document::before {
+        width: 6px;
+      }
+
+      h1 {
+        font-size: 2.35rem;
+      }
+
+      .avatar {
+        width: 104px;
+        height: 140px;
+      }
+
+      .header-card {
+        padding-left: 14px;
+        order: 3;
+      }
+
+      .identity-block {
+        order: 2;
+      }
+
+      .avatar {
+        order: 1;
       }
     }
 
     @media print {
-      {% if export_mode == 'pdf' or print_mode %}
       @page {
-        size: A4 landscape;
-        margin: 10mm;
+        size: 900px 2400px;
+        margin: 0;
       }
-      {% endif %}
+
+      html,
+      body {
+        background: #ffffff;
+      }
 
       body {
-        background: #fff;
-        color: #000;
         padding: 0;
+        color: var(--ink);
+        overflow: visible;
+      }
+
+      body::before,
+      body::after,
+      #particles,
+      .topbar {
+        display: none !important;
       }
 
       .page {
         width: 100%;
+        margin: 0;
+        display: block;
       }
 
-      .resume-shell {
+      .resume-document {
+        width: 900px;
+        margin: 0 auto;
         box-shadow: none;
-        border: 0;
         border-radius: 0;
-        background: #fff;
-        color: #000;
       }
 
-      .action-row {
-        display: none !important;
-      }
-
-      .modal-card,
-      .resume-section,
-      .experience-card,
-      .box-item,
-      .status-pill {
-        background: #fff;
-        color: #111;
-        border-color: #d8e1ea;
-      }
-
-      .experience-card,
-      .box-item {
+      .resume-section {
+        break-inside: auto;
         page-break-inside: auto;
-        break-inside: auto;
       }
 
-      .experience-grid,
-      .expertise-board,
-      .box-list {
-        break-inside: auto;
-      }
-
-      .resume-section.section-work-history .experience-grid,
-      .resume-section.section-professional-experience .experience-grid,
-      .resume-section.section-experience .experience-grid,
-      .resume-section.section-education .box-list,
-      .resume-section.section-academics .box-list,
-      .resume-section.section-certifications .box-list {
-        display: block;
-      }
-
-      .resume-section.section-work-history .experience-card,
-      .resume-section.section-professional-experience .experience-card,
-      .resume-section.section-experience .experience-card,
-      .resume-section.section-education .box-item,
-      .resume-section.section-academics .box-item,
-      .resume-section.section-certifications .box-item {
-        display: block;
-        width: 100%;
-        margin-bottom: 10px;
+      .experience-card,
+      .expertise-card,
+      .box-item--section {
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
     }
   </style>
 </head>
-<body class="{% if export_mode or print_mode %}is-export{% endif %}">
+<body class="{% if export_mode or print_mode %}is-export export-long-page{% endif %}{% if is_word_export %} is-word-export{% endif %}">
   {% if not export_mode and not print_mode %}
     <canvas id="particles" aria-hidden="true"></canvas>
   {% endif %}
+
   <div class="page">
-    <div class="resume-shell">
+    {% if not export_mode %}
       <div class="topbar">
         <span class="eyebrow">Shortlistii.com Digital Resume</span>
-        {% if not export_mode %}
-          <div class="action-row">
-            <a class="action-link" href="{{ share.pdf_url }}" data-download-link>Download PDF</a>
-            <a class="action-link" href="{{ share.word_url }}" data-download-link>Download Word</a>
-            <button class="action-link" type="button" id="copyResumeLinkBtn">Copy Link</button>
-          </div>
-        {% endif %}
+        <div class="action-row">
+          <a class="action-link" href="{{ share.pdf_url }}" data-download-link>Download PDF</a>
+          <a class="action-link" href="{{ share.word_url }}" data-download-link>Download Word</a>
+          <button class="action-link" type="button" id="copyResumeLinkBtn">Copy Link</button>
+        </div>
       </div>
+    {% endif %}
 
-      <div class="hero">
+    {% if is_word_export %}
+      <table width="900" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:900px;border-collapse:collapse;font-family:Arial,sans-serif;color:#172033;background:#ffffff;margin:0 auto;">
+        <tr>
+          <td width="130" valign="top" style="width:130px;padding:0 20px 18px 0;vertical-align:top;border-bottom:1px solid #d9e2ea;">
+            {% if candidate.profile_picture_data_url %}
+              <img src="{{ candidate.profile_picture_data_url }}" width="110" height="135" alt="{{ candidate.name }}" style="width:110px;height:135px;object-fit:cover;border:1px solid #d9e2ea;display:block;">
+            {% elif candidate.profile_picture_url %}
+              <img src="{{ candidate.profile_picture_url }}" width="110" height="135" alt="{{ candidate.name }}" style="width:110px;height:135px;object-fit:cover;border:1px solid #d9e2ea;display:block;">
+            {% endif %}
+          </td>
+          <td width="500" valign="top" style="width:500px;padding:0 24px 18px 0;vertical-align:top;border-bottom:1px solid #d9e2ea;">
+            <div style="margin:0;color:#172033;font-size:34px;line-height:1;font-weight:bold;">{{ candidate.name }}</div>
+            {% if highlights.current_title %}
+              <div style="margin:8px 0 8px 0;color:#047ea7;font-size:13px;line-height:1.3;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">{{ highlights.current_title }}</div>
+            {% elif resume.headline %}
+              <div style="margin:8px 0 8px 0;color:#047ea7;font-size:13px;line-height:1.3;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">{{ resume.headline }}</div>
+            {% endif %}
+            <div style="margin:0;color:#374151;font-size:10.5px;line-height:1.45;">
+              {% if resume.summary %}
+                {{ resume.summary|truncatechars:220 }}
+              {% elif resume.professional_summary %}
+                {{ resume.professional_summary|truncatechars:220 }}
+              {% elif resume.headline %}
+                {{ resume.headline|truncatechars:220 }}
+              {% else %}
+                Professional candidate profile shared through Shortlistii.com.
+              {% endif %}
+            </div>
+          </td>
+          <td width="230" valign="top" style="width:230px;padding:0 0 18px 18px;vertical-align:top;border-left:4px solid #55c9e8;border-bottom:1px solid #d9e2ea;">
+            <div style="margin:0 0 10px 0;color:#172033;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Contact</div>
+            {% if candidate.email %}
+              <div style="margin:0 0 7px 0;">
+                <div style="color:#172033;font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Email</div>
+                <div style="color:#6b7280;font-size:10px;line-height:1.4;word-break:break-word;">{{ candidate.email }}</div>
+              </div>
+            {% endif %}
+            {% if candidate.phone %}
+              <div style="margin:0 0 7px 0;">
+                <div style="color:#172033;font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Phone</div>
+                <div style="color:#6b7280;font-size:10px;line-height:1.4;">{{ candidate.phone }}</div>
+              </div>
+            {% endif %}
+            {% if highlights.experience_years %}
+              <div style="margin:0 0 7px 0;">
+                <div style="color:#172033;font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Experience</div>
+                <div style="color:#6b7280;font-size:10px;line-height:1.4;">{{ highlights.experience_years }} years</div>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td colspan="3" style="padding:18px 0 0 0;">
+            <table width="900" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:900px;border-collapse:collapse;">
+              <tr>
+                <td width="620" valign="top" style="width:620px;padding-right:24px;vertical-align:top;">
+                  {% if resume.professional_summary or resume.summary %}
+                    <div style="margin:0 0 14px 0;">
+                      <div style="margin:16px 0 8px 0;padding-top:7px;border-top:3px solid #55c9e8;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#172033;">PROFESSIONAL SUMMARY</div>
+                      <div style="font-size:10.5px;line-height:1.45;color:#374151;">{% if resume.professional_summary %}{{ resume.professional_summary }}{% else %}{{ resume.summary }}{% endif %}</div>
+                    </div>
+                  {% endif %}
+
+                  {% for section in resume.sections %}
+                    {% if section.items %}
+                      {% if section.section_key == 'work_history' or section.section_key == 'professional_experience' or section.section_key == 'experience' or section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+                        <div style="margin:0 0 14px 0;">
+                          <div style="margin:16px 0 8px 0;padding-top:7px;border-top:3px solid #55c9e8;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#172033;">{{ section.title }}</div>
+                          {% for item in section.items %}
+                            <div style="margin:0 0 13px 0;padding-left:12px;border-left:3px solid #55c9e8;">
+                              <div style="margin:0;color:#172033;font-size:13px;line-height:1.32;font-weight:bold;">{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</div>
+                              {% if item.company %}<div style="color:#374151;font-size:11px;line-height:1.4;font-weight:bold;">{{ item.company }}</div>{% endif %}
+                              {% if item.duration or item.location %}
+                                <div style="color:#6b7280;font-size:10px;line-height:1.45;">{% if item.duration %}{{ item.duration }}{% endif %}{% if item.duration and item.location %} | {% endif %}{% if item.location %}{{ item.location }}{% endif %}</div>
+                              {% endif %}
+                              {% if item.role %}<div style="color:#374151;font-size:11px;line-height:1.4;font-weight:bold;">{{ item.role }}</div>{% endif %}
+                              {% if item.tech_stack %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Tech:</strong> {{ item.tech_stack|join:", " }}</div>{% endif %}
+                              {% if item.details %}
+                                <ul style="margin:6px 0 0 16px;padding:0;">
+                                  {% for detail in item.details %}
+                                    <li style="margin:0 0 3px 0;font-size:10.5px;line-height:1.35;color:#374151;padding:0;">{{ detail }}</li>
+                                  {% endfor %}
+                                </ul>
+                              {% elif item.description %}
+                                <div style="font-size:10.5px;line-height:1.45;color:#374151;">{{ item.description }}</div>
+                              {% endif %}
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+
+                  {% for section in resume.sections %}
+                    {% if section.section_key == 'technical_expertise' or section.title|lower == 'technical expertise' %}
+                      {% if section.word_expertise_items or section.text %}
+                        <div style="margin:0 0 14px 0;">
+                          <div style="margin:16px 0 8px 0;padding-top:7px;border-top:3px solid #55c9e8;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#172033;">TECHNICAL EXPERTISE</div>
+                          {% if section.word_expertise_items %}
+                            {% for item in section.word_expertise_items %}
+                              <div style="color:#6b7280;font-size:10px;line-height:1.45;margin:0 0 3px 0;"><strong style="color:#172033;">{{ item.label }}:</strong> {{ item.skills|join:", " }}</div>
+                            {% endfor %}
+                          {% elif section.text %}
+                            <div style="font-size:10.5px;line-height:1.45;color:#374151;">{{ section.text }}</div>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                </td>
+                <td width="250" valign="top" style="width:250px;padding-left:20px;border-left:1px solid #d9e2ea;vertical-align:top;">
+                  <div style="margin:0 0 14px 0;">
+                    <div style="margin:16px 0 8px 0;padding-top:7px;border-top:3px solid #55c9e8;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#172033;">PROFILE SNAPSHOT</div>
+                    <div style="color:#172033;font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Current Role</div>
+                    <div style="color:#6b7280;font-size:10px;line-height:1.4;margin:0 0 7px 0;">{% if highlights.current_title %}{{ highlights.current_title }}{% elif resume.headline %}{{ resume.headline }}{% else %}Candidate{% endif %}</div>
+                    <div style="color:#172033;font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Company</div>
+                    <div style="color:#6b7280;font-size:10px;line-height:1.4;margin:0 0 7px 0;">{% if highlights.current_company and highlights.current_company|length <= 60 %}{{ highlights.current_company }}{% else %}Available on request{% endif %}</div>
+                    <div style="color:#172033;font-size:9px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Experience</div>
+                    <div style="color:#6b7280;font-size:10px;line-height:1.4;margin:0 0 7px 0;">{% if highlights.experience_years %}{{ highlights.experience_years }} years{% else %}Not specified{% endif %}</div>
+                  </div>
+
+                  {% if resume.skills %}
+                    <div style="margin:0 0 14px 0;">
+                      <div style="margin:16px 0 8px 0;padding-top:7px;border-top:3px solid #55c9e8;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#172033;">CORE SKILLS</div>
+                      {% for skill in resume.skills %}
+                        <span style="display:inline-block;background:#f1f5f9;color:#475569;padding:3px 7px;margin:2px;font-size:9.5px;border-radius:10px;">{{ skill }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                  {% for section in resume.sections %}
+                    {% if section.text or section.items %}
+                      {% if section.section_key == 'education' or section.section_key == 'academics' or section.section_key == 'certifications' or section.section_key == 'languages' or section.section_key == 'achievements' or section.section_key == 'awards' or section.title|lower == 'education' or section.title|lower == 'academics' or section.title|lower == 'certifications' or section.title|lower == 'languages' or section.title|lower == 'achievements' or section.title|lower == 'awards' %}
+                        <div style="margin:0 0 14px 0;">
+                          <div style="margin:16px 0 8px 0;padding-top:7px;border-top:3px solid #55c9e8;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#172033;">{{ section.title }}</div>
+                          {% if section.items %}
+                            {% for item in section.items %}
+                              <div style="margin:0 0 10px 0;padding:8px 0 8px 10px;border-left:3px solid #55c9e8;">
+                                {% if item.title %}
+                                  <div style="display:block;color:#172033;font-size:11px;line-height:1.35;font-weight:bold;">{{ item.title }}</div>
+                                  {% if item.company %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Organization:</strong> {{ item.company }}</div>{% endif %}
+                                  {% if item.duration %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                                  {% if item.location %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Location:</strong> {{ item.location }}</div>{% endif %}
+                                  {% if item.role %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Role:</strong> {{ item.role }}</div>{% endif %}
+                                {% elif item.degree or item.institution %}
+                                  {% if item.degree %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Degree:</strong> {{ item.degree }}</div>{% endif %}
+                                  {% if item.institution %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Institution:</strong> {{ item.institution }}</div>{% endif %}
+                                  {% if item.duration %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                                  {% if item.location %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Location:</strong> {{ item.location }}</div>{% endif %}
+                                {% elif item.label or item.value %}
+                                  {% if item.label %}<div style="display:block;color:#172033;font-size:11px;line-height:1.35;font-weight:bold;">{{ item.label }}</div>{% endif %}
+                                  {% if section.section_key == 'certifications' %}
+                                    {% if item.issuer %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Issuer:</strong> {{ item.issuer }}</div>{% endif %}
+                                    {% if item.value %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Credential:</strong> {{ item.value }}</div>{% endif %}
+                                    {% if item.duration %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Issued:</strong> {{ item.duration }}</div>{% endif %}
+                                  {% elif section.section_key == 'achievements' %}
+                                    {% if item.value %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Outcome:</strong> {{ item.value }}</div>{% endif %}
+                                    {% if item.issuer %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Organization:</strong> {{ item.issuer }}</div>{% endif %}
+                                    {% if item.duration %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Date:</strong> {{ item.duration }}</div>{% endif %}
+                                  {% elif section.section_key == 'languages' %}
+                                    {% if item.value %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Proficiency:</strong> {{ item.value }}</div>{% endif %}
+                                    {% if item.issuer %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Context:</strong> {{ item.issuer }}</div>{% endif %}
+                                    {% if item.duration %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Usage:</strong> {{ item.duration }}</div>{% endif %}
+                                  {% else %}
+                                    {% if item.value %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Details:</strong> {{ item.value }}</div>{% endif %}
+                                  {% endif %}
+                                {% elif item.description %}
+                                  <div style="color:#6b7280;font-size:10px;line-height:1.45;">{{ item.description }}</div>
+                                {% else %}
+                                  <div style="color:#6b7280;font-size:10px;line-height:1.45;">{{ item }}</div>
+                                {% endif %}
+                                {% if item.issuer and section.section_key != 'certifications' and section.section_key != 'achievements' and section.section_key != 'languages' %}
+                                  <div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Issuer:</strong> {{ item.issuer }}</div>
+                                {% endif %}
+                                {% if item.tech_stack %}<div style="color:#6b7280;font-size:10px;line-height:1.45;"><strong style="color:#172033;">Tech:</strong> {{ item.tech_stack|join:", " }}</div>{% endif %}
+                                {% if item.details %}
+                                  <ul style="margin:6px 0 0 16px;padding:0;">
+                                    {% for detail in item.details %}
+                                      <li style="margin:0 0 3px 0;font-size:10.5px;line-height:1.35;color:#374151;padding:0;">{{ detail }}</li>
+                                    {% endfor %}
+                                  </ul>
+                                {% endif %}
+                              </div>
+                            {% endfor %}
+                          {% elif section.text %}
+                            <div style="font-size:10.5px;line-height:1.45;color:#374151;">{{ section.text }}</div>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="3" style="padding-top:12px;border-top:1px solid #d9e2ea;color:#6b7280;font-size:10px;text-align:center;">Shared through Shortlistii.com.</td>
+        </tr>
+      </table>
+    {% else %}
+    <article class="resume-document">
+      <header class="resume-header">
+        <div class="identity-block">
+          <h1>{{ candidate.name }}</h1>
+          {% if highlights.current_title %}
+            <p class="resume-title">{{ highlights.current_title }}</p>
+          {% elif resume.headline %}
+            <p class="resume-title">{{ resume.headline }}</p>
+          {% endif %}
+          <p class="profile-text">
+            {% if resume.summary %}
+              {{ resume.summary }}
+            {% elif resume.headline %}
+              {{ resume.headline }}
+            {% else %}
+              Professional candidate profile shared through Shortlistii.com.
+            {% endif %}
+          </p>
+        </div>
+
         <div class="avatar">
           {% if candidate.profile_picture_data_url %}
             <img src="{{ candidate.profile_picture_data_url }}" alt="{{ candidate.name }}">
@@ -786,189 +1310,293 @@
             <span>{{ candidate.name|slice:":1" }}</span>
           {% endif %}
         </div>
-        <div>
-          <h1>
-            {{ candidate.name }}
-            {% if highlights.current_title %}
-              <span class="name-inline-role">- {{ highlights.current_title }}</span>
-            {% endif %}
-          </h1>
-          <p class="hero-subline">
-            {% if resume.summary %}
-              {{ resume.summary }}
-            {% elif resume.headline %}
-              {{ resume.headline }}
-            {% else %}
-              Professional candidate profile shared through Shortlistii.com.
-            {% endif %}
-          </p>
-          <div class="pill-row">
-            {% if candidate.email %}<span class="status-pill">{{ candidate.email }}</span>{% endif %}
-            {% if candidate.phone %}<span class="status-pill">{{ candidate.phone }}</span>{% endif %}
-            {% if highlights.experience_years %}<span class="status-pill">{{ highlights.experience_years }} years experience</span>{% endif %}
-          </div>
-        </div>
-      </div>
 
-      <!-- <div class="modal-grid">
-        <div class="modal-card">
-          <span>Current Role</span>
-          <strong>{% if highlights.current_title %}{{ highlights.current_title }}{% elif resume.headline %}{{ resume.headline }}{% else %}Candidate{% endif %}</strong>
-        </div>
-        <div class="modal-card">
-          <span>Company</span>
-          <strong>{% if highlights.current_company %}{{ highlights.current_company }}{% else %}Available on request{% endif %}</strong>
-        </div>
-        <div class="modal-card">
-          <span>Experience</span>
-          <strong>{% if highlights.experience_years %}{{ highlights.experience_years }} years{% else %}Not specified{% endif %}</strong>
-        </div>
-        <div class="modal-card">
-          <span>Resume Source</span>
-          <strong>{% if resume.source_file %}{{ resume.source_file }}{% else %}Digital profile{% endif %}</strong>
-        </div>
-      </div> -->
+        <aside class="header-card">
+          <h2 class="header-card__title">Contact</h2>
+          <ul class="contact-list">
+            {% if candidate.email %}<li><strong>Email</strong>{{ candidate.email }}</li>{% endif %}
+            {% if candidate.phone %}<li><strong>Phone</strong>{{ candidate.phone }}</li>{% endif %}
+            {% if highlights.experience_years %}<li><strong>Experience</strong>{{ highlights.experience_years }} years</li>{% endif %}
+          </ul>
+        </aside>
+      </header>
 
-      {% if resume.skills %}
-        <section class="resume-section">
-          <h2>Skills</h2>
-          <div class="box-list">
-            {% for skill in resume.skills %}
-              <div class="box-item">{{ skill }}</div>
-            {% endfor %}
-          </div>
-        </section>
-      {% endif %}
-
-      {% for section in resume.sections %}
-        {% if section.text or section.items %}
-          <section class="resume-section section-{{ section.section_key|default:section.title|lower|slugify }}">
-            <h2>{{ section.title }}</h2>
-            {% if section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
-              <div class="experience-grid">
-                {% for item in section.items %}
-                  <article class="experience-card">
-                    <div class="experience-head">
-                      <strong>{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</strong>
-                      {% if item.company %}<div class="experience-company">Employer: {{ item.company }}</div>{% endif %}
-                    </div>
-                    <div class="experience-meta">
-                      {% if item.duration %}<span>Duration: {{ item.duration }}</span>{% endif %}
-                      {% if item.location %}<span>Location: {{ item.location }}</span>{% endif %}
-                    </div>
-                    {% if item.role %}<div class="experience-role">Function: {{ item.role }}</div>{% endif %}
-                    {% if item.tech_stack %}
-                      <div class="field-line"><strong>Tech Stack:</strong> {{ item.tech_stack|join:", " }}</div>
-                      <div class="box-list">
-                        {% for tech in item.tech_stack %}
-                          <div class="box-item">{{ tech }}</div>
-                        {% endfor %}
-                      </div>
-                    {% endif %}
-                    {% if item.details %}
-                      <ul class="detail-list">
-                        {% for detail in item.details %}
-                          <li>{{ detail }}</li>
-                        {% endfor %}
-                      </ul>
-                    {% elif item.description %}
-                      <p>{{ item.description }}</p>
-                    {% endif %}
-                  </article>
-                {% endfor %}
-              </div>
-            {% elif section.section_key == 'technical_expertise' %}
-              {% if section.expertise_items %}
-                <div class="expertise-board">
-                  {% for item in section.expertise_items %}
-                    <article class="expertise-card">
-                      <div class="expertise-card__head">
-                        <strong>{{ item.label }}</strong>
-                        <span class="expertise-card__meta">{{ item.count }} skill{{ item.count|pluralize }}</span>
-                      </div>
-                      <div class="expertise-chip-list">
-                        {% for skill in item.skills %}
-                          <span class="expertise-chip">{{ skill }}</span>
-                        {% endfor %}
-                      </div>
-                    </article>
-                  {% endfor %}
-                </div>
-              {% elif section.text %}
-                <p>{{ section.text }}</p>
-              {% endif %}
-            {% elif section.items %}
-              <div class="box-list box-list--stacked">
-                {% for item in section.items %}
-                  <div class="box-item box-item--section">
-                    {% if item.title %}
-                      <strong>{{ item.title }}</strong>
-                      {% if section.section_key == 'projects' %}
-                        {% if item.company %}<div class="field-line"><strong>Client / Link:</strong> {{ item.company }}</div>{% endif %}
-                        {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
-                        {% if item.duration %}<div class="field-line"><strong>Duration:</strong> {{ item.duration }}</div>{% endif %}
-                        {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
-                      {% else %}
-                        {% if item.company %}<div class="field-line"><strong>Organization:</strong> {{ item.company }}</div>{% endif %}
-                        {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
-                        {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
-                        {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
-                      {% endif %}
-                    {% elif item.degree or item.institution %}
-                      {% if item.degree %}<div class="field-line"><strong>Degree:</strong> {{ item.degree }}</div>{% endif %}
-                      {% if item.institution %}<div class="field-line"><strong>Institution:</strong> {{ item.institution }}</div>{% endif %}
-                      {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
-                      {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
-                    {% elif item.label or item.value %}
-                      {% if item.label %}<strong>{{ item.label }}</strong>{% endif %}
-                      {% if section.section_key == 'certifications' %}
-                        {% if item.issuer %}<div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>{% endif %}
-                        {% if item.value %}<div class="field-line"><strong>Credential:</strong> {{ item.value }}</div>{% endif %}
-                        {% if item.duration %}<div class="field-line"><strong>Issued:</strong> {{ item.duration }}</div>{% endif %}
-                      {% elif section.section_key == 'achievements' %}
-                        {% if item.value %}<div class="field-line"><strong>Outcome:</strong> {{ item.value }}</div>{% endif %}
-                        {% if item.issuer %}<div class="field-line"><strong>Organization:</strong> {{ item.issuer }}</div>{% endif %}
-                        {% if item.duration %}<div class="field-line"><strong>Date:</strong> {{ item.duration }}</div>{% endif %}
-                      {% elif section.section_key == 'languages' %}
-                        {% if item.value %}<div class="field-line"><strong>Proficiency:</strong> {{ item.value }}</div>{% endif %}
-                        {% if item.issuer %}<div class="field-line"><strong>Context:</strong> {{ item.issuer }}</div>{% endif %}
-                        {% if item.duration %}<div class="field-line"><strong>Usage:</strong> {{ item.duration }}</div>{% endif %}
-                      {% else %}
-                        {% if item.value %}<div class="field-line"><strong>Details:</strong> {{ item.value }}</div>{% endif %}
-                      {% endif %}
-                    {% elif item.description %}
-                      <div class="field-line">{{ item.description }}</div>
-                    {% else %}
-                      {{ item }}
-                    {% endif %}
-                    {% if item.issuer and section.section_key != 'certifications' and section.section_key != 'achievements' and section.section_key != 'languages' %}
-                      <div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>
-                    {% endif %}
-                    {% if item.tech_stack %}
-                      <div class="field-line"><strong>Tech Stack:</strong> {{ item.tech_stack|join:", " }}</div>
-                    {% endif %}
-                    {% if item.description %}
-                      <div class="field-line"><strong>Summary:</strong> {{ item.description }}</div>
-                    {% endif %}
-                    {% if item.details %}
-                      {% for detail in item.details %}
-                        <div class="field-line"><strong>{% if section.section_key == 'projects' %}Highlight{% elif section.section_key == 'education' %}Detail{% elif section.section_key == 'certifications' %}Coverage{% elif section.section_key == 'achievements' %}Impact{% elif section.section_key == 'languages' %}Usage Detail{% else %}Detail{% endif %}:</strong> {{ detail }}</div>
+      <div class="resume-content">
+        <main class="resume-main-column">
+          {% for section in resume.sections %}
+            {% if section.text or section.items or section.expertise_items %}
+              {% if section.section_key == 'education' or section.section_key == 'academics' or section.section_key == 'certifications' or section.section_key == 'languages' or section.section_key == 'achievements' or section.section_key == 'awards' or section.title|lower == 'education' or section.title|lower == 'academics' or section.title|lower == 'certifications' or section.title|lower == 'languages' or section.title|lower == 'achievements' or section.title|lower == 'awards' %}
+              {% else %}
+                <section class="resume-section section-{{ section.section_key|default:section.title|lower|slugify }} section-title-{{ section.title|lower|slugify }}{% if highlights.experience_years|add:"0" > 1 %}{% if section.section_key == 'career_objective' or section.section_key == 'career_objectives' or section.section_key == 'objective' or section.title|lower == 'career objective' or section.title|lower == 'career objectives' or section.title|lower == 'objective' %} resume-section--hidden{% endif %}{% endif %}">
+                  <h2>{{ section.title }}</h2>
+                  {% if section.section_key == 'work_history' or section.section_key == 'professional_experience' or section.section_key == 'experience' or section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+                    <div class="experience-grid">
+                      {% for item in section.items %}
+                        <article class="experience-card">
+                          <div class="experience-head">
+                            <strong>{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</strong>
+                            {% if item.company %}<div class="experience-company">{{ item.company }}</div>{% endif %}
+                          </div>
+                          <div class="experience-meta">
+                            {% if item.duration %}<span>{{ item.duration }}</span>{% endif %}
+                            {% if item.location %}<span>{{ item.location }}</span>{% endif %}
+                          </div>
+                          {% if item.role %}<div class="experience-role">{{ item.role }}</div>{% endif %}
+                          {% if item.tech_stack %}
+                            <div class="field-line"><strong>Tech:</strong> {{ item.tech_stack|join:", " }}</div>
+                          {% endif %}
+                          {% if item.details %}
+                            <ul class="detail-list">
+                              {% for detail in item.details %}
+                                <li>{{ detail }}</li>
+                              {% endfor %}
+                            </ul>
+                          {% elif item.description %}
+                            <p>{{ item.description }}</p>
+                          {% endif %}
+                        </article>
                       {% endfor %}
+                    </div>
+                  {% elif section.section_key == 'technical_expertise' %}
+                    {% if section.expertise_items %}
+                      <div class="expertise-board">
+                        {% for item in section.expertise_items %}
+                          <article class="expertise-card">
+                            <div class="expertise-card__head">
+                              <strong>{{ item.label }}</strong>
+                              <span class="expertise-card__meta">{{ item.count }} skill{{ item.count|pluralize }}</span>
+                            </div>
+                            <div class="expertise-chip-list">
+                              {% for skill in item.skills %}
+                                <span class="expertise-chip">{{ skill }}</span>
+                              {% endfor %}
+                            </div>
+                          </article>
+                        {% endfor %}
+                      </div>
+                    {% elif section.text %}
+                      <p>{{ section.text }}</p>
                     {% endif %}
-                  </div>
+                  {% elif section.items %}
+                    <div class="box-list box-list--stacked">
+                      {% for item in section.items %}
+                        <div class="box-item box-item--section">
+                          {% if item.title %}
+                            <strong>{{ item.title }}</strong>
+                            {% if section.section_key == 'projects' %}
+                              {% if item.company %}<div class="field-line"><strong>Client / Link:</strong> {{ item.company }}</div>{% endif %}
+                              {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Duration:</strong> {{ item.duration }}</div>{% endif %}
+                              {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                            {% else %}
+                              {% if item.company %}<div class="field-line"><strong>Organization:</strong> {{ item.company }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                              {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                              {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
+                            {% endif %}
+                          {% elif item.degree or item.institution %}
+                            {% if item.degree %}<div class="field-line"><strong>Degree:</strong> {{ item.degree }}</div>{% endif %}
+                            {% if item.institution %}<div class="field-line"><strong>Institution:</strong> {{ item.institution }}</div>{% endif %}
+                            {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                            {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                          {% elif item.label or item.value %}
+                            {% if item.label %}<strong>{{ item.label }}</strong>{% endif %}
+                            {% if section.section_key == 'certifications' %}
+                              {% if item.issuer %}<div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>{% endif %}
+                              {% if item.value %}<div class="field-line"><strong>Credential:</strong> {{ item.value }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Issued:</strong> {{ item.duration }}</div>{% endif %}
+                            {% elif section.section_key == 'achievements' %}
+                              {% if item.value %}<div class="field-line"><strong>Outcome:</strong> {{ item.value }}</div>{% endif %}
+                              {% if item.issuer %}<div class="field-line"><strong>Organization:</strong> {{ item.issuer }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Date:</strong> {{ item.duration }}</div>{% endif %}
+                            {% elif section.section_key == 'languages' %}
+                              {% if item.value %}<div class="field-line"><strong>Proficiency:</strong> {{ item.value }}</div>{% endif %}
+                              {% if item.issuer %}<div class="field-line"><strong>Context:</strong> {{ item.issuer }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Usage:</strong> {{ item.duration }}</div>{% endif %}
+                            {% else %}
+                              {% if item.value %}<div class="field-line"><strong>Details:</strong> {{ item.value }}</div>{% endif %}
+                            {% endif %}
+                          {% elif item.description %}
+                            <div class="field-line">{{ item.description }}</div>
+                          {% else %}
+                            {{ item }}
+                          {% endif %}
+                          {% if item.issuer and section.section_key != 'certifications' and section.section_key != 'achievements' and section.section_key != 'languages' %}
+                            <div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>
+                          {% endif %}
+                          {% if item.tech_stack %}
+                            <div class="field-line"><strong>Tech:</strong> {{ item.tech_stack|join:", " }}</div>
+                          {% endif %}
+                          {% if item.description %}
+                            <div class="field-line"><strong>Summary:</strong> {{ item.description }}</div>
+                          {% endif %}
+                          {% if item.details %}
+                            {% for detail in item.details %}
+                              <div class="field-line"><strong>{% if section.section_key == 'projects' %}Highlight{% elif section.section_key == 'education' %}Detail{% elif section.section_key == 'certifications' %}Coverage{% elif section.section_key == 'achievements' %}Impact{% elif section.section_key == 'languages' %}Usage Detail{% else %}Detail{% endif %}:</strong> {{ detail }}</div>
+                            {% endfor %}
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% elif section.text %}
+                    <p>{{ section.text }}</p>
+                  {% endif %}
+                </section>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        </main>
+
+        <aside class="resume-side-column">
+          <section class="resume-section section-profile-snapshot">
+            <h2>Profile Snapshot</h2>
+            <ul class="snapshot-list">
+              <li><strong>Current Role</strong>{% if highlights.current_title %}{{ highlights.current_title }}{% elif resume.headline %}{{ resume.headline }}{% else %}Candidate{% endif %}</li>
+              <li><strong>Company</strong>{% if highlights.current_company and highlights.current_company|length <= 60 %}{{ highlights.current_company }}{% else %}Available on request{% endif %}</li>
+              <li><strong>Experience</strong>{% if highlights.experience_years %}{{ highlights.experience_years }} years{% else %}Not specified{% endif %}</li>
+            </ul>
+          </section>
+
+          {% if resume.skills %}
+            <section class="resume-section section-core-skills">
+              <h2>Core Skills</h2>
+              <div class="box-list">
+                {% for skill in resume.skills %}
+                  <div class="box-item">{{ skill }}</div>
                 {% endfor %}
               </div>
-            {% elif section.text %}
-              <p>{{ section.text }}</p>
+            </section>
+          {% endif %}
+
+          {% for section in resume.sections %}
+            {% if section.text or section.items or section.expertise_items %}
+              {% if section.section_key == 'education' or section.section_key == 'academics' or section.section_key == 'certifications' or section.section_key == 'languages' or section.section_key == 'achievements' or section.section_key == 'awards' or section.title|lower == 'education' or section.title|lower == 'academics' or section.title|lower == 'certifications' or section.title|lower == 'languages' or section.title|lower == 'achievements' or section.title|lower == 'awards' %}
+                <section class="resume-section section-{{ section.section_key|default:section.title|lower|slugify }} section-title-{{ section.title|lower|slugify }}">
+                  <h2>{{ section.title }}</h2>
+                  {% if section.section_key == 'work_history' or section.section_key == 'professional_experience' or section.section_key == 'experience' or section.title|lower == 'work history' or section.title|lower == 'professional experience' or section.title|lower == 'experience' %}
+                    <div class="experience-grid">
+                      {% for item in section.items %}
+                        <article class="experience-card">
+                          <div class="experience-head">
+                            <strong>{{ item.title|default:item.degree|default:item.label|default:"Experience Entry" }}</strong>
+                            {% if item.company %}<div class="experience-company">{{ item.company }}</div>{% endif %}
+                          </div>
+                          <div class="experience-meta">
+                            {% if item.duration %}<span>{{ item.duration }}</span>{% endif %}
+                            {% if item.location %}<span>{{ item.location }}</span>{% endif %}
+                          </div>
+                          {% if item.role %}<div class="experience-role">{{ item.role }}</div>{% endif %}
+                          {% if item.tech_stack %}
+                            <div class="field-line"><strong>Tech:</strong> {{ item.tech_stack|join:", " }}</div>
+                          {% endif %}
+                          {% if item.details %}
+                            <ul class="detail-list">
+                              {% for detail in item.details %}
+                                <li>{{ detail }}</li>
+                              {% endfor %}
+                            </ul>
+                          {% elif item.description %}
+                            <p>{{ item.description }}</p>
+                          {% endif %}
+                        </article>
+                      {% endfor %}
+                    </div>
+                  {% elif section.section_key == 'technical_expertise' %}
+                    {% if section.expertise_items %}
+                      <div class="expertise-board">
+                        {% for item in section.expertise_items %}
+                          <article class="expertise-card">
+                            <div class="expertise-card__head">
+                              <strong>{{ item.label }}</strong>
+                              <span class="expertise-card__meta">{{ item.count }} skill{{ item.count|pluralize }}</span>
+                            </div>
+                            <div class="expertise-chip-list">
+                              {% for skill in item.skills %}
+                                <span class="expertise-chip">{{ skill }}</span>
+                              {% endfor %}
+                            </div>
+                          </article>
+                        {% endfor %}
+                      </div>
+                    {% elif section.text %}
+                      <p>{{ section.text }}</p>
+                    {% endif %}
+                  {% elif section.items %}
+                    <div class="box-list box-list--stacked">
+                      {% for item in section.items %}
+                        <div class="box-item box-item--section">
+                          {% if item.title %}
+                            <strong>{{ item.title }}</strong>
+                            {% if section.section_key == 'projects' %}
+                              {% if item.company %}<div class="field-line"><strong>Client / Link:</strong> {{ item.company }}</div>{% endif %}
+                              {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Duration:</strong> {{ item.duration }}</div>{% endif %}
+                              {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                            {% else %}
+                              {% if item.company %}<div class="field-line"><strong>Organization:</strong> {{ item.company }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                              {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                              {% if item.role %}<div class="field-line"><strong>Role:</strong> {{ item.role }}</div>{% endif %}
+                            {% endif %}
+                          {% elif item.degree or item.institution %}
+                            {% if item.degree %}<div class="field-line"><strong>Degree:</strong> {{ item.degree }}</div>{% endif %}
+                            {% if item.institution %}<div class="field-line"><strong>Institution:</strong> {{ item.institution }}</div>{% endif %}
+                            {% if item.duration %}<div class="field-line"><strong>Timeline:</strong> {{ item.duration }}</div>{% endif %}
+                            {% if item.location %}<div class="field-line"><strong>Location:</strong> {{ item.location }}</div>{% endif %}
+                          {% elif item.label or item.value %}
+                            {% if item.label %}<strong>{{ item.label }}</strong>{% endif %}
+                            {% if section.section_key == 'certifications' %}
+                              {% if item.issuer %}<div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>{% endif %}
+                              {% if item.value %}<div class="field-line"><strong>Credential:</strong> {{ item.value }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Issued:</strong> {{ item.duration }}</div>{% endif %}
+                            {% elif section.section_key == 'achievements' %}
+                              {% if item.value %}<div class="field-line"><strong>Outcome:</strong> {{ item.value }}</div>{% endif %}
+                              {% if item.issuer %}<div class="field-line"><strong>Organization:</strong> {{ item.issuer }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Date:</strong> {{ item.duration }}</div>{% endif %}
+                            {% elif section.section_key == 'languages' %}
+                              {% if item.value %}<div class="field-line"><strong>Proficiency:</strong> {{ item.value }}</div>{% endif %}
+                              {% if item.issuer %}<div class="field-line"><strong>Context:</strong> {{ item.issuer }}</div>{% endif %}
+                              {% if item.duration %}<div class="field-line"><strong>Usage:</strong> {{ item.duration }}</div>{% endif %}
+                            {% else %}
+                              {% if item.value %}<div class="field-line"><strong>Details:</strong> {{ item.value }}</div>{% endif %}
+                            {% endif %}
+                          {% elif item.description %}
+                            <div class="field-line">{{ item.description }}</div>
+                          {% else %}
+                            {{ item }}
+                          {% endif %}
+                          {% if item.issuer and section.section_key != 'certifications' and section.section_key != 'achievements' and section.section_key != 'languages' %}
+                            <div class="field-line"><strong>Issuer:</strong> {{ item.issuer }}</div>
+                          {% endif %}
+                          {% if item.tech_stack %}
+                            <div class="field-line"><strong>Tech:</strong> {{ item.tech_stack|join:", " }}</div>
+                          {% endif %}
+                          {% if item.description %}
+                            <div class="field-line"><strong>Summary:</strong> {{ item.description }}</div>
+                          {% endif %}
+                          {% if item.details %}
+                            {% for detail in item.details %}
+                              <div class="field-line"><strong>{% if section.section_key == 'projects' %}Highlight{% elif section.section_key == 'education' %}Detail{% elif section.section_key == 'certifications' %}Coverage{% elif section.section_key == 'achievements' %}Impact{% elif section.section_key == 'languages' %}Usage Detail{% else %}Detail{% endif %}:</strong> {{ detail }}</div>
+                            {% endfor %}
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% elif section.text %}
+                    <p>{{ section.text }}</p>
+                  {% endif %}
+                </section>
+              {% endif %}
             {% endif %}
-          </section>
-        {% endif %}
-      {% endfor %}
+          {% endfor %}
+        </aside>
+      </div>
 
       <div class="footer-note">
         Shared through Shortlistii.com.
       </div>
-    </div>
+    </article>
+    {% endif %}
   </div>
 
   {% if not export_mode %}
@@ -981,7 +1609,7 @@
             let points = [];
             let animationFrameId = 0;
             const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            const pointCount = reducedMotion ? 28 : 72;
+            const pointCount = reducedMotion ? 45 : 110;
             const maxDistance = 120;
 
             function resizeParticles() {
