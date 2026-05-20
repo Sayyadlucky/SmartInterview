@@ -51,7 +51,11 @@ class Migration(migrations.Migration):
                 'indexes': [
                     models.Index(fields=['role_family', 'role_subfamily'], name='cand_search_family_idx'),
                     models.Index(fields=['location_normalized', 'experience_years'], name='cand_search_loc_exp_idx'),
-                    smartInterviewApp.pgvector_compat.HnswIndex(fields=['embedding'], name='cand_search_embedding_hnsw'),
+                    smartInterviewApp.pgvector_compat.HnswIndex(
+                        fields=['embedding'],
+                        name='cand_search_embedding_hnsw',
+                        opclasses=['vector_cosine_ops'],
+                    ),
                 ],
             },
         ),

@@ -274,7 +274,6 @@ class InterviewReminderService:
         with transaction.atomic():
             delivery = (
                 InterviewReminderDelivery.objects.select_for_update()
-                .select_related('interview__candidate__profile', 'interview__role')
                 .filter(
                     interview_id=interview_id,
                     reminder_type=reminder_type,

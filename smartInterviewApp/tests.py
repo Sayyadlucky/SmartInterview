@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from io import StringIO
 import json
+import os
 import tempfile
 from unittest.mock import patch
 
@@ -40,8 +41,10 @@ from smartInterviewApp.services.interview_reminders import (
     clean_value,
 )
 from smartInterviewApp.services.interview_blueprints import build_job_interview_blueprint, process_job_interview_blueprint_task
+from smartInterviewApp.services.blueprint_plan_signature import blueprint_plan_signature, ensure_blueprint_plan_signature
 from smartInterviewApp.services.question_banks import (
     OpenAIQuestionGenerationError,
+    _coding_readiness_for_blueprint,
     _select_question_generation_job_ids,
     _worker_lock_queryset,
     ensure_question_bank_for_blueprint,
@@ -276,6 +279,7 @@ class NotificationSystemTests(TestCase):
             }),
         )
 
+    @override_settings(META_WHATSAPP_APP_SECRET='')
     def test_meta_webhook_updates_status(self):
         notification = Notification.objects.create(
             user=self.user,
@@ -360,6 +364,21 @@ class CandidateOnboardingTests(TestCase):
             admin=self.admin,
         )
         self.role.recruiter.add(self.recruiter)
+
+        self.candidate = User.objects.create_user(username='candidate1', password='pass1234', email='candidate@example.com')
+        self.candidate.first_name = 'Candidate'
+        self.candidate.last_name = 'One'
+        self.candidate.save(update_fields=['first_name', 'last_name'])
+        UserProfile.objects.create(user=self.candidate, role='candidate', phone='919111111111', gender='female', hr=self.admin)
+
+        self.interview = Interview.objects.create(
+            candidate=self.candidate,
+            recruiter=self.recruiter,
+            hr=self.admin,
+            interviewer=self.interviewer,
+            role=self.role,
+            status='scheduled',
+        )
         self.client.login(username='admin1', password='pass1234')
 
     @patch('smartInterviewApp.commonViews.send_template_message')
@@ -949,8 +968,10 @@ class CandidateOnboardingTests(TestCase):
         candidate.refresh_from_db()
         profile.refresh_from_db()
         self.assertTrue(candidate.has_usable_password())
-        self.assertTrue(profile.profile_picture.name.endswith('profile.jpg'))
-        self.assertTrue(profile.resume.name.endswith('resume.pdf'))
+        self.assertTrue(os.path.basename(profile.profile_picture.name).startswith('profile'))
+        self.assertTrue(profile.profile_picture.name.endswith('.jpg'))
+        self.assertTrue(os.path.basename(profile.resume.name).startswith('resume'))
+        self.assertTrue(profile.resume.name.endswith('.pdf'))
         process_resume_mock.assert_called_once_with(candidate, profile, interview=interview)
         self.assertEqual(len(mail.outbox), 1)
         sent_message = mail.outbox[0]
@@ -997,8 +1018,10 @@ class CandidateOnboardingTests(TestCase):
         candidate.refresh_from_db()
         profile.refresh_from_db()
         self.assertTrue(candidate.has_usable_password())
-        self.assertTrue(profile.profile_picture.name.endswith('profile.jpg'))
-        self.assertTrue(profile.resume.name.endswith('resume.pdf'))
+        self.assertTrue(os.path.basename(profile.profile_picture.name).startswith('profile'))
+        self.assertTrue(profile.profile_picture.name.endswith('.jpg'))
+        self.assertTrue(os.path.basename(profile.resume.name).startswith('resume'))
+        self.assertTrue(profile.resume.name.endswith('.pdf'))
         process_resume_mock.assert_called_once_with(candidate, profile, interview=interview)
 
     @patch('smartInterviewApp.commonViews.ResumeProcessingService.process_profile_resume')
@@ -1039,8 +1062,10 @@ class CandidateOnboardingTests(TestCase):
         self.assertEqual(profile.role, 'candidate')
         self.assertEqual(profile.phone, '9876543210')
         self.assertEqual(profile.gender, 'male')
-        self.assertTrue(profile.profile_picture.name.endswith('manual_profile.jpg'))
-        self.assertTrue(profile.resume.name.endswith('manual_resume.pdf'))
+        self.assertTrue(os.path.basename(profile.profile_picture.name).startswith('manual_profile'))
+        self.assertTrue(profile.profile_picture.name.endswith('.jpg'))
+        self.assertTrue(os.path.basename(profile.resume.name).startswith('manual_resume'))
+        self.assertTrue(profile.resume.name.endswith('.pdf'))
         process_resume_mock.assert_called_once_with(candidate, profile, interview=None)
         self.assertEqual(len(mail.outbox), 1)
         sent_message = mail.outbox[0]
@@ -1196,11 +1221,11 @@ class CandidateRoutingTests(TestCase):
         self.assertEqual(admin_candidates_response.status_code, 200)
         admin_candidates_payload = admin_candidates_response.json()
         self.assertTrue(admin_candidates_payload['Success'])
-        self.assertEqual(admin_candidates_payload['Data']['candidates'][0]['interviewer'], 'Interviewer One')
-        self.assertEqual(admin_candidates_payload['Data']['candidates'][0]['recruiter'], 'Recruiter One')
+        self.assertEqual(admin_candidates_payload['Data']['candidates'][0]['interviewer'], 'Interviewer Route')
+        self.assertEqual(admin_candidates_payload['Data']['candidates'][0]['recruiter'], 'Recruiter Route')
 
         self.client.logout()
-        self.client.login(username='recruiter1', password='pass1234')
+        self.client.login(username='recruiter-route', password='pass1234')
 
         hr_eval_response = self.client.get(reverse('get-evaluator'))
         self.assertEqual(hr_eval_response.status_code, 200)
@@ -1213,7 +1238,7 @@ class CandidateRoutingTests(TestCase):
         hr_profile_payload = hr_profile_response.json()
         self.assertTrue(hr_profile_payload['Success'])
         self.assertEqual(hr_profile_payload['Interviews'][0]['candidate'], 'Hierarchy Candidate')
-        self.assertEqual(hr_profile_payload['Interviews'][0]['recruiter'], 'Recruiter One')
+        self.assertEqual(hr_profile_payload['Interviews'][0]['recruiter'], 'Recruiter Route')
 
 
 @override_settings(MEDIA_ROOT=tempfile.gettempdir())
@@ -1251,7 +1276,8 @@ class PublicJobsPortalTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Backend Python Developer')
-        self.assertContains(response, 'Login to Apply')
+        self.assertContains(response, 'Candidate login required')
+        self.assertContains(response, 'Apply Now')
 
     def test_jobs_portal_limits_default_feed_to_top_ten_roles(self):
         for index in range(12):
@@ -1320,8 +1346,8 @@ class PublicJobsPortalTests(TestCase):
         page_response = self.client.get(reverse('jobs-portal'))
 
         self.assertEqual(page_response.status_code, 200)
-        self.assertContains(page_response, 'Saved Postings')
-        self.assertContains(page_response, 'Remove Saved')
+        self.assertContains(page_response, 'Bookmarked Roles')
+        self.assertContains(page_response, 'Saved')
 
     @patch('smartInterviewApp.commonViews.verify_otp')
     @patch('smartInterviewApp.commonViews.request_otp')
@@ -1767,17 +1793,18 @@ class InterviewReminderTests(TestCase):
             'interview_token': 'abcd1234',
             'interview_link': 'https://litio.shortlistii.com/i/abcd1234',
         }
-        response = self.client.post(
-            reverse('update-interview-workflow'),
-            data=json.dumps({
-                'interview_ids': [self.interview.id],
-                'mode': 'schedule',
-                'interview_type': 'manual',
-                'interviewer_id': self.interviewer.id,
-                'scheduled_at': (timezone.now() + timedelta(days=1)).isoformat(),
-            }),
-            content_type='application/json',
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse('update-interview-workflow'),
+                data=json.dumps({
+                    'interview_ids': [self.interview.id],
+                    'mode': 'schedule',
+                    'interview_type': 'manual',
+                    'interviewer_id': self.interviewer.id,
+                    'scheduled_at': (timezone.now() + timedelta(days=1)).isoformat(),
+                }),
+                content_type='application/json',
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['Success'])
@@ -1826,10 +1853,11 @@ class InterviewReminderTests(TestCase):
 
     @patch('smartInterviewApp.views.InterviewReminderService.cancel_pending_interview_reminders')
     def test_status_update_cancels_future_reminders(self, cancel_mock):
-        response = self.client.post(reverse('update-candidate-status'), data={
-            'candidateId': self.interview.id,
-            'newStatus': 'cancelled',
-        })
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse('update-candidate-status'), data={
+                'candidateId': self.interview.id,
+                'newStatus': 'cancelled',
+            })
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['Success'])
@@ -1862,7 +1890,14 @@ class CandidateEvaluationSummaryTests(TestCase):
         UserProfile.objects.create(user=self.recruiter, role='recruiter', phone='919111111101', gender='male', hr=self.admin)
         UserProfile.objects.create(user=self.interviewer, role='interviewer', phone='919111111102', gender='female', hr=self.admin)
         UserProfile.objects.create(user=self.candidate, role='candidate', phone='919111111103', gender='female', hr=self.admin)
-        self.role = Vacancies.objects.create(role='Backend Engineer', description='Role description', skills_required='Python')
+        self.role = Vacancies.objects.create(
+            role='Backend Engineer',
+            description='Role description',
+            position='1',
+            status='active',
+            admin=self.admin,
+        )
+        self.role.recruiter.add(self.recruiter)
         self.interview = Interview.objects.create(
             candidate=self.candidate,
             recruiter=self.recruiter,
@@ -2127,6 +2162,205 @@ class InterviewBlueprintFoundationTests(TestCase):
         )
         return blueprint, skill
 
+    def _coding_audit_blueprint(self, *, role='Core Java Developer', coding_required=True, targets=None, primary='Core Java', sub_skills=None, optional_skills=None, quality_warnings=None):
+        targets = targets if targets is not None else [primary]
+        sub_skills = sub_skills or []
+        optional_skills = optional_skills or []
+        vacancy = self._vacancy(role=role, description=f'{role} role.', experience_required='3-5 years')
+        skill_specs = [(primary, 'Programming Language', JobInterviewSkill.SkillRole.PRIMARY)]
+        skill_specs.extend((name, 'Programming Language', JobInterviewSkill.SkillRole.SUB_SKILL) for name in sub_skills)
+        skill_specs.extend((name, 'Soft Skills', JobInterviewSkill.SkillRole.OPTIONAL) for name in optional_skills)
+        skills = {}
+        plans = []
+        for index, (name, category, skill_role) in enumerate(skill_specs, start=1):
+            key = name.lower().replace(' / ', '-').replace(' ', '-')
+            skill = Skill.objects.create(name=name, key=key, category=category)
+            skills[name] = skill
+            plans.append({
+                'skill_id': skill.id,
+                'skill_key': skill.key,
+                'name': skill.name,
+                'skill': skill.name,
+                'skill_role': skill_role,
+                'role': skill_role,
+                'target_questions': 5 if skill_role == JobInterviewSkill.SkillRole.PRIMARY else 3,
+                'questions_to_ask': 5 if skill_role == JobInterviewSkill.SkillRole.PRIMARY else 3,
+            })
+        primary_item = next(item for item in plans if item['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY)
+        sub_items = [item for item in plans if item['skill_role'] == JobInterviewSkill.SkillRole.SUB_SKILL]
+        optional_items = [item for item in plans if item['skill_role'] == JobInterviewSkill.SkillRole.OPTIONAL]
+        blueprint_plan = ensure_blueprint_plan_signature({
+            'role_family': 'technical' if coding_required else 'non_technical',
+            'technical_interview': bool(coding_required),
+            'coding_required': bool(coding_required),
+            'coding_skill_targets': targets if coding_required else [],
+            'coding_questions_to_ask': 3 if coding_required else 0,
+            'primary_skill': primary_item,
+            'sub_skills': sub_items,
+            'optional_skills': optional_items,
+            'runtime_sections': [primary_item, *sub_items],
+            'interview_sections': [primary_item, *sub_items],
+            'quality_warnings': quality_warnings or [],
+        })
+        blueprint = JobInterviewBlueprint.objects.create(
+            job=vacancy,
+            status=JobInterviewBlueprint.Status.READY,
+            role_title=vacancy.role,
+            experience_level='Mid-level (3-5 years)',
+            blueprint_plan=blueprint_plan,
+            minimum_ready=True,
+            fully_ready=True,
+        )
+        for index, item in enumerate(plans, start=1):
+            skill = skills[item['name']]
+            JobInterviewSkill.objects.create(
+                blueprint=blueprint,
+                job=vacancy,
+                skill=skill,
+                skill_role=item['skill_role'],
+                priority=index,
+                questions_to_ask=item['questions_to_ask'],
+                coding_questions_to_ask=3 if coding_required and skill.name in targets else 0,
+                difficulty_mix={'basic': 1, 'intermediate': 2, 'advanced': 0},
+                coding_difficulty_mix={'easy': 0, 'medium': 1, 'hard': 0},
+                is_active=True,
+            )
+        return blueprint, vacancy, skills
+
+    def _coding_question(self, skill, suffix):
+        return CodingQuestion.objects.create(
+            skill=skill,
+            title=f'{skill.name} coding {suffix}',
+            slug=f'{skill.key}-coding-{suffix}',
+            prompt=f'Solve {skill.name} problem {suffix}.',
+            prompt_hash=f'{skill.key}-{suffix}',
+            difficulty=CodingQuestion.Difficulty.MEDIUM,
+            question_type=CodingQuestion.QuestionType.ALGORITHM,
+            family_key=f'{skill.key}-family',
+            is_active=True,
+        )
+
+    def _signature_plan(self, *, primary=None, runtime_sections='default', sub_skills=None, coding_required=True, coding_skill_targets=None):
+        primary = primary or {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java'}
+        if runtime_sections == 'default':
+            runtime_sections = [
+                {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+                {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+            ]
+        plan = {
+            'primary_skill': primary,
+            'sub_skills': sub_skills or [
+                {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+            ],
+            'coding_required': coding_required,
+            'coding_skill_targets': coding_skill_targets if coding_skill_targets is not None else ['Core Java'],
+        }
+        if runtime_sections is not None:
+            plan['runtime_sections'] = runtime_sections
+        return plan
+
+    def test_plan_signature_ignores_coding_target_order(self):
+        first = self._signature_plan(coding_skill_targets=['SQL', 'ETL / ELT'])
+        second = self._signature_plan(coding_skill_targets=['ETL / ELT', 'SQL'])
+
+        self.assertEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_ignores_duplicate_coding_targets(self):
+        first = self._signature_plan(coding_skill_targets=['SQL', 'ETL / ELT'])
+        second = self._signature_plan(coding_skill_targets=['SQL', 'SQL', 'ETL / ELT'])
+
+        self.assertEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_changes_when_coding_required_changes(self):
+        first = self._signature_plan(coding_required=True)
+        second = self._signature_plan(coding_required=False)
+
+        self.assertNotEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_changes_when_primary_skill_changes(self):
+        first = self._signature_plan(primary={'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java'})
+        second = self._signature_plan(primary={'skill_id': 9, 'skill_key': 'python', 'name': 'Python'})
+
+        self.assertNotEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_changes_when_runtime_sections_change(self):
+        first = self._signature_plan(runtime_sections=[
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+        ])
+        second = self._signature_plan(runtime_sections=[
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 3, 'skill_key': 'rest-api', 'name': 'REST API', 'skill_role': 'sub_skill'},
+        ])
+
+        self.assertNotEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_preserves_runtime_section_order(self):
+        first = self._signature_plan(runtime_sections=[
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+            {'skill_id': 3, 'skill_key': 'rest-api', 'name': 'REST API', 'skill_role': 'sub_skill'},
+        ])
+        second = self._signature_plan(runtime_sections=[
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 3, 'skill_key': 'rest-api', 'name': 'REST API', 'skill_role': 'sub_skill'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+        ])
+
+        self.assertNotEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_dedupes_repeated_runtime_sections(self):
+        first = self._signature_plan(runtime_sections=[
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+        ])
+        second = self._signature_plan(runtime_sections=[
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+        ])
+
+        self.assertEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_uses_runtime_sections_over_sub_skills(self):
+        runtime_sections = [
+            {'skill_id': 1, 'skill_key': 'core-java', 'name': 'Core Java', 'skill_role': 'primary'},
+            {'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'},
+        ]
+        first = self._signature_plan(
+            runtime_sections=runtime_sections,
+            sub_skills=[{'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'}],
+        )
+        second = self._signature_plan(
+            runtime_sections=runtime_sections,
+            sub_skills=[{'skill_id': 3, 'skill_key': 'rest-api', 'name': 'REST API', 'skill_role': 'sub_skill'}],
+        )
+
+        self.assertEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_plan_signature_falls_back_to_sub_skills_without_runtime_sections(self):
+        first = self._signature_plan(
+            runtime_sections=None,
+            sub_skills=[{'skill_id': 2, 'skill_key': 'sql', 'name': 'SQL', 'skill_role': 'sub_skill'}],
+        )
+        second = self._signature_plan(
+            runtime_sections=None,
+            sub_skills=[{'skill_id': 3, 'skill_key': 'rest-api', 'name': 'REST API', 'skill_role': 'sub_skill'}],
+        )
+
+        self.assertNotEqual(blueprint_plan_signature(first), blueprint_plan_signature(second))
+
+    def test_ensure_blueprint_plan_signature_does_not_mutate_original_dict(self):
+        plan = self._signature_plan(coding_skill_targets=['SQL', 'ETL / ELT'])
+        original = json.loads(json.dumps(plan))
+
+        signed = ensure_blueprint_plan_signature(plan)
+
+        self.assertEqual(plan, original)
+        self.assertIsNot(signed, plan)
+        self.assertIn('plan_signature', signed)
+        self.assertNotIn('plan_signature', plan)
+
     def test_job_creation_succeeds_and_keeps_response_when_blueprint_enqueue_succeeds(self):
         with patch('smartInterviewApp.services.question_banks.generate_skill_questions_with_openai') as question_openai_mock:
             with patch('smartInterviewApp.services.interview_blueprints.enqueue_job_interview_blueprint') as enqueue_mock:
@@ -2343,7 +2577,23 @@ class InterviewBlueprintFoundationTests(TestCase):
         self._build_with_mocked_openai(vacancy, self._mock_payload())
 
         plan = JobInterviewBlueprint.objects.get(job=vacancy).blueprint_plan
-        for key in ['blueprint_version', 'role_title', 'experience_level', 'primary_skill', 'primary_skill_candidates', 'sub_skills', 'optional_skills', 'runtime_policy']:
+        for key in [
+            'blueprint_version',
+            'role_title',
+            'role_family',
+            'technical_interview',
+            'experience_level',
+            'primary_skill',
+            'primary_skill_candidates',
+            'sub_skills',
+            'optional_skills',
+            'coding_required',
+            'coding_skill_targets',
+            'coding_questions_to_ask',
+            'runtime_sections',
+            'interview_sections',
+            'runtime_policy',
+        ]:
             self.assertIn(key, plan)
 
     def test_auto_created_blueprint_build_is_idempotent(self):
@@ -2460,14 +2710,20 @@ class InterviewBlueprintFoundationTests(TestCase):
         INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3,
         INTERVIEW_SKILL_CODING_TARGET_COUNT=0,
     )
-    def test_coding_jobs_are_not_auto_created_when_coding_target_is_zero(self):
+    def test_required_coding_jobs_are_created_when_coding_target_setting_is_zero(self):
         blueprint, skill = self._blueprint_with_planned_skill(JobInterviewSkill.SkillRole.PRIMARY)
         JobInterviewSkill.objects.filter(blueprint=blueprint, skill=skill).update(coding_questions_to_ask=1)
+        blueprint.blueprint_plan.update({
+            'coding_required': True,
+            'coding_skill_targets': [skill.name],
+            'coding_questions_to_ask': 3,
+        })
+        blueprint.save(update_fields=['blueprint_plan'])
 
         results = ensure_question_bank_for_blueprint(blueprint.id)
 
-        self.assertEqual(results[0]['coding']['status'], 'coding_generation_disabled')
-        self.assertFalse(QuestionGenerationJob.objects.filter(skill=skill, task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).exists())
+        self.assertTrue(any(item.get('task_type') == QuestionGenerationJob.TaskType.CODING_GENERATION for item in results))
+        self.assertTrue(QuestionGenerationJob.objects.filter(skill=skill, task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).exists())
 
     @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=True, INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3)
     def test_blueprint_question_bank_optional_skill_is_skipped(self):
@@ -2557,6 +2813,7 @@ class InterviewBlueprintFoundationTests(TestCase):
                 'difficulty': 'basic',
                 'question_type': 'concept',
                 'family_key': 'list-comprehension',
+                'coverage_area': 'list_comprehension',
                 'expected_signal': 'Understands concise list creation.',
                 'ideal_answer_points': ['syntax', 'use cases'],
                 'evaluation_rubric': {'strong': 'clear', 'average': 'partial', 'weak': 'incorrect'},
@@ -2567,6 +2824,7 @@ class InterviewBlueprintFoundationTests(TestCase):
                 'difficulty': 'basic',
                 'question_type': 'concept',
                 'family_key': 'list-comprehension',
+                'coverage_area': 'list_comprehension',
                 'expected_signal': 'Same concept.',
                 'ideal_answer_points': [],
                 'evaluation_rubric': {},
@@ -2577,6 +2835,7 @@ class InterviewBlueprintFoundationTests(TestCase):
                 'difficulty': 'basic',
                 'question_type': 'concept',
                 'family_key': 'list-comprehension',
+                'coverage_area': 'list_comprehension',
                 'expected_signal': 'Exact duplicate.',
                 'ideal_answer_points': [],
                 'evaluation_rubric': {},
@@ -2605,6 +2864,7 @@ class InterviewBlueprintFoundationTests(TestCase):
             'difficulty': 'intermediate',
             'question_type': 'scenario',
             'family_key': 'candidate-sourcing',
+            'coverage_area': 'candidate_sourcing',
             'expected_signal': 'Uses channels and prioritization.',
             'ideal_answer_points': ['channels', 'screening'],
             'evaluation_rubric': {'strong': 'structured', 'average': 'some structure', 'weak': 'generic'},
@@ -2632,7 +2892,10 @@ class InterviewBlueprintFoundationTests(TestCase):
             started_at=timezone.now() - timedelta(minutes=2),
         )
 
-        with patch('smartInterviewApp.services.question_banks.build_skill_question_bank') as build_mock:
+        with patch(
+            'smartInterviewApp.services.question_banks.build_skill_question_bank',
+            return_value={'ok': True, 'status': 'completed', 'skill_id': skill.id},
+        ) as build_mock:
             success = process_question_generation_task(success_job.id)
             running = process_question_generation_task(running_job.id)
 
@@ -2862,7 +3125,7 @@ class InterviewBlueprintFoundationTests(TestCase):
         self.assertEqual(response.json()['Data']['processed_count'], 0)
 
     @override_settings(CLOUD_TASKS_SHARED_SECRET='secret', INTERVIEW_SKILL_CODING_TARGET_COUNT=0, INTERVIEW_QUESTION_BANK_WORKER_LIMIT=1)
-    def test_question_generation_queue_endpoint_skips_coding_generation_when_disabled(self):
+    def test_question_generation_queue_endpoint_processes_explicit_coding_generation_target(self):
         skill = Skill.objects.create(name='Python', key='python', category='Programming Language')
         generation_job = QuestionGenerationJob.objects.create(
             skill=skill,
@@ -2871,7 +3134,10 @@ class InterviewBlueprintFoundationTests(TestCase):
             payload={'skill_id': skill.id, 'target_coding_questions': 1, 'batch_size': 1},
         )
 
-        with patch('smartInterviewApp.services.question_banks.build_skill_question_bank') as build_mock:
+        with patch(
+            'smartInterviewApp.services.question_banks.build_skill_question_bank',
+            return_value={'ok': True, 'status': 'completed', 'skill_id': skill.id},
+        ) as build_mock:
             response = self.client.post(
                 reverse('internal-process-question-generation-queue'),
                 data=json.dumps({}),
@@ -2880,10 +3146,9 @@ class InterviewBlueprintFoundationTests(TestCase):
             )
 
         self.assertEqual(response.status_code, 200)
-        build_mock.assert_not_called()
+        build_mock.assert_called_once()
         generation_job.refresh_from_db()
-        self.assertEqual(generation_job.status, QuestionGenerationJob.Status.SKIPPED)
-        self.assertEqual(generation_job.result['status'], 'coding_generation_disabled')
+        self.assertEqual(generation_job.status, QuestionGenerationJob.Status.SUCCESS)
 
     @override_settings(CLOUD_TASKS_SHARED_SECRET='secret')
     def test_question_generation_queue_endpoint_catches_processor_exception(self):
@@ -3186,7 +3451,619 @@ class InterviewBlueprintFoundationTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             self._build_with_mocked_openai(hr_vacancy, hr_payload)
 
+        hr_blueprint = JobInterviewBlueprint.objects.get(job=hr_vacancy)
+        self.assertFalse(hr_blueprint.blueprint_plan['coding_required'])
+        self.assertEqual(hr_blueprint.blueprint_plan['coding_skill_targets'], [])
         self.assertEqual(QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).count(), 1)
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=4,
+    )
+    def test_hr_recruiter_false_coding_removes_stale_targets_and_does_not_enqueue(self):
+        vacancy = self._vacancy(
+            role='HR Recruiter',
+            description='Source candidates, screen resumes, communicate with hiring managers, and coordinate interviews.',
+            experience_required='1-3 years',
+        )
+        payload = self._mock_payload(
+            role_title='HR Recruiter',
+            primary='Communication Skills',
+            sub_skills=[
+                {'name': 'Candidate Sourcing', 'category': 'Human Resources', 'confidence': 0.9},
+                {'name': 'Talent Acquisition', 'category': 'Human Resources', 'confidence': 0.9},
+            ],
+        )
+        payload.update({
+            'role_family': 'non_technical',
+            'technical_interview': False,
+            'coding_required': False,
+            'coding_skill_targets': ['Communication Skills', 'Problem-solving'],
+            'coding_questions_to_ask': 3,
+        })
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertFalse(blueprint.blueprint_plan['coding_required'])
+        self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], [])
+        self.assertTrue(any(item['code'] == 'non_technical_coding_removed' for item in blueprint.blueprint_plan['quality_warnings']))
+        self.assertFalse(QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).exists())
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=False,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=4,
+    )
+    def test_data_architect_repairs_kubernetes_primary_and_coding_targets_to_data_skills(self):
+        vacancy = self._vacancy(
+            role='Data Engineer / Data Architect',
+            description=(
+                'Design data architecture for large-scale data systems. Build data pipelines, data modeling, '
+                'data warehousing, ETL processes, data quality checks, and validation for analytics platforms.'
+            ),
+            experience_required='5-8 years',
+        )
+        payload = self._mock_payload(
+            role_title='Data Engineer / Data Architect',
+            primary='Kubernetes',
+            sub_skills=[
+                {'name': 'Communication Skills', 'category': 'Soft Skills', 'confidence': 0.8},
+                {'name': 'Kubernetes', 'category': 'DevOps Tool', 'confidence': 0.9},
+                {'name': 'Problem-solving', 'category': 'Soft Skills', 'confidence': 0.7},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Communication Skills', 'Kubernetes', 'Problem-solving'],
+            'coding_questions_to_ask': 3,
+            'runtime_sections': [
+                {'name': 'Kubernetes', 'category': 'DevOps Tool', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'model output', 'reason': 'Incorrect primary.', 'confidence': 0.9},
+            ],
+        })
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertIn(blueprint.blueprint_plan['primary_skill']['name'], {'Data Engineering', 'Data Architecture'})
+        targets = set(blueprint.blueprint_plan['coding_skill_targets'])
+        self.assertTrue({'SQL', 'ETL / ELT', 'Data Pipelines', 'Data Warehousing', 'Data Modeling', 'Data Quality / Validation'}.issubset(targets))
+        self.assertFalse({'Communication Skills', 'Problem-solving', 'Kubernetes'} & targets)
+        self.assertTrue(blueprint.blueprint_plan['coding_required'])
+        warning_codes = {item['code'] for item in blueprint.blueprint_plan['quality_warnings']}
+        self.assertTrue({'unsupported_primary_skill', 'repaired_primary_skill', 'rejected_coding_targets', 'repaired_coding_targets', 'infrastructure_without_jd_evidence'}.issubset(warning_codes))
+        self.assertFalse(JobInterviewSkill.objects.filter(blueprint=blueprint, skill__name='Kubernetes', coding_questions_to_ask__gt=0).exists())
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        audit_output = out.getvalue()
+        self.assertIn('unsupported_primary_skill', audit_output)
+        self.assertIn('repaired_primary_skill', audit_output)
+        self.assertIn('rejected_coding_targets', audit_output)
+        self.assertIn('repaired_coding_targets', audit_output)
+        self.assertIn('infrastructure_without_jd_evidence', audit_output)
+
+    def test_kubernetes_is_allowed_when_jd_explicitly_mentions_container_orchestration(self):
+        vacancy = self._vacancy(
+            role='Platform Engineer',
+            description='Build Kubernetes operators, manage k8s clusters, Docker images, and CI/CD deployment automation.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Platform Engineer',
+            primary='Kubernetes',
+            sub_skills=[
+                {'name': 'Docker', 'category': 'DevOps Tool', 'confidence': 0.9},
+                {'name': 'CI/CD', 'category': 'DevOps Tool', 'confidence': 0.9},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Kubernetes'],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Kubernetes')
+        self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], ['Kubernetes'])
+
+    def test_core_java_developer_keeps_core_java_and_sql_coding_targets(self):
+        vacancy = self._vacancy(
+            role='Core Java Developer',
+            description='Develop Core Java services using collections, multithreading, REST APIs, and SQL queries.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Core Java Developer',
+            primary='Core Java',
+            sub_skills=[
+                {'name': 'SQL', 'category': 'Database Query Language', 'confidence': 0.9},
+                {'name': 'REST API', 'category': 'API/Web Services', 'confidence': 0.85},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Core Java', 'SQL'],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Core Java')
+        self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], ['Core Java', 'SQL'])
+
+    def test_core_java_concurrency_and_collections_targets_are_active_coding_targets(self):
+        vacancy = self._vacancy(
+            role='Core Java Developer',
+            description=(
+                'Develop Core Java services using the collections framework, multithreading, '
+                'Java concurrency utilities, and SQL queries.'
+            ),
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Core Java Developer',
+            primary='Core Java',
+            sub_skills=[
+                {'name': 'Multithreading and Concurrency', 'category': 'Java Concept', 'confidence': 0.92},
+                {'name': 'Collections Framework', 'category': 'Java Framework', 'confidence': 0.9},
+                {'name': 'Java Concurrency and Collections', 'category': 'Java API', 'confidence': 0.9},
+                {'name': 'SQL', 'category': 'Database Query Language', 'confidence': 0.86},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': [
+                'Core Java',
+                'Multithreading and Concurrency',
+                'Collections Framework',
+                'Java Concurrency and Collections',
+                'SQL',
+            ],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(
+            blueprint.blueprint_plan['coding_skill_targets'],
+            [
+                'Core Java',
+                'Multithreading and Concurrency',
+                'Collections Framework',
+                'Java Concurrency and Collections',
+                'SQL',
+            ],
+        )
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+        self.assertIn('Coding skill targets: Core Java, Multithreading and Concurrency, Collections Framework, Java Concurrency and Collections, SQL', output)
+        self.assertIn('- Multithreading and Concurrency: active_coding_count=0', output)
+        self.assertIn('- Collections Framework: active_coding_count=0', output)
+        self.assertIn('- Java Concurrency and Collections: active_coding_count=0', output)
+
+    def test_unresolved_non_coding_target_is_rejected_during_blueprint_repair(self):
+        vacancy = self._vacancy(
+            role='Core Java Developer',
+            description='Develop Core Java services with collections and SQL queries. Agile delivery is a process practice.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Core Java Developer',
+            primary='Core Java',
+            sub_skills=[
+                {'name': 'SQL', 'category': 'Database Query Language', 'confidence': 0.9},
+                {'name': 'Agile', 'category': 'Process', 'confidence': 0.75},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Core Java', 'Agile'],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], ['Core Java'])
+        warning_codes = {item['code'] for item in blueprint.blueprint_plan['quality_warnings']}
+        self.assertIn('rejected_coding_targets', warning_codes)
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+        self.assertIn('Coding skill targets: Core Java', output)
+        self.assertNotIn('Coding skill targets: Core Java, Agile', output)
+        self.assertIn('rejected_coding_targets', output)
+
+    def test_salesforce_developer_keeps_salesforce_coding_targets(self):
+        vacancy = self._vacancy(
+            role='Salesforce Developer',
+            description='Build Salesforce customizations with Apex, LWC, SOQL, and Salesforce integration APIs.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Salesforce Developer',
+            primary='Salesforce',
+            sub_skills=[
+                {'name': 'Apex', 'category': 'Salesforce Development', 'confidence': 0.95},
+                {'name': 'LWC', 'category': 'Salesforce Development', 'confidence': 0.9},
+                {'name': 'Salesforce Integration', 'category': 'Salesforce Development', 'confidence': 0.88},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Apex', 'LWC', 'Salesforce Integration'],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Salesforce')
+        self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], ['Apex', 'LWC', 'Salesforce Integration'])
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=0,
+    )
+    def test_coding_generation_uses_blueprint_coding_skill_targets_not_only_primary(self):
+        vacancy = self._vacancy(
+            role='Data Analyst',
+            description='Analyze data with SQL and build stakeholder reports.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title='Data Analyst',
+            primary='Data Analysis',
+            sub_skills=[
+                {'name': 'SQL', 'category': 'Database Query Language', 'confidence': 0.95},
+                {'name': 'Stakeholder Management', 'category': 'Business', 'confidence': 0.8},
+            ],
+        )
+        payload.update({
+            'role_family': 'hybrid',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['SQL'],
+            'coding_questions_to_ask': 3,
+            'runtime_sections': [
+                {'name': 'Data Analysis', 'category': 'Analytics', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'primary JD responsibility', 'reason': 'Core interview skill.', 'confidence': 0.9},
+                {'name': 'SQL', 'category': 'Database Query Language', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'hands-on querying requirement', 'reason': 'Best coding target.', 'confidence': 0.95},
+            ],
+        })
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertTrue(blueprint.blueprint_plan['coding_required'])
+        self.assertEqual(blueprint.blueprint_plan['coding_questions_to_ask'], 3)
+        self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], ['SQL'])
+        sql_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill__name='SQL')
+        self.assertEqual(sql_plan.skill_role, JobInterviewSkill.SkillRole.SUB_SKILL)
+        self.assertEqual(sql_plan.coding_questions_to_ask, 3)
+        coding_jobs = QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION)
+        self.assertEqual(coding_jobs.count(), 1)
+        self.assertEqual(coding_jobs.get().skill.name, 'SQL')
+
+    def test_audit_question_bank_reports_missing_coding_and_jobs(self):
+        skill = Skill.objects.create(name='SQL', key='sql', category='Database Query Language')
+        vacancy = self._vacancy(role='Data Analyst', description='SQL analysis role.', experience_required='3-5 years')
+        blueprint = JobInterviewBlueprint.objects.create(
+            job=vacancy,
+            status=JobInterviewBlueprint.Status.READY,
+            role_title=vacancy.role,
+            experience_level='Mid-level (3-5 years)',
+            blueprint_plan=ensure_blueprint_plan_signature({
+                'role_family': 'hybrid',
+                'technical_interview': True,
+                'coding_required': True,
+                'coding_skill_targets': ['SQL'],
+                'coding_questions_to_ask': 3,
+                'primary_skill': {'skill_id': skill.id, 'skill_key': skill.key, 'name': skill.name},
+                'sub_skills': [],
+                'optional_skills': [],
+                'runtime_sections': [{'skill_id': skill.id, 'skill_key': skill.key, 'name': skill.name, 'skill': skill.name, 'skill_role': 'primary', 'role': 'primary', 'target_questions': 5, 'questions_to_ask': 5}],
+                'interview_sections': [{'skill_id': skill.id, 'skill_key': skill.key, 'name': skill.name, 'skill': skill.name, 'skill_role': 'primary', 'role': 'primary', 'target_questions': 5, 'questions_to_ask': 5}],
+            }),
+            minimum_ready=True,
+            fully_ready=True,
+        )
+        JobInterviewSkill.objects.create(
+            blueprint=blueprint,
+            job=vacancy,
+            skill=skill,
+            skill_role=JobInterviewSkill.SkillRole.PRIMARY,
+            priority=1,
+            questions_to_ask=5,
+            coding_questions_to_ask=3,
+            is_active=True,
+        )
+        QuestionGenerationJob.objects.create(
+            job=vacancy,
+            blueprint=blueprint,
+            skill=skill,
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.FAILED,
+            error_message='provider failed',
+            payload={'blueprint_id': blueprint.id, 'plan_signature': blueprint.blueprint_plan['plan_signature'], 'target_skill_id': skill.id, 'target_skill_name': skill.name, 'target_role': 'coding_target'},
+        )
+        candidate = User.objects.create_user(username='audit-candidate', password='pass1234', email='audit@example.com')
+        UserProfile.objects.create(user=candidate, role='candidate', phone='919999999993', gender='other', hr=self.admin)
+        interview = Interview.objects.create(candidate=candidate, recruiter=self.recruiter, hr=self.admin, role=vacancy, status='scheduled')
+
+        out = StringIO()
+        call_command('audit_question_bank', '--interview-id', str(interview.id), stdout=out)
+        output = out.getvalue()
+
+        self.assertIn('Coding required: True', output)
+        self.assertIn('Coding skill targets: SQL', output)
+        self.assertIn('coding_questions_missing', output)
+        self.assertIn('coding_generation_failed', output)
+        self.assertIn('coding_generation:failed', output)
+
+    def test_repaired_blueprint_audit_uses_current_coding_targets_and_marks_old_jobs_stale(self):
+        blueprint, _, skills = self._coding_audit_blueprint(
+            targets=['Core Java'],
+            primary='Core Java',
+            sub_skills=['Agile', 'Communication Skills'],
+        )
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=skills['Agile'],
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.FAILED,
+            payload={'blueprint_id': blueprint.id, 'plan_signature': 'old-plan', 'target_skill_id': skills['Agile'].id, 'target_skill_name': 'Agile', 'target_role': 'coding_target'},
+        )
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=skills['Communication Skills'],
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.QUEUED,
+        )
+
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+
+        self.assertIn('Coding skill targets: Core Java', output)
+        self.assertIn('- Core Java: active_coding_count=0', output)
+        self.assertIn('Stale coding jobs/questions ignored:', output)
+
+    def test_coding_required_false_audit_has_no_active_targets_with_old_coding_jobs(self):
+        blueprint, _, skills = self._coding_audit_blueprint(
+            role='HR Recruiter',
+            coding_required=False,
+            targets=[],
+            primary='Candidate Screening',
+            sub_skills=['Communication Skills'],
+        )
+        sql = Skill.objects.create(name='SQL', key='sql', category='Database Query Language')
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=sql,
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.SUCCESS,
+        )
+        self.assertIn('Candidate Screening', skills)
+
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+
+        self.assertIn('Coding required: False', output)
+        self.assertIn('Coding skill targets: \n', output)
+        self.assertNotIn('Coding targets:', output)
+        self.assertIn('Stale coding jobs/questions ignored:', output)
+
+    def test_readiness_ignores_stale_coding_jobs_for_non_current_targets(self):
+        blueprint, _, skills = self._coding_audit_blueprint(
+            targets=['Core Java'],
+            primary='Core Java',
+            sub_skills=['Agile'],
+        )
+        for index in range(3):
+            self._coding_question(skills['Core Java'], index)
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=skills['Agile'],
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.FAILED,
+            payload={'blueprint_id': blueprint.id, 'plan_signature': 'old-plan', 'target_skill_id': skills['Agile'].id, 'target_skill_name': 'Agile', 'target_role': 'coding_target'},
+        )
+        plans = list(JobInterviewSkill.objects.select_related('skill').filter(blueprint=blueprint))
+
+        readiness = _coding_readiness_for_blueprint(blueprint, plans)
+
+        self.assertEqual([item['skill_name'] for item in readiness['target_skills']], ['Core Java'])
+        self.assertNotIn('coding_generation_failed', readiness['reasons'])
+        self.assertEqual(readiness['failed_job_count'], 0)
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=1,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=4,
+    )
+    def test_generation_enqueues_only_current_coding_targets_after_repair(self):
+        blueprint, _, skills = self._coding_audit_blueprint(
+            targets=['Core Java'],
+            primary='Core Java',
+            sub_skills=['Agile'],
+        )
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=skills['Agile'],
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.QUEUED,
+        )
+
+        ensure_question_bank_for_blueprint(blueprint.id)
+
+        coding_jobs = QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION)
+        self.assertEqual(coding_jobs.filter(skill=skills['Core Java']).count(), 1)
+        self.assertEqual(coding_jobs.filter(skill=skills['Agile']).count(), 1)
+        current_job = coding_jobs.get(skill=skills['Core Java'])
+        self.assertEqual(current_job.payload['blueprint_id'], blueprint.id)
+        self.assertEqual(current_job.payload['plan_signature'], blueprint.blueprint_plan['plan_signature'])
+        self.assertEqual(current_job.payload['target_role'], 'coding_target')
+
+    def test_old_coding_job_without_plan_signature_is_not_active(self):
+        blueprint, _, skills = self._coding_audit_blueprint(targets=['Core Java'], primary='Core Java')
+        for index in range(3):
+            self._coding_question(skills['Core Java'], index)
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=skills['Core Java'],
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.FAILED,
+        )
+        plans = list(JobInterviewSkill.objects.select_related('skill').filter(blueprint=blueprint))
+
+        readiness = _coding_readiness_for_blueprint(blueprint, plans)
+
+        self.assertNotIn('coding_generation_failed', readiness['reasons'])
+        self.assertEqual(readiness['failed_job_count'], 0)
+
+    def test_core_java_rejected_agile_coding_target_is_not_active(self):
+        blueprint, _, _ = self._coding_audit_blueprint(
+            targets=['Core Java'],
+            primary='Core Java',
+            sub_skills=['Agile'],
+            quality_warnings=[{'code': 'rejected_coding_targets', 'targets': ['Agile']}],
+        )
+
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+
+        self.assertIn('Coding skill targets: Core Java', output)
+        self.assertNotIn('Coding skill targets: Core Java, Agile', output)
+        self.assertIn('rejected_coding_targets', output)
+
+    def test_hr_recruiter_stale_coding_generation_does_not_show_active_target(self):
+        blueprint, _, _ = self._coding_audit_blueprint(
+            role='HR Recruiter',
+            coding_required=False,
+            targets=[],
+            primary='Candidate Screening',
+            sub_skills=['Interview Coordination'],
+        )
+        stale_skill = Skill.objects.create(name='Communication Skills', key='communication-skills', category='Soft Skills')
+        QuestionGenerationJob.objects.create(
+            job=blueprint.job,
+            blueprint=blueprint,
+            skill=stale_skill,
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            status=QuestionGenerationJob.Status.FAILED,
+        )
+
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+
+        self.assertIn('Coding required: False', output)
+        self.assertIn('Coding skill targets: \n', output)
+        self.assertNotIn('Coding targets:', output)
+        self.assertIn('Stale coding jobs/questions ignored:', output)
+
+    def test_salesforce_current_coding_targets_include_lwc_and_integration_skills(self):
+        vacancy = self._vacancy(role='Salesforce Developer', description='Apex, LWC and Salesforce integration.', experience_required='3-5 years')
+        skill_specs = [
+            ('Salesforce', 'salesforce', 'CRM Platform', JobInterviewSkill.SkillRole.PRIMARY),
+            ('Apex Development', 'apex-development', 'Programming Language', JobInterviewSkill.SkillRole.SUB_SKILL),
+            ('Lightning Web Components (LWC)', 'lightning-web-components-lwc', 'Frontend Framework / Salesforce Development', JobInterviewSkill.SkillRole.SUB_SKILL),
+            ('Salesforce Integration using Web Services', 'salesforce-integration-using-web-service', '', JobInterviewSkill.SkillRole.SUB_SKILL),
+        ]
+        skills = [
+            Skill.objects.create(name=name, key=key, category=category)
+            for name, key, category, _ in skill_specs
+        ]
+        sections = [
+            {
+                'skill_id': skill.id,
+                'skill_key': skill.key,
+                'name': skill.name,
+                'skill': skill.name,
+                'skill_role': skill_role,
+                'role': skill_role,
+                'target_questions': 5 if skill_role == JobInterviewSkill.SkillRole.PRIMARY else 3,
+                'questions_to_ask': 5 if skill_role == JobInterviewSkill.SkillRole.PRIMARY else 3,
+            }
+            for skill, (_, _, _, skill_role) in zip(skills, skill_specs)
+        ]
+        blueprint = JobInterviewBlueprint.objects.create(
+            job=vacancy,
+            status=JobInterviewBlueprint.Status.READY,
+            role_title=vacancy.role,
+            experience_level='Mid-level (3-5 years)',
+            blueprint_plan=ensure_blueprint_plan_signature({
+                'role_family': 'technical',
+                'technical_interview': True,
+                'coding_required': True,
+                'coding_skill_targets': [
+                    'Apex Development',
+                    'Lightning Web Components (LWC)',
+                    'Salesforce Integration using Web Services',
+                ],
+                'coding_questions_to_ask': 3,
+                'primary_skill': sections[0],
+                'sub_skills': sections[1:],
+                'optional_skills': [],
+                'runtime_sections': sections,
+                'interview_sections': sections,
+            }),
+            minimum_ready=True,
+            fully_ready=True,
+        )
+        for index, (skill, section) in enumerate(zip(skills, sections), start=1):
+            JobInterviewSkill.objects.create(
+                blueprint=blueprint,
+                job=vacancy,
+                skill=skill,
+                skill_role=section['skill_role'],
+                priority=index,
+                questions_to_ask=section['questions_to_ask'],
+                coding_questions_to_ask=3 if skill.name != 'Salesforce' else 0,
+                is_active=True,
+            )
+
+        out = StringIO()
+        call_command('audit_question_bank', '--blueprint-id', str(blueprint.id), stdout=out)
+        output = out.getvalue()
+
+        self.assertIn('- Apex Development: active_coding_count=0', output)
+        self.assertIn('- Lightning Web Components (LWC): active_coding_count=0', output)
+        self.assertIn('- Salesforce Integration using Web Services: active_coding_count=0', output)
 
     @override_settings(
         INTERVIEW_QUESTION_BANK_ENABLED=True,
@@ -3206,12 +4083,16 @@ class InterviewBlueprintFoundationTests(TestCase):
                 'primary_skill': {
                     'skill_id': skill.id,
                     'skill_key': skill.key,
+                    'name': skill.name,
                     'interview_weight': 'normal',
                     'eligible_for_random_sub_skill': True,
                 },
                 'primary_skill_candidates': [],
                 'sub_skills': [],
                 'optional_skills': [],
+                'coding_required': True,
+                'coding_skill_targets': [skill.name],
+                'coding_questions_to_ask': 3,
             },
             minimum_ready=True,
             fully_ready=True,
@@ -3229,7 +4110,8 @@ class InterviewBlueprintFoundationTests(TestCase):
 
         results = ensure_question_bank_for_blueprint(blueprint.id)
 
-        self.assertEqual(results[0]['coding']['status'], 'queued')
+        coding_result = next(item for item in results if item.get('task_type') == QuestionGenerationJob.TaskType.CODING_GENERATION)
+        self.assertEqual(coding_result['coding']['status'], 'queued')
         self.assertEqual(QuestionGenerationJob.objects.filter(skill=skill, task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).count(), 1)
 
     def test_canonical_mapped_name_is_used_in_snapshots(self):
@@ -3253,8 +4135,8 @@ class InterviewBlueprintFoundationTests(TestCase):
 
         blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
         primary_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill__name='Python')
-        self.assertEqual(blueprint.blueprint_plan['runtime_policy']['coding_questions_per_primary'], 1)
-        self.assertEqual(primary_plan.coding_questions_to_ask, 1)
+        self.assertEqual(blueprint.blueprint_plan['runtime_policy']['coding_questions_per_primary'], 3)
+        self.assertEqual(primary_plan.coding_questions_to_ask, 3)
         self.assertEqual(primary_plan.coding_difficulty_mix, {'easy': 1, 'medium': 0, 'hard': 0})
 
     def test_success_generation_job_does_not_process_again(self):

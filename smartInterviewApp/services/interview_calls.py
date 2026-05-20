@@ -205,12 +205,13 @@ class InterviewCallService:
             error_message = result.error_message or 'Unable to disconnect the Exotel call.'
             if 'method not allowed' in error_message.strip().lower():
                 error_message = 'Exotel does not allow ending this live call through the current API flow. Please end the call from the handset and keep this tracker open until the status updates.'
+                session.error_message = error_message
                 session.provider_response = {
                     **(session.provider_response or {}),
                     'disconnect_control_unsupported': True,
                     'disconnect_response': result.response_payload or {},
                 }
-                session.save(update_fields=['provider_response', 'updated_at'])
+                session.save(update_fields=['error_message', 'provider_response', 'updated_at'])
             else:
                 session.error_message = error_message
                 session.save(update_fields=['error_message', 'updated_at'])

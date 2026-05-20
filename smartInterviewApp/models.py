@@ -353,6 +353,7 @@ class CandidateSearchProfile(models.Model):
             HnswIndex(
                 name='cand_search_embedding_hnsw',
                 fields=['embedding'],
+                opclasses=['vector_cosine_ops'],
                 m=16,
                 ef_construction=64,
             ),

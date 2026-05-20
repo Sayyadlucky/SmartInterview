@@ -25,6 +25,7 @@ from smartInterviewApp.models import (
     SkillQuestion,
     normalize_skill_key,
 )
+from smartInterviewApp.services.blueprint_plan_signature import blueprint_plan_signature, ensure_blueprint_plan_signature
 from smartInterviewApp.services.cloud_tasks import CloudTasksConfigurationError, CloudTasksScheduler
 
 
@@ -68,11 +69,18 @@ TECHNICAL_CODING_CATEGORIES = {
     'database',
     'database query language',
     'data engineering platform',
+    'data engineering',
+    'data architecture',
+    'data quality',
+    'data warehousing',
     'devops',
     'frontend',
     'frontend development',
     'frontend framework',
     'framework',
+    'java api',
+    'java concept',
+    'java framework',
     'mobile development',
     'mobile framework',
     'operating system',
@@ -86,20 +94,39 @@ TECHNICAL_CODING_CATEGORIES = {
 TECHNICAL_CODING_SKILL_KEYS = {
     'angular',
     'apex',
+    'apex-development',
+    'collection-framework',
+    'collections-framework',
+    'concurrency',
     'core-java',
+    'data-architecture',
+    'data-engineering',
+    'data-modeling',
+    'data-pipeline',
+    'data-pipelines',
+    'data-quality-validation',
+    'data-warehousing',
     'django',
     'django-rest-framework',
+    'etl-elt',
     'express',
     'fastapi',
     'flask',
     'flutter',
     'html-css',
     'java',
+    'java-concurrency-and-collection',
+    'java-concurrency-and-collections',
     'javascript',
     'laravel',
     'linux',
+    'lightning-web-components-development',
+    'lightning-web-components-lwc',
+    'lightning-web-components-lwc-development',
     'lwc',
     'mongodb',
+    'multithreading',
+    'multithreading-and-concurrency',
     'mysql',
     'next-js',
     'node-js',
@@ -110,10 +137,29 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'react-native',
     'rest-api',
     'salesforce',
+    'salesforce-apex-development',
+    'salesforce-integration-and-web-service',
+    'salesforce-integration-using-web-service',
+    'salesforce-integration-web-services-soql-saql',
     'soql',
     'spring',
     'spring-boot',
     'sql',
+}
+NON_CODING_TARGET_SKILL_KEYS = {
+    'adaptability',
+    'analytical-skill',
+    'analytical-skills',
+    'collaboration',
+    'communication',
+    'communication-skill',
+    'communication-skills',
+    'decision-making',
+    'leadership',
+    'problem-solving',
+    'stakeholder-management',
+    'teamwork',
+    'time-management',
 }
 GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS = {
     'agile',
@@ -217,20 +263,25 @@ def enqueue_question_generation_jobs(blueprint_id: int) -> list[dict[str, Any]]:
     blueprint = JobInterviewBlueprint.objects.filter(id=blueprint_id).first()
     if not blueprint:
         return []
+    active_plan = _blueprint_plan(blueprint)
+    active_signature = _active_plan_signature(blueprint)
+    if active_plan and active_plan != blueprint.blueprint_plan:
+        blueprint.blueprint_plan = active_plan
+        blueprint.save(update_fields=['blueprint_plan', 'updated_at'])
     results: list[dict[str, Any]] = []
     eligible_processed = 0
     max_skills = max(1, int(getattr(settings, 'INTERVIEW_QUESTION_BANK_MAX_SKILLS_PER_BLUEPRINT_ENQUEUE', 5)))
-    plans = (
+    all_plans = list(
         JobInterviewSkill.objects
         .select_related('skill')
         .filter(blueprint=blueprint, is_active=True, skill__is_active=True)
         .order_by('priority', 'id')
     )
+    plans = all_plans
     runtime_skill_ids = _runtime_section_skill_ids(blueprint)
     if runtime_skill_ids:
-        plans = plans.filter(skill_id__in=runtime_skill_ids)
+        plans = [plan for plan in all_plans if plan.skill_id in runtime_skill_ids]
     generation_metadata_by_skill_id = _question_bank_generation_metadata_by_skill(blueprint)
-    coding_target = max(0, int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)))
     for plan in plans:
         metadata = generation_metadata_by_skill_id.get(plan.skill_id, {})
         interview_weight = str(metadata.get('interview_weight') or 'normal').strip().lower()
@@ -276,8 +327,48 @@ def enqueue_question_generation_jobs(blueprint_id: int) -> list[dict[str, Any]]:
             )
             continue
         eligible_processed += 1
-        include_coding = _should_include_coding_generation_for_plan(plan, coding_target)
-        results.append(ensure_question_bank_for_skill(plan.skill_id, include_coding=include_coding))
+        results.append(ensure_question_bank_for_skill(
+            plan.skill_id,
+            verbal_target_count=_verbal_bank_target_for_plan(plan),
+            blueprint=blueprint,
+            target_role=_target_role_for_plan(plan),
+            plan_signature=active_signature,
+        ))
+    coding_plans = _coding_target_plans_for_blueprint(blueprint, all_plans)
+    coding_target_count = coding_bank_target_count()
+    for plan in coding_plans:
+        coding_count = CodingQuestion.objects.filter(skill=plan.skill, is_active=True).count()
+        if coding_count >= coding_target_count:
+            results.append({
+                'ok': True,
+                'status': 'enough_coding_questions',
+                'skill_id': plan.skill_id,
+                'skill_key': plan.skill.key,
+                'skill_role': plan.skill_role,
+                'coding_count': coding_count,
+                'target_count': coding_target_count,
+                'task_type': QuestionGenerationJob.TaskType.CODING_GENERATION,
+            })
+            continue
+        enqueue_result = enqueue_skill_coding_generation(
+            plan.skill_id,
+            target_count=coding_target_count,
+            batch_size=max(1, coding_target_count - coding_count),
+            blueprint=blueprint,
+            target_role='coding_target',
+            plan_signature=active_signature,
+        )
+        results.append({
+            'ok': bool(enqueue_result.get('queued') or enqueue_result.get('status') in {'already_queued_or_running', 'enough_questions'}),
+            'status': enqueue_result.get('status'),
+            'skill_id': plan.skill_id,
+            'skill_key': plan.skill.key,
+            'skill_role': plan.skill_role,
+            'coding_count': coding_count,
+            'target_count': coding_target_count,
+            'task_type': QuestionGenerationJob.TaskType.CODING_GENERATION,
+            'coding': enqueue_result,
+        })
     return results
 
 
@@ -355,6 +446,197 @@ def _runtime_section_plan_order(blueprint: JobInterviewBlueprint) -> list[int]:
     return ids
 
 
+def _verbal_bank_target_for_plan(plan: JobInterviewSkill) -> int:
+    configured = int(getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100) or 100)
+    runtime_target = _runtime_target_count_for_plan(plan)
+    minimum = 5 if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY else 3
+    return max(configured, runtime_target, minimum)
+
+
+def _blueprint_plan(blueprint: JobInterviewBlueprint) -> dict[str, Any]:
+    return ensure_blueprint_plan_signature(blueprint.blueprint_plan if isinstance(blueprint.blueprint_plan, dict) else {})
+
+
+def _active_plan_signature(blueprint: JobInterviewBlueprint) -> str:
+    plan = _blueprint_plan(blueprint)
+    return str(plan.get('plan_signature') or blueprint_plan_signature(plan)).strip()
+
+
+def _blueprint_coding_required(blueprint: JobInterviewBlueprint, plans: list[JobInterviewSkill]) -> bool:
+    plan = _blueprint_plan(blueprint)
+    return bool(plan.get('coding_required'))
+
+
+def _coding_target_names_from_blueprint(blueprint: JobInterviewBlueprint) -> list[str]:
+    plan = _blueprint_plan(blueprint)
+    names: list[str] = []
+    for item in plan.get('coding_skill_targets') or []:
+        if isinstance(item, dict):
+            name = _clean_string(item.get('name') or item.get('skill') or item.get('skill_name'))
+        else:
+            name = _clean_string(item)
+        if normalize_skill_key(name) in NON_CODING_TARGET_SKILL_KEYS:
+            continue
+        if normalize_skill_key(name) in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS:
+            continue
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _coding_target_name_allowed(name: str, plans: list[JobInterviewSkill]) -> bool:
+    key = normalize_skill_key(name)
+    if not key or key in NON_CODING_TARGET_SKILL_KEYS or key in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS:
+        return False
+    for plan in plans:
+        if key in {plan.skill.key, normalize_skill_key(plan.skill.name)}:
+            return _is_coding_skill(plan.skill)
+    return True
+
+
+def _coding_target_plans_for_blueprint(
+    blueprint: JobInterviewBlueprint,
+    plans: list[JobInterviewSkill],
+    *,
+    create_missing: bool = True,
+) -> list[JobInterviewSkill]:
+    if not _blueprint_coding_required(blueprint, plans):
+        return []
+
+    target_names = [
+        name for name in _coding_target_names_from_blueprint(blueprint)
+        if _coding_target_name_allowed(name, plans)
+    ]
+    target_keys = {normalize_skill_key(name) for name in target_names if normalize_skill_key(name)}
+    if not target_keys:
+        return []
+    plans_by_key = {plan.skill.key: plan for plan in plans}
+    selected: list[JobInterviewSkill] = []
+    seen_skill_ids: set[int] = set()
+
+    for plan in plans:
+        if (
+            (plan.skill.key in target_keys or normalize_skill_key(plan.skill.name) in target_keys)
+            and _is_coding_skill(plan.skill)
+        ):
+            selected.append(plan)
+            seen_skill_ids.add(plan.skill_id)
+
+    missing_names = [
+        name for name in target_names
+        if normalize_skill_key(name) not in plans_by_key
+        and not any(normalize_skill_key(plan.skill.name) == normalize_skill_key(name) for plan in plans)
+    ]
+    if create_missing and missing_names and getattr(settings, 'INTERVIEW_BLUEPRINT_CREATE_MISSING_SKILLS', True):
+        next_priority = max([plan.priority for plan in plans] or [0]) + 1
+        for name in missing_names:
+            key = normalize_skill_key(name)
+            if not key:
+                continue
+            skill, _ = Skill.objects.get_or_create(
+                key=key,
+                defaults={
+                    'name': name[:120],
+                    'category': 'Coding Target',
+                    'description': 'Auto-created from blueprint coding_skill_targets.',
+                    'is_active': True,
+                },
+            )
+            plan, _ = JobInterviewSkill.objects.update_or_create(
+                blueprint=blueprint,
+                skill=skill,
+                defaults={
+                    'job': blueprint.job,
+                    'skill_role': JobInterviewSkill.SkillRole.SUB_SKILL,
+                    'priority': next_priority,
+                    'questions_to_ask': 3,
+                    'coding_questions_to_ask': 3,
+                    'difficulty_mix': {'basic': 1, 'intermediate': 2, 'advanced': 0},
+                    'coding_difficulty_mix': {'easy': 0, 'medium': 1, 'hard': 0},
+                    'source': JobInterviewSkill.Source.SYSTEM,
+                    'is_required': True,
+                    'is_active': True,
+                },
+            )
+            next_priority += 1
+            if plan.skill_id not in seen_skill_ids:
+                selected.append(plan)
+                seen_skill_ids.add(plan.skill_id)
+
+    return selected
+
+
+def _coding_readiness_for_blueprint(
+    blueprint: JobInterviewBlueprint,
+    plans: list[JobInterviewSkill],
+    *,
+    create_missing: bool = False,
+) -> dict[str, Any]:
+    required = _blueprint_coding_required(blueprint, plans)
+    target_plans = _coding_target_plans_for_blueprint(blueprint, plans, create_missing=create_missing) if required else []
+    target_skill_ids = [plan.skill_id for plan in target_plans]
+    counts = {
+        plan.skill_id: CodingQuestion.objects.filter(skill=plan.skill, is_active=True).count()
+        for plan in target_plans
+    }
+    total_active = sum(counts.values())
+    active_signature = _active_plan_signature(blueprint)
+    coding_jobs = [
+        job for job in QuestionGenerationJob.objects.filter(
+            task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
+            skill_id__in=target_skill_ids,
+        )
+        if _generation_job_matches_active_plan(job, blueprint, active_signature, target_skill_ids)
+    ]
+    failed_job_count = sum(1 for job in coding_jobs if job.status == QuestionGenerationJob.Status.FAILED)
+    pending_job_count = sum(1 for job in coding_jobs if job.status in {QuestionGenerationJob.Status.QUEUED, QuestionGenerationJob.Status.RUNNING})
+    reasons: list[str] = []
+    if required and not target_plans:
+        reasons.append('coding_targets_missing')
+    if required and total_active < litio_coding_ask_count():
+        reasons.append('coding_questions_missing')
+    if failed_job_count:
+        reasons.append('coding_generation_failed')
+    return {
+        'required': required,
+        'target_count': litio_coding_ask_count() if required else 0,
+        'active_count': total_active,
+        'target_skills': [
+            {
+                'skill_id': plan.skill_id,
+                'skill_name': plan.skill.name,
+                'skill_key': plan.skill.key,
+                'active_count': counts.get(plan.skill_id, 0),
+            }
+            for plan in target_plans
+        ],
+        'pending_or_running_job_count': pending_job_count,
+        'failed_job_count': failed_job_count,
+        'reasons': reasons,
+    }
+
+
+def _generation_job_matches_active_plan(
+    generation_job: QuestionGenerationJob,
+    blueprint: JobInterviewBlueprint,
+    plan_signature: str,
+    target_skill_ids: list[int] | set[int],
+) -> bool:
+    payload = generation_job.payload if isinstance(generation_job.payload, dict) else {}
+    if not payload:
+        return False
+    try:
+        payload_blueprint_id = int(payload.get('blueprint_id') or 0)
+        payload_target_skill_id = int(payload.get('target_skill_id') or generation_job.skill_id or 0)
+    except (TypeError, ValueError):
+        return False
+    return (
+        payload_blueprint_id == blueprint.id
+        and str(payload.get('plan_signature') or '').strip() == plan_signature
+        and payload_target_skill_id in set(target_skill_ids)
+    )
+
+
 def _should_auto_generate_for_plan(plan: JobInterviewSkill, interview_weight: str, eligible_for_random_sub_skill: bool) -> bool:
     if plan.skill_role == JobInterviewSkill.SkillRole.OPTIONAL:
         return False
@@ -367,6 +649,14 @@ def _should_auto_generate_for_plan(plan: JobInterviewSkill, interview_weight: st
     return plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL
 
 
+def _target_role_for_plan(plan: JobInterviewSkill) -> str:
+    if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY:
+        return 'primary'
+    if plan.skill_role == JobInterviewSkill.SkillRole.SUB_SKILL:
+        return 'sub_skill'
+    return str(plan.skill_role or '')
+
+
 def _should_include_coding_generation_for_plan(plan: JobInterviewSkill, coding_target: int) -> bool:
     if coding_target <= 0:
         return plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY and int(plan.coding_questions_to_ask or 0) > 0
@@ -375,15 +665,25 @@ def _should_include_coding_generation_for_plan(plan: JobInterviewSkill, coding_t
     return _is_coding_skill(plan.skill)
 
 
-def ensure_question_bank_for_skill(skill_id: int, include_coding: bool = False) -> dict[str, Any]:
+def ensure_question_bank_for_skill(
+    skill_id: int,
+    include_coding: bool = False,
+    *,
+    verbal_target_count: int | None = None,
+    coding_target_count: int | None = None,
+    force_coding: bool = False,
+    blueprint: JobInterviewBlueprint | None = None,
+    target_role: str = '',
+    plan_signature: str = '',
+) -> dict[str, Any]:
     if not getattr(settings, 'INTERVIEW_QUESTION_BANK_ENABLED', True):
         return {'ok': True, 'status': 'disabled', 'skill_id': skill_id}
     skill = Skill.objects.filter(id=skill_id, is_active=True).first()
     if not skill:
         return {'ok': False, 'status': 'missing_skill', 'skill_id': skill_id}
 
-    verbal_target = max(1, int(getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100)))
-    coding_target = max(0, int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)))
+    verbal_target = max(1, int(verbal_target_count or getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100)))
+    coding_target = max(0, int(coding_target_count if coding_target_count is not None else getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)))
     verbal_count = SkillQuestion.objects.filter(skill=skill, is_active=True).count()
     coding_count = CodingQuestion.objects.filter(skill=skill, is_active=True).count()
     result: dict[str, Any] = {
@@ -400,46 +700,88 @@ def ensure_question_bank_for_skill(skill_id: int, include_coding: bool = False) 
         logger.info('Question bank enough skill_id=%s skill_key=%s verbal_count=%s target=%s', skill.id, skill.key, verbal_count, verbal_target)
         result['verbal'] = {'queued': False, 'status': 'enough_questions'}
     else:
-        result['verbal'] = enqueue_skill_question_generation(skill.id, target_count=verbal_target)
+        result['verbal'] = enqueue_skill_question_generation(
+            skill.id,
+            target_count=verbal_target,
+            blueprint=blueprint,
+            target_role=target_role,
+            plan_signature=plan_signature,
+        )
 
-    if include_coding and coding_target > 0 and _is_coding_skill(skill):
+    if include_coding and coding_target > 0 and (force_coding or _is_coding_skill(skill)):
         if coding_count >= coding_target:
             logger.info('Coding bank enough skill_id=%s skill_key=%s coding_count=%s target=%s', skill.id, skill.key, coding_count, coding_target)
             result['coding'] = {'queued': False, 'status': 'enough_questions'}
         else:
-            result['coding'] = enqueue_skill_coding_generation(skill.id, target_count=coding_target)
+            result['coding'] = enqueue_skill_coding_generation(
+                skill.id,
+                target_count=coding_target,
+                blueprint=blueprint,
+                target_role='coding_target',
+                plan_signature=plan_signature,
+            )
     elif include_coding and coding_target <= 0:
         logger.info('Coding question generation auto-enqueue disabled by target_count=0 skill_id=%s', skill.id)
         result['coding'] = {'queued': False, 'status': 'coding_generation_disabled'}
     return result
 
 
-def enqueue_skill_question_generation(skill_id: int, target_count: int | None = None) -> dict[str, Any]:
+def enqueue_skill_question_generation(
+    skill_id: int,
+    target_count: int | None = None,
+    *,
+    blueprint: JobInterviewBlueprint | None = None,
+    target_role: str = '',
+    plan_signature: str = '',
+) -> dict[str, Any]:
     return _enqueue_skill_generation(
         skill_id=skill_id,
         task_type=QuestionGenerationJob.TaskType.QUESTION_GENERATION,
         target_count=target_count or int(getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100)),
         batch_size=max(1, int(getattr(settings, 'INTERVIEW_QUESTION_GENERATION_BATCH_SIZE', 10))),
+        blueprint=blueprint,
+        target_role=target_role,
+        plan_signature=plan_signature,
     )
 
 
-def enqueue_skill_coding_generation(skill_id: int, target_count: int | None = None, batch_size: int | None = None) -> dict[str, Any]:
+def enqueue_skill_coding_generation(
+    skill_id: int,
+    target_count: int | None = None,
+    batch_size: int | None = None,
+    *,
+    blueprint: JobInterviewBlueprint | None = None,
+    target_role: str = '',
+    plan_signature: str = '',
+) -> dict[str, Any]:
     return _enqueue_skill_generation(
         skill_id=skill_id,
         task_type=QuestionGenerationJob.TaskType.CODING_GENERATION,
-        target_count=target_count or int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)),
+        target_count=target_count or coding_bank_target_count(),
         batch_size=max(1, int(batch_size or getattr(settings, 'INTERVIEW_CODING_GENERATION_BATCH_SIZE', 2))),
+        blueprint=blueprint,
+        target_role=target_role,
+        plan_signature=plan_signature,
     )
 
 
-def _enqueue_skill_generation(skill_id: int, task_type: str, target_count: int, batch_size: int) -> dict[str, Any]:
+def _enqueue_skill_generation(
+    skill_id: int,
+    task_type: str,
+    target_count: int,
+    batch_size: int,
+    *,
+    blueprint: JobInterviewBlueprint | None = None,
+    target_role: str = '',
+    plan_signature: str = '',
+) -> dict[str, Any]:
     if not getattr(settings, 'INTERVIEW_QUESTION_BANK_ENABLED', True):
         return {'queued': False, 'status': 'disabled', 'skill_id': skill_id}
     skill = Skill.objects.filter(id=skill_id, is_active=True).first()
     if not skill:
         return {'queued': False, 'status': 'missing_skill', 'skill_id': skill_id}
     if task_type == QuestionGenerationJob.TaskType.CODING_GENERATION and int(target_count) <= 0:
-        logger.info('Coding question generation is disabled by default until schema is fixed skill_id=%s', skill.id)
+        logger.info('Coding question generation skipped because target_count is not positive skill_id=%s', skill.id)
         return {'queued': False, 'status': 'coding_generation_disabled', 'skill_id': skill.id, 'target_count': target_count}
 
     model = SkillQuestion if task_type == QuestionGenerationJob.TaskType.QUESTION_GENERATION else CodingQuestion
@@ -449,11 +791,23 @@ def _enqueue_skill_generation(skill_id: int, task_type: str, target_count: int, 
         logger.info('Generation skipped enough questions skill_id=%s task_type=%s count=%s target=%s', skill.id, task_type, count, target_count)
         return {'queued': False, 'status': 'enough_questions', 'skill_id': skill.id, 'count': count, 'target_count': target_count}
 
-    existing = QuestionGenerationJob.objects.filter(
+    existing_candidates = QuestionGenerationJob.objects.filter(
         skill=skill,
         task_type=task_type,
         status__in=[QuestionGenerationJob.Status.QUEUED, QuestionGenerationJob.Status.RUNNING],
-    ).order_by('-created_at', '-id').first()
+    ).order_by('-created_at', '-id')
+    existing = None
+    if blueprint and plan_signature:
+        for candidate in existing_candidates:
+            payload = candidate.payload if isinstance(candidate.payload, dict) else {}
+            if (
+                int(payload.get('blueprint_id') or 0) == blueprint.id
+                and str(payload.get('plan_signature') or '').strip() == plan_signature
+            ):
+                existing = candidate
+                break
+    else:
+        existing = existing_candidates.first()
     if existing:
         logger.info('Generation skipped existing queued/running skill_id=%s task_type=%s generation_job_id=%s', skill.id, task_type, existing.id)
         return {
@@ -472,7 +826,17 @@ def _enqueue_skill_generation(skill_id: int, task_type: str, target_count: int, 
         'missing_coding_questions': missing_count if task_type == QuestionGenerationJob.TaskType.CODING_GENERATION else 0,
         'batch_size': min(batch_size, missing_count),
     }
+    if blueprint:
+        payload.update({
+            'blueprint_id': blueprint.id,
+            'plan_signature': plan_signature or _active_plan_signature(blueprint),
+            'target_skill_id': skill.id,
+            'target_skill_name': skill.name,
+            'target_role': target_role or ('coding_target' if task_type == QuestionGenerationJob.TaskType.CODING_GENERATION else ''),
+        })
     generation_job = QuestionGenerationJob.objects.create(
+        job=blueprint.job if blueprint else None,
+        blueprint=blueprint,
         skill=skill,
         task_type=task_type,
         status=QuestionGenerationJob.Status.QUEUED,
@@ -555,6 +919,9 @@ def process_question_generation_task(
             resolved_skill_id,
         )
         return result
+    stale_result = _skip_stale_coding_generation_job(generation_job, resolved_skill_id, resolved_task_type)
+    if stale_result:
+        return stale_result
 
     if generation_job:
         max_attempts = max(1, int(getattr(settings, 'INTERVIEW_QUESTION_GENERATION_MAX_ATTEMPTS', 3)))
@@ -658,6 +1025,52 @@ def process_question_generation_task(
         if generation_job:
             _save_question_generation_failure(generation_job, result, exc)
         return result
+
+
+def _skip_stale_coding_generation_job(
+    generation_job: QuestionGenerationJob | None,
+    resolved_skill_id: int,
+    resolved_task_type: str,
+) -> dict[str, Any] | None:
+    if not generation_job or resolved_task_type != QuestionGenerationJob.TaskType.CODING_GENERATION:
+        return None
+    blueprint = generation_job.blueprint
+    if not blueprint and generation_job.job_id:
+        blueprint = JobInterviewBlueprint.objects.filter(job_id=generation_job.job_id).first()
+    if not blueprint:
+        return None
+    plans = list(
+        JobInterviewSkill.objects
+        .select_related('skill')
+        .filter(blueprint=blueprint, is_active=True, skill__is_active=True)
+        .order_by('priority', 'id')
+    )
+    target_plans = _coding_target_plans_for_blueprint(blueprint, plans, create_missing=False)
+    target_skill_ids = [plan.skill_id for plan in target_plans]
+    if _generation_job_matches_active_plan(generation_job, blueprint, _active_plan_signature(blueprint), target_skill_ids):
+        return None
+    result = {
+        'ok': True,
+        'status': 'stale_blueprint_plan_ignored',
+        'skill_id': resolved_skill_id,
+        'task_type': resolved_task_type,
+        'generation_job_id': generation_job.id,
+        'blueprint_id': blueprint.id,
+        'message': 'Coding generation job does not match the current blueprint plan signature or coding targets.',
+    }
+    if generation_job.status != QuestionGenerationJob.Status.SKIPPED:
+        generation_job.status = QuestionGenerationJob.Status.SKIPPED
+        generation_job.result = result
+        generation_job.error_message = result['message']
+        generation_job.finished_at = timezone.now()
+        generation_job.save(update_fields=['status', 'result', 'error_message', 'finished_at', 'updated_at'])
+    logger.info(
+        'Question generation worker skipped stale coding job generation_job_id=%s skill_id=%s blueprint_id=%s',
+        generation_job.id,
+        resolved_skill_id,
+        blueprint.id,
+    )
+    return result
 
 
 def _pending_generation_jobs_filter(stale_cutoff) -> Q:
@@ -947,6 +1360,9 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
         for gap in planned_gaps:
             remaining_not_ready_reasons.extend(_skill_reason_labels_from_gap(gap))
 
+    coding_readiness = _coding_readiness_for_blueprint(blueprint, plans, create_missing=False)
+    remaining_not_ready_reasons.extend(coding_readiness['reasons'])
+
     return {
         'ok': True,
         'status': 'completed' if apply else 'preview',
@@ -960,6 +1376,7 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
         'rejected_count': rejected_count,
         'skipped_skills': skipped_skills,
         'remaining_not_ready_reasons': remaining_not_ready_reasons,
+        'coding_readiness': coding_readiness,
         'generation_results': generation_results,
         'apply': apply,
     }
@@ -2011,10 +2428,19 @@ def _unique_coding_slug(skill: Skill, title: str, prompt_hash: str) -> str:
 
 
 def _is_coding_skill(skill: Skill) -> bool:
-    if skill.key in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS:
+    if skill.key in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS or skill.key in NON_CODING_TARGET_SKILL_KEYS:
         return False
     category = (skill.category or '').strip().lower()
-    return category in TECHNICAL_CODING_CATEGORIES or skill.key in TECHNICAL_CODING_SKILL_KEYS
+    category_parts = {
+        part.strip()
+        for part in re.split(r'[/,|]+', category)
+        if part.strip()
+    }
+    return (
+        category in TECHNICAL_CODING_CATEGORIES
+        or bool(category_parts & TECHNICAL_CODING_CATEGORIES)
+        or skill.key in TECHNICAL_CODING_SKILL_KEYS
+    )
 
 
 def _choice(value: Any, allowed: list[str], default: str) -> str:

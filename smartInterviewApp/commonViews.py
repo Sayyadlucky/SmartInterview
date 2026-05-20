@@ -3101,7 +3101,7 @@ def candidatePasswordResetComplete(request):
     if not password or not confirm_password:
         return JsonResponse({'Success': False, 'Error': 'Enter and confirm your new password.'})
     if password != confirm_password:
-        return JsonResponse({'Success': False, 'Error': 'Passwords do not match.'})
+        return JsonResponse({'Success': False, 'Error': 'Passwords do not match.'}, status=400)
 
     if candidate_password_reset_rate_limited(request, 'complete', state.get('email', ''), limit=5, window_seconds=60 * 10):
         return JsonResponse({'Success': False, 'Error': 'Too many password reset attempts. Please try again shortly.'}, status=429)
