@@ -1003,67 +1003,179 @@
     </div>
 
     <ng-container *ngIf="!evaluationSummaryLoading && !evaluationSummaryError">
-      <div class="evaluation-summary-meta" *ngIf="evaluationSummary.available; else noEvaluationSummary">
-        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.recommendation">{{ evaluationSummary.recommendation }}</span>
-        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.score !== null">Score {{ evaluationSummary.score }}</span>
-        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.confidence">{{ evaluationSummary.confidence }} Confidence</span>
-        <span class="evaluation-summary-chip" *ngIf="evaluationSummary.updated_at">Updated {{ evaluationSummary.updated_at | date: 'MMM d, y, h:mm a' }}</span>
+      <div class="evaluation-report" *ngIf="evaluationSummary.available; else noEvaluationSummary">
+        <section class="evaluation-report-snapshot">
+          <div class="evaluation-report-snapshot__identity">
+            <span class="evaluation-report-kicker">Executive Snapshot</span>
+            <h4>{{ evaluationSummary.candidate_name || evaluationSummaryCandidate?.name || 'Candidate' }}</h4>
+            <p>{{ evaluationSummary.role_title || evaluationSummaryCandidate?.role || 'Interview evaluation' }}</p>
+          </div>
+          <div class="evaluation-report-score">
+            <span>Score</span>
+            <strong>{{ formatScore(evaluationSummary.score) }}</strong>
+          </div>
+          <div class="evaluation-report-snapshot__badges">
+            <span class="evaluation-report-badge" [ngClass]="decisionBadgeClass(evaluationSummary.decision || evaluationSummary.recommendation)">
+              {{ evaluationSummary.decision || evaluationSummary.recommendation || 'Needs More Data' }}
+            </span>
+            <span class="evaluation-report-badge evaluation-report-badge--neutral" *ngIf="evaluationSummary.recommendation">
+              {{ evaluationSummary.recommendation }}
+            </span>
+            <span class="evaluation-report-badge evaluation-report-badge--neutral" *ngIf="getEvaluationSignalLabel()">
+              {{ getEvaluationSignalLabel() }}
+            </span>
+          </div>
+        </section>
+
+        <section class="evaluation-summary-section evaluation-report-section" *ngIf="evaluationSummary.professional_summary_sections.length || evaluationSummary.professional_summary_fallback || getEvaluationSummaryText(); else unavailableSummary">
+          <div class="evaluation-report-section__head">
+            <h4>Professional Summary</h4>
+            <span *ngIf="evaluationSummary.updated_at">Updated {{ evaluationSummary.updated_at | date: 'MMM d, y, h:mm a' }}</span>
+          </div>
+          <div class="evaluation-report-summary-grid" *ngIf="evaluationSummary.professional_summary_sections.length; else summaryFallback">
+            <article class="evaluation-report-summary-block" *ngFor="let section of evaluationSummary.professional_summary_sections">
+              <h5>{{ section.title }}</h5>
+              <p>{{ section.content }}</p>
+            </article>
+          </div>
+          <ng-template #summaryFallback>
+            <p>{{ evaluationSummary.professional_summary_fallback || getEvaluationSummaryText() }}</p>
+          </ng-template>
+          <div class="evaluation-report-summary-grid" *ngIf="evaluationSummary.summary_verdict || evaluationSummary.hire_recommendation_reason">
+            <article class="evaluation-report-summary-block" *ngIf="evaluationSummary.summary_verdict && evaluationSummary.summary_verdict !== getEvaluationSummaryText()">
+              <h5>Verdict</h5>
+              <p>{{ evaluationSummary.summary_verdict }}</p>
+            </article>
+            <article class="evaluation-report-summary-block" *ngIf="evaluationSummary.hire_recommendation_reason">
+              <h5>Recommendation Reason</h5>
+              <p>{{ evaluationSummary.hire_recommendation_reason }}</p>
+            </article>
+          </div>
+        </section>
+
+        <ng-template #unavailableSummary>
+          <div class="evaluation-summary-state">Evaluation summary unavailable</div>
+        </ng-template>
+
+        <section class="evaluation-summary-section evaluation-report-section">
+          <div class="evaluation-report-section__head">
+            <h4>Skill & Evidence Highlights</h4>
+          </div>
+          <div class="evaluation-report-evidence-grid" *ngIf="hasEvidenceHighlights(); else noEvidenceHighlights">
+            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.strengths.length">
+              <h5>Strengths</h5>
+              <div class="evaluation-report-chip-list">
+                <span class="evaluation-report-chip evaluation-report-chip--positive" *ngFor="let item of evaluationSummary.strengths">{{ item }}</span>
+              </div>
+            </article>
+            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.concerns.length">
+              <h5>Concerns</h5>
+              <div class="evaluation-report-chip-list">
+                <span class="evaluation-report-chip evaluation-report-chip--warning" *ngFor="let item of evaluationSummary.concerns">{{ item }}</span>
+              </div>
+            </article>
+            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.gaps.length">
+              <h5>Gaps</h5>
+              <div class="evaluation-report-chip-list">
+                <span class="evaluation-report-chip" *ngFor="let item of evaluationSummary.gaps">{{ item }}</span>
+              </div>
+            </article>
+            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.follow_up_areas.length">
+              <h5>Follow Up Areas</h5>
+              <div class="evaluation-report-chip-list">
+                <span class="evaluation-report-chip" *ngFor="let item of evaluationSummary.follow_up_areas">{{ item }}</span>
+              </div>
+            </article>
+          </div>
+          <ng-template #noEvidenceHighlights>
+            <div class="evaluation-summary-state">Evaluation summary unavailable</div>
+          </ng-template>
+        </section>
+
+        <section class="evaluation-summary-section evaluation-report-section">
+          <div class="evaluation-report-section__head">
+            <h4>Question & Answer Audit Trail</h4>
+            <span>{{ evaluationSummary.question_answer_records.length }} records</span>
+          </div>
+          <div class="evaluation-report-qa-list" *ngIf="evaluationSummary.question_answer_records.length; else noQaRecords">
+            <article class="evaluation-report-qa-card" *ngFor="let record of evaluationSummary.question_answer_records; let i = index">
+              <div class="evaluation-report-qa-card__meta">
+                <span>Q{{ record.turn_index || i + 1 }}</span>
+                <strong *ngIf="record.skill">{{ record.skill }}</strong>
+                <em *ngIf="record.section_role">{{ record.section_role }}</em>
+                <span class="evaluation-report-quality" *ngIf="record.answer_quality_state">{{ record.answer_quality_state }}</span>
+              </div>
+              <h5>{{ record.question_text || 'Question unavailable' }}</h5>
+              <p class="evaluation-report-answer">
+                {{ isQaExpanded(record, i) ? record.candidate_answer : truncateText(record.candidate_answer, 260) }}
+              </p>
+              <button
+                type="button"
+                class="evaluation-report-link-button"
+                *ngIf="shouldCollapseText(record.candidate_answer, 260)"
+                (click)="toggleQaAnswer(record, i)">
+                {{ isQaExpanded(record, i) ? 'View less' : 'View more' }}
+              </button>
+              <div class="evaluation-report-expected" *ngIf="record.expected_signal">
+                <span>Expected signal</span>
+                <p>{{ record.expected_signal }}</p>
+              </div>
+            </article>
+          </div>
+          <ng-template #noQaRecords>
+            <div class="evaluation-summary-state">No Q/A audit records captured</div>
+          </ng-template>
+        </section>
+
+        <section class="evaluation-summary-section evaluation-report-section">
+          <div class="evaluation-report-section__head">
+            <h4>Candidate Behaviour & Integrity</h4>
+            <span
+              class="evaluation-report-badge"
+              [ngClass]="behaviorStatusBadgeClass(evaluationSummary.candidate_behavior.status)"
+              *ngIf="evaluationSummary.candidate_behavior.status">
+              {{ evaluationSummary.candidate_behavior.status }}
+            </span>
+          </div>
+          <div class="evaluation-report-behavior" *ngIf="hasCandidateBehaviorSignals(); else noBehaviorSignals">
+            <p *ngIf="evaluationSummary.candidate_behavior.summary">{{ evaluationSummary.candidate_behavior.summary }}</p>
+            <div class="evaluation-report-integrity-grid">
+              <article class="evaluation-report-integrity-card">
+                <h5>Gaze Tracking</h5>
+                <dl>
+                  <div><dt>Events</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'event_count') }}</dd></div>
+                  <div><dt>Centered</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'centered_count') }}</dd></div>
+                  <div><dt>Offscreen / Visibility</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'offscreen_or_visibility_count') }}</dd></div>
+                  <div><dt>Status</dt><dd><span class="evaluation-report-badge" [ngClass]="behaviorStatusBadgeClass(behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'status'))">{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'status') }}</span></dd></div>
+                </dl>
+              </article>
+              <article class="evaluation-report-integrity-card">
+                <h5>Voice Verification</h5>
+                <dl>
+                  <div><dt>Events</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'event_count') }}</dd></div>
+                  <div><dt>Matches</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'match_count') }}</dd></div>
+                  <div><dt>Unmatches</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'unmatch_count') }}</dd></div>
+                  <div><dt>Latest Status</dt><dd><span class="evaluation-report-badge" [ngClass]="behaviorStatusBadgeClass(behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'latest_status'))">{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'latest_status') }}</span></dd></div>
+                  <div><dt>Flagged</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'flagged_for_review') }}</dd></div>
+                </dl>
+              </article>
+            </div>
+          </div>
+          <ng-template #noBehaviorSignals>
+            <div class="evaluation-summary-state">Candidate behaviour signals were not captured</div>
+          </ng-template>
+        </section>
+
+        <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.early_exit">
+          <h4>Interview Exit</h4>
+          <p>{{ evaluationSummary.early_exit_reason || 'Candidate exited before the interview completed.' }}</p>
+        </section>
       </div>
-
-      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available">
-        <h4>Summary</h4>
-        <p>{{ evaluationSummary.executive_summary || evaluationSummary.summary_verdict }}</p>
-      </section>
-
-      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.summary_verdict && evaluationSummary.summary_verdict !== evaluationSummary.executive_summary">
-        <h4>Verdict</h4>
-        <p>{{ evaluationSummary.summary_verdict }}</p>
-      </section>
-
-      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.hire_recommendation_reason">
-        <h4>Recommendation Reason</h4>
-        <p>{{ evaluationSummary.hire_recommendation_reason }}</p>
-      </section>
-
-      <div class="evaluation-summary-grid" *ngIf="evaluationSummary.available">
-        <section class="evaluation-summary-section" *ngIf="evaluationSummary.strengths.length">
-          <h4>Strengths</h4>
-          <div class="evaluation-summary-list">
-            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.strengths">{{ item }}</span>
-          </div>
-        </section>
-
-        <section class="evaluation-summary-section" *ngIf="evaluationSummary.concerns.length">
-          <h4>Concerns</h4>
-          <div class="evaluation-summary-list">
-            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.concerns">{{ item }}</span>
-          </div>
-        </section>
-
-        <section class="evaluation-summary-section" *ngIf="evaluationSummary.gaps.length">
-          <h4>Gaps</h4>
-          <div class="evaluation-summary-list">
-            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.gaps">{{ item }}</span>
-          </div>
-        </section>
-
-        <section class="evaluation-summary-section" *ngIf="evaluationSummary.follow_up_areas.length">
-          <h4>Follow Up Areas</h4>
-          <div class="evaluation-summary-list">
-            <span class="evaluation-summary-item" *ngFor="let item of evaluationSummary.follow_up_areas">{{ item }}</span>
-          </div>
-        </section>
-      </div>
-
-      <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.early_exit">
-        <h4>Interview Exit</h4>
-        <p>{{ evaluationSummary.early_exit_reason || 'Candidate exited before the interview completed.' }}</p>
-      </section>
     </ng-container>
 
     <ng-template #noEvaluationSummary>
       <div class="evaluation-summary-state">
-        Evaluation summary is not available for this interview yet.
+        Evaluation summary unavailable
       </div>
     </ng-template>
   </div>

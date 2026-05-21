@@ -181,11 +181,21 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
 
     empty_payload = {
         'available': False,
+        'candidate_name': '',
+        'role_title': '',
         'decision': '',
         'recommendation': '',
         'score': None,
         'executive_summary': '',
         'summary_verdict': '',
+        'professional_summary': '',
+        'question_answer_records': [],
+        'candidate_behavior': {},
+        'evidence_highlights': [],
+        'technical_breakdown': {},
+        'behavior_breakdown': {},
+        'next_round_focus': [],
+        'evaluation_payload': {},
         'confidence': '',
         'interview_signal_quality': '',
         'strengths': [],
@@ -211,6 +221,7 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
                 'decision',
                 'recommendation',
                 'score',
+                'candidate_name',
                 'executive_summary',
                 'summary_verdict',
                 'evaluation_payload',
@@ -228,6 +239,9 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
         return empty_payload
 
     evaluation_payload = result.evaluation_payload if isinstance(result.evaluation_payload, dict) else {}
+    safe_evaluation_payload = dict(evaluation_payload)
+    for debug_key in ('debug_trace', 'trace', 'raw_trace', 'trace_payload'):
+        safe_evaluation_payload.pop(debug_key, None)
     hire_recommendation = evaluation_payload.get('hire_recommendation')
     if not isinstance(hire_recommendation, dict):
         hire_recommendation = {}
@@ -248,6 +262,8 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
 
     return {
         'available': True,
+        'candidate_name': trim_text(result.candidate_name or getattr(getattr(interview, 'candidate', None), 'get_full_name', lambda: '')(), 160),
+        'role_title': trim_text(getattr(getattr(interview, 'role', None), 'role', '') or evaluation_payload.get('role_title') or evaluation_payload.get('interview_title'), 160),
         'decision': trim_text(result.decision, 60),
         'recommendation': recommendation,
         'score': score_value,
@@ -256,6 +272,14 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
             1800,
         ),
         'summary_verdict': trim_text(result.summary_verdict or evaluation_payload.get('summary_verdict'), 1200),
+        'professional_summary': trim_text(evaluation_payload.get('professional_summary'), 6000),
+        'question_answer_records': evaluation_payload.get('question_answer_records') if isinstance(evaluation_payload.get('question_answer_records'), list) else [],
+        'candidate_behavior': evaluation_payload.get('candidate_behavior') if isinstance(evaluation_payload.get('candidate_behavior'), dict) else {},
+        'evidence_highlights': compact_text_list(evaluation_payload.get('evidence_highlights'), limit=8),
+        'technical_breakdown': evaluation_payload.get('technical_breakdown') if isinstance(evaluation_payload.get('technical_breakdown'), dict) else {},
+        'behavior_breakdown': evaluation_payload.get('behavior_breakdown') if isinstance(evaluation_payload.get('behavior_breakdown'), dict) else {},
+        'next_round_focus': compact_text_list(evaluation_payload.get('next_round_focus'), limit=8),
+        'evaluation_payload': safe_evaluation_payload,
         'confidence': trim_text(evaluation_payload.get('confidence'), 80),
         'interview_signal_quality': trim_text(evaluation_payload.get('interview_signal_quality'), 80),
         'strengths': compact_text_list(evaluation_payload.get('strengths') or evaluation_payload.get('top_strengths')),

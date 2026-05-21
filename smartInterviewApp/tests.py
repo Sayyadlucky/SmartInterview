@@ -1946,6 +1946,65 @@ class CandidateEvaluationSummaryTests(TestCase):
         self.assertEqual(payload['strengths'], ['Python fundamentals', 'System design'])
         self.assertEqual(payload['hire_recommendation_action'], 'ADVANCE')
 
+    def test_candidate_evaluation_summary_endpoint_returns_litio_report_payload(self):
+        AutoInterviewEvaluationResult.objects.create(
+            interview_id=self.interview.id,
+            candidate_name='Eval Candidate',
+            decision='NEEDS_MORE_DATA',
+            recommendation='Review with panel',
+            score=68.00,
+            executive_summary='Fallback executive summary.',
+            summary_verdict='Fallback verdict.',
+            evaluation_payload={
+                'professional_summary': (
+                    'Executive Summary: Candidate showed partial backend depth.\n'
+                    'Evidence Record: Answered API and testing questions with mixed specificity.\n'
+                    'Hiring Signal: Needs another technical validation round.\n'
+                    'Candidate Behaviour: Calm and responsive throughout the session.'
+                ),
+                'question_answer_records': [
+                    {
+                        'turn_index': 1,
+                        'skill': 'Python',
+                        'section_role': 'primary',
+                        'question_text': 'How do you design a retry-safe API client?',
+                        'candidate_answer': 'Use idempotency keys, exponential backoff, and bounded retries.',
+                        'answer_quality_state': 'partial',
+                        'expected_signal': 'Understands idempotency and failure handling.',
+                    },
+                ],
+                'candidate_behavior': {
+                    'status': 'attention_required',
+                    'summary': 'Brief offscreen events were observed.',
+                    'gaze_tracking': {
+                        'event_count': 5,
+                        'centered_count': 3,
+                        'offscreen_or_visibility_count': 2,
+                        'status': 'attention_required',
+                    },
+                    'voice_verification': {
+                        'event_count': 4,
+                        'match_count': 4,
+                        'unmatch_count': 0,
+                        'latest_status': 'clear',
+                        'flagged_for_review': False,
+                    },
+                },
+                'debug_trace': {'raw': 'hidden'},
+            },
+        )
+
+        response = self.client.get(reverse('candidate-evaluation-summary', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['Data']['evaluation_summary']
+        self.assertEqual(payload['candidate_name'], 'Eval Candidate')
+        self.assertIn('Executive Summary:', payload['professional_summary'])
+        self.assertEqual(payload['question_answer_records'][0]['skill'], 'Python')
+        self.assertEqual(payload['candidate_behavior']['status'], 'attention_required')
+        self.assertEqual(payload['candidate_behavior']['voice_verification']['latest_status'], 'clear')
+        self.assertNotIn('debug_trace', payload['evaluation_payload'])
+
     def test_candidate_profile_data_excludes_interview_evaluation_summary(self):
         AutoInterviewEvaluationResult.objects.create(
             interview_id=self.interview.id,

@@ -149,11 +149,23 @@ interface CompanyProfileFormData {
 
 interface CandidateEvaluationSummary {
   available: boolean;
+  candidate_name: string;
+  role_title: string;
   decision: string;
   recommendation: string;
   score: number | null;
   executive_summary: string;
   summary_verdict: string;
+  professional_summary: string;
+  professional_summary_sections: ProfessionalSummarySection[];
+  professional_summary_fallback: string;
+  question_answer_records: QuestionAnswerRecord[];
+  candidate_behavior: CandidateBehaviorSummary;
+  evidence_highlights: string[];
+  technical_breakdown: Record<string, unknown>;
+  behavior_breakdown: Record<string, unknown>;
+  next_round_focus: string[];
+  evaluation_payload: Record<string, unknown>;
   confidence: string;
   interview_signal_quality: string;
   strengths: string[];
@@ -167,6 +179,29 @@ interface CandidateEvaluationSummary {
   early_exit_reason: string;
   updated_at: string;
   created_at: string;
+}
+
+interface ProfessionalSummarySection {
+  key: string;
+  title: string;
+  content: string;
+}
+
+interface QuestionAnswerRecord {
+  turn_index: number | string;
+  skill: string;
+  section_role: string;
+  question_text: string;
+  candidate_answer: string;
+  answer_quality_state: string;
+  expected_signal: string;
+}
+
+interface CandidateBehaviorSummary {
+  status: string;
+  summary: string;
+  gaze_tracking: Record<string, unknown>;
+  voice_verification: Record<string, unknown>;
 }
 
 interface WorkspaceTourStep {
@@ -242,6 +277,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   evaluationSummaryError = '';
   evaluationSummaryCandidate: any | null = null;
   evaluationSummary: CandidateEvaluationSummary = this.createEmptyEvaluationSummary();
+  qaExpandedKeys = new Set<string>();
   workspaceTourOpen = false;
   workspaceTourSteps: WorkspaceTourStep[] = [];
   workspaceTourIndex = 0;
@@ -1261,6 +1297,7 @@ openEvaluationSummary(candidate: any, event?: Event): void {
   this.evaluationSummaryLoading = true;
   this.evaluationSummaryError = '';
   this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.qaExpandedKeys.clear();
   this.updateBodyScrollLock();
 
   const apiBaseUrl = getApiBaseUrl();
@@ -1281,10 +1318,7 @@ openEvaluationSummary(candidate: any, event?: Event): void {
         this.evaluationSummaryError = response?.Error || 'Unable to load the evaluation summary right now.';
         return;
       }
-      this.evaluationSummary = {
-        ...this.createEmptyEvaluationSummary(),
-        ...(response?.Data?.evaluation_summary || {}),
-      };
+      this.evaluationSummary = this.normalizeEvaluationPayload(response?.Data?.evaluation_summary || {});
     });
 }
 
@@ -1297,6 +1331,7 @@ closeEvaluationSummaryModal(): void {
   this.evaluationSummaryError = '';
   this.evaluationSummaryCandidate = null;
   this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.qaExpandedKeys.clear();
   this.updateBodyScrollLock();
 }
 
@@ -2008,14 +2043,221 @@ private matchesPipelineStatus(candidate: any, normalizedStatus: string): boolean
   return candidateStatus === normalizedStatus;
 }
 
+normalizeEvaluationPayload(report: Record<string, any>): CandidateEvaluationSummary {
+  const base = this.createEmptyEvaluationSummary();
+  const payload = this.isObjectRecord(report?.['evaluation_payload'])
+    ? (report['evaluation_payload'] as Record<string, any>)
+    : {};
+  const field = (key: string): unknown => report?.[key] ?? payload[key];
+  const hireRecommendation = this.isObjectRecord(field('hire_recommendation'))
+    ? (field('hire_recommendation') as Record<string, unknown>)
+    : {};
+  const professionalSummary = this.stringValue(
+    field('professional_summary') || field('executive_summary') || field('summary') || field('summary_verdict')
+  );
+  const professionalSections = this.parseProfessionalSummary(professionalSummary);
+  const candidateBehavior = this.normalizeCandidateBehavior(field('candidate_behavior'));
+  const questionAnswerRecords = this.normalizeQuestionAnswerRecords(field('question_answer_records'));
+
+  return {
+    ...base,
+    available: Boolean(field('available')),
+    candidate_name: this.stringValue(field('candidate_name') || this.evaluationSummaryCandidate?.name),
+    role_title: this.stringValue(field('role_title') || field('interview_title') || this.evaluationSummaryCandidate?.role),
+    decision: this.stringValue(field('decision')),
+    recommendation: this.stringValue(field('recommendation') || hireRecommendation['action']),
+    score: this.numberOrNull(field('score')),
+    executive_summary: this.stringValue(field('executive_summary') || field('summary') || field('overall_summary')),
+    summary_verdict: this.stringValue(field('summary_verdict')),
+    professional_summary: professionalSummary,
+    professional_summary_sections: professionalSections,
+    professional_summary_fallback: professionalSections.length ? '' : professionalSummary,
+    question_answer_records: questionAnswerRecords,
+    candidate_behavior: candidateBehavior,
+    evidence_highlights: this.normalizeTextArray(field('evidence_highlights')),
+    technical_breakdown: this.isObjectRecord(field('technical_breakdown')) ? (field('technical_breakdown') as Record<string, unknown>) : {},
+    behavior_breakdown: this.isObjectRecord(field('behavior_breakdown')) ? (field('behavior_breakdown') as Record<string, unknown>) : {},
+    next_round_focus: this.normalizeTextArray(field('next_round_focus')),
+    evaluation_payload: payload,
+    confidence: this.stringValue(field('confidence')),
+    interview_signal_quality: this.stringValue(field('interview_signal_quality')),
+    strengths: this.normalizeTextArray(field('strengths') || field('top_strengths')),
+    concerns: this.normalizeTextArray(field('concerns')),
+    gaps: this.normalizeTextArray(field('gaps') || field('weaknesses')),
+    notes: this.normalizeTextArray(field('notes')),
+    follow_up_areas: this.normalizeTextArray(field('follow_up_areas')),
+    hire_recommendation_action: this.stringValue(hireRecommendation['action']),
+    hire_recommendation_reason: this.stringValue(hireRecommendation['reason']),
+    early_exit: Boolean(field('early_exit')),
+    early_exit_reason: this.stringValue(field('early_exit_reason')),
+    updated_at: this.stringValue(field('updated_at')),
+    created_at: this.stringValue(field('created_at')),
+  };
+}
+
+parseProfessionalSummary(summary: string): ProfessionalSummarySection[] {
+  const text = this.stringValue(summary);
+  if (!text) {
+    return [];
+  }
+
+  const labelMap: Record<string, { key: string; title: string }> = {
+    'executive summary': { key: 'executive_summary', title: 'Executive Summary' },
+    'evidence record': { key: 'evidence_record', title: 'Evidence Record' },
+    'hiring signal': { key: 'hiring_signal', title: 'Hiring Signal' },
+    'candidate behaviour': { key: 'candidate_behaviour', title: 'Candidate Behaviour' },
+    'candidate behavior': { key: 'candidate_behaviour', title: 'Candidate Behaviour' },
+  };
+  const labelPattern = /(?:^|\n)\s*\*{0,2}(Executive Summary|Evidence Record|Hiring Signal|Candidate Behaviou?r)\*{0,2}\s*:?\s*/gi;
+  const matches = Array.from(text.matchAll(labelPattern));
+  if (!matches.length) {
+    return [];
+  }
+
+  const sections: ProfessionalSummarySection[] = [];
+  matches.forEach((match, index) => {
+    const rawLabel = (match[1] || '').toLowerCase();
+    const label = labelMap[rawLabel];
+    const start = match.index !== undefined ? match.index + match[0].length : 0;
+    const end = index + 1 < matches.length && matches[index + 1].index !== undefined
+      ? matches[index + 1].index as number
+      : text.length;
+    const content = text.slice(start, end).trim();
+    if (label && content) {
+      sections.push({ ...label, content });
+    }
+  });
+  return sections;
+}
+
+decisionBadgeClass(decision: string): string {
+  const normalized = this.normalizeEvaluationLabel(decision);
+  if (normalized.includes('strong hire')) return 'evaluation-report-badge--strong-hire';
+  if (normalized === 'hire' || normalized.includes('advance')) return 'evaluation-report-badge--hire';
+  if (normalized.includes('maybe') || normalized.includes('hold')) return 'evaluation-report-badge--maybe';
+  if (normalized.includes('needs more data') || normalized.includes('more data')) return 'evaluation-report-badge--needs-data';
+  if (normalized.includes('reject') || normalized.includes('no hire')) return 'evaluation-report-badge--reject';
+  return 'evaluation-report-badge--neutral';
+}
+
+behaviorStatusBadgeClass(status: string): string {
+  const normalized = this.normalizeEvaluationLabel(status);
+  if (normalized.includes('attention required') || normalized.includes('flagged') || normalized.includes('review')) {
+    return 'evaluation-report-badge--warning';
+  }
+  if (normalized.includes('clear') || normalized.includes('passed') || normalized.includes('verified')) {
+    return 'evaluation-report-badge--success';
+  }
+  if (normalized.includes('not captured') || normalized.includes('unavailable') || normalized.includes('missing')) {
+    return 'evaluation-report-badge--neutral';
+  }
+  return 'evaluation-report-badge--neutral';
+}
+
+formatScore(score: number | string | null | undefined): string {
+  const value = this.numberOrNull(score);
+  if (value === null) {
+    return 'N/A';
+  }
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+truncateText(text: string, limit: number): string {
+  const value = this.stringValue(text);
+  if (value.length <= limit) {
+    return value;
+  }
+  return `${value.slice(0, limit).trim()}...`;
+}
+
+getEvaluationSummaryText(): string {
+  return this.evaluationSummary.executive_summary
+    || this.evaluationSummary.summary_verdict
+    || this.evaluationSummary.professional_summary_fallback;
+}
+
+getEvaluationSignalLabel(): string {
+  return [this.evaluationSummary.confidence, this.evaluationSummary.interview_signal_quality]
+    .filter((value) => Boolean(value))
+    .join(' / ');
+}
+
+hasEvidenceHighlights(): boolean {
+  return Boolean(
+    this.evaluationSummary.strengths.length
+    || this.evaluationSummary.concerns.length
+    || this.evaluationSummary.gaps.length
+    || this.evaluationSummary.follow_up_areas.length
+  );
+}
+
+hasCandidateBehaviorSignals(): boolean {
+  const behavior = this.evaluationSummary.candidate_behavior;
+  return Boolean(
+    behavior.status
+    || behavior.summary
+    || Object.keys(behavior.gaze_tracking).length
+    || Object.keys(behavior.voice_verification).length
+  );
+}
+
+behaviorMetric(source: Record<string, unknown>, key: string): string {
+  const value = source[key];
+  if (value === null || value === undefined || value === '') {
+    return 'N/A';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+  return String(value);
+}
+
+qaCardKey(record: QuestionAnswerRecord, index: number): string {
+  return `${record.turn_index || index + 1}-${index}`;
+}
+
+isQaExpanded(record: QuestionAnswerRecord, index: number): boolean {
+  return this.qaExpandedKeys.has(this.qaCardKey(record, index));
+}
+
+toggleQaAnswer(record: QuestionAnswerRecord, index: number): void {
+  const key = this.qaCardKey(record, index);
+  if (this.qaExpandedKeys.has(key)) {
+    this.qaExpandedKeys.delete(key);
+    return;
+  }
+  this.qaExpandedKeys.add(key);
+}
+
+shouldCollapseText(text: string, limit = 260): boolean {
+  return this.stringValue(text).length > limit;
+}
+
 private createEmptyEvaluationSummary(): CandidateEvaluationSummary {
   return {
     available: false,
+    candidate_name: '',
+    role_title: '',
     decision: '',
     recommendation: '',
     score: null,
     executive_summary: '',
     summary_verdict: '',
+    professional_summary: '',
+    professional_summary_sections: [],
+    professional_summary_fallback: '',
+    question_answer_records: [],
+    candidate_behavior: {
+      status: '',
+      summary: '',
+      gaze_tracking: {},
+      voice_verification: {},
+    },
+    evidence_highlights: [],
+    technical_breakdown: {},
+    behavior_breakdown: {},
+    next_round_focus: [],
+    evaluation_payload: {},
     confidence: '',
     interview_signal_quality: '',
     strengths: [],
@@ -2030,6 +2272,109 @@ private createEmptyEvaluationSummary(): CandidateEvaluationSummary {
     updated_at: '',
     created_at: '',
   };
+}
+
+private normalizeQuestionAnswerRecords(value: unknown): QuestionAnswerRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item) => this.isObjectRecord(item))
+    .map((item, index) => {
+      const record = item as Record<string, unknown>;
+      return {
+        turn_index: this.stringValue(record['turn_index']) || index + 1,
+        skill: this.stringValue(record['skill']),
+        section_role: this.stringValue(record['section_role']),
+        question_text: this.stringValue(record['question_text']),
+        candidate_answer: this.stringValue(record['candidate_answer']),
+        answer_quality_state: this.stringValue(record['answer_quality_state']),
+        expected_signal: this.stringValue(record['expected_signal']),
+      };
+    })
+    .filter((record) => Boolean(record.question_text || record.candidate_answer));
+}
+
+private normalizeCandidateBehavior(value: unknown): CandidateBehaviorSummary {
+  const source = this.isObjectRecord(value) ? (value as Record<string, unknown>) : {};
+  return {
+    status: this.stringValue(source['status']),
+    summary: this.stringValue(source['summary']),
+    gaze_tracking: this.isObjectRecord(source['gaze_tracking']) ? (source['gaze_tracking'] as Record<string, unknown>) : {},
+    voice_verification: this.isObjectRecord(source['voice_verification']) ? (source['voice_verification'] as Record<string, unknown>) : {},
+  };
+}
+
+private normalizeTextArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => this.textFromUnknown(item))
+      .filter((item) => Boolean(item));
+  }
+  const text = this.textFromUnknown(value);
+  return text ? [text] : [];
+}
+
+private textFromUnknown(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value).trim();
+  }
+  if (this.isObjectRecord(value)) {
+    return Object.entries(value)
+      .slice(0, 4)
+      .map(([key, item]) => {
+        const text = Array.isArray(item)
+          ? item.map((entry) => this.stringValue(entry)).filter(Boolean).join(', ')
+          : this.stringValue(item);
+        return text ? `${this.humanizeLabel(key)}: ${text}` : '';
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
+  return '';
+}
+
+private stringValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value).trim();
+  }
+  return '';
+}
+
+private numberOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+private isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+private normalizeEvaluationLabel(value: string): string {
+  return this.stringValue(value).toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+private humanizeLabel(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 private fallbackCopyToClipboard(value: string): boolean {

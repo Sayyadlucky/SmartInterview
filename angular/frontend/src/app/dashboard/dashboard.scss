@@ -2318,8 +2318,8 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
 }
 
 .evaluation-summary-dialog {
-  width: min(760px, 100%);
-  max-height: min(82vh, 820px);
+  width: min(1040px, 100%);
+  max-height: min(88vh, 920px);
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -2374,31 +2374,6 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   color: #ffd6d6;
 }
 
-.evaluation-summary-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.evaluation-summary-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  border: 1px solid rgba(137, 206, 246, 0.18);
-  border-radius: 999px;
-  background: rgba(8, 33, 62, 0.7);
-  color: #d6f7ff;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 0 12px;
-}
-
-.evaluation-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .evaluation-summary-section {
   border: 1px solid rgba(137, 206, 246, 0.14);
   border-radius: 8px;
@@ -2421,23 +2396,279 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   line-height: 1.6;
 }
 
-.evaluation-summary-list {
+.evaluation-report {
+  display: grid;
+  gap: 14px;
+}
+
+.evaluation-report-snapshot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(220px, 0.6fr);
+  gap: 14px;
+  align-items: stretch;
+  border: 1px solid rgba(103, 239, 255, 0.22);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(28, 90, 122, 0.4), rgba(8, 33, 62, 0.86)),
+    rgba(8, 33, 62, 0.7);
+  padding: 16px;
+}
+
+.evaluation-report-kicker {
+  color: #67efff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.evaluation-report-snapshot__identity h4 {
+  margin: 6px 0 4px;
+  color: #f6fbff;
+  font-size: 1.28rem;
+}
+
+.evaluation-report-snapshot__identity p,
+.evaluation-report-section__head span {
+  margin: 0;
+  color: #9fc3dc;
+  font-size: 0.8rem;
+}
+
+.evaluation-report-score {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-width: 112px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(2, 12, 27, 0.36);
+  padding: 12px;
+}
+
+.evaluation-report-score span {
+  color: #9fc3dc;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evaluation-report-score strong {
+  color: #ffffff;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.evaluation-report-snapshot__badges,
+.evaluation-report-chip-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-content: flex-start;
 }
 
-.evaluation-summary-item {
+.evaluation-report-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  border: 1px solid rgba(122, 199, 242, 0.16);
-  border-radius: 8px;
-  background: rgba(11, 38, 69, 0.66);
+  width: fit-content;
+  min-height: 28px;
+  border: 1px solid rgba(137, 206, 246, 0.18);
+  border-radius: 999px;
+  background: rgba(17, 44, 76, 0.76);
   color: #d8eeff;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  text-transform: capitalize;
+}
+
+.evaluation-report-badge--strong-hire,
+.evaluation-report-badge--hire,
+.evaluation-report-badge--success {
+  border-color: rgba(72, 211, 149, 0.38);
+  background: rgba(16, 185, 129, 0.16);
+  color: #b9f8dc;
+}
+
+.evaluation-report-badge--maybe,
+.evaluation-report-badge--needs-data,
+.evaluation-report-badge--warning {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: rgba(180, 83, 9, 0.2);
+  color: #fde68a;
+}
+
+.evaluation-report-badge--reject {
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(127, 29, 29, 0.22);
+  color: #fecaca;
+}
+
+.evaluation-report-badge--neutral {
+  border-color: rgba(137, 206, 246, 0.2);
+  background: rgba(18, 52, 86, 0.62);
+  color: #d8eeff;
+}
+
+.evaluation-report-section {
+  gap: 12px;
+}
+
+.evaluation-report-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.evaluation-report-summary-grid,
+.evaluation-report-evidence-grid,
+.evaluation-report-integrity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.evaluation-report-summary-block,
+.evaluation-report-evidence-card,
+.evaluation-report-integrity-card,
+.evaluation-report-qa-card {
+  border: 1px solid rgba(137, 206, 246, 0.12);
+  border-radius: 8px;
+  background: rgba(2, 12, 27, 0.24);
+  padding: 12px;
+}
+
+.evaluation-report-summary-block h5,
+.evaluation-report-evidence-card h5,
+.evaluation-report-integrity-card h5,
+.evaluation-report-qa-card h5 {
+  margin: 0 0 8px;
+  color: #eff9ff;
+  font-size: 0.8rem;
+}
+
+.evaluation-report-summary-block p,
+.evaluation-report-behavior p,
+.evaluation-report-expected p,
+.evaluation-report-answer {
+  margin: 0;
+  color: #bfdaf0;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.evaluation-report-chip {
+  display: inline-flex;
+  min-height: 30px;
+  border: 1px solid rgba(137, 206, 246, 0.14);
+  border-radius: 8px;
+  background: rgba(11, 38, 69, 0.58);
+  color: #d8eeff;
+  font-size: 0.74rem;
   line-height: 1.45;
   padding: 7px 10px;
+}
+
+.evaluation-report-chip--positive {
+  border-color: rgba(72, 211, 149, 0.2);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.evaluation-report-chip--warning {
+  border-color: rgba(251, 191, 36, 0.24);
+  background: rgba(180, 83, 9, 0.14);
+}
+
+.evaluation-report-qa-list {
+  display: grid;
+  gap: 10px;
+}
+
+.evaluation-report-qa-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: #9fc3dc;
+  font-size: 0.72rem;
+}
+
+.evaluation-report-qa-card__meta span:first-child,
+.evaluation-report-quality {
+  border: 1px solid rgba(137, 206, 246, 0.16);
+  border-radius: 999px;
+  background: rgba(17, 44, 76, 0.7);
+  color: #d8eeff;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.evaluation-report-qa-card__meta strong {
+  color: #f2fbff;
+}
+
+.evaluation-report-qa-card__meta em {
+  color: #9fc3dc;
+  font-style: normal;
+  text-transform: capitalize;
+}
+
+.evaluation-report-link-button {
+  justify-self: start;
+  border: none;
+  background: transparent;
+  color: #67efff;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 6px 0 0;
+}
+
+.evaluation-report-expected {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  border-top: 1px solid rgba(137, 206, 246, 0.1);
+  padding-top: 10px;
+}
+
+.evaluation-report-expected span {
+  color: #9fc3dc;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evaluation-report-behavior {
+  display: grid;
+  gap: 12px;
+}
+
+.evaluation-report-integrity-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.evaluation-report-integrity-card dl div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.evaluation-report-integrity-card dt {
+  color: #9fc3dc;
+  font-size: 0.72rem;
+}
+
+.evaluation-report-integrity-card dd {
+  margin: 0;
+  color: #f2fbff;
+  font-size: 0.76rem;
+  font-weight: 800;
 }
 
 @keyframes dashboard-spin {
@@ -2501,6 +2732,20 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   .company-modal-grid {
     grid-template-columns: 1fr;
   }
+
+  .evaluation-report-snapshot {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-report-score {
+    justify-items: start;
+  }
+
+  .evaluation-report-summary-grid,
+  .evaluation-report-evidence-grid,
+  .evaluation-report-integrity-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2521,8 +2766,15 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
     padding: 14px;
   }
 
-  .evaluation-summary-grid {
-    grid-template-columns: 1fr;
+  .evaluation-summary-dialog {
+    max-height: 90vh;
+    padding: 14px;
+  }
+
+  .evaluation-summary-head,
+  .evaluation-report-section__head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .company-modal-overlay {
@@ -2541,6 +2793,38 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
 
   .company-form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .evaluation-summary-modal {
+    position: static;
+    display: block;
+    padding: 0;
+    background: #ffffff;
+    backdrop-filter: none;
+  }
+
+  .evaluation-summary-dialog {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border: none;
+    box-shadow: none;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .evaluation-summary-head,
+  .evaluation-summary-section,
+  .evaluation-report-snapshot,
+  .evaluation-report-summary-block,
+  .evaluation-report-evidence-card,
+  .evaluation-report-integrity-card,
+  .evaluation-report-qa-card {
+    break-inside: avoid;
+    background: #ffffff;
+    color: #0f172a;
   }
 }
 
