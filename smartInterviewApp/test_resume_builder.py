@@ -8,7 +8,15 @@ from django.urls import reverse
 from django.utils import timezone
 
 from smartInterviewApp.commonViews import sanitize_resume_builder_payload
-from smartInterviewApp.models import CandidateResumeBuilderDraft, Interview, UserProfile, Vacancies
+from smartInterviewApp.models import (
+    CandidatePublicResume,
+    CandidateResume,
+    CandidateResumeBuilderDraft,
+    CandidateResumeSection,
+    Interview,
+    UserProfile,
+    Vacancies,
+)
 
 
 class ResumeBuilderViewTests(TestCase):
@@ -98,6 +106,42 @@ class ResumeBuilderViewTests(TestCase):
         self.assertEqual(response['Content-Type'], 'application/pdf')
         self.assertEqual(response['X-Resume-PDF-Renderer'], 'chrome')
         render_pdf_mock.assert_called_once()
+
+    @patch('smartInterviewApp.commonViews.render_pdf_with_chrome', side_effect=RuntimeError('Chrome is unavailable'))
+    @patch('smartInterviewApp.commonViews.get_cupsfilter_binary', return_value='')
+    def test_public_resume_pdf_download_uses_pure_python_fallback_without_system_renderers(
+        self,
+        cupsfilter_mock,
+        render_pdf_mock,
+    ):
+        CandidatePublicResume.objects.create(candidate=self.candidate, short_code='bb555etz')
+        resume = CandidateResume.objects.create(
+            candidate=self.candidate,
+            status=CandidateResume.ParseStatus.COMPLETED,
+            is_active=True,
+            headline='Backend Engineer',
+            summary='Builds reliable Django systems.',
+            current_title='Backend Engineer',
+            structured_data={'skills': ['Python', 'Django']},
+            processed_at=timezone.now(),
+        )
+        CandidateResumeSection.objects.create(
+            resume=resume,
+            section_key='experience',
+            title='Experience',
+            display_order=1,
+            content={'items': [{'title': 'Backend Engineer', 'company': 'Shortlistii', 'details': ['Built APIs']}]},
+            raw_text='Backend Engineer at Shortlistii\nBuilt APIs',
+        )
+
+        response = self.client.get(reverse('public-candidate-resume-pdf', args=['bb555etz']))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertEqual(response['X-Resume-PDF-Renderer'], 'fallback-text')
+        self.assertTrue(response.content.startswith(b'%PDF-1.4'))
+        render_pdf_mock.assert_called_once()
+        cupsfilter_mock.assert_called_once()
 
     def test_candidate_dashboard_contains_resume_builder_link(self):
         response = self.client.get(reverse('candidate-dashboard'))

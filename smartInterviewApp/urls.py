@@ -15,7 +15,6 @@ urlpatterns = [
     path('workspace/password-reset/verify-otp/', views.workspace_password_reset_verify_otp, name='workspace-password-reset-verify-otp'),
     path('workspace/password-reset/complete/', views.workspace_password_reset_complete, name='workspace-password-reset-complete'),
     path('logout/', views.MyLogoutView.as_view(), name='logout'),
-    path('session/ping/', views.session_ping, name='session-ping'),
     path('dashboard/', include(('angular.urls','angular'), namespace='dashboard')),
     path('dashboard-data/', views.dashboardData, name='dashboard-data'),
     path('update-company-profile/', views.updateCompanyProfile, name='update-company-profile'),

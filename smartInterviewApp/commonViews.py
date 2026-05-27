@@ -11,6 +11,7 @@ import mimetypes
 import os
 import random
 import re
+import shutil
 import string
 import secrets
 import signal
@@ -66,9 +67,20 @@ SIGNUP_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 PASSWORD_RESET_SESSION_KEY = 'candidate_password_reset'
 PASSWORD_RESET_MAX_AGE_SECONDS = 60 * 15
 PDF_RENDERER_PYTHON_CANDIDATES = [
+    os.environ.get('PDF_RENDERER_PYTHON', ''),
     '/Users/sayyadlucky/PycharmProjects/smartvideo/.venv/bin/python',
 ]
 PDF_BROWSER_CANDIDATES = [
+    os.environ.get('PDF_BROWSER_BINARY', ''),
+    os.environ.get('CHROME_BIN', ''),
+    'google-chrome',
+    'google-chrome-stable',
+    'chromium',
+    'chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ]
 logger = logging.getLogger(__name__)
@@ -1940,23 +1952,41 @@ def render_word_document_from_rtf(rtf: str) -> bytes:
             return handle.read()
 
 
+def get_cupsfilter_binary() -> str:
+    for candidate in ('cupsfilter', '/usr/sbin/cupsfilter'):
+        if os.path.exists(candidate):
+            return candidate
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    return ''
+
+
 def render_pdf_from_text(lines: list[str], title: str) -> bytes:
     plain_text = '\n'.join(line for line in lines if line is not None).strip() + '\n'
+    cupsfilter = get_cupsfilter_binary()
+    if not cupsfilter:
+        return render_text_pdf(title, lines)
+
     with tempfile.TemporaryDirectory() as temp_dir:
         txt_path = f'{temp_dir}/resume.txt'
         pdf_path = f'{temp_dir}/resume.pdf'
         with open(txt_path, 'w', encoding='utf-8') as handle:
             handle.write(plain_text)
-        with open(pdf_path, 'wb') as output_handle:
-            process = subprocess.run(
-                ['/usr/sbin/cupsfilter', '-i', 'text/plain', '-m', 'application/pdf', '-t', title, txt_path],
-                check=True,
-                stdout=output_handle,
-                stderr=subprocess.PIPE,
-                timeout=20,
-            )
-        with open(pdf_path, 'rb') as handle:
-            return handle.read()
+        try:
+            with open(pdf_path, 'wb') as output_handle:
+                subprocess.run(
+                    [cupsfilter, '-i', 'text/plain', '-m', 'application/pdf', '-t', title, txt_path],
+                    check=True,
+                    stdout=output_handle,
+                    stderr=subprocess.PIPE,
+                    timeout=20,
+                )
+            with open(pdf_path, 'rb') as handle:
+                return handle.read()
+        except Exception:
+            logger.exception('cupsfilter PDF fallback failed; using pure Python text PDF renderer.')
+            return render_text_pdf(title, lines)
 
 
 class ResumeRenderTimeout(Exception):
@@ -1988,15 +2018,25 @@ class resume_render_deadline:
 
 def get_external_pdf_renderer_python() -> str:
     for candidate in PDF_RENDERER_PYTHON_CANDIDATES:
+        if not candidate:
+            continue
         if os.path.exists(candidate):
             return candidate
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
     return ''
 
 
 def get_pdf_browser_binary() -> str:
     for candidate in PDF_BROWSER_CANDIDATES:
+        if not candidate:
+            continue
         if os.path.exists(candidate):
             return candidate
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
     return ''
 
 
@@ -4311,8 +4351,6 @@ def build_candidate_dashboard_context(
         'insights': insights,
         'recent_job_postings': visible_job_postings,
         'more_job_postings': overflow_job_postings,
-        'session_timeout_seconds': getattr(settings, 'SESSION_COOKIE_AGE', 1800),
-        'session_warning_seconds': getattr(settings, 'SESSION_IDLE_WARNING_SECONDS', 60),
     }
 
 

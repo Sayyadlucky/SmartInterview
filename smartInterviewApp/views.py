@@ -571,16 +571,6 @@ class MyLogoutView(View):
         return redirect('home')
 
 
-def session_ping(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({'authenticated': False}, status=401)
-    return JsonResponse({
-        'authenticated': True,
-        'session_timeout_seconds': getattr(settings, 'SESSION_COOKIE_AGE', 1800),
-        'warning_seconds': getattr(settings, 'SESSION_IDLE_WARNING_SECONDS', 60),
-    })
-
-
 @login_required
 def dashboardData(request):
     try:

@@ -1,4 +1,5 @@
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.urls import reverse
 
 from smartInterviewApp.templatetags.host_links import host_link
 
@@ -26,3 +27,17 @@ class HostLinkTests(SimpleTestCase):
 
         self.assertEqual(host_link(request, "candidate_login"), "https://candidates.shortlistii.com/")
         self.assertEqual(host_link(request, "candidate_signup"), "https://candidates.shortlistii.com/signup/")
+
+    @override_settings(SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'))
+    def test_forwarded_https_builds_secure_public_resume_download_urls(self):
+        request = self.factory.get(
+            '/',
+            HTTP_HOST='candidates.shortlistii.com',
+            HTTP_X_FORWARDED_PROTO='https',
+        )
+
+        self.assertTrue(request.is_secure())
+        self.assertEqual(
+            request.build_absolute_uri(reverse('public-candidate-resume-word', args=['bb555etz'])),
+            'https://candidates.shortlistii.com/r/bb555etz/download-word/',
+        )

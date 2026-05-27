@@ -229,6 +229,10 @@ def env_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = env_bool('USE_X_FORWARDED_HOST', default=not DEBUG)
+SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', default=False)
+
 default_shared_cookie_domain = os.getenv('SESSION_COOKIE_DOMAIN', '').strip()
 if not default_shared_cookie_domain and not DEBUG:
     default_shared_cookie_domain = '.shortlistii.com'
@@ -239,16 +243,9 @@ SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', default=not DEBUG)
 CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', default=not DEBUG)
 SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
 CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
-SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', '1800'))
+SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', '1209600'))
 SESSION_SAVE_EVERY_REQUEST = env_bool('SESSION_SAVE_EVERY_REQUEST', default=True)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = env_bool('SESSION_EXPIRE_AT_BROWSER_CLOSE', default=False)
-SESSION_IDLE_WARNING_SECONDS = max(
-    1,
-    min(
-        int(os.getenv('SESSION_IDLE_WARNING_SECONDS', '60')),
-        max(1, SESSION_COOKIE_AGE - 1),
-    ),
-)
 
 
 REST_FRAMEWORK = {
