@@ -95,6 +95,7 @@ class CandidateInsightService:
                 'available': False,
                 'error_message': '',
                 'executive_summary': '',
+                'role_fit_summary': '',
                 'resume_score': None,
                 'role_fit_score': None,
                 'market_demand_score': None,
@@ -112,12 +113,20 @@ class CandidateInsightService:
                 'model_name': '',
             }
 
+        payload = snapshot.payload if isinstance(snapshot.payload, dict) else {}
+        role_fit_summary = (
+            getattr(snapshot, 'role_fit_summary', '')
+            or payload.get('role_fit_summary')
+            or ''
+        )
+
         return {
             'status': snapshot.status,
             'loading': snapshot.status in {CandidateInsightSnapshot.Status.PENDING, CandidateInsightSnapshot.Status.PROCESSING},
             'available': snapshot.status == CandidateInsightSnapshot.Status.COMPLETED,
             'error_message': snapshot.error_message,
             'executive_summary': snapshot.executive_summary,
+            'role_fit_summary': role_fit_summary,
             'resume_score': snapshot.resume_score,
             'role_fit_score': snapshot.role_fit_score,
             'market_demand_score': snapshot.market_demand_score,
@@ -218,7 +227,7 @@ class CandidateInsightService:
                 'Generate premium dashboard insights for an AI hiring platform. '
                 'Use only the candidate profile and resume data provided. '
                 'For market demand and salary trend, provide directional estimates and clearly keep them approximate, not authoritative. '
-                'Return concise recruiter-friendly insight summaries.'
+                'Return concise recruiter-friendly insight summaries, with role_fit_summary distinct from executive_summary.'
             ),
         }
 
@@ -277,6 +286,7 @@ class CandidateInsightService:
             'additionalProperties': False,
             'properties': {
                 'executive_summary': {'type': 'string'},
+                'role_fit_summary': {'type': 'string'},
                 'resume_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
                 'role_fit_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
                 'market_demand_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
@@ -309,6 +319,7 @@ class CandidateInsightService:
             },
             'required': [
                 'executive_summary',
+                'role_fit_summary',
                 'resume_score',
                 'role_fit_score',
                 'market_demand_score',

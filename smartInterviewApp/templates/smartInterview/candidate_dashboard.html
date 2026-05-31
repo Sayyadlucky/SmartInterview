@@ -4080,7 +4080,7 @@
                 <strong class="title-with-icon"><i class="ph ph-chart-line-up" aria-hidden="true"></i>Profile Strength</strong>
                 <span class="signal-card__score" id="resumeScoreValue">{% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}--{% endif %}</span>
               </div>
-              <div class="signal-meter"><span id="resumeScoreBar" style="width: {% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}{{ analytics.profile_completion }}{% endif %}%"></span></div>
+              <div class="signal-meter"><span id="resumeScoreBar" style="width: {% if insights.resume_score is not None %}{{ insights.resume_score }}{% else %}0{% endif %}%"></span></div>
               <p class="subtle u-m-0" id="executiveSummaryText">
                 {% if insights.executive_summary %}{{ insights.executive_summary }}{% else %}Profile completion, verification, and resume freshness shape your current candidate readiness.{% endif %}
               </p>
@@ -4097,9 +4097,9 @@
                 <strong class="title-with-icon"><i class="ph ph-target" aria-hidden="true"></i>Role Fit</strong>
                 <span class="signal-card__score" id="roleFitScoreValue">{% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}--{% endif %}</span>
               </div>
-              <div class="signal-meter"><span id="roleFitBar" style="width: {% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}54{% endif %}%"></span></div>
+              <div class="signal-meter"><span id="roleFitBar" style="width: {% if insights.role_fit_score is not None %}{{ insights.role_fit_score }}{% else %}0{% endif %}%"></span></div>
               <p class="subtle u-m-0" id="roleFitSummaryText">
-                {% if insights.executive_summary %}{{ insights.executive_summary }}{% else %}Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.{% endif %}
+                {% if insights.role_fit_summary %}{{ insights.role_fit_summary }}{% else %}Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.{% endif %}
               </p>
               <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="roleFitSummaryText" data-insight-detail-title="Role Fit" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
             </article>
@@ -4109,7 +4109,7 @@
                 <strong class="title-with-icon"><i class="ph ph-stack" aria-hidden="true"></i>Skill Impact</strong>
                 <span class="signal-card__score" id="skillsImpactScoreValue">{% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}--{% endif %}</span>
               </div>
-              <div class="signal-meter"><span id="skillsImpactBar" style="width: {% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}48{% endif %}%"></span></div>
+              <div class="signal-meter"><span id="skillsImpactBar" style="width: {% if insights.current_skills_impact_score is not None %}{{ insights.current_skills_impact_score }}{% else %}0{% endif %}%"></span></div>
               <p class="subtle u-m-0" id="skillsImpactSummaryText">
                 {% if insights.current_skills_impact_summary %}{{ insights.current_skills_impact_summary }}{% else %}Skill impact insight will appear here after AI analysis completes.{% endif %}
               </p>
@@ -4126,7 +4126,7 @@
                 <strong class="title-with-icon"><i class="ph ph-lightning-charge" aria-hidden="true"></i>Market Demand</strong>
                 <span class="signal-card__score" id="marketDemandScoreValue">{% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}--{% endif %}</span>
               </div>
-              <div class="signal-meter"><span id="marketDemandBar" style="width: {% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}52{% endif %}%"></span></div>
+              <div class="signal-meter"><span id="marketDemandBar" style="width: {% if insights.market_demand_score is not None %}{{ insights.market_demand_score }}{% else %}0{% endif %}%"></span></div>
               <p class="subtle u-m-0" id="marketDemandSummaryText">
                 {% if insights.market_demand_summary %}{{ insights.market_demand_summary }}{% else %}Market demand insight will appear here after your first AI snapshot is generated.{% endif %}
               </p>
@@ -5422,7 +5422,7 @@
         setText('marketDemandSummaryText', data.market_demand_summary, 'Market demand insight will appear here after your first AI snapshot is generated.');
         setText('skillsImpactSummaryText', data.current_skills_impact_summary, 'Skill impact insight will appear here after AI analysis completes.');
         setText('salaryTrendSummaryText', data.salary_trend_summary, 'Salary trend insight will appear here after AI analysis completes. It will be positioned as directional guidance, not an authoritative benchmark.');
-        setText('roleFitSummaryText', data.executive_summary, 'Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.');
+        setText('roleFitSummaryText', data.role_fit_summary, 'Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.');
         setText('marketTrendSummaryText', data.market_demand_summary, 'Current market trend for your skill profile will appear here after AI analysis completes.');
         setText('salaryTrendInsightText', data.salary_trend_summary, 'Salary trend insight will appear here after AI analysis completes. It will be shown as directional guidance only.');
 
@@ -5437,9 +5437,9 @@
         setText('marketTrendMetric2', data.current_skills_impact_score != null ? `Impact ${data.current_skills_impact_score}/100` : 'Awaiting impact', 'Awaiting impact');
 
         setWidth('resumeScoreBar', data.resume_score, 0);
-        setWidth('marketDemandBar', data.market_demand_score, 52);
-        setWidth('skillsImpactBar', data.current_skills_impact_score, 48);
-        setWidth('roleFitBar', data.role_fit_score, 54);
+        setWidth('marketDemandBar', data.market_demand_score, 0);
+        setWidth('skillsImpactBar', data.current_skills_impact_score, 0);
+        setWidth('roleFitBar', data.role_fit_score, 0);
 
         setChip('strengthChip1', data.top_strengths || [], 0);
         setChip('strengthChip2', data.top_strengths || [], 1);
