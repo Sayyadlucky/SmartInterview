@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import threading
@@ -31,7 +32,10 @@ KNOWN_ROLE_REQUIREMENT_TERMS = (
 
 
 def _clean_text(value: Any, limit: int | None = None) -> str:
-    text = re.sub(r'\s+', ' ', str(value or '')).strip()
+    text = html.unescape(str(value or '')).replace('\xa0', ' ')
+    text = re.sub(r'<[^>]*>', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    text = text.strip(' \t\r\n\'"`<>|:;-–—•·,')
     if limit and len(text) > limit:
         return f'{text[:limit].rstrip()}...'
     return text
@@ -189,10 +193,11 @@ def _resume_evidence_text(resume: CandidateResume | None) -> str:
 def _extract_vacancy_requirements(vacancy, candidate_skills: list[str]) -> list[str]:
     if not vacancy:
         return []
+    clean_description = _clean_text(vacancy.description)
     vacancy_text = ' '.join([
         vacancy.role or '',
         vacancy.position or '',
-        vacancy.description or '',
+        clean_description,
         vacancy.experience_required or '',
         vacancy.location or '',
         vacancy.job_type or '',
@@ -206,12 +211,11 @@ def _extract_vacancy_requirements(vacancy, candidate_skills: list[str]) -> list[
         normalized_skill = _normalize_text(skill)
         if len(normalized_skill) >= 3 and normalized_skill in normalized_vacancy:
             candidates.append(skill)
-    for fragment in re.split(r'[\n,;|•]+', vacancy.description or ''):
+    for fragment in re.split(r'[\n,;|•]+', clean_description):
         clean = _clean_text(fragment, 80)
-        if not clean or len(clean.split()) > 5:
+        if not _is_valid_requirement_fragment(clean):
             continue
-        if any(marker in clean.lower() for marker in ('experience', 'skill', 'python', 'sql', 'react', 'django', 'aws', 'excel')):
-            candidates.append(clean)
+        candidates.append(clean)
     return _dedupe_strings(candidates, limit=14, item_limit=90)
 
 
@@ -239,6 +243,46 @@ def _parse_years(value: Any) -> float | None:
         return float(numbers[0])
     except ValueError:
         return None
+
+
+def _is_valid_requirement_fragment(text: str) -> bool:
+    raw = str(text or '').strip()
+    raw_lower = raw.lower()
+    if '<' in raw or '>' in raw or '&nbsp' in raw_lower:
+        return False
+    if raw and (raw[0] in {'"', "'", '`', '<', '>', '=', '/', '\\'} or raw[-1] in {'"', "'", '`', '<', '>', '=', '/', '\\'}):
+        return False
+
+    cleaned = _clean_text(text)
+    if not cleaned:
+        return False
+    lowered = cleaned.lower().strip(' .:-')
+    generic_labels = {
+        'skill',
+        'skills',
+        'experience',
+        'required',
+        'requirement',
+        'requirements',
+        'qualification',
+        'qualifications',
+        'excellent',
+        'proficient',
+        'knowledge',
+        'candidate',
+        'job',
+        'role',
+    }
+    if lowered in generic_labels:
+        return False
+    if len(cleaned) < 3:
+        return False
+    if len(cleaned.split()) > 6:
+        return False
+    punctuation_count = sum(1 for char in cleaned if not char.isalnum() and not char.isspace())
+    if punctuation_count >= max(2, len(cleaned) // 2):
+        return False
+    return True
 
 
 def _build_role_fit_signal(resume: CandidateResume | None, interview: Interview | None) -> dict[str, Any]:
