@@ -1411,6 +1411,359 @@
       color: var(--rb-muted);
     }
 
+    .public-preview-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 74;
+      display: none;
+      background: rgba(1, 7, 18, 0.78);
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .public-preview-backdrop.is-open {
+      display: block;
+      opacity: 1;
+    }
+
+    .public-preview-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 75;
+      display: none;
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .public-preview-modal.is-open {
+      display: grid;
+      place-items: center;
+    }
+
+    .public-preview-shell {
+      width: min(1080px, 100%);
+      max-height: min(94vh, 1080px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      color: #edf7ff;
+    }
+
+    .public-preview-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(116, 210, 255, 0.2);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(9, 24, 48, 0.92), rgba(5, 13, 28, 0.88));
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(16px);
+    }
+
+    .public-preview-topbar__copy {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .public-preview-topbar__copy strong {
+      color: #f7fbff;
+      font-family: "Sora", sans-serif;
+      font-size: 1rem;
+      line-height: 1.25;
+    }
+
+    .public-preview-topbar__copy span {
+      color: #9db4cc;
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+
+    .public-preview-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 2px 4px 8px;
+    }
+
+    .public-resume-document {
+      position: relative;
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: 34px 40px 40px;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #ffffff;
+      color: #172033;
+      box-shadow: 0 34px 90px rgba(0, 0, 0, 0.38);
+    }
+
+    .public-resume-document::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 10px;
+      background: linear-gradient(180deg, #10a8d8, #f59e0b);
+    }
+
+    .public-resume-header {
+      display: grid;
+      grid-template-columns: 116px minmax(0, 1fr) minmax(218px, 0.54fr);
+      gap: 18px;
+      align-items: start;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #d9e2ea;
+    }
+
+    .public-preview-avatar {
+      width: 116px;
+      height: 158px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid #d9e2ea;
+      border-radius: 6px;
+      background: linear-gradient(145deg, #edf6fa, #dfeaf0);
+      color: #047ea7;
+      font-size: 2.6rem;
+      font-weight: 800;
+    }
+
+    .public-preview-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .public-preview-identity {
+      min-width: 0;
+    }
+
+    .public-preview-identity h2 {
+      margin: 0;
+      color: #172033;
+      font-family: "Sora", sans-serif;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      overflow-wrap: anywhere;
+    }
+
+    .public-preview-title {
+      margin: 10px 0 0;
+      color: #047ea7;
+      font-size: 0.95rem;
+      line-height: 1.35;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .public-preview-summary {
+      margin: 8px 0 0;
+      max-width: 62ch;
+      color: #374151;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .public-preview-card {
+      display: grid;
+      gap: 12px;
+      padding-left: 20px;
+      border-left: 4px solid #55c9e8;
+    }
+
+    .public-preview-card h3,
+    .public-resume-section h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+      color: #172033;
+      font-size: 0.8rem;
+      line-height: 1.2;
+      font-weight: 900;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .public-resume-section h3::before {
+      content: "";
+      width: 28px;
+      height: 3px;
+      border-radius: 999px;
+      background: #55c9e8;
+      flex: 0 0 auto;
+    }
+
+    .public-preview-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .public-preview-list li {
+      color: #6b7280;
+      font-size: 0.76rem;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .public-preview-list strong {
+      display: block;
+      margin-bottom: 2px;
+      color: #172033;
+      font-size: 0.66rem;
+      font-weight: 900;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .public-resume-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
+      gap: 32px;
+      align-items: start;
+      padding-top: 22px;
+    }
+
+    .public-resume-main,
+    .public-resume-side {
+      display: grid;
+      gap: 22px;
+      align-content: start;
+      min-width: 0;
+    }
+
+    .public-resume-side {
+      padding-left: 22px;
+      border-left: 1px solid #d9e2ea;
+    }
+
+    .public-resume-section {
+      min-width: 0;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #d9e2ea;
+    }
+
+    .public-resume-section:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .public-resume-section[hidden] {
+      display: none !important;
+    }
+
+    .public-preview-entry-list {
+      display: grid;
+      gap: 16px;
+    }
+
+    .public-preview-entry {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      padding-left: 22px;
+      break-inside: avoid;
+    }
+
+    .public-preview-entry::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 0.42rem;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #10a8d8;
+      box-shadow: 0 0 0 4px #e8f8fc;
+    }
+
+    .public-preview-entry strong {
+      color: #172033;
+      font-size: 0.95rem;
+      line-height: 1.32;
+      font-weight: 900;
+    }
+
+    .public-preview-entry__meta {
+      color: #374151;
+      font-size: 0.78rem;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .public-preview-entry p {
+      margin: 0;
+      color: #374151;
+      font-size: 0.82rem;
+      line-height: 1.58;
+      white-space: pre-line;
+    }
+
+    .public-preview-detail-list {
+      display: grid;
+      gap: 5px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .public-preview-detail-list li {
+      position: relative;
+      padding-left: 13px;
+      color: #374151;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .public-preview-detail-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.65em;
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: #047ea7;
+    }
+
+    .public-preview-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .public-preview-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      max-width: 100%;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 0.7rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .public-preview-empty {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
     /* Candidate dashboard theme alignment */
     .builder-header,
     .resume-builder-header {
@@ -2579,6 +2932,104 @@
         max-width: calc(100vw - 20px);
         font-size: 0.8rem;
       }
+
+      .public-preview-modal {
+        padding: 10px;
+      }
+
+      .public-preview-shell {
+        max-height: 96vh;
+        gap: 8px;
+      }
+
+      .public-preview-topbar {
+        padding: 10px;
+        border-radius: 16px;
+      }
+
+      .public-preview-topbar__copy strong {
+        font-size: 0.9rem;
+      }
+
+      .public-preview-topbar__copy span {
+        font-size: 0.72rem;
+      }
+
+      .public-preview-scroll {
+        padding: 0 0 6px;
+      }
+
+      .public-resume-document {
+        padding: 22px 18px 26px;
+        border-radius: 15px;
+      }
+
+      .public-resume-document::before {
+        width: 6px;
+      }
+
+      .public-resume-header {
+        grid-template-columns: 74px minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      .public-preview-avatar {
+        width: 74px;
+        height: 96px;
+      }
+
+      .public-preview-identity h2 {
+        font-size: 1.5rem;
+      }
+
+      .public-preview-title {
+        margin-top: 7px;
+        font-size: 0.72rem;
+      }
+
+      .public-preview-summary {
+        font-size: 0.76rem;
+        line-height: 1.48;
+      }
+
+      .public-preview-card {
+        grid-column: 1 / -1;
+        padding-left: 12px;
+      }
+
+      .public-resume-content {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding-top: 18px;
+      }
+
+      .public-resume-side {
+        padding-left: 0;
+        border-left: 0;
+      }
+
+      .public-resume-main,
+      .public-resume-side {
+        gap: 16px;
+      }
+
+      .public-resume-section {
+        padding-bottom: 16px;
+      }
+
+      .public-preview-entry-list {
+        gap: 13px;
+      }
+
+      .public-preview-entry strong {
+        font-size: 0.86rem;
+      }
+
+      .public-preview-entry p,
+      .public-preview-detail-list li,
+      .public-preview-list li {
+        font-size: 0.73rem;
+      }
     }
 
     @media (max-width: 420px) {
@@ -2895,6 +3346,82 @@
     </div>
   </div>
 
+  <div class="public-preview-backdrop" id="resumePreviewModalBackdrop"></div>
+  <div class="public-preview-modal" id="resumePreviewModal" role="dialog" aria-modal="true" aria-labelledby="resumePreviewModalTitle" aria-hidden="true">
+    <div class="public-preview-shell">
+      <div class="public-preview-topbar">
+        <div class="public-preview-topbar__copy">
+          <strong id="resumePreviewModalTitle">Resume Preview</strong>
+          <span>Public profile style preview generated from your current builder draft.</span>
+        </div>
+        <button class="btn btn-secondary btn-icon" type="button" id="resumePreviewModalClose" aria-label="Close resume preview"><i class="ph ph-x"></i></button>
+      </div>
+
+      <div class="public-preview-scroll">
+        <article class="public-resume-document" aria-label="Candidate resume preview">
+          <header class="public-resume-header">
+            <div class="public-preview-avatar">
+              {% if candidate.profile_picture_url %}
+                <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+              {% else %}
+                <img src="{% static 'assets/images/boy.png' %}" alt="Candidate preview">
+              {% endif %}
+            </div>
+            <div class="public-preview-identity">
+              <h2 id="modalResumeName">{{ candidate.name }}</h2>
+              <div class="public-preview-title" id="modalResumeHeadline">Headline will appear here</div>
+              <p class="public-preview-summary" id="modalResumeSummary">Your professional summary will show up here as you write it.</p>
+            </div>
+            <aside class="public-preview-card">
+              <h3>Contact</h3>
+              <ul class="public-preview-list" id="modalContactList"></ul>
+            </aside>
+          </header>
+
+          <div class="public-resume-content">
+            <main class="public-resume-main">
+              <section class="public-resume-section" id="modalExperienceSection">
+                <h3>Experience</h3>
+                <div class="public-preview-entry-list" id="modalExperienceList"></div>
+              </section>
+              <section class="public-resume-section" id="modalProjectsSection">
+                <h3>Projects</h3>
+                <div class="public-preview-entry-list" id="modalProjectsList"></div>
+              </section>
+              <section class="public-resume-section" id="modalEducationSection">
+                <h3>Education</h3>
+                <div class="public-preview-entry-list" id="modalEducationList"></div>
+              </section>
+            </main>
+
+            <aside class="public-resume-side">
+              <section class="public-resume-section" id="modalSkillsSection">
+                <h3>Skills</h3>
+                <div class="public-preview-chip-list" id="modalSkillsList"></div>
+              </section>
+              <section class="public-resume-section">
+                <h3>Snapshot</h3>
+                <ul class="public-preview-list" id="modalSnapshotList"></ul>
+              </section>
+              <section class="public-resume-section" id="modalCertificationsSection">
+                <h3>Certifications</h3>
+                <div class="public-preview-entry-list" id="modalCertificationsList"></div>
+              </section>
+              <section class="public-resume-section" id="modalAchievementsSection">
+                <h3>Achievements</h3>
+                <div class="public-preview-entry-list" id="modalAchievementsList"></div>
+              </section>
+              <section class="public-resume-section" id="modalLanguagesSection">
+                <h3>Languages</h3>
+                <div class="public-preview-chip-list" id="modalLanguagesList"></div>
+              </section>
+            </aside>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+
   <div class="ai-drawer-backdrop" id="aiDrawerBackdrop"></div>
   <aside class="ai-drawer" id="aiSuggestionsPanel" aria-live="polite" aria-modal="true" role="dialog" aria-labelledby="aiDrawerTitle">
     <div class="ai-drawer-panel">
@@ -3115,6 +3642,9 @@
       const savedPill = document.getElementById('savedPill');
       const builderToast = document.getElementById('builderToast');
       const previewPanel = document.getElementById('resumePreviewPanel');
+      const resumePreviewModal = document.getElementById('resumePreviewModal');
+      const resumePreviewModalBackdrop = document.getElementById('resumePreviewModalBackdrop');
+      const resumePreviewModalClose = document.getElementById('resumePreviewModalClose');
       const aiSuggestionsPanel = document.getElementById('aiSuggestionsPanel');
       const aiSuggestionList = document.getElementById('aiSuggestionList');
       const aiProviderChip = document.getElementById('aiProviderChip');
@@ -3473,6 +4003,129 @@
             experienceList.appendChild(li);
           });
         }
+      }
+
+      function hasItemContent(item) {
+        if (!item) return false;
+        return [
+          item.title,
+          item.degree,
+          item.label,
+          item.value,
+          item.company,
+          item.institution,
+          item.issuer,
+          item.location,
+          item.role,
+          item.description,
+          item.duration,
+          item.employment_type
+        ].some(Boolean) || (item.details || []).length || (item.tech_stack || []).length;
+      }
+
+      function renderPreviewInfoList(id, entries) {
+        const list = document.getElementById(id);
+        if (!list) return;
+        list.innerHTML = entries
+          .filter((entry) => entry && entry.value)
+          .map((entry) => `<li><strong>${escapeHtml(entry.label)}</strong>${escapeHtml(entry.value)}</li>`)
+          .join('');
+      }
+
+      function renderPreviewChipList(id, sectionId, values, emptyText) {
+        const section = sectionId ? document.getElementById(sectionId) : null;
+        const list = document.getElementById(id);
+        if (!list) return;
+        const cleanValues = (values || []).map((value) => String(value || '').trim()).filter(Boolean);
+        if (section) section.hidden = !cleanValues.length && !emptyText;
+        if (!cleanValues.length) {
+          list.innerHTML = emptyText ? `<p class="public-preview-empty">${escapeHtml(emptyText)}</p>` : '';
+          return;
+        }
+        list.innerHTML = cleanValues
+          .map((value) => `<span class="public-preview-chip">${escapeHtml(value)}</span>`)
+          .join('');
+      }
+
+      function buildPreviewEntryHtml(item, type) {
+        const title = item.title || item.degree || item.label || item.role || item.value || collectionLabels[type] || 'Resume entry';
+        const meta = [
+          item.company,
+          item.institution,
+          item.issuer,
+          item.location,
+          item.duration,
+          item.employment_type,
+          item.role && item.role !== title ? item.role : ''
+        ].filter(Boolean).join(' · ');
+        const details = (item.details || []).map((entry) => String(entry || '').trim()).filter(Boolean);
+        const techStack = (item.tech_stack || []).map((entry) => String(entry || '').trim()).filter(Boolean);
+
+        return `
+          <article class="public-preview-entry">
+            <strong>${escapeHtml(title)}</strong>
+            ${meta ? `<div class="public-preview-entry__meta">${escapeHtml(meta)}</div>` : ''}
+            ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}
+            ${details.length ? `<ul class="public-preview-detail-list">${details.map((entry) => `<li>${escapeHtml(entry)}</li>`).join('')}</ul>` : ''}
+            ${techStack.length ? `<div class="public-preview-chip-list">${techStack.map((entry) => `<span class="public-preview-chip">${escapeHtml(entry)}</span>`).join('')}</div>` : ''}
+          </article>
+        `;
+      }
+
+      function renderPreviewEntrySection(sectionId, listId, items, type, emptyText) {
+        const section = document.getElementById(sectionId);
+        const list = document.getElementById(listId);
+        if (!section || !list) return;
+        const cleanItems = (items || []).filter(hasItemContent);
+        section.hidden = !cleanItems.length && !emptyText;
+        if (!cleanItems.length) {
+          list.innerHTML = emptyText ? `<p class="public-preview-empty">${escapeHtml(emptyText)}</p>` : '';
+          return;
+        }
+        list.innerHTML = cleanItems.map((item) => buildPreviewEntryHtml(item, type)).join('');
+      }
+
+      function renderResumePreviewModal() {
+        const basics = state.basics || {};
+        const name = basics.name || '{{ candidate.name|escapejs }}';
+        const headline = basics.headline || 'Headline will appear here';
+        const summary = basics.summary || 'Your professional summary will show up here as you write it.';
+
+        const modalName = document.getElementById('modalResumeName');
+        const modalHeadline = document.getElementById('modalResumeHeadline');
+        const modalSummary = document.getElementById('modalResumeSummary');
+        if (modalName) modalName.textContent = name;
+        if (modalHeadline) modalHeadline.textContent = headline;
+        if (modalSummary) modalSummary.textContent = summary;
+
+        renderPreviewInfoList('modalContactList', [
+          { label: 'Email', value: basics.email },
+          { label: 'Phone', value: basics.phone },
+          { label: 'Location', value: basics.location },
+          { label: 'Website', value: basics.website },
+          { label: 'LinkedIn', value: basics.linkedin },
+          { label: 'GitHub', value: basics.github },
+          { label: 'Portfolio', value: basics.portfolio }
+        ]);
+
+        renderPreviewInfoList('modalSnapshotList', [
+          { label: 'Experience Entries', value: state.experience.length ? `${state.experience.length}` : 'Not added yet' },
+          { label: 'Projects', value: state.projects.length ? `${state.projects.length}` : 'Not added yet' },
+          { label: 'Skills', value: state.skills.length ? `${state.skills.length}` : 'Not added yet' }
+        ]);
+
+        renderPreviewChipList('modalSkillsList', 'modalSkillsSection', state.skills, 'Add skills to show them here.');
+        renderPreviewEntrySection('modalExperienceSection', 'modalExperienceList', state.experience, 'experience', 'Add experience entries to preview your timeline.');
+        renderPreviewEntrySection('modalProjectsSection', 'modalProjectsList', state.projects, 'projects', '');
+        renderPreviewEntrySection('modalEducationSection', 'modalEducationList', state.education, 'education', '');
+        renderPreviewEntrySection('modalCertificationsSection', 'modalCertificationsList', state.certifications, 'certifications', '');
+        renderPreviewEntrySection('modalAchievementsSection', 'modalAchievementsList', state.achievements, 'achievements', '');
+        renderPreviewChipList(
+          'modalLanguagesList',
+          'modalLanguagesSection',
+          state.languages.map((item) => [item.label, item.value].filter(Boolean).join(' · ')),
+          ''
+        );
       }
 
       function renderStepState() {
@@ -3929,6 +4582,7 @@
       }
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
+          closeResumePreviewModal();
           closeAiSuggestionsDrawer();
         }
       });
@@ -3987,10 +4641,27 @@
       });
 
       function openPreviewPanel() {
-        if (!previewPanel) return;
-        previewPanel.classList.add('is-expanded');
         renderPreview();
-        previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        renderResumePreviewModal();
+        if (!resumePreviewModal || !resumePreviewModalBackdrop) {
+          if (!previewPanel) return;
+          previewPanel.classList.add('is-expanded');
+          previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        resumePreviewModal.classList.add('is-open');
+        resumePreviewModalBackdrop.classList.add('is-open');
+        resumePreviewModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        if (resumePreviewModalClose) resumePreviewModalClose.focus();
+      }
+
+      function closeResumePreviewModal() {
+        if (!resumePreviewModal || !resumePreviewModalBackdrop) return;
+        resumePreviewModal.classList.remove('is-open');
+        resumePreviewModalBackdrop.classList.remove('is-open');
+        resumePreviewModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
       }
 
       async function saveThenDownload(url) {
@@ -4010,8 +4681,15 @@
       });
       document.getElementById('previewButton').addEventListener('click', openPreviewPanel);
       document.getElementById('viewFullPreviewButton').addEventListener('click', openPreviewPanel);
+      if (resumePreviewModalClose) {
+        resumePreviewModalClose.addEventListener('click', closeResumePreviewModal);
+      }
+      if (resumePreviewModalBackdrop) {
+        resumePreviewModalBackdrop.addEventListener('click', closeResumePreviewModal);
+      }
       document.getElementById('refreshPreviewButton').addEventListener('click', () => {
         renderPreview();
+        renderResumePreviewModal();
         showToast('Preview refreshed');
       });
       document.getElementById('aiSuggestButton').addEventListener('click', () => {
