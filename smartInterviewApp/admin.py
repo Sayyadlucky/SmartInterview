@@ -16,6 +16,10 @@ from .models import (
     NotificationAttempt,
     OtpRequest,
     QuestionGenerationJob,
+    ResumeAiFeedback,
+    ResumeAiLearningPattern,
+    ResumeAiProfessionalReview,
+    ResumeAiSuggestion,
     Skill,
     SkillQuestion,
     UserNotificationPreference,
@@ -42,6 +46,59 @@ admin.site.register(User, UserAdmin)
 # Register other models
 admin.site.register(Interview)
 admin.site.register(Vacancies)
+
+
+class ResumeAiReadOnlyAdmin(admin.ModelAdmin):
+    readonly_fields = ()
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ResumeAiSuggestion)
+class ResumeAiSuggestionAdmin(ResumeAiReadOnlyAdmin):
+    list_display = ('id', 'candidate', 'role_family', 'section_key', 'suggestion_type', 'status', 'created_at')
+    list_filter = ('role_family', 'section_key', 'suggestion_type', 'status')
+    search_fields = ('candidate__username', 'candidate__email', 'local_suggestion_title', 'local_suggestion_text')
+
+
+@admin.register(ResumeAiFeedback)
+class ResumeAiFeedbackAdmin(ResumeAiReadOnlyAdmin):
+    list_display = ('id', 'suggestion', 'candidate', 'feedback', 'created_at')
+    list_filter = ('feedback', 'created_at')
+    search_fields = ('candidate__username', 'candidate__email', 'feedback_reason')
+
+
+@admin.register(ResumeAiProfessionalReview)
+class ResumeAiProfessionalReviewAdmin(ResumeAiReadOnlyAdmin):
+    list_display = ('id', 'suggestion', 'candidate', 'openai_model', 'user_applied', 'error_code', 'created_at')
+    list_filter = ('openai_model', 'user_applied', 'error_code', 'created_at')
+    search_fields = ('candidate__username', 'candidate__email', 'professional_title', 'professional_text')
+
+
+@admin.register(ResumeAiLearningPattern)
+class ResumeAiLearningPatternAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'role_family',
+        'section_key',
+        'suggestion_type',
+        'pattern_type',
+        'status',
+        'confidence_score',
+        'source_count',
+        'applied_count',
+        'rejected_count',
+    )
+    list_filter = ('role_family', 'section_key', 'suggestion_type', 'pattern_type', 'status')
+    search_fields = ('template_text', 'role_family', 'section_key', 'suggestion_type')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(Skill)

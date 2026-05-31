@@ -58,7 +58,8 @@ from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from smartInterviewApp.services.interview_calls import InterviewCallService
-from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, CompanyProfile, InterviewCallSession
+from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, CompanyProfile, InterviewCallSession, ResumeAiFeedback, ResumeAiProfessionalReview, ResumeAiSuggestion
+from .services.resume_ai import generate_resume_ai_suggestions, persist_shown_suggestions, record_professional_review_feedback, record_suggestion_feedback, request_professional_review
 from .templatetags.host_links import build_host_link
 
 
@@ -1693,10 +1694,27 @@ def build_resume_export_lines(public_context: dict) -> list[str]:
 
     for section in resume.get('sections') or []:
         section_text = (section.get('text') or '').strip()
-        if not section_text:
+        if not section_text and not section.get('items'):
             continue
         lines.extend(['', section.get('title') or 'Section'])
-        lines.extend(part.strip() for part in section_text.splitlines() if part.strip())
+        if section_text:
+            lines.extend(part.strip() for part in section_text.splitlines() if part.strip())
+            continue
+        for item in section.get('items') or []:
+            title_parts = [
+                item.get('title') or item.get('degree') or item.get('label') or item.get('role') or '',
+                item.get('company') or item.get('institution') or item.get('issuer') or item.get('value') or '',
+            ]
+            item_title = ' - '.join(str(part).strip() for part in title_parts if str(part).strip())
+            if item_title:
+                lines.append(item_title)
+            for field in ('duration', 'location', 'description'):
+                if item.get(field):
+                    lines.append(str(item[field]).strip())
+            for detail in item.get('details') or []:
+                lines.append(f"- {detail}")
+            if item.get('tech_stack'):
+                lines.append(f"Tech: {', '.join(str(skill) for skill in item['tech_stack'])}")
     return [str(line).strip() for line in lines]
 
 
@@ -2056,6 +2074,7 @@ def render_pdf_with_chrome(html: str) -> tuple[bytes, str]:
                 '--headless=new',
                 '--no-sandbox',
                 '--disable-gpu',
+                '--disable-dev-shm-usage',
                 '--no-pdf-header-footer',
                 '--print-to-pdf-no-header',
                 f'--print-to-pdf={pdf_path}',
@@ -2132,6 +2151,23 @@ def render_pdf_from_html(html: str, base_url: str, title: str) -> tuple[bytes, s
         pass
 
     raise RuntimeError('No HTML-to-PDF renderer is available in the current Python environment.')
+
+
+def render_resume_pdf_export(context: dict, title: str, chrome_html: str, base_url: str) -> tuple[bytes, str]:
+    try:
+        return render_pdf_with_chrome(chrome_html)
+    except Exception:
+        logger.exception('Chrome PDF renderer failed; trying HTML PDF fallback.')
+
+    try:
+        fallback_html = build_resume_export_html(context, 'pdf', renderer_hint='html-fallback')
+        return render_pdf_from_html(fallback_html, base_url, title)
+    except Exception:
+        logger.exception('HTML PDF fallback failed; using plain text PDF fallback.')
+
+    lines = build_resume_export_lines(context)
+    lines.extend(['', 'Renderer hint: fallback-text'])
+    return render_pdf_from_text(lines, title), 'fallback-text'
 
 
 def render_text_pdf(title: str, lines: list[str]) -> bytes:
@@ -3345,6 +3381,132 @@ def candidateResumeBuilder(request):
     })
 
 
+def _candidate_resume_ai_profile_or_response(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role != 'candidate':
+        return None, JsonResponse({
+            'success': False,
+            'error_code': 'candidate_required',
+            'message': 'Candidate profile is required.',
+        }, status=403)
+    return profile, None
+
+
+def _resume_ai_json_body(request):
+    try:
+        return json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilderAiSuggestions(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error_code': 'method_not_allowed'}, status=405)
+    profile, error_response = _candidate_resume_ai_profile_or_response(request)
+    if error_response:
+        return error_response
+    body = _resume_ai_json_body(request)
+    if body is None:
+        return JsonResponse({'success': False, 'error_code': 'invalid_json', 'message': 'Invalid JSON payload.'}, status=400)
+
+    draft, _ = CandidateResumeBuilderDraft.objects.get_or_create(candidate=request.user)
+    sanitized_payload = sanitize_resume_builder_payload(body.get('payload') or {}, user=request.user, profile=profile)
+    current_step = _resume_builder_clean_text(body.get('current_step'), 80)
+    result = generate_resume_ai_suggestions(
+        request.user,
+        sanitized_payload,
+        current_step=current_step,
+        section_key=current_step,
+    )
+    result = persist_shown_suggestions(request.user, draft, result, current_step=current_step)
+    return JsonResponse(result)
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilderAiFeedback(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error_code': 'method_not_allowed'}, status=405)
+    _, error_response = _candidate_resume_ai_profile_or_response(request)
+    if error_response:
+        return error_response
+    body = _resume_ai_json_body(request)
+    if body is None:
+        return JsonResponse({'success': False, 'error_code': 'invalid_json', 'message': 'Invalid JSON payload.'}, status=400)
+    feedback = _resume_builder_clean_text(body.get('feedback'), 60)
+    allowed = {
+        ResumeAiFeedback.Feedback.LIKED,
+        ResumeAiFeedback.Feedback.APPLIED,
+        ResumeAiFeedback.Feedback.IGNORED,
+        ResumeAiFeedback.Feedback.NOT_USEFUL,
+    }
+    if feedback not in allowed:
+        return JsonResponse({'success': False, 'error_code': 'invalid_feedback', 'message': 'Unknown feedback value.'}, status=400)
+    suggestion = get_object_or_404(
+        ResumeAiSuggestion,
+        id=body.get('suggestion_id'),
+        candidate=request.user,
+    )
+    record_suggestion_feedback(
+        suggestion,
+        request.user,
+        feedback,
+        reason=_resume_builder_clean_text(body.get('reason'), 2000),
+    )
+    response = {'success': True}
+    if feedback == ResumeAiFeedback.Feedback.NOT_USEFUL:
+        response.update({
+            'offer_professional_review': True,
+            'message': 'Do you want a more professional review?',
+        })
+    return JsonResponse(response)
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilderAiProfessionalReview(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error_code': 'method_not_allowed'}, status=405)
+    profile, error_response = _candidate_resume_ai_profile_or_response(request)
+    if error_response:
+        return error_response
+    body = _resume_ai_json_body(request)
+    if body is None:
+        return JsonResponse({'success': False, 'error_code': 'invalid_json', 'message': 'Invalid JSON payload.'}, status=400)
+    suggestion = get_object_or_404(
+        ResumeAiSuggestion,
+        id=body.get('suggestion_id'),
+        candidate=request.user,
+    )
+    sanitized_payload = sanitize_resume_builder_payload(body.get('payload') or {}, user=request.user, profile=profile)
+    result = request_professional_review(suggestion, request.user, sanitized_payload)
+    status = 200 if result.get('success') else 503
+    if result.get('error_code') == 'professional_review_disabled':
+        status = 200
+    return JsonResponse(result, status=status)
+
+
+@login_required(login_url='candidate-login')
+def candidateResumeBuilderAiProfessionalReviewFeedback(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error_code': 'method_not_allowed'}, status=405)
+    _, error_response = _candidate_resume_ai_profile_or_response(request)
+    if error_response:
+        return error_response
+    body = _resume_ai_json_body(request)
+    if body is None:
+        return JsonResponse({'success': False, 'error_code': 'invalid_json', 'message': 'Invalid JSON payload.'}, status=400)
+    feedback = _resume_builder_clean_text(body.get('feedback'), 60)
+    if feedback not in {ResumeAiFeedback.Feedback.APPLIED, ResumeAiFeedback.Feedback.IGNORED}:
+        return JsonResponse({'success': False, 'error_code': 'invalid_feedback', 'message': 'Unknown feedback value.'}, status=400)
+    review = get_object_or_404(
+        ResumeAiProfessionalReview,
+        id=body.get('professional_review_id'),
+        candidate=request.user,
+    )
+    record_professional_review_feedback(review, request.user, feedback)
+    return JsonResponse({'success': True})
+
+
 @login_required(login_url='candidate-login')
 def candidateResumeBuilderWord(request):
     profile = getattr(request.user, 'profile', None)
@@ -3382,13 +3544,12 @@ def candidateResumeBuilderPdf(request):
             'print_mode': True,
         },
     )
-    renderer = 'fallback-text'
-    try:
-        pdf_bytes, renderer = render_pdf_with_chrome(chrome_html)
-    except Exception:
-        lines = build_resume_export_lines(context)
-        lines.extend(['', 'Renderer hint: fallback-text'])
-        pdf_bytes = render_pdf_from_text(lines, title)
+    pdf_bytes, renderer = render_resume_pdf_export(
+        context,
+        title,
+        chrome_html,
+        request.build_absolute_uri('/'),
+    )
     filename = f"{context['candidate']['name'].replace(' ', '_').lower() or 'candidate'}_builder_resume.pdf"
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -3411,9 +3572,21 @@ def candidateSecureResume(request):
     mime_type, _ = mimetypes.guess_type(resume_name)
 
     try:
+        if not resume_field.storage.exists(resume_field.name):
+            logger.warning(
+                'Candidate resume source file is missing; serving generated PDF candidate=%s resume=%s',
+                request.user.id,
+                resume_field.name,
+            )
+            return redirect('candidate-resume-builder-pdf')
         response = FileResponse(resume_field.open('rb'), content_type=mime_type or 'application/octet-stream')
-    except FileNotFoundError as exc:
-        raise Http404('Resume file not found.') from exc
+    except Exception:
+        logger.exception(
+            'Unable to open candidate resume source file; serving generated PDF candidate=%s resume=%s',
+            request.user.id,
+            resume_field.name,
+        )
+        return redirect('candidate-resume-builder-pdf')
 
     response['Content-Disposition'] = f'inline; filename="{resume_name}"'
     response['Cache-Control'] = 'private, no-store'
@@ -3535,13 +3708,12 @@ def publicCandidateResumePdf(request, short_code: str):
             'print_mode': True,
         },
     )
-    renderer = 'fallback-text'
-    try:
-        pdf_bytes, renderer = render_pdf_with_chrome(chrome_html)
-    except Exception:
-        lines = build_resume_export_lines(context)
-        lines.extend(['', 'Renderer hint: fallback-text'])
-        pdf_bytes = render_pdf_from_text(lines, title)
+    pdf_bytes, renderer = render_resume_pdf_export(
+        context,
+        title,
+        chrome_html,
+        request.build_absolute_uri('/'),
+    )
     filename = f"{context['candidate']['name'].replace(' ', '_').lower() or 'candidate'}_resume.pdf"
     response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -4134,7 +4306,7 @@ def build_candidate_dashboard_context(
     } for key, value in sorted(status_counts.items(), key=lambda entry: (-entry[1], entry[0]))]
 
     timeline = []
-    for item in interviews[:8]:
+    for item in interviews:
         interview_token, interview_link = build_litio_interview_link(request, item)
         status = normalize_interview_status(item.status)
         timeline.append({
@@ -4338,6 +4510,7 @@ def build_candidate_dashboard_context(
         'stage_breakdown': stage_breakdown[:5],
         'profile_checklist': profile_checklist,
         'timeline': timeline,
+        'timeline_preview': timeline[:5],
         'resume': {
             'headline': resume_data.get('headline', ''),
             'summary': resume_data.get('summary', ''),

@@ -306,6 +306,142 @@ class CandidateResumeBuilderDraft(models.Model):
         return f"Resume Builder Draft for {self.candidate.username}"
 
 
+class ResumeAiSuggestion(models.Model):
+    class Status(models.TextChoices):
+        SHOWN = 'shown', 'Shown'
+        APPLIED = 'applied', 'Applied'
+        IGNORED = 'ignored', 'Ignored'
+        NOT_USEFUL = 'not_useful', 'Not Useful'
+        PROFESSIONAL_REQUESTED = 'professional_requested', 'Professional Requested'
+        PROFESSIONAL_APPLIED = 'professional_applied', 'Professional Applied'
+
+    candidate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='resume_ai_suggestions',
+        limit_choices_to={'profile__role': 'candidate'},
+    )
+    draft = models.ForeignKey(
+        CandidateResumeBuilderDraft,
+        on_delete=models.SET_NULL,
+        related_name='ai_suggestions',
+        null=True,
+        blank=True,
+    )
+    section_key = models.CharField(max_length=80)
+    step_key = models.CharField(max_length=80, blank=True, default='')
+    role_family = models.CharField(max_length=80, blank=True, default='general')
+    resume_type = models.CharField(max_length=80, blank=True, default='incomplete')
+    suggestion_type = models.CharField(max_length=80)
+    local_suggestion_title = models.CharField(max_length=180)
+    local_suggestion_text = models.TextField()
+    local_suggestion_payload = models.JSONField(default=dict, blank=True)
+    source_context = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.SHOWN, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['role_family', 'section_key', 'suggestion_type', 'status'], name='rai_suggest_lookup_idx'),
+            models.Index(fields=['candidate', 'created_at'], name='rai_suggest_cand_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.suggestion_type} for {self.candidate.username}"
+
+
+class ResumeAiFeedback(models.Model):
+    class Feedback(models.TextChoices):
+        LIKED = 'liked', 'Liked'
+        APPLIED = 'applied', 'Applied'
+        IGNORED = 'ignored', 'Ignored'
+        NOT_USEFUL = 'not_useful', 'Not Useful'
+        REQUESTED_PROFESSIONAL_REVIEW = 'requested_professional_review', 'Requested Professional Review'
+        APPLIED_PROFESSIONAL_REVIEW = 'applied_professional_review', 'Applied Professional Review'
+
+    suggestion = models.ForeignKey(ResumeAiSuggestion, on_delete=models.CASCADE, related_name='feedback_events')
+    candidate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='resume_ai_feedback',
+        limit_choices_to={'profile__role': 'candidate'},
+    )
+    feedback = models.CharField(max_length=48, choices=Feedback.choices)
+    feedback_reason = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'created_at'], name='rai_feedback_cand_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.feedback} for suggestion {self.suggestion_id}"
+
+
+class ResumeAiProfessionalReview(models.Model):
+    suggestion = models.ForeignKey(ResumeAiSuggestion, on_delete=models.CASCADE, related_name='professional_reviews')
+    candidate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='resume_ai_professional_reviews',
+        limit_choices_to={'profile__role': 'candidate'},
+    )
+    openai_model = models.CharField(max_length=100, blank=True, default='')
+    prompt_version = models.CharField(max_length=40, blank=True, default='')
+    professional_title = models.CharField(max_length=180, blank=True, default='')
+    professional_text = models.TextField(blank=True, default='')
+    professional_payload = models.JSONField(default=dict, blank=True)
+    user_applied = models.BooleanField(default=False)
+    error_code = models.CharField(max_length=80, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'created_at'], name='rai_review_cand_idx'),
+        ]
+
+    def __str__(self):
+        return f"Professional review {self.id} for suggestion {self.suggestion_id}"
+
+
+class ResumeAiLearningPattern(models.Model):
+    class Status(models.TextChoices):
+        CANDIDATE = 'candidate', 'Candidate'
+        TRUSTED = 'trusted', 'Trusted'
+        DISABLED = 'disabled', 'Disabled'
+
+    role_family = models.CharField(max_length=80, blank=True, default='general')
+    resume_type = models.CharField(max_length=80, blank=True, default='incomplete')
+    section_key = models.CharField(max_length=80)
+    suggestion_type = models.CharField(max_length=80)
+    pattern_type = models.CharField(max_length=80)
+    template_text = models.TextField(blank=True, default='')
+    keywords_json = models.JSONField(default=list, blank=True)
+    rule_payload = models.JSONField(default=dict, blank=True)
+    source_count = models.PositiveIntegerField(default=0)
+    applied_count = models.PositiveIntegerField(default=0)
+    rejected_count = models.PositiveIntegerField(default=0)
+    confidence_score = models.FloatField(default=0)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.CANDIDATE, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-confidence_score', '-updated_at']
+        indexes = [
+            models.Index(fields=['role_family', 'section_key', 'suggestion_type', 'status'], name='rai_pattern_lookup_idx'),
+            models.Index(fields=['confidence_score'], name='rai_pattern_conf_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.pattern_type} {self.role_family}/{self.section_key}"
+
+
 class CandidateSearchProfile(models.Model):
     candidate = models.OneToOneField(
         User,

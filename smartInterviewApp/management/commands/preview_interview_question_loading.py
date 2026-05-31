@@ -6,7 +6,12 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from smartInterviewApp.models import Interview, JobInterviewBlueprint, JobInterviewSkill, SkillQuestion
-from smartInterviewApp.services.question_banks import _question_bank_readiness_for_plan, _runtime_required_sub_skill_plans
+from smartInterviewApp.services.question_banks import (
+    _question_bank_readiness_for_plan,
+    _runtime_required_sub_skill_plans,
+    question_pool_metadata_for_skill,
+    resolve_equivalent_skill_ids_for_question_pool,
+)
 
 
 PREFERRED_QUESTION_TYPES = {
@@ -74,10 +79,12 @@ class Command(BaseCommand):
             if not plan:
                 continue
             target = primary_target if plan.skill_role == JobInterviewSkill.SkillRole.PRIMARY else sub_skill_target
+            pool_metadata = question_pool_metadata_for_skill(plan.skill)
+            equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(plan.skill)
             questions = list(
                 SkillQuestion.objects
                 .filter(
-                    skill=plan.skill,
+                    skill_id__in=equivalent_skill_ids,
                     is_active=True,
                     quality_status=SkillQuestion.QualityStatus.APPROVED,
                 )
@@ -103,6 +110,9 @@ class Command(BaseCommand):
             sections.append({
                 'skill_name': plan.skill.name,
                 'skill_role': plan.skill_role,
+                'canonical_skill_key': pool_metadata['canonical_skill_key'],
+                'skill_family_key': pool_metadata['skill_family_key'],
+                'equivalent_skill_ids': equivalent_skill_ids,
                 'target_count': target,
                 'available_approved_count': len(questions),
                 'selected_question_ids': selected_question_ids,
@@ -127,6 +137,9 @@ class Command(BaseCommand):
         self.stdout.write('Selected sections:')
         for section in sections:
             self.stdout.write(f"Skill: {section['skill_name']} ({section['skill_role']})")
+            self.stdout.write(f"Canonical skill key: {section['canonical_skill_key']}")
+            self.stdout.write(f"Skill family key: {section['skill_family_key']}")
+            self.stdout.write(f"Equivalent skill IDs: {json.dumps(section['equivalent_skill_ids'])}")
             self.stdout.write(f"Target count: {section['target_count']}")
             self.stdout.write(f"Available approved count: {section['available_approved_count']}")
             self.stdout.write(f"Selected question IDs: {json.dumps(section['selected_question_ids'])}")

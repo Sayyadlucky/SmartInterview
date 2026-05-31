@@ -53,6 +53,7 @@ from smartInterviewApp.services.question_banks import (
     process_missing_question_bank_for_interview,
     process_question_generation_queue,
     process_question_generation_task,
+    resolve_equivalent_skill_ids_for_question_pool,
 )
 
 
@@ -2839,6 +2840,43 @@ class InterviewBlueprintFoundationTests(TestCase):
         self.assertEqual(result['verbal']['status'], 'enough_questions')
         self.assertFalse(QuestionGenerationJob.objects.filter(skill=skill, task_type=QuestionGenerationJob.TaskType.QUESTION_GENERATION).exists())
 
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=True, INTERVIEW_SKILL_VERBAL_TARGET_COUNT=2)
+    def test_question_pool_resolves_canonical_python_skill_equivalents(self):
+        runtime_skill = Skill.objects.create(name='Python Backend', key='python-backend', category='Backend Development')
+        exact_skill = Skill.objects.create(name='Python', key='python', category='Programming Language')
+        alias_skill = Skill.objects.create(name='Backend Language', key='backend-language', aliases=['Core Python'], category='Programming Language')
+        other_skill = Skill.objects.create(name='Java', key='java', category='Programming Language')
+
+        equivalent_ids = resolve_equivalent_skill_ids_for_question_pool(runtime_skill)
+
+        self.assertIn(runtime_skill.id, equivalent_ids)
+        self.assertIn(exact_skill.id, equivalent_ids)
+        self.assertIn(alias_skill.id, equivalent_ids)
+        self.assertNotIn(other_skill.id, equivalent_ids)
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=True, INTERVIEW_SKILL_VERBAL_TARGET_COUNT=1)
+    def test_ensure_question_bank_for_skill_uses_canonical_question_pool(self):
+        runtime_skill = Skill.objects.create(name='Python Backend', key='python-backend', category='Backend Development')
+        existing_skill = Skill.objects.create(name='Core Python', key='core-python', category='Programming Language')
+        SkillQuestion.objects.create(
+            skill=existing_skill,
+            question_text='How do Python decorators work?',
+            question_hash='python-decorators',
+            difficulty=SkillQuestion.Difficulty.INTERMEDIATE,
+            question_type=SkillQuestion.QuestionType.CONCEPT,
+            family_key='decorators',
+            coverage_area='decorators',
+            expected_signal='Understands decorator wrapping and use cases.',
+            quality_status=SkillQuestion.QualityStatus.APPROVED,
+            is_active=True,
+        )
+
+        result = ensure_question_bank_for_skill(runtime_skill.id)
+
+        self.assertEqual(result['verbal']['status'], 'enough_questions')
+        self.assertIn(existing_skill.id, result['equivalent_skill_ids'])
+        self.assertEqual(QuestionGenerationJob.objects.filter(skill=runtime_skill, task_type=QuestionGenerationJob.TaskType.QUESTION_GENERATION).count(), 0)
+
     @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=True, INTERVIEW_SKILL_VERBAL_TARGET_COUNT=3)
     def test_ensure_question_bank_for_skill_dedupes_queued_or_running_generation_job(self):
         skill = Skill.objects.create(name='Python', key='python', category='Programming Language')
@@ -3635,6 +3673,380 @@ class InterviewBlueprintFoundationTests(TestCase):
         blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
         self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Kubernetes')
         self.assertEqual(blueprint.blueprint_plan['coding_skill_targets'], ['Kubernetes'])
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_BLUEPRINT_OPENAI_ENABLED=True,
+        OPENAI_API_KEY='test-key',
+        INTERVIEW_BLUEPRINT_CREATE_MISSING_SKILLS=False,
+    )
+    def test_tosca_timeout_fallback_does_not_select_unrelated_kubernetes(self):
+        Skill.objects.create(name='Kubernetes', key='kubernetes', category='Cloud Platform')
+        vacancy = self._vacancy(
+            role='Tosca Automation Testing / Tosca Automation Engineer',
+            description=(
+                'Required Technical Skill Set:\n'
+                '* Tosca Automation\n'
+                '* Rally\n'
+                '* HP ALM/QC\n'
+                '* Selenium WebDriver\n'
+                '* Cucumber/Gherkin\n'
+            ),
+            experience_required='3-5 years',
+        )
+
+        with patch('smartInterviewApp.services.interview_blueprints.extract_skills_with_openai', side_effect=TimeoutError('The read operation timed out')):
+            with self.captureOnCommitCallbacks(execute=True):
+                result = build_job_interview_blueprint(vacancy.id)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertFalse(result['ok'])
+        self.assertEqual(blueprint.status, JobInterviewBlueprint.Status.FAILED)
+        self.assertFalse(blueprint.minimum_ready)
+        self.assertEqual(blueprint.blueprint_plan['runtime_sections'], [])
+        self.assertFalse(JobInterviewSkill.objects.filter(blueprint=blueprint, is_active=True).exists())
+        self.assertFalse(JobInterviewSkill.objects.filter(blueprint=blueprint, skill__name='Kubernetes').exists())
+        self.assertFalse(QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.QUESTION_GENERATION).exists())
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_tosca_openai_success_canonicalizes_descriptive_qa_skills(self):
+        Skill.objects.create(name='Tosca Automation', key='tosca-automation', category='QA Automation', aliases=['Tricentis Tosca', 'Tosca'])
+        Skill.objects.create(name='HP ALM/QC', key='hp-almqc', category='Test Management', aliases=['HP ALM', 'Quality Center'])
+        Skill.objects.create(name='Rally', key='rally', category='Agile Tool', aliases=['CA Agile Central'])
+        Skill.objects.create(name='Cucumber/Gherkin', key='cucumber-gherkin', category='BDD Testing', aliases=['BDD'])
+        Skill.objects.create(name='Selenium WebDriver', key='selenium-webdriver', category='Test Automation', aliases=['Selenium'])
+        vacancy = self._vacancy(
+            role='Tosca Automation Testing / Tosca Automation Engineer',
+            description='Required Technical Skill Set: Tosca Automation, Rally, HP ALM/QC, Selenium WebDriver, Cucumber/Gherkin.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Tosca Automation',
+            sub_skills=[
+                {'name': 'Test Management with HP ALM/QC', 'category': 'Test Management', 'confidence': 0.93},
+                {'name': 'Agile Project Management with Rally', 'category': 'Agile Tool', 'confidence': 0.9},
+                {'name': 'Behavior Driven Development with Cucumber/Gherkin', 'category': 'BDD Testing', 'confidence': 0.9},
+                {'name': 'Selenium WebDriver', 'category': 'Test Automation', 'confidence': 0.88},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': False,
+            'coding_skill_targets': [],
+            'coding_questions_to_ask': 0,
+            'runtime_sections': [
+                {'name': 'Tosca Automation', 'category': 'QA Automation', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'title and JD', 'reason': 'Primary tool.', 'confidence': 0.95},
+                {'name': 'Test Management with HP ALM/QC', 'category': 'Test Management', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'required skill', 'reason': 'Required tool.', 'confidence': 0.93},
+                {'name': 'Agile Project Management with Rally', 'category': 'Agile Tool', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'required skill', 'reason': 'Required tool.', 'confidence': 0.9},
+                {'name': 'Behavior Driven Development with Cucumber/Gherkin', 'category': 'BDD Testing', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'required skill', 'reason': 'Required BDD syntax.', 'confidence': 0.9},
+            ],
+        })
+
+        result = self._build_with_mocked_openai(vacancy, payload)
+
+        self.assertTrue(result['ok'])
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.status, JobInterviewBlueprint.Status.READY)
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'Tosca Automation')
+        runtime_sections = blueprint.blueprint_plan['runtime_sections']
+        runtime_names = [section['name'] for section in runtime_sections]
+        self.assertEqual(runtime_names[0], 'Tosca Automation')
+        self.assertEqual(runtime_names[1], 'HP ALM/QC')
+        self.assertEqual(runtime_names[2], 'Cucumber/Gherkin')
+        self.assertTrue({'Selenium WebDriver', 'Rally'} & set(runtime_names[1:]))
+        self.assertEqual(len(runtime_sections), 4)
+        self.assertEqual(sum(1 for section in runtime_sections if section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY), 1)
+        self.assertEqual(sum(1 for section in runtime_sections if section['skill_role'] == JobInterviewSkill.SkillRole.SUB_SKILL), 3)
+        for section in runtime_sections:
+            if section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY:
+                self.assertGreaterEqual(section['questions_to_ask'], 5)
+            else:
+                self.assertGreaterEqual(section['questions_to_ask'], 3)
+            self.assertEqual(section['coding_questions_to_ask'], 0)
+        runtime_roles = {
+            plan.skill.name: plan.skill_role
+            for plan in JobInterviewSkill.objects.select_related('skill').filter(blueprint=blueprint, skill__name__in=runtime_names)
+        }
+        self.assertEqual(runtime_roles['Tosca Automation'], JobInterviewSkill.SkillRole.PRIMARY)
+        self.assertEqual(runtime_roles['HP ALM/QC'], JobInterviewSkill.SkillRole.SUB_SKILL)
+        self.assertEqual(runtime_roles['Cucumber/Gherkin'], JobInterviewSkill.SkillRole.SUB_SKILL)
+        self.assertEqual(
+            {item['name'] for item in blueprint.selected_skills_snapshot if item['skill_role'] in {JobInterviewSkill.SkillRole.PRIMARY, JobInterviewSkill.SkillRole.SUB_SKILL}},
+            set(runtime_names),
+        )
+        names = self._skill_names_for_blueprint(blueprint)
+        self.assertTrue({'Tosca Automation', 'HP ALM/QC', 'Rally', 'Cucumber/Gherkin', 'Selenium WebDriver'}.issubset(names))
+        self.assertFalse(Skill.objects.filter(name='Test Management with HP ALM/QC').exists())
+        self.assertFalse(Skill.objects.filter(name='Agile Project Management with Rally').exists())
+        self.assertFalse(Skill.objects.filter(name='Behavior Driven Development with Cucumber/Gherkin').exists())
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+    )
+    def test_tosca_question_generation_queues_runtime_skills_only(self):
+        Skill.objects.create(name='Tosca Automation', key='tosca-automation', category='QA Automation', aliases=['Tricentis Tosca', 'Tosca'])
+        Skill.objects.create(name='HP ALM/QC', key='hp-almqc', category='Test Management', aliases=['HP ALM', 'Quality Center'])
+        Skill.objects.create(name='Rally', key='rally', category='Agile Tool', aliases=['CA Agile Central'])
+        Skill.objects.create(name='Cucumber/Gherkin', key='cucumber-gherkin', category='BDD Testing', aliases=['BDD'])
+        Skill.objects.create(name='Selenium WebDriver', key='selenium-webdriver', category='Test Automation', aliases=['Selenium'])
+        vacancy = self._vacancy(
+            role='Tosca Automation Testing / Tosca Automation Engineer',
+            description='Required Technical Skill Set: Tosca Automation, Rally, HP ALM/QC, Selenium WebDriver, Cucumber/Gherkin.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Tosca Automation',
+            sub_skills=[
+                {'name': 'Test Management with HP ALM/QC', 'category': 'Test Management', 'confidence': 0.93},
+                {'name': 'Agile Project Management with Rally', 'category': 'Agile Tool', 'confidence': 0.9},
+                {'name': 'Behavior Driven Development with Cucumber/Gherkin', 'category': 'BDD Testing', 'confidence': 0.9},
+                {'name': 'Selenium WebDriver', 'category': 'Test Automation', 'confidence': 0.88},
+            ],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': False,
+            'coding_skill_targets': [],
+            'coding_questions_to_ask': 0,
+            'runtime_sections': [
+                {'name': 'Tosca Automation', 'category': 'QA Automation', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'title and JD', 'reason': 'Primary tool.', 'confidence': 0.95},
+                {'name': 'Test Management with HP ALM/QC', 'category': 'Test Management', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'required skill', 'reason': 'Required tool.', 'confidence': 0.93},
+                {'name': 'Agile Project Management with Rally', 'category': 'Agile Tool', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'required skill', 'reason': 'Required tool.', 'confidence': 0.9},
+                {'name': 'Behavior Driven Development with Cucumber/Gherkin', 'category': 'BDD Testing', 'skill_role': 'sub_skill', 'target_questions': 3, 'selection_basis': 'required skill', 'reason': 'Required BDD syntax.', 'confidence': 0.9},
+            ],
+        })
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        runtime_names = {section['name'] for section in blueprint.blueprint_plan['runtime_sections']}
+        self.assertEqual(len(runtime_names), 4)
+        queued_names = set(QuestionGenerationJob.objects.filter(
+            task_type=QuestionGenerationJob.TaskType.QUESTION_GENERATION,
+        ).values_list('skill__name', flat=True))
+        self.assertEqual(queued_names, runtime_names)
+        self.assertFalse(QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).exists())
+
+    @override_settings(
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+    )
+    def test_unsupported_kubernetes_primary_fails_and_skips_question_generation(self):
+        Skill.objects.create(name='Kubernetes', key='kubernetes', category='Cloud Platform')
+        vacancy = self._vacancy(
+            role='QA Automation Engineer',
+            description='Required skills: Tosca Automation, Selenium WebDriver, HP ALM/QC, Rally.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Kubernetes',
+            sub_skills=[{'name': 'Kubernetes', 'category': 'Cloud Platform', 'confidence': 0.95}],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Kubernetes'],
+            'coding_questions_to_ask': 3,
+            'runtime_sections': [
+                {'name': 'Kubernetes', 'category': 'Cloud Platform', 'skill_role': 'primary', 'target_questions': 5, 'selection_basis': 'model output', 'reason': 'Incorrect primary.', 'confidence': 0.95},
+            ],
+        })
+
+        with self.captureOnCommitCallbacks(execute=True):
+            result = self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertFalse(result['ok'])
+        self.assertEqual(blueprint.status, JobInterviewBlueprint.Status.FAILED)
+        self.assertFalse(blueprint.minimum_ready)
+        self.assertIn('unsupported_primary_skill', blueprint.blueprint_plan['fatal_quality_issues'])
+        self.assertFalse(QuestionGenerationJob.objects.filter(task_type=QuestionGenerationJob.TaskType.QUESTION_GENERATION).exists())
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_tool_only_qa_jd_disables_coding_without_programming_evidence(self):
+        Skill.objects.create(name='Tosca Automation', key='tosca-automation', category='QA Automation')
+        vacancy = self._vacancy(
+            role='Tosca Automation Engineer',
+            description='Required Technical Skill Set: Tosca Automation, HP ALM/QC, Rally, Cucumber/Gherkin.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(role_title=vacancy.role, primary='Tosca Automation', sub_skills=[])
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Tosca Automation'],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        primary_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill__name='Tosca Automation')
+        self.assertFalse(blueprint.blueprint_plan['coding_required'])
+        self.assertEqual(blueprint.blueprint_plan['coding_questions_to_ask'], 0)
+        self.assertEqual(primary_plan.coding_questions_to_ask, 0)
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_selenium_framework_jd_allows_coding_with_explicit_programming_evidence(self):
+        Skill.objects.create(name='Selenium WebDriver', key='selenium-webdriver', category='Test Automation')
+        Skill.objects.create(name='Java', key='java', category='Programming Language')
+        vacancy = self._vacancy(
+            role='QA Automation Engineer',
+            description='Build a custom Selenium WebDriver automation framework using Java code and scripting for API automation implementation.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Selenium WebDriver',
+            sub_skills=[{'name': 'Java', 'category': 'Programming Language', 'confidence': 0.95}],
+        )
+        payload.update({
+            'role_family': 'technical',
+            'technical_interview': True,
+            'coding_required': True,
+            'coding_skill_targets': ['Selenium WebDriver', 'Java'],
+            'coding_questions_to_ask': 3,
+        })
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertTrue(blueprint.blueprint_plan['coding_required'])
+        self.assertEqual(blueprint.blueprint_plan['coding_questions_to_ask'], 3)
+        selenium_plan = JobInterviewSkill.objects.get(blueprint=blueprint, skill__name='Selenium WebDriver')
+        self.assertEqual(selenium_plan.coding_questions_to_ask, 3)
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_generic_missing_skill_creation_requires_clean_skill_evidence(self):
+        vacancy = self._vacancy(
+            role='QA Test Lead',
+            description='Use Zephyr Scale for test case management. Full time remote role at Acme Corp. B.Tech preferred.',
+            experience_required='3-5 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Zephyr Scale',
+            sub_skills=[
+                {'name': 'Full time', 'category': 'Employment Type', 'confidence': 0.95},
+                {'name': 'Remote', 'category': 'Location', 'confidence': 0.95},
+                {'name': 'Acme Corp', 'category': 'Company', 'confidence': 0.95},
+                {'name': 'B.Tech', 'category': 'Education', 'confidence': 0.95},
+            ],
+        )
+
+        self._build_with_mocked_openai(vacancy, payload)
+
+        self.assertTrue(Skill.objects.filter(name='Zephyr Scale', key='zephyr-scale').exists())
+        for key in ['full-time', 'remote', 'acme-corp', 'b-tech']:
+            self.assertFalse(Skill.objects.filter(key=key).exists())
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_marketing_jd_selects_marketing_skills_without_coding_or_tech_false_positives(self):
+        vacancy = self._vacancy(
+            role='Digital Marketing Executive',
+            description='Skills: SEO, Social Media Marketing, Campaign Management, Lead Generation, Google Analytics.',
+            experience_required='1-3 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Digital Marketing',
+            sub_skills=[
+                {'name': 'SEO', 'category': 'Marketing', 'confidence': 0.95},
+                {'name': 'Social Media Marketing', 'category': 'Marketing', 'confidence': 0.93},
+                {'name': 'Campaign Management', 'category': 'Marketing', 'confidence': 0.9},
+                {'name': 'Lead Generation', 'category': 'Marketing', 'confidence': 0.9},
+                {'name': 'Kubernetes', 'category': 'Cloud Platform', 'confidence': 0.9},
+            ],
+        )
+        payload.update({
+            'role_family': 'non_technical',
+            'technical_interview': False,
+            'coding_required': False,
+            'coding_skill_targets': [],
+            'coding_questions_to_ask': 0,
+        })
+
+        result = self._build_with_mocked_openai(vacancy, payload)
+
+        self.assertTrue(result['ok'])
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        names = self._skill_names_for_blueprint(blueprint)
+        self.assertTrue({'SEO', 'Social Media Marketing', 'Campaign Management', 'Lead Generation'}.issubset(names))
+        self.assertFalse(blueprint.blueprint_plan['coding_required'])
+        self.assertFalse(JobInterviewSkill.objects.filter(blueprint=blueprint, skill__name='Kubernetes').exists())
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_noisy_jd_fails_safely_without_company_location_education_skills(self):
+        vacancy = self._vacancy(
+            role='Operations Role',
+            description='Acme Corp is hiring full time candidates in Bengaluru. B.Tech preferred. Remote or hybrid location.',
+            experience_required='0-3 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Acme Corp',
+            sub_skills=[
+                {'name': 'Bengaluru', 'category': 'Location', 'confidence': 0.95},
+                {'name': 'Full time', 'category': 'Employment Type', 'confidence': 0.95},
+                {'name': 'B.Tech', 'category': 'Education', 'confidence': 0.95},
+            ],
+        )
+
+        result = self._build_with_mocked_openai(vacancy, payload)
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertFalse(result['ok'])
+        self.assertEqual(blueprint.status, JobInterviewBlueprint.Status.FAILED)
+        self.assertFalse(blueprint.minimum_ready)
+        for key in ['acme-corp', 'bengaluru', 'full-time', 'b-tech']:
+            self.assertFalse(Skill.objects.filter(key=key).exists())
+
+    @override_settings(INTERVIEW_QUESTION_BANK_ENABLED=False)
+    def test_support_jd_selects_only_explicit_support_skills_without_coding(self):
+        vacancy = self._vacancy(
+            role='Customer Support Specialist',
+            description='Requirements: Customer Support, Ticket Management, SLA Management, Email Communication, CRM tools.',
+            experience_required='1-3 years',
+        )
+        payload = self._mock_payload(
+            role_title=vacancy.role,
+            primary='Customer Support',
+            sub_skills=[
+                {'name': 'Ticket Management', 'category': 'Customer Support', 'confidence': 0.93},
+                {'name': 'SLA Management', 'category': 'Customer Support', 'confidence': 0.9},
+                {'name': 'Email Communication', 'category': 'Customer Support', 'confidence': 0.88},
+                {'name': 'Python', 'category': 'Programming Language', 'confidence': 0.9},
+            ],
+        )
+        payload.update({
+            'role_family': 'non_technical',
+            'technical_interview': False,
+            'coding_required': False,
+            'coding_skill_targets': ['Python'],
+            'coding_questions_to_ask': 3,
+        })
+
+        result = self._build_with_mocked_openai(vacancy, payload)
+
+        self.assertTrue(result['ok'])
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        names = self._skill_names_for_blueprint(blueprint)
+        self.assertTrue({'Customer Support', 'Ticket Management', 'SLA Management', 'Email Communication'}.issubset(names))
+        self.assertFalse(blueprint.blueprint_plan['coding_required'])
+        self.assertFalse(JobInterviewSkill.objects.filter(blueprint=blueprint, skill__name='Python').exists())
 
     def test_core_java_developer_keeps_core_java_and_sql_coding_targets(self):
         vacancy = self._vacancy(

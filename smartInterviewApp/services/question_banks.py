@@ -232,6 +232,99 @@ UNUSABLE_COVERAGE_AREAS = {
     'unknown',
     'other',
 }
+QUESTION_POOL_ROOT_SKILL_KEYS = {
+    'angular',
+    'apex',
+    'django',
+    'fastapi',
+    'flask',
+    'html-css',
+    'java',
+    'javascript',
+    'laravel',
+    'mongodb',
+    'mysql',
+    'next-js',
+    'node-js',
+    'php',
+    'postgresql',
+    'python',
+    'react',
+    'react-native',
+    'rest-api',
+    'salesforce',
+    'selenium-webdriver',
+    'spring',
+    'spring-boot',
+    'sql',
+}
+QUESTION_POOL_QUALIFIER_TOKENS = {
+    'advanced',
+    'api',
+    'backend',
+    'basic',
+    'core',
+    'developer',
+    'development',
+    'engineering',
+    'framework',
+    'frontend',
+    'fullstack',
+    'language',
+    'programmer',
+    'programming',
+    'software',
+}
+QUESTION_POOL_EQUIVALENT_SKILL_KEYS = {
+    'python': {
+        'backend-python',
+        'core-python',
+        'python-backend',
+        'python-developer',
+        'python-development',
+        'python-programmer',
+        'python-programming',
+    },
+    'java': {
+        'backend-java',
+        'core-java',
+        'java-backend',
+        'java-developer',
+        'java-development',
+        'java-programmer',
+        'java-programming',
+    },
+    'javascript': {
+        'ecmascript',
+        'frontend-javascript',
+        'javascript-development',
+        'javascript-programming',
+        'js',
+        'vanilla-javascript',
+    },
+    'node-js': {
+        'backend-node-js',
+        'express',
+        'express-js',
+        'node',
+        'nodejs',
+    },
+    'react': {
+        'frontend-react',
+        'react-js',
+        'reactjs',
+    },
+    'rest-api': {
+        'api',
+        'api-integration',
+        'apis',
+        'backend-api',
+        'rest-apis',
+        'restful-api',
+        'restful-apis',
+        'web-services',
+    },
+}
 
 
 class OpenAIQuestionGenerationError(RuntimeError):
@@ -251,6 +344,226 @@ class OpenAIQuestionGenerationError(RuntimeError):
         self.body_preview = body_preview[:1000]
 
 
+def canonical_skill_key_for_question_pool(skill: Skill, section: dict[str, Any] | None = None) -> str:
+    terms = _question_pool_terms(skill, section)
+    for term in terms:
+        key = _skill_match_key_for_question_pool(term)
+        family_key = _question_pool_family_key(term)
+        if family_key and family_key != key:
+            return family_key
+    for term in terms:
+        key = _skill_match_key_for_question_pool(term)
+        if key:
+            return key
+    return skill.key
+
+
+def skill_family_key_for_question_pool(skill: Skill, section: dict[str, Any] | None = None) -> str:
+    terms = _question_pool_terms(skill, section)
+    for term in terms:
+        key = _question_pool_family_key(term)
+        if key:
+            return key
+    return canonical_skill_key_for_question_pool(skill, section)
+
+
+def resolve_equivalent_skill_ids_for_question_pool(skill: Skill, section: dict[str, Any] | None = None) -> list[int]:
+    if not skill or not getattr(skill, 'id', None):
+        return []
+
+    metadata = question_pool_metadata_for_skill(skill, section)
+    lookup_keys = set(metadata['lookup_keys'])
+    lookup_names = {normalize_skill_key(name) for name in metadata['lookup_names'] if normalize_skill_key(name)}
+    equivalent_ids = [skill.id]
+
+    for candidate in Skill.objects.filter(is_active=True).only('id', 'name', 'key', 'aliases').order_by('id'):
+        if candidate.id == skill.id:
+            continue
+        candidate_keys = _skill_lookup_keys(candidate)
+        candidate_name_key = normalize_skill_key(candidate.name)
+        if (
+            candidate.key in lookup_keys
+            or candidate_name_key in lookup_keys
+            or candidate_name_key in lookup_names
+            or metadata['skill_family_key'] in candidate_keys
+            or bool(candidate_keys & lookup_keys)
+        ):
+            equivalent_ids.append(candidate.id)
+
+    return equivalent_ids
+
+
+def question_pool_metadata_for_skill(skill: Skill, section: dict[str, Any] | None = None) -> dict[str, Any]:
+    canonical_key = canonical_skill_key_for_question_pool(skill, section)
+    family_key = _question_pool_family_key(canonical_key) or canonical_key
+    terms = _question_pool_terms(skill, section)
+    lookup_keys = {canonical_key, family_key, skill.key, normalize_skill_key(skill.name)}
+    lookup_names = {_canonical_skill_name_for_question_pool(skill.name)}
+
+    for term in terms:
+        key = _skill_match_key_for_question_pool(term)
+        family = _question_pool_family_key(term)
+        if key:
+            lookup_keys.add(key)
+            lookup_names.add(_canonical_skill_name_for_question_pool(term))
+        if family:
+            lookup_keys.add(family)
+
+    for key in list(lookup_keys):
+        lookup_keys.update(_known_question_pool_alias_keys(key))
+        lookup_keys.update(_configured_question_pool_equivalent_keys(key))
+
+    lookup_names.update(_canonical_skill_name_for_question_pool(key.replace('-', ' ')) for key in lookup_keys)
+    return {
+        'canonical_skill_key': canonical_key,
+        'skill_family_key': family_key,
+        'lookup_keys': sorted(key for key in lookup_keys if key),
+        'lookup_names': sorted(name for name in lookup_names if name),
+    }
+
+
+def skill_question_pool_queryset(skill: Skill, section: dict[str, Any] | None = None):
+    return SkillQuestion.objects.filter(skill_id__in=resolve_equivalent_skill_ids_for_question_pool(skill, section))
+
+
+def _question_pool_terms(skill: Skill, section: dict[str, Any] | None = None) -> list[str]:
+    terms: list[str] = []
+    if section:
+        for key in [
+            'canonical_skill_key',
+            'skill_family_key',
+            'skill_key',
+            'key',
+            'name',
+            'skill',
+            'skill_name',
+        ]:
+            value = section.get(key)
+            if value:
+                terms.append(str(value))
+        for key in ['aliases', 'equivalent_skill_keys', 'equivalent_skills', 'canonical_aliases']:
+            terms.extend(_json_list(section.get(key)))
+    terms.extend([skill.name, skill.key.replace('-', ' ')])
+    terms.extend(_json_list(skill.aliases))
+    return _dedupe_strings(terms)
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        cleaned = _clean_string(value)
+        key = normalize_skill_key(cleaned)
+        if not cleaned or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(cleaned)
+    return deduped
+
+
+def _skill_lookup_keys(skill: Skill) -> set[str]:
+    keys = {
+        skill.key,
+        normalize_skill_key(skill.name),
+        _skill_match_key_for_question_pool(skill.name),
+        _question_pool_family_key(skill.name),
+    }
+    for alias in _json_list(skill.aliases):
+        keys.update({
+            normalize_skill_key(alias),
+            _skill_match_key_for_question_pool(alias),
+            _question_pool_family_key(alias),
+        })
+    for key in list(keys):
+        keys.update(_known_question_pool_alias_keys(key))
+        keys.update(_configured_question_pool_equivalent_keys(key))
+    return {key for key in keys if key}
+
+
+def _skill_match_key_for_question_pool(value: Any) -> str:
+    try:
+        from smartInterviewApp.services.interview_blueprints import _skill_match_key
+        return _skill_match_key(_clean_string(value))
+    except Exception:
+        return normalize_skill_key(_clean_string(value))
+
+
+def _canonical_skill_name_for_question_pool(value: Any) -> str:
+    try:
+        from smartInterviewApp.services.interview_blueprints import _canonical_skill_name
+        return _canonical_skill_name(_clean_string(value))
+    except Exception:
+        cleaned = _clean_string(value)
+        return cleaned[:1].upper() + cleaned[1:] if cleaned.islower() else cleaned
+
+
+def _question_pool_family_key(value: Any) -> str:
+    key = _skill_match_key_for_question_pool(value)
+    if not key:
+        return ''
+    normalized = normalize_skill_key(str(key))
+    for family_key, aliases in QUESTION_POOL_EQUIVALENT_SKILL_KEYS.items():
+        if normalized == family_key or normalized in aliases:
+            return family_key
+
+    tokens = [token for token in normalized.split('-') if token]
+    for root_key in sorted(QUESTION_POOL_ROOT_SKILL_KEYS, key=len, reverse=True):
+        root_tokens = root_key.split('-')
+        if not all(token in tokens for token in root_tokens):
+            continue
+        extra_tokens = [token for token in tokens if token not in root_tokens]
+        if extra_tokens and all(token in QUESTION_POOL_QUALIFIER_TOKENS for token in extra_tokens):
+            return root_key
+    return normalized
+
+
+def _known_question_pool_alias_keys(key: str) -> set[str]:
+    normalized = normalize_skill_key(key)
+    if not normalized:
+        return set()
+    aliases = {normalized, _question_pool_family_key(normalized)}
+    try:
+        from smartInterviewApp.services.interview_blueprints import CANONICAL_SKILL_NAMES
+        canonical = CANONICAL_SKILL_NAMES.get(normalized)
+        if canonical:
+            canonical_key = normalize_skill_key(canonical)
+            aliases.add(canonical_key)
+            aliases.add(_question_pool_family_key(canonical_key))
+            aliases.update(
+                alias_key
+                for alias_key, canonical_name in CANONICAL_SKILL_NAMES.items()
+                if normalize_skill_key(canonical_name) == canonical_key
+            )
+    except Exception:
+        pass
+    return {alias for alias in aliases if alias}
+
+
+def _configured_question_pool_equivalent_keys(key: str) -> set[str]:
+    normalized = normalize_skill_key(key)
+    if not normalized:
+        return set()
+    configured = getattr(settings, 'INTERVIEW_QUESTION_POOL_EQUIVALENT_SKILL_KEYS', {}) or {}
+    combined = {family: set(aliases) for family, aliases in QUESTION_POOL_EQUIVALENT_SKILL_KEYS.items()}
+    if isinstance(configured, dict):
+        for family, aliases in configured.items():
+            family_key = normalize_skill_key(str(family))
+            if not family_key:
+                continue
+            values = _json_list(aliases)
+            if isinstance(aliases, str):
+                values = [aliases]
+            combined.setdefault(family_key, set()).update(normalize_skill_key(value) for value in values)
+
+    matches: set[str] = set()
+    for family_key, aliases in combined.items():
+        alias_keys = {normalize_skill_key(alias) for alias in aliases if normalize_skill_key(alias)}
+        if normalized == family_key or normalized in alias_keys:
+            matches.add(family_key)
+            matches.update(alias_keys)
+    return {match for match in matches if match}
+
+
 def ensure_question_bank_for_blueprint(blueprint_id: int) -> list[dict[str, Any]]:
     return enqueue_question_generation_jobs(blueprint_id)
 
@@ -263,6 +576,16 @@ def enqueue_question_generation_jobs(blueprint_id: int) -> list[dict[str, Any]]:
     blueprint = JobInterviewBlueprint.objects.filter(id=blueprint_id).first()
     if not blueprint:
         return []
+    skip_reason = _blueprint_enqueue_skip_reason(blueprint)
+    if skip_reason:
+        logger.warning(
+            'Question bank auto-generation skipped blueprint_id=%s reason=%s status=%s minimum_ready=%s',
+            blueprint.id,
+            skip_reason,
+            blueprint.status,
+            blueprint.minimum_ready,
+        )
+        return [{'ok': True, 'status': 'skipped_blueprint_not_ready', 'reason': skip_reason, 'blueprint_id': blueprint.id}]
     active_plan = _blueprint_plan(blueprint)
     active_signature = _active_plan_signature(blueprint)
     if active_plan and active_plan != blueprint.blueprint_plan:
@@ -370,6 +693,36 @@ def enqueue_question_generation_jobs(blueprint_id: int) -> list[dict[str, Any]]:
             'coding': enqueue_result,
         })
     return results
+
+
+def _blueprint_enqueue_skip_reason(blueprint: JobInterviewBlueprint) -> str:
+    if blueprint.status == JobInterviewBlueprint.Status.FAILED:
+        return 'blueprint_failed'
+    if not blueprint.minimum_ready:
+        return 'minimum_ready_false'
+    plan = blueprint.blueprint_plan if isinstance(blueprint.blueprint_plan, dict) else {}
+    fatal_issues = set(str(item) for item in (plan.get('fatal_quality_issues') or []) if item)
+    quality_issue = str(plan.get('quality_issue') or '').strip()
+    if quality_issue:
+        fatal_issues.add(quality_issue)
+    for warning in plan.get('quality_warnings') or []:
+        if isinstance(warning, dict) and warning.get('fatal'):
+            code = str(warning.get('code') or '').strip()
+            if code:
+                fatal_issues.add(code)
+    fatal_codes = {
+        'unsupported_primary_skill',
+        'unsupported_selected_primary_skill',
+        'primary_skill_missing',
+        'infrastructure_without_jd_evidence',
+        'no_active_runtime_sections',
+        'no_strong_fallback_primary',
+        'all_selected_skills_noisy_or_generic',
+    }
+    blocking = sorted(fatal_issues & fatal_codes)
+    if blocking:
+        return f'fatal_quality_issue:{",".join(blocking)}'
+    return ''
 
 
 def _question_bank_generation_metadata_by_skill(blueprint: JobInterviewBlueprint) -> dict[int, dict[str, Any]]:
@@ -498,7 +851,7 @@ def _coding_target_plans_for_blueprint(
     blueprint: JobInterviewBlueprint,
     plans: list[JobInterviewSkill],
     *,
-    create_missing: bool = True,
+    create_missing: bool = False,
 ) -> list[JobInterviewSkill]:
     if not _blueprint_coding_required(blueprint, plans):
         return []
@@ -518,6 +871,7 @@ def _coding_target_plans_for_blueprint(
         if (
             (plan.skill.key in target_keys or normalize_skill_key(plan.skill.name) in target_keys)
             and _is_coding_skill(plan.skill)
+            and int(plan.coding_questions_to_ask or 0) > 0
         ):
             selected.append(plan)
             seen_skill_ids.add(plan.skill_id)
@@ -684,12 +1038,17 @@ def ensure_question_bank_for_skill(
 
     verbal_target = max(1, int(verbal_target_count or getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100)))
     coding_target = max(0, int(coding_target_count if coding_target_count is not None else getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)))
-    verbal_count = SkillQuestion.objects.filter(skill=skill, is_active=True).count()
+    pool_metadata = question_pool_metadata_for_skill(skill)
+    equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(skill)
+    verbal_count = SkillQuestion.objects.filter(skill_id__in=equivalent_skill_ids, is_active=True).count()
     coding_count = CodingQuestion.objects.filter(skill=skill, is_active=True).count()
     result: dict[str, Any] = {
         'ok': True,
         'skill_id': skill.id,
         'skill_key': skill.key,
+        'canonical_skill_key': pool_metadata['canonical_skill_key'],
+        'skill_family_key': pool_metadata['skill_family_key'],
+        'equivalent_skill_ids': equivalent_skill_ids,
         'verbal_count': verbal_count,
         'coding_count': coding_count,
         'verbal': None,
@@ -784,18 +1143,28 @@ def _enqueue_skill_generation(
         logger.info('Coding question generation skipped because target_count is not positive skill_id=%s', skill.id)
         return {'queued': False, 'status': 'coding_generation_disabled', 'skill_id': skill.id, 'target_count': target_count}
 
-    model = SkillQuestion if task_type == QuestionGenerationJob.TaskType.QUESTION_GENERATION else CodingQuestion
-    count = model.objects.filter(skill=skill, is_active=True).count()
+    if task_type == QuestionGenerationJob.TaskType.QUESTION_GENERATION:
+        pool_metadata = question_pool_metadata_for_skill(skill)
+        equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(skill)
+        count = SkillQuestion.objects.filter(skill_id__in=equivalent_skill_ids, is_active=True).count()
+    else:
+        pool_metadata = {}
+        equivalent_skill_ids = [skill.id]
+        count = CodingQuestion.objects.filter(skill=skill, is_active=True).count()
     missing_count = max(0, int(target_count) - count)
     if missing_count <= 0:
         logger.info('Generation skipped enough questions skill_id=%s task_type=%s count=%s target=%s', skill.id, task_type, count, target_count)
         return {'queued': False, 'status': 'enough_questions', 'skill_id': skill.id, 'count': count, 'target_count': target_count}
 
-    existing_candidates = QuestionGenerationJob.objects.filter(
-        skill=skill,
-        task_type=task_type,
-        status__in=[QuestionGenerationJob.Status.QUEUED, QuestionGenerationJob.Status.RUNNING],
-    ).order_by('-created_at', '-id')
+    existing_filter = {
+        'task_type': task_type,
+        'status__in': [QuestionGenerationJob.Status.QUEUED, QuestionGenerationJob.Status.RUNNING],
+    }
+    if task_type == QuestionGenerationJob.TaskType.QUESTION_GENERATION:
+        existing_filter['skill_id__in'] = equivalent_skill_ids
+    else:
+        existing_filter['skill'] = skill
+    existing_candidates = QuestionGenerationJob.objects.filter(**existing_filter).order_by('-created_at', '-id')
     existing = None
     if blueprint and plan_signature:
         for candidate in existing_candidates:
@@ -820,6 +1189,9 @@ def _enqueue_skill_generation(
     payload = {
         'skill_id': skill.id,
         'skill_key': skill.key,
+        'canonical_skill_key': pool_metadata.get('canonical_skill_key') or skill.key,
+        'skill_family_key': pool_metadata.get('skill_family_key') or skill.key,
+        'equivalent_skill_ids': equivalent_skill_ids,
         'target_verbal_questions': int(getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100)),
         'target_coding_questions': int(target_count) if task_type == QuestionGenerationJob.TaskType.CODING_GENERATION else int(getattr(settings, 'INTERVIEW_SKILL_CODING_TARGET_COUNT', 0)),
         'missing_verbal_questions': missing_count if task_type == QuestionGenerationJob.TaskType.QUESTION_GENERATION else 0,
@@ -1321,6 +1693,9 @@ def process_missing_question_bank_for_interview(interview_id: int, *, apply: boo
             'skill_name': plan.skill.name,
             'skill_key': plan.skill.key,
             'skill_role': plan.skill_role,
+            'canonical_skill_key': audit.get('canonical_skill_key'),
+            'skill_family_key': audit.get('skill_family_key'),
+            'equivalent_skill_ids': audit.get('equivalent_skill_ids', [plan.skill_id]),
             'approved_count': audit['approved_count'],
             'coverage_ready_count': audit['coverage_ready_count'],
             'target_count': audit['target_count'],
@@ -1405,7 +1780,8 @@ def insert_missing_skill_questions(job, skill: Skill, questions: list[dict[str, 
         'failed_count': 0,
         'rejections': [],
     }
-    existing = list(SkillQuestion.objects.filter(skill=skill).values('question_text', 'question_hash', 'family_key'))
+    equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(skill)
+    existing = list(SkillQuestion.objects.filter(skill_id__in=equivalent_skill_ids).values('question_text', 'question_hash', 'family_key'))
     seen_normalized = {_normalize_question_text(item['question_text']) for item in existing}
     seen_hashes = {item['question_hash'] for item in existing if item['question_hash']}
     seen_family_texts = [(normalize_skill_key(item['family_key'] or ''), _normalize_question_text(item['question_text'])) for item in existing]
@@ -1558,8 +1934,10 @@ def _is_mobile_specific_skill(skill: Skill) -> bool:
 
 
 def _question_bank_readiness_for_plan(plan: JobInterviewSkill) -> dict[str, Any]:
+    pool_metadata = question_pool_metadata_for_skill(plan.skill)
+    equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(plan.skill)
     questions = SkillQuestion.objects.filter(
-        skill=plan.skill,
+        skill_id__in=equivalent_skill_ids,
         is_active=True,
         quality_status=SkillQuestion.QualityStatus.APPROVED,
     )
@@ -1593,6 +1971,9 @@ def _question_bank_readiness_for_plan(plan: JobInterviewSkill) -> dict[str, Any]
         'target_count': target_count,
         'coverage_area_count': coverage_area_count,
         'distinct_family_count': distinct_family_count,
+        'canonical_skill_key': pool_metadata['canonical_skill_key'],
+        'skill_family_key': pool_metadata['skill_family_key'],
+        'equivalent_skill_ids': equivalent_skill_ids,
         'reasons': reasons,
     }
 
@@ -1629,6 +2010,9 @@ def _skip_summary(plan: JobInterviewSkill, reason: str, audit: dict[str, Any]) -
         'skill_role': plan.skill_role,
         'reason': reason,
         'readiness_reasons': audit.get('reasons') or [],
+        'canonical_skill_key': audit.get('canonical_skill_key'),
+        'skill_family_key': audit.get('skill_family_key'),
+        'equivalent_skill_ids': audit.get('equivalent_skill_ids', [plan.skill_id]),
         'approved_count': audit.get('approved_count', 0),
         'coverage_ready_count': audit.get('coverage_ready_count', 0),
         'target_count': audit.get('target_count', 0),
@@ -1963,7 +2347,9 @@ def build_skill_question_bank(skill_id: int, task_type: str, payload: dict[str, 
         inserted = insert_coding_questions(skill, generated)
     else:
         target = int(payload.get('target_verbal_questions') or getattr(settings, 'INTERVIEW_SKILL_VERBAL_TARGET_COUNT', 100))
-        batch_size = min(max(1, int(payload.get('batch_size') or getattr(settings, 'INTERVIEW_QUESTION_GENERATION_BATCH_SIZE', 10))), max(0, target - SkillQuestion.objects.filter(skill=skill, is_active=True).count()))
+        equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(skill)
+        pool_count = SkillQuestion.objects.filter(skill_id__in=equivalent_skill_ids, is_active=True).count()
+        batch_size = min(max(1, int(payload.get('batch_size') or getattr(settings, 'INTERVIEW_QUESTION_GENERATION_BATCH_SIZE', 10))), max(0, target - pool_count))
         if batch_size <= 0:
             return {'ok': True, 'status': 'enough_questions', 'skill_id': skill.id, 'task_type': task_type}
         generated = generate_skill_questions_with_openai(skill, batch_size)
@@ -1978,11 +2364,15 @@ def build_skill_question_bank(skill_id: int, task_type: str, payload: dict[str, 
         inserted['duplicate_skipped_count'],
         inserted['failed_count'],
     )
+    pool_metadata = question_pool_metadata_for_skill(skill)
     return {
         'ok': True,
         'status': 'completed',
         'skill_id': skill.id,
         'skill_key': skill.key,
+        'canonical_skill_key': pool_metadata['canonical_skill_key'],
+        'skill_family_key': pool_metadata['skill_family_key'],
+        'equivalent_skill_ids': resolve_equivalent_skill_ids_for_question_pool(skill),
         'task_type': task_type,
         **inserted,
     }
@@ -2026,7 +2416,8 @@ def generate_coding_questions_with_openai(skill: Skill, batch_size: int) -> list
 
 def insert_skill_questions(skill: Skill, questions: list[dict[str, Any]]) -> dict[str, int]:
     stats = {'generated_count': len(questions), 'inserted_count': 0, 'duplicate_skipped_count': 0, 'rejected_count': 0, 'failed_count': 0}
-    existing = list(SkillQuestion.objects.filter(skill=skill).values('question_text', 'question_hash', 'family_key'))
+    equivalent_skill_ids = resolve_equivalent_skill_ids_for_question_pool(skill)
+    existing = list(SkillQuestion.objects.filter(skill_id__in=equivalent_skill_ids).values('question_text', 'question_hash', 'family_key'))
     seen_normalized = {_normalize_question_text(item['question_text']) for item in existing}
     seen_hashes = {item['question_hash'] for item in existing if item['question_hash']}
     seen_family_texts = [(normalize_skill_key(item['family_key'] or ''), _normalize_question_text(item['question_text'])) for item in existing]

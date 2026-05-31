@@ -65,7 +65,7 @@
       --shadow-3: 0 12px 28px rgba(2, 10, 22, 0.24);
 
       --header-offset: 104px;
-      --anchor-offset: -100px;
+      --section-scroll-offset: 65px;
       --space-1: 8px;
       --space-2: 16px;
       --space-3: 24px;
@@ -424,11 +424,8 @@
       min-width: 0;
     }
 
-    .section-anchor {
-      position: relative;
-      top: var(--anchor-offset);
-      height: 0;
-      visibility: hidden;
+    .dashboard-section-content > .panel {
+      scroll-margin-top: var(--section-scroll-offset);
     }
 
     .panel {
@@ -1299,7 +1296,7 @@
     .data-table__head,
     .recent-activity__row {
       display: grid;
-      grid-template-columns: 1.22fr 1fr 1.08fr 0.55fr 1.05fr 0.62fr;
+      grid-template-columns: 1.18fr 0.92fr 1.08fr 0.5fr 0.86fr 0.88fr;
       gap: var(--space-2);
       align-items: center;
     }
@@ -2224,6 +2221,39 @@
         radial-gradient(circle at 94% 0%, rgba(82, 213, 255, 0.08), transparent 32%);
     }
 
+    .insight-detail-trigger {
+      display: none;
+      width: fit-content;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #8fe4ff;
+      font-size: 0.76rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-color: rgba(143, 228, 255, 0.42);
+      text-underline-offset: 3px;
+    }
+
+    .insight-detail-trigger:hover,
+    .insight-detail-trigger:focus-visible {
+      color: #dff8ff;
+      text-decoration-color: currentColor;
+    }
+
+    .insight-detail-modal {
+      width: min(720px, 100%);
+    }
+
+    .insight-detail-copy {
+      margin: 0;
+      color: #c8e4fb;
+      font-size: 0.92rem;
+      line-height: 1.75;
+      white-space: pre-wrap;
+    }
+
     .insight-card-salary .signal-head {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -2269,6 +2299,15 @@
 
     .activity-board .activity-table {
       background: rgba(8, 17, 32, 0.52);
+    }
+
+    .activity-modal {
+      width: min(1120px, 100%);
+    }
+
+    .activity-modal .activity-table {
+      max-height: min(68vh, 720px);
+      overflow-y: auto;
     }
 
     .settings-actions {
@@ -2378,7 +2417,386 @@
       border: 0 !important;
     }
 
-    @media (max-width: 1180px) {
+    /* Candidate desktop dashboard polish */
+    @media (min-width: 1025px) {
+      .page {
+        gap: 22px;
+        padding: var(--header-offset) 22px 34px;
+      }
+
+      .dashboard-shell {
+        grid-template-columns: 252px minmax(0, 1fr);
+        gap: 22px;
+      }
+
+      .dashboard-section-content {
+        gap: 22px;
+      }
+
+      .dashboard-section-sidebar {
+        top: calc(var(--header-offset) - 10px);
+        gap: 14px;
+        padding: 20px 0 16px;
+        border-color: rgba(106, 185, 255, 0.15);
+        background:
+          radial-gradient(circle at 50% 0%, rgba(73, 201, 255, 0.13), transparent 30%),
+          linear-gradient(180deg, rgba(7, 14, 27, 0.985), rgba(3, 9, 19, 0.99));
+        box-shadow: var(--shadow-3), inset 1px 0 0 rgba(255, 255, 255, 0.045);
+      }
+
+      .dashboard-section-profile--compact {
+        grid-template-columns: 58px minmax(0, 1fr);
+        gap: 12px;
+        padding: 0 14px 14px;
+      }
+
+      .dashboard-section-profile--compact .avatar {
+        width: 58px;
+        height: 58px;
+      }
+
+      .dashboard-section-profile__copy strong {
+        font-size: 0.92rem;
+      }
+
+      .dashboard-section-profile__copy span {
+        color: #9bb4cc;
+      }
+
+      .dashboard-section-nav a {
+        min-height: 45px;
+        padding: 0 14px;
+        font-size: 0.82rem;
+      }
+
+      .dashboard-section-nav a:hover,
+      .dashboard-section-nav a:focus-visible,
+      .dashboard-section-nav a.is-active {
+        background: linear-gradient(90deg, rgba(82, 213, 255, 0.13), rgba(95, 124, 255, 0.055));
+        transform: none;
+      }
+
+      .dashboard-section-nav a:hover::before,
+      .dashboard-section-nav a:focus-visible::before,
+      .dashboard-section-nav a.is-active::before {
+        box-shadow: 0 0 14px rgba(47, 211, 255, 0.38);
+      }
+
+      .dashboard-section-actions {
+        gap: 7px;
+        padding: 0 14px;
+      }
+
+      .dashboard-section-actions a,
+      .dashboard-section-actions button {
+        min-height: 39px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .section {
+        padding: 22px;
+      }
+
+      .dashboard-command {
+        grid-template-columns: minmax(0, 1.18fr) 176px minmax(250px, 0.8fr);
+        gap: 18px;
+        padding: 22px;
+        background:
+          radial-gradient(circle at 84% 6%, rgba(82, 213, 255, 0.14), transparent 28%),
+          radial-gradient(circle at 3% 100%, rgba(95, 124, 255, 0.08), transparent 34%),
+          linear-gradient(145deg, rgba(16, 30, 55, 0.96), rgba(7, 15, 29, 0.98));
+        box-shadow: var(--shadow-2), inset 0 1px 0 rgba(177, 226, 255, 0.08);
+      }
+
+      .command-profile {
+        gap: 18px;
+      }
+
+      .command-profile .avatar {
+        width: 118px;
+        height: 118px;
+      }
+
+      .command-profile__copy {
+        gap: 8px;
+      }
+
+      .command-profile__copy h1 {
+        max-width: 18ch;
+        font-size: clamp(1.65rem, 2.4vw, 2.28rem);
+        overflow-wrap: anywhere;
+      }
+
+      .command-profile__copy p {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-height: 1.52;
+      }
+
+      .command-profile__meta {
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .command-profile__meta span {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .command-score {
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .command-score__ring {
+        width: 124px;
+        height: 124px;
+      }
+
+      .command-next-action {
+        gap: 7px;
+        padding: 15px;
+        background: linear-gradient(145deg, rgba(25, 49, 83, 0.66), rgba(10, 20, 38, 0.9));
+      }
+
+      .command-next-action p {
+        line-height: 1.5;
+      }
+
+      .command-next-action .card-actions {
+        margin-top: auto;
+      }
+
+      .metric-strip {
+        gap: 12px;
+      }
+
+      .metric-card {
+        gap: 6px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .metric-card span i {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: rgba(82, 213, 255, 0.1);
+      }
+
+      .metric-card strong {
+        font-size: 1.32rem;
+      }
+
+      .metric-card small {
+        font-size: 0.7rem;
+        line-height: 1.4;
+      }
+
+      .readiness-grid {
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.35fr);
+        gap: 12px;
+      }
+
+      .readiness-card {
+        gap: 7px;
+        padding: 14px;
+      }
+
+      .verification-grid {
+        gap: 7px;
+      }
+
+      .verification-item {
+        gap: 7px;
+        padding: 12px;
+      }
+
+      .verification-item__icon {
+        width: 28px;
+        height: 28px;
+      }
+
+      .check-badge {
+        min-width: 64px;
+        padding: 5px 9px;
+      }
+
+      .insight-grid {
+        gap: 12px;
+        align-items: stretch;
+      }
+
+      .insight-card-premium {
+        min-height: 0;
+        gap: 9px;
+        padding: 15px;
+      }
+
+      .insight-card-premium .signal-head {
+        align-items: flex-start;
+      }
+
+      .insight-card-premium .signal-head strong {
+        line-height: 1.35;
+      }
+
+      .insight-card-premium p {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 6;
+        font-size: 0.82rem;
+        line-height: 1.52;
+      }
+
+      .insight-detail-trigger.is-visible {
+        display: inline-flex;
+      }
+
+      .insight-card-premium .signal-meta {
+        gap: 6px;
+      }
+
+      .insight-card-premium .chip {
+        padding: 6px 9px;
+        font-size: 0.72rem;
+      }
+
+      .insight-card-premium .signal-meter {
+        height: 8px;
+      }
+
+      .signal-card__score {
+        min-width: 50px;
+        padding: 6px 9px;
+      }
+
+      .career-actions-grid {
+        gap: 12px;
+      }
+
+      .career-actions-grid .action-card {
+        grid-template-rows: auto 1fr auto;
+        align-content: stretch;
+        min-height: 164px;
+        gap: 10px;
+        padding: 14px;
+      }
+
+      .career-actions-grid .action-card p {
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+
+      .career-actions-grid .action-card .card-link,
+      .career-actions-grid .action-card .card-actions {
+        align-self: end;
+      }
+
+      .posting-list {
+        gap: 12px;
+      }
+
+      .opportunity-card {
+        grid-template-columns: minmax(0, 1fr) 142px;
+        gap: 14px;
+        padding: 15px;
+      }
+
+      .posting-head {
+        gap: 7px;
+      }
+
+      .posting-head strong {
+        font-size: 1rem;
+      }
+
+      .posting-subtitle,
+      .posting-desc {
+        line-height: 1.52;
+      }
+
+      .posting-meta {
+        gap: 6px;
+      }
+
+      .posting-meta .chip {
+        padding: 6px 9px;
+        font-size: 0.72rem;
+      }
+
+      .posting-actions {
+        gap: 7px;
+      }
+
+      .posting-actions .card-link {
+        min-height: 36px;
+        padding: 7px 10px;
+        font-size: 0.76rem;
+      }
+
+      .status-badge {
+        padding: 5px 9px;
+        border-color: rgba(135, 198, 255, 0.13);
+        background: rgba(82, 213, 255, 0.075);
+        color: #d9f4ff;
+        font-size: 0.7rem;
+      }
+
+      .activity-board .activity-table {
+        border-color: rgba(135, 198, 255, 0.12);
+      }
+
+      .data-table__head {
+        padding: 13px 15px;
+      }
+
+      .recent-activity__row {
+        gap: 14px;
+        padding: 13px 15px;
+      }
+
+      .recent-activity__row:hover {
+        background: rgba(18, 34, 61, 0.56);
+      }
+
+      .activity-table .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .settings-actions {
+        gap: 7px;
+      }
+
+      .settings-actions .card-link {
+        min-height: 38px;
+        padding: 7px 11px;
+      }
+    }
+
+    /* Candidate mobile dashboard refresh */
+    .mobile-header-control,
+    .mobile-header-shortcuts,
+    .mobile-sidebar-head,
+    .mobile-sidebar-backdrop,
+    .mobile-candidate-actions,
+    .mobile-skills-card,
+    .mobile-activity-icon,
+    .mobile-bottom-nav,
+    .command-score__link,
+    .posting-company-mark {
+      display: none;
+    }
+
+    @media (max-width: 1024px) {
       .dashboard-shell {
         grid-template-columns: 1fr;
       }
@@ -2509,14 +2927,21 @@
     }
 
     @media (max-width: 760px) {
+      :root {
+        --header-offset: 76px;
+      }
+
       body.candidate-dashboard-page .header-shell {
-        grid-template-columns: auto 1fr auto;
-        gap: var(--space-2);
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        min-height: 64px;
+        gap: 10px;
         align-items: center;
+        padding: 10px 12px;
       }
 
       body.candidate-dashboard-page .brand {
-        grid-column: 1;
+        grid-column: 2;
+        justify-self: center;
       }
 
       body.candidate-dashboard-page #mainMenu {
@@ -2524,31 +2949,464 @@
       }
 
       body.candidate-dashboard-page .header-actions {
+        display: none;
+      }
+
+      body.candidate-mobile-menu-open {
+        overflow: hidden;
+      }
+
+      .mobile-header-control,
+      .mobile-header-shortcuts,
+      .mobile-bottom-nav,
+      .command-score__link,
+      .posting-company-mark {
+        display: flex;
+      }
+
+      .mobile-header-control,
+      .mobile-header-shortcut {
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(135, 198, 255, 0.11);
+        background: rgba(255, 255, 255, 0.045);
+        color: #d8efff;
+        text-decoration: none;
+      }
+
+      .mobile-header-control {
+        grid-column: 1;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        border-radius: 12px;
+        font-size: 1.12rem;
+        cursor: pointer;
+      }
+
+      .mobile-header-shortcuts {
         grid-column: 3;
-        justify-self: end;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
       }
 
-      body.candidate-dashboard-page .header-actions .btn {
-        min-width: auto;
-        white-space: nowrap;
+      .mobile-header-shortcut {
+        display: inline-flex;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 1rem;
       }
 
-      .page { padding: calc(var(--header-offset) - var(--space-1)) var(--space-2) var(--space-3); }
+      .mobile-header-shortcut--profile {
+        overflow: hidden;
+        background: linear-gradient(145deg, rgba(82, 213, 255, 0.3), rgba(95, 124, 255, 0.24));
+      }
+
+      .mobile-header-shortcut--profile img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .mobile-header-shortcut--profile span {
+        color: #e8f8ff;
+        font-size: 0.7rem;
+        font-weight: 800;
+      }
+
+      .page {
+        padding: calc(var(--header-offset) + 2px) 12px 96px;
+        gap: 14px;
+        z-index: auto;
+        isolation: auto;
+      }
+
+      .dashboard-shell,
+      .dashboard-section-content {
+        gap: 14px;
+      }
 
       .dashboard-section-sidebar {
-        border-radius: var(--radius-md);
+        display: grid;
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 68;
+        width: min(86vw, 340px);
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        max-height: 100vh;
+        max-height: 100dvh;
+        align-content: start;
+        gap: 10px;
+        padding: 16px 0 20px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border-color: rgba(135, 198, 255, 0.16);
+        border-radius: 0 20px 20px 0;
+        background:
+          radial-gradient(circle at 18% 0%, rgba(82, 213, 255, 0.12), transparent 26%),
+          linear-gradient(180deg, rgba(7, 16, 31, 0.995), rgba(3, 10, 21, 0.998));
+        transform: translateX(-104%);
+        transition: transform 0.24s ease;
+        box-shadow: 22px 0 52px rgba(1, 7, 18, 0.58), inset 1px 0 0 rgba(255, 255, 255, 0.05);
+      }
+
+      body.candidate-mobile-menu-open .dashboard-section-sidebar {
+        transform: translateX(0);
+      }
+
+      .mobile-sidebar-head {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 16px 4px;
+      }
+
+      .mobile-sidebar-head strong {
+        color: #dff8ff;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .mobile-sidebar-close {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(135, 198, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #d8efff;
+        cursor: pointer;
+      }
+
+      .dashboard-section-profile--compact {
+        grid-template-columns: 52px minmax(0, 1fr);
+        gap: 12px;
+        padding: 8px 16px 12px;
+      }
+
+      .dashboard-section-profile--compact .avatar {
+        width: 52px;
+        height: 52px;
+      }
+
+      .dashboard-section-profile__copy strong {
+        font-size: 0.9rem;
+      }
+
+      .dashboard-section-profile__copy span {
+        color: #8faac3;
+        font-size: 0.72rem;
       }
 
       .dashboard-section-nav {
         grid-template-columns: 1fr;
+        gap: 3px;
+        padding: 2px 10px 10px;
       }
 
-      .metric-strip {
-        grid-template-columns: 1fr;
+      .dashboard-section-nav a {
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 10px;
+        min-height: 46px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        background: transparent;
+        color: #9db4c9;
+        font-size: 0.82rem;
+      }
+
+      .dashboard-section-nav a i {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.035);
+        color: #84a4bd;
+        font-size: 1.08rem;
+      }
+
+      .dashboard-section-nav a:hover,
+      .dashboard-section-nav a:focus-visible,
+      .dashboard-section-nav a.is-active {
+        border-color: rgba(82, 213, 255, 0.14);
+        background: linear-gradient(90deg, rgba(82, 213, 255, 0.12), rgba(95, 124, 255, 0.055));
+        color: #eff9ff;
+        transform: none;
+      }
+
+      .dashboard-section-nav a:hover i,
+      .dashboard-section-nav a:focus-visible i,
+      .dashboard-section-nav a.is-active i {
+        background: rgba(82, 213, 255, 0.13);
+        color: #8fe4ff;
+      }
+
+      .dashboard-section-actions {
+        gap: 7px;
+        padding: 14px 16px 0;
+        border-top: 1px solid rgba(135, 198, 255, 0.09);
+      }
+
+      .dashboard-section-actions a,
+      .dashboard-section-actions button {
+        min-height: 42px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        color: #cfe8fa;
+        font-size: 0.78rem;
+      }
+
+      .mobile-sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 66;
+        display: block;
+        padding: 0;
+        border: 0;
+        background: rgba(1, 7, 18, 0.68);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.24s ease, visibility 0.24s ease;
+      }
+
+      body.candidate-mobile-menu-open .mobile-sidebar-backdrop {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .panel {
+        border-radius: 18px;
+      }
+
+      .dashboard-command {
+        grid-template-columns: minmax(0, 1fr) 116px;
+        gap: 14px;
+        padding: 14px;
+        border-color: rgba(82, 213, 255, 0.18);
+        background:
+          radial-gradient(circle at 86% 4%, rgba(82, 213, 255, 0.15), transparent 30%),
+          linear-gradient(148deg, rgba(15, 30, 55, 0.96), rgba(7, 15, 29, 0.98));
+        box-shadow: 0 18px 40px rgba(1, 7, 18, 0.34), inset 0 1px 0 rgba(177, 226, 255, 0.08);
+      }
+
+      .command-profile {
+        grid-template-columns: 58px minmax(0, 1fr);
+        grid-column: 1;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .command-profile .avatar {
+        width: 58px;
+        height: 58px;
+        --avatar-radius: 17px;
+        font-size: 0.9rem;
+      }
+
+      .command-profile__copy {
+        gap: 6px;
+      }
+
+      .command-profile__copy .section-kicker {
+        font-size: 0.64rem;
+        letter-spacing: 0.08em;
       }
 
       .command-profile__copy h1 {
         max-width: none;
+        font-size: clamp(1.12rem, 5vw, 1.42rem);
+        line-height: 1.16;
+      }
+
+      .command-profile__copy p {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 0.78rem;
+        line-height: 1.48;
+      }
+
+      .command-profile__meta {
+        display: none;
+      }
+
+      .command-score {
+        grid-column: 2;
+        grid-row: 1;
+        gap: 6px;
+        padding: 8px;
+        border-radius: 15px;
+      }
+
+      .command-score__ring {
+        width: 96px;
+        height: 96px;
+        box-shadow: inset 0 0 0 7px rgba(7, 16, 30, 0.9), 0 12px 24px rgba(0, 0, 0, 0.2);
+      }
+
+      .command-score__ring strong {
+        font-size: 1.14rem;
+      }
+
+      .command-score__ring span,
+      .command-score p {
+        font-size: 0.62rem;
+        letter-spacing: 0.05em;
+      }
+
+      .command-score__link {
+        color: #9fe7ff;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      .mobile-candidate-actions {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .mobile-candidate-action {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 1px solid rgba(135, 198, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.045);
+        color: #d8efff;
+        text-decoration: none;
+        font-size: 0.76rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .mobile-candidate-action:first-child {
+        grid-column: 1 / -1;
+        border-color: transparent;
+        background: linear-gradient(92deg, #35c9ff, #5a79ff);
+        color: #03111f;
+        box-shadow: 0 10px 22px rgba(35, 132, 255, 0.2);
+      }
+
+      .command-next-action {
+        grid-column: 1 / -1;
+        grid-row: auto;
+        gap: 7px;
+        padding: 12px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(31, 70, 116, 0.42), rgba(12, 27, 51, 0.82));
+      }
+
+      .command-next-action h2 {
+        font-size: 0.96rem;
+      }
+
+      .command-next-action p {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 0.77rem;
+        line-height: 1.48;
+      }
+
+      .command-next-action .card-actions {
+        margin-top: 2px;
+      }
+
+      .command-next-action .card-link {
+        min-height: 38px;
+      }
+
+      .metric-strip {
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .metric-card {
+        gap: 5px;
+        padding: 11px;
+        border-radius: 13px;
+      }
+
+      .metric-card span {
+        align-items: center;
+        font-size: 0.62rem;
+        line-height: 1.35;
+      }
+
+      .metric-card span i {
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: rgba(82, 213, 255, 0.1);
+      }
+
+      .metric-card strong {
+        font-size: 1.04rem;
+      }
+
+      .metric-card small {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        font-size: 0.65rem;
+      }
+
+      .mobile-skills-card {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+      }
+
+      .mobile-skills-card__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .mobile-skills-card__head h2 {
+        font-size: 0.98rem;
+      }
+
+      .mobile-skills-card__head .card-link {
+        width: auto;
+        min-height: 34px;
+        padding: 6px 10px;
+        font-size: 0.72rem;
+      }
+
+      .mobile-skills-card .chip-list {
+        gap: 7px;
+      }
+
+      .mobile-skills-card .chip {
+        padding: 6px 9px;
+        font-size: 0.7rem;
       }
 
       .posting-toolbar,
@@ -2566,7 +3424,7 @@
       .dashboard-hero,
       .section,
       .profile-modal {
-        padding: var(--space-2);
+        padding: 14px;
       }
 
       .inline-form,
@@ -2591,8 +3449,273 @@
         grid-template-columns: 1fr;
       }
 
+      .posting-list {
+        gap: 10px;
+      }
+
+      .posting-card {
+        gap: 10px;
+        padding: 12px;
+        border-radius: 14px;
+      }
+
+      .posting-company-mark {
+        align-items: center;
+        gap: 9px;
+        color: #abc8df;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+
+      .posting-company-mark__logo {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid rgba(135, 198, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #8fdfff;
+      }
+
+      .posting-company-mark__logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .posting-head strong {
+        font-size: 0.92rem;
+      }
+
+      .posting-subtitle,
+      .posting-desc {
+        font-size: 0.75rem;
+      }
+
+      .posting-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .posting-actions .card-link {
+        min-height: 38px;
+        padding: 7px 9px;
+      }
+
+      .activity-table {
+        border: 0;
+        background: transparent;
+        gap: 8px;
+        overflow: visible;
+      }
+
+      .recent-activity__row {
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        grid-template-areas:
+          "icon role score"
+          "icon recruiter score"
+          ". date ."
+          ". link status";
+        gap: 4px 10px;
+        padding: 12px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 13px;
+        background: var(--surface-card);
+      }
+
+      .mobile-activity-icon {
+        grid-area: icon;
+        display: flex;
+        width: 34px;
+        height: 34px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: rgba(82, 213, 255, 0.1);
+        color: #8fdfff;
+      }
+
+      .recent-activity__row .recent-activity__cell {
+        font-size: 0.72rem;
+        line-height: 1.4;
+      }
+
+      .recent-activity__cell--role {
+        grid-area: role;
+      }
+
+      .recent-activity__cell--recruiter {
+        grid-area: recruiter;
+      }
+
+      .recent-activity__cell--date {
+        grid-area: date;
+      }
+
+      .recent-activity__cell--score {
+        grid-area: score;
+        display: grid;
+        justify-items: end;
+        align-content: start;
+        gap: 2px;
+        color: #d7ecfb;
+        text-align: right;
+      }
+
+      .recent-activity__cell--score::before {
+        content: "Score";
+        color: var(--muted-3);
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .recent-activity__cell--status {
+        grid-area: status;
+        justify-self: end;
+        align-self: center;
+        margin-top: 6px;
+      }
+
+      .recent-activity__cell--link {
+        grid-area: link;
+        margin-top: 6px;
+      }
+
+      .recent-activity__row .card-link {
+        width: fit-content;
+        min-height: 32px;
+        padding: 5px 9px;
+      }
+
+      .mobile-bottom-nav {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 65;
+        justify-content: space-around;
+        gap: 2px;
+        padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+        border-top: 1px solid rgba(135, 198, 255, 0.12);
+        background: rgba(4, 10, 20, 0.94);
+        box-shadow: 0 -14px 32px rgba(1, 6, 16, 0.34);
+        backdrop-filter: blur(14px);
+      }
+
+      .mobile-bottom-nav a {
+        min-width: 56px;
+        min-height: 48px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 3px;
+        border-radius: 11px;
+        color: #8fa7be;
+        text-decoration: none;
+        font-size: 0.62rem;
+        font-weight: 800;
+      }
+
+      .mobile-bottom-nav a:hover,
+      .mobile-bottom-nav a:focus-visible,
+      .mobile-bottom-nav a.is-active {
+        background: rgba(82, 213, 255, 0.1);
+        color: #dff8ff;
+      }
+
+      .mobile-bottom-nav i {
+        color: #8fdfff;
+        font-size: 1.08rem;
+      }
+
       .modal-hero {
         align-items: flex-start;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .dashboard-command {
+        grid-template-columns: minmax(0, 1fr) 104px;
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .command-profile {
+        grid-template-columns: 50px minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      .command-profile .avatar {
+        width: 50px;
+        height: 50px;
+        --avatar-radius: 15px;
+      }
+
+      .command-score {
+        padding: 6px;
+      }
+
+      .command-score__ring {
+        width: 86px;
+        height: 86px;
+      }
+
+      .command-score__ring strong {
+        font-size: 1rem;
+      }
+
+      .mobile-candidate-action {
+        font-size: 0.72rem;
+      }
+
+      .metric-card {
+        padding: 10px;
+      }
+
+      .posting-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .dashboard-command {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .command-profile,
+      .command-score,
+      .mobile-candidate-actions,
+      .command-next-action,
+      .metric-strip {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+
+      .command-profile,
+      .command-profile__copy,
+      .command-profile__copy h1,
+      .command-profile__copy p,
+      .command-profile__meta,
+      .command-profile__meta span {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .command-profile__copy h1 {
+        word-break: break-word;
+      }
+
+      .command-score {
+        grid-row: auto;
+        justify-self: stretch;
+      }
+
+      .command-score__ring {
+        width: 92px;
+        height: 92px;
       }
     }
 
@@ -2626,6 +3749,10 @@
 
   <header id="mainHeader" class="scrolled">
     <div class="header-shell">
+      <button class="mobile-header-control" type="button" data-open-mobile-menu aria-controls="candidateDashboardSidebar" aria-expanded="false" aria-label="Open candidate dashboard menu">
+        <i class="ph ph-list" aria-hidden="true"></i>
+      </button>
+
       <a href="{% url 'home' %}" class="brand shortlistii-logo" aria-label="shortlistii.com home">
         <span class="logo-text">shortlist</span>
         <span class="logo-ii" aria-hidden="true">
@@ -2647,15 +3774,37 @@
         <a href="#overview">Dashboard</a>
       </nav>
 
+      <div class="mobile-header-shortcuts" aria-label="Candidate shortcuts">
+        <a class="mobile-header-shortcut" href="{% url 'logout' %}" aria-label="Logout">
+          <i class="ph ph-sign-out" aria-hidden="true"></i>
+        </a>
+        <button class="mobile-header-shortcut mobile-header-shortcut--profile" type="button" data-open-profile aria-label="View candidate profile">
+          {% if candidate.profile_picture_url %}
+            <img src="{{ candidate.profile_picture_url }}" alt="">
+          {% else %}
+            <span>{{ candidate.initials }}</span>
+          {% endif %}
+        </button>
+      </div>
+
       <div class="header-actions">
         <a href="{% url 'logout' %}" class="btn btn-ghost">Logout</a>
       </div>
     </div>
   </header>
 
+  <button class="mobile-sidebar-backdrop" type="button" data-close-mobile-menu aria-label="Close candidate dashboard menu"></button>
+
   <div class="page">
     <div class="dashboard-shell">
-      <aside class="dashboard-section-sidebar" aria-label="Candidate dashboard sections">
+      <aside class="dashboard-section-sidebar" id="candidateDashboardSidebar" aria-label="Candidate dashboard sections">
+        <div class="mobile-sidebar-head">
+          <strong>Candidate Menu</strong>
+          <button class="mobile-sidebar-close" type="button" data-close-mobile-menu aria-label="Close candidate dashboard menu">
+            <i class="ph ph-x" aria-hidden="true"></i>
+          </button>
+        </div>
+
         <div class="dashboard-section-profile dashboard-section-profile--compact">
           <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}" id="dashboardAvatar">
             {% if candidate.profile_picture_url %}
@@ -2688,9 +3837,7 @@
       </aside>
 
       <main class="dashboard-section-content">
-        <span class="section-anchor" id="overview"></span>
-
-        <section class="panel section reveal dashboard-command" aria-label="Candidate command center">
+        <section class="panel section reveal dashboard-command" id="overview" aria-label="Candidate command center">
           <div class="command-profile">
             <div class="avatar {% if candidate.profile_picture_url %}has-image{% else %}is-fallback{% endif %}">
               {% if candidate.profile_picture_url %}
@@ -2724,6 +3871,13 @@
               <span>Ready</span>
             </div>
             <p>Profile readiness</p>
+            <a class="command-score__link" href="#readiness">View Details</a>
+          </div>
+
+          <div class="mobile-candidate-actions" id="mobileCandidateActions" aria-label="Candidate actions">
+            <button class="mobile-candidate-action" type="button" data-open-update-profile><i class="ph ph-pencil-simple-line" aria-hidden="true"></i>Edit Profile</button>
+            <a class="mobile-candidate-action" href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Resume Builder</a>
+            <button class="mobile-candidate-action" type="button" data-open-share-resume><i class="ph ph-share-network" aria-hidden="true"></i>Share Resume</button>
           </div>
 
           <aside class="command-next-action" aria-label="Next best action">
@@ -2765,7 +3919,7 @@
             <div class="card-actions">
               {% if analytics.next_interview %}
                 {% if analytics.next_interview_link %}
-                  <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Open Interview</a>
+                  <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Join Interview</a>
                 {% endif %}
                 <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>Review Profile</button>
               {% elif not verification.phone_verified_at %}
@@ -2803,9 +3957,21 @@
           </div>
         </section>
 
-        <span class="section-anchor" id="readiness"></span>
+        {% if resume.skills %}
+          <section class="panel mobile-skills-card reveal" aria-label="Top skills">
+            <div class="mobile-skills-card__head">
+              <h2 class="title-with-icon"><i class="ph ph-stack" aria-hidden="true"></i>Top Skills</h2>
+              <a class="card-link" href="{% url 'candidate-resume-builder' %}"><i class="ph ph-file-text" aria-hidden="true"></i>Update Resume</a>
+            </div>
+            <div class="chip-list">
+              {% for skill in resume.skills|slice:":8" %}
+                <span class="chip">{{ skill }}</span>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
 
-        <section class="panel section reveal" aria-label="Readiness and verification">
+        <section class="panel section reveal" id="readiness" aria-label="Readiness and verification">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">Readiness</span>
@@ -2876,9 +4042,7 @@
           </div>
         </section>
 
-        <span class="section-anchor" id="insights"></span>
-
-        <section class="panel section reveal" aria-label="AI career insights">
+        <section class="panel section reveal" id="insights" aria-label="AI career insights">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">AI Career Intelligence</span>
@@ -2920,6 +4084,7 @@
               <p class="subtle u-m-0" id="executiveSummaryText">
                 {% if insights.executive_summary %}{{ insights.executive_summary }}{% else %}Profile completion, verification, and resume freshness shape your current candidate readiness.{% endif %}
               </p>
+              <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="executiveSummaryText" data-insight-detail-title="Profile Strength" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
               <div class="signal-meta">
                 <span class="chip" id="strengthChip1">{% if insights.top_strengths|length > 0 %}{{ insights.top_strengths.0 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="strengthChip2">{% if insights.top_strengths|length > 1 %}{{ insights.top_strengths.1 }}{% else %}Pending{% endif %}</span>
@@ -2936,6 +4101,7 @@
               <p class="subtle u-m-0" id="roleFitSummaryText">
                 {% if insights.executive_summary %}{{ insights.executive_summary }}{% else %}Role-fit insight will appear here after AI analysis completes for your current profile and assigned opportunity.{% endif %}
               </p>
+              <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="roleFitSummaryText" data-insight-detail-title="Role Fit" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
             </article>
 
             <article class="signal-card insight-card-premium">
@@ -2947,6 +4113,7 @@
               <p class="subtle u-m-0" id="skillsImpactSummaryText">
                 {% if insights.current_skills_impact_summary %}{{ insights.current_skills_impact_summary }}{% else %}Skill impact insight will appear here after AI analysis completes.{% endif %}
               </p>
+              <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="skillsImpactSummaryText" data-insight-detail-title="Skill Impact" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
               <div class="signal-meta">
                 <span class="chip" id="growthArea1">{% if insights.growth_areas|length > 0 %}{{ insights.growth_areas.0 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="growthArea2">{% if insights.growth_areas|length > 1 %}{{ insights.growth_areas.1 }}{% else %}Pending{% endif %}</span>
@@ -2963,6 +4130,7 @@
               <p class="subtle u-m-0" id="marketDemandSummaryText">
                 {% if insights.market_demand_summary %}{{ insights.market_demand_summary }}{% else %}Market demand insight will appear here after your first AI snapshot is generated.{% endif %}
               </p>
+              <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="marketDemandSummaryText" data-insight-detail-title="Market Demand" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
               <div class="signal-meta">
                 <span class="chip" id="marketTrendMetric1">{% if insights.market_demand_score is not None %}Demand {{ insights.market_demand_score }}/100{% else %}Awaiting score{% endif %}</span>
                 <span class="chip" id="marketTrendMetric2">{% if insights.current_skills_impact_score is not None %}Impact {{ insights.current_skills_impact_score }}/100{% else %}Awaiting impact{% endif %}</span>
@@ -2979,6 +4147,7 @@
               <p class="subtle u-m-0" id="salaryTrendInsightText">
                 {% if insights.salary_trend_summary %}{{ insights.salary_trend_summary }}{% else %}Salary trend insight will appear here after AI analysis completes. It will be shown as directional guidance only.{% endif %}
               </p>
+              <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="salaryTrendInsightText" data-insight-detail-title="Salary Guidance" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
               <span class="visually-hidden" id="salaryRangeValue">{% if insights.salary_range %}{{ insights.salary_range }}{% else %}Awaiting snapshot{% endif %}</span>
               <span class="visually-hidden" id="salaryTrendSummaryText">{% if insights.salary_trend_summary %}{{ insights.salary_trend_summary }}{% else %}Salary trend insight will appear here after AI analysis completes. It will be positioned as directional guidance, not an authoritative benchmark.{% endif %}</span>
             </article>
@@ -2988,7 +4157,8 @@
                 <strong class="title-with-icon"><i class="ph ph-sparkle" aria-hidden="true"></i>Recommended Roles & Skills</strong>
                 <span class="signal-card__score">AI</span>
               </div>
-              <p class="subtle u-m-0">Role paths and skill priorities inferred from your current profile signal.</p>
+              <p class="subtle u-m-0" id="recommendedRolesSummaryText">Role paths and skill priorities inferred from your current profile signal.</p>
+              <button class="insight-detail-trigger" type="button" data-open-insight-detail data-insight-detail-source="recommendedRolesSummaryText" data-insight-detail-title="Recommended Roles & Skills" aria-haspopup="dialog" aria-controls="insightDetailModal">View More</button>
               <div class="signal-meta">
                 <span class="chip" id="recommendedRole1">{% if insights.recommended_roles|length > 0 %}{{ insights.recommended_roles.0 }}{% else %}Pending{% endif %}</span>
                 <span class="chip" id="recommendedRole2">{% if insights.recommended_roles|length > 1 %}{{ insights.recommended_roles.1 }}{% else %}Pending{% endif %}</span>
@@ -3001,9 +4171,7 @@
           </div>
         </section>
 
-        <span class="section-anchor" id="career-actions"></span>
-
-        <section class="panel section reveal" aria-label="Career actions">
+        <section class="panel section reveal" id="career-actions" aria-label="Career actions">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">Career Actions</span>
@@ -3045,9 +4213,7 @@
           </div>
         </section>
 
-        <span class="section-anchor" id="opportunities"></span>
-
-        <section class="panel section reveal" aria-label="Recommended opportunities">
+        <section class="panel section reveal" id="opportunities" aria-label="Recommended opportunities">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">Opportunities</span>
@@ -3090,6 +4256,17 @@
                   data-posting-applied="{% if posting.has_applied %}true{% else %}false{% endif %}"
                 >
                   <div class="posting-main">
+                    <div class="posting-company-mark">
+                      <span class="posting-company-mark__logo" aria-hidden="true">
+                        {% if posting.company and posting.company.logo_url %}
+                          <img src="{{ posting.company.logo_url }}" alt="">
+                        {% else %}
+                          <i class="ph ph-buildings"></i>
+                        {% endif %}
+                      </span>
+                      <span>{% if posting.company %}{{ posting.company.display_name }}{% else %}Company details pending{% endif %}</span>
+                    </div>
+
                     <div class="posting-head">
                       <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
                         {# WARNING: posting.role must be sanitized server-side before using |safe #}
@@ -3099,7 +4276,12 @@
                     </div>
 
                     <div class="posting-subtitle">
-                      {{ posting.position }} openings · Posted {{ posting.date|date:"M d, Y" }}
+                      {{ posting.position }} openings
+                      {% if posting.company %} · {{ posting.company.display_name }}{% endif %}
+                      {% if posting.location %} · {{ posting.location }}{% endif %}
+                      {% if posting.experience_required %} · {{ posting.experience_required }}{% endif %}
+                      {% if posting.salary_range %} · {{ posting.salary_range }}{% endif %}
+                      · Posted {{ posting.date|date:"M d, Y" }}
                     </div>
 
                     {% if posting.description %}
@@ -3152,9 +4334,7 @@
           {% endif %}
         </section>
 
-        <span class="section-anchor" id="activity"></span>
-
-        <section class="panel section reveal activity-board" aria-label="Activity">
+        <section class="panel section reveal activity-board" id="activity" aria-label="Activity">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">Activity</span>
@@ -3171,19 +4351,20 @@
                 <div>Interview Date</div>
                 <div>Score</div>
                 <div>Status</div>
-                <div>Link</div>
+                <div>Interview Link</div>
               </div>
 
-              {% for item in timeline %}
+              {% for item in timeline_preview %}
                 <div class="recent-activity__row">
-                  <div class="recent-activity__cell"><strong>{{ item.role }}</strong></div>
-                  <div class="recent-activity__cell">{{ item.recruiter }}</div>
-                  <div class="recent-activity__cell">{% if item.interview_date %}{{ item.interview_date|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</div>
-                  <div class="recent-activity__cell">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
-                  <div class="recent-activity__cell"><span class="status-badge">{{ item.status_label }}</span></div>
-                  <div class="recent-activity__cell">
+                  <div class="mobile-activity-icon" aria-hidden="true"><i class="ph ph-calendar-check"></i></div>
+                  <div class="recent-activity__cell recent-activity__cell--role"><strong>{{ item.role }}</strong></div>
+                  <div class="recent-activity__cell recent-activity__cell--recruiter">{{ item.recruiter }}</div>
+                  <div class="recent-activity__cell recent-activity__cell--date">{% if item.interview_date %}{{ item.interview_date|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</div>
+                  <div class="recent-activity__cell recent-activity__cell--score">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
+                  <div class="recent-activity__cell recent-activity__cell--status"><span class="status-badge">{{ item.status_label }}</span></div>
+                  <div class="recent-activity__cell recent-activity__cell--link">
                     {% if item.interview_link %}
-                      <a class="card-link" href="{{ item.interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Open</a>
+                      <a class="card-link" href="{{ item.interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Join Interview</a>
                     {% else %}
                       <span class="status-pill">Not available</span>
                     {% endif %}
@@ -3191,6 +4372,13 @@
                 </div>
               {% endfor %}
             </div>
+            {% if timeline|length > 5 %}
+              <div class="card-actions u-mt-2">
+                <button class="card-link" type="button" data-open-activity-list="activityListModal">
+                  <i class="ph ph-list-magnifying-glass" aria-hidden="true"></i>View All Activity ({{ timeline|length }})
+                </button>
+              </div>
+            {% endif %}
           {% else %}
             <div class="empty-state">
               <strong>No recent activity yet</strong>
@@ -3216,9 +4404,7 @@
           {% endif %}
         </section>
 
-        <span class="section-anchor" id="profile-edit"></span>
-
-        <section class="panel section reveal" aria-label="Profile settings">
+        <section class="panel section reveal" id="profile-edit" aria-label="Profile settings">
           <div class="section-head">
             <div class="section-head__copy">
               <span class="section-kicker">Settings</span>
@@ -3240,6 +4426,14 @@
       </main>
     </div>
   </div>
+
+  <nav class="mobile-bottom-nav" aria-label="Candidate dashboard mobile navigation">
+    <a class="is-active" href="#overview"><i class="ph ph-squares-four" aria-hidden="true"></i><span>Dashboard</span></a>
+    <a href="#insights"><i class="ph ph-brain" aria-hidden="true"></i><span>Insights</span></a>
+    <a href="#opportunities"><i class="ph ph-briefcase" aria-hidden="true"></i><span>Jobs</span></a>
+    <a href="#activity"><i class="ph ph-activity" aria-hidden="true"></i><span>Activity</span></a>
+    <a href="#profile-edit"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span>Settings</span></a>
+  </nav>
 
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
@@ -3399,7 +4593,7 @@
           <span>Next Interview</span>
           <strong>{% if analytics.next_interview %}{{ analytics.next_interview|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</strong>
           {% if analytics.next_interview_link %}
-            <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out" aria-hidden="true"></i>Open Interview</a>
+            <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out" aria-hidden="true"></i>Join Interview</a>
           {% endif %}
         </div>
         <div class="modal-card">
@@ -3616,6 +4810,61 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="insightDetailModal" data-modal-overlay>
+    <div class="profile-modal insight-detail-modal" role="dialog" aria-modal="true" aria-labelledby="insightDetailTitle">
+      <button class="modal-close" type="button" data-close-modal="insightDetailModal" aria-label="Close insight details">&times;</button>
+      <span class="section-kicker">AI Career Intelligence</span>
+      <h2 id="insightDetailTitle" class="title-with-icon" style="font-size:1.4rem; margin:0;"><i class="ph ph-brain" aria-hidden="true"></i><span id="insightDetailTitleText">Insight Details</span></h2>
+      <p class="insight-detail-copy" id="insightDetailText"></p>
+    </div>
+  </div>
+
+  {% if timeline|length > 5 %}
+    <div class="modal-overlay" id="activityListModal" data-modal-overlay>
+      <div class="profile-modal activity-modal" role="dialog" aria-modal="true" aria-labelledby="activityListTitle">
+        <button class="modal-close" type="button" data-close-modal="activityListModal" aria-label="Close activity details">&times;</button>
+        <div class="section-head u-mb-1">
+          <div class="section-head__copy">
+            <h2 id="activityListTitle" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-activity" aria-hidden="true"></i>All Activity</h2>
+            <p class="subtle u-m-0">Latest recruiter movement, application status, and score updates. Newest activity appears first.</p>
+          </div>
+          <div class="section-head__meta">
+            <span class="status-pill">{{ timeline|length }} records</span>
+          </div>
+        </div>
+
+        <div class="data-table activity-table">
+          <div class="data-table__head">
+            <div>Role</div>
+            <div>Contact</div>
+            <div>Interview Date</div>
+            <div>Score</div>
+            <div>Status</div>
+            <div>Interview Link</div>
+          </div>
+
+          {% for item in timeline %}
+            <div class="recent-activity__row">
+              <div class="mobile-activity-icon" aria-hidden="true"><i class="ph ph-calendar-check"></i></div>
+              <div class="recent-activity__cell recent-activity__cell--role"><strong>{{ item.role }}</strong></div>
+              <div class="recent-activity__cell recent-activity__cell--recruiter">{{ item.recruiter }}</div>
+              <div class="recent-activity__cell recent-activity__cell--date">{% if item.interview_date %}{{ item.interview_date|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</div>
+              <div class="recent-activity__cell recent-activity__cell--score">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
+              <div class="recent-activity__cell recent-activity__cell--status"><span class="status-badge">{{ item.status_label }}</span></div>
+              <div class="recent-activity__cell recent-activity__cell--link">
+                {% if item.interview_link %}
+                  <a class="card-link" href="{{ item.interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Join Interview</a>
+                {% else %}
+                  <span class="status-pill">Not available</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   {% if more_job_postings %}
     <div class="modal-overlay" id="vacancyListModal" data-modal-overlay>
       <div class="profile-modal" style="max-width: 880px;" role="dialog" aria-modal="true" aria-labelledby="vacancyListTitle">
@@ -3634,6 +4883,17 @@
           {% for posting in more_job_postings %}
             <article class="posting-card {% if posting.is_recommended %}posting-card--recommended{% endif %}" data-vacancy-card="{{ posting.id }}">
               <div class="posting-main">
+                <div class="posting-company-mark">
+                  <span class="posting-company-mark__logo" aria-hidden="true">
+                    {% if posting.company and posting.company.logo_url %}
+                      <img src="{{ posting.company.logo_url }}" alt="">
+                    {% else %}
+                      <i class="ph ph-buildings"></i>
+                    {% endif %}
+                  </span>
+                  <span>{% if posting.company %}{{ posting.company.display_name }}{% else %}Company details pending{% endif %}</span>
+                </div>
+
                 <div class="posting-head">
                   <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
                     {# WARNING: posting.role must be sanitized server-side before using |safe #}
@@ -3794,6 +5054,101 @@
 
   <script>
     (function () {
+      const menuButton = document.querySelector('[data-open-mobile-menu]');
+      const sidebar = document.getElementById('candidateDashboardSidebar');
+      const closeButtons = document.querySelectorAll('[data-close-mobile-menu]');
+      const mobileQuery = window.matchMedia('(max-width: 760px)');
+      if (!menuButton || !sidebar) return;
+
+      let lastFocused = null;
+
+      function isOpen() {
+        return document.body.classList.contains('candidate-mobile-menu-open');
+      }
+
+      function syncSidebarState() {
+        if (!mobileQuery.matches) {
+          document.body.classList.remove('candidate-mobile-menu-open');
+          sidebar.removeAttribute('inert');
+          menuButton.setAttribute('aria-expanded', 'false');
+          return;
+        }
+
+        sidebar.toggleAttribute('inert', !isOpen());
+        menuButton.setAttribute('aria-expanded', isOpen() ? 'true' : 'false');
+      }
+
+      function openSidebar() {
+        if (!mobileQuery.matches) return;
+        lastFocused = document.activeElement;
+        document.body.classList.add('candidate-mobile-menu-open');
+        syncSidebarState();
+
+        const closeButton = sidebar.querySelector('[data-close-mobile-menu]');
+        if (closeButton) closeButton.focus();
+      }
+
+      function closeSidebar(restoreFocus) {
+        document.body.classList.remove('candidate-mobile-menu-open');
+        syncSidebarState();
+
+        if (restoreFocus && lastFocused && typeof lastFocused.focus === 'function') {
+          lastFocused.focus();
+        }
+      }
+
+      menuButton.addEventListener('click', openSidebar);
+
+      closeButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          closeSidebar(true);
+        });
+      });
+
+      sidebar.querySelectorAll('a, button:not([data-close-mobile-menu])').forEach(function (item) {
+        item.addEventListener('click', function () {
+          closeSidebar(false);
+        });
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && isOpen()) {
+          closeSidebar(true);
+          return;
+        }
+
+        if (event.key === 'Tab' && isOpen()) {
+          const focusables = Array.from(sidebar.querySelectorAll('a[href], button:not([disabled])')).filter(function (element) {
+            return element.offsetParent !== null;
+          });
+          if (!focusables.length) return;
+
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          } else if (!sidebar.contains(document.activeElement)) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      if (typeof mobileQuery.addEventListener === 'function') {
+        mobileQuery.addEventListener('change', syncSidebarState);
+      } else {
+        mobileQuery.addListener(syncSidebarState);
+      }
+
+      syncSidebarState();
+    }());
+
+    (function () {
       const counterElements = document.querySelectorAll('[data-count]');
       const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 
@@ -3858,14 +5213,13 @@
     }());
 
     (function () {
-      const navLinks = Array.from(document.querySelectorAll('.dashboard-section-nav a[href^="#"]'));
-      if (!navLinks.length) return;
+      const sidebarLinks = Array.from(document.querySelectorAll('.dashboard-section-nav a[href^="#"]'));
+      if (!sidebarLinks.length) return;
 
-      const navItems = navLinks.map(function (link) {
+      const navItems = sidebarLinks.map(function (link) {
         const id = link.getAttribute('href').slice(1);
         return {
           id: id,
-          link: link,
           anchor: document.getElementById(id),
         };
       }).filter(function (item) {
@@ -3874,26 +5228,79 @@
 
       if (!navItems.length) return;
 
+      const activeNavLinks = Array.from(document.querySelectorAll(
+        '.dashboard-section-nav a[href^="#"], .mobile-bottom-nav a[href^="#"]'
+      ));
+      const sectionLinks = Array.from(document.querySelectorAll('a[href^="#"]')).filter(function (link) {
+        const id = link.getAttribute('href').slice(1);
+        return navItems.some(function (item) {
+          return item.id === id;
+        });
+      });
+
       function setActiveSection(id) {
-        navItems.forEach(function (item) {
-          const isActive = item.id === id;
-          item.link.classList.toggle('is-active', isActive);
+        activeNavLinks.forEach(function (link) {
+          const isActive = link.getAttribute('href') === `#${id}`;
+          link.classList.toggle('is-active', isActive);
           if (isActive) {
-            item.link.setAttribute('aria-current', 'location');
+            link.setAttribute('aria-current', 'location');
           } else {
-            item.link.removeAttribute('aria-current');
+            link.removeAttribute('aria-current');
           }
         });
       }
 
-      function getHeaderOffset() {
-        const cssValue = window.getComputedStyle(document.documentElement).getPropertyValue('--header-offset');
+      function syncSectionScrollOffset() {
+        const header = document.getElementById('mainHeader');
+        if (!header) return;
+        const height = Math.ceil(header.getBoundingClientRect().height);
+        document.documentElement.style.setProperty('--section-scroll-offset', `${height}px`);
+      }
+
+      function getSectionScrollOffset() {
+        const cssValue = window.getComputedStyle(document.documentElement).getPropertyValue('--section-scroll-offset');
         const parsed = parseInt(cssValue, 10);
-        return Number.isFinite(parsed) ? parsed : 104;
+        return Number.isFinite(parsed) ? parsed : 65;
+      }
+
+      function getScrollBehavior() {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      }
+
+      function navigateToSection(id, options) {
+        const item = navItems.find(function (candidate) {
+          return candidate.id === id;
+        });
+        if (!item) return;
+
+        const settings = options || {};
+        if (settings.updateHistory !== false && window.location.hash !== `#${id}`) {
+          window.history.pushState({}, '', `#${id}`);
+        }
+
+        setActiveSection(id);
+
+        window.requestAnimationFrame(function () {
+          syncSectionScrollOffset();
+          const top = window.scrollY + item.anchor.getBoundingClientRect().top - getSectionScrollOffset();
+          window.scrollTo({
+            top: Math.max(0, Math.round(top)),
+            behavior: settings.behavior || getScrollBehavior(),
+          });
+        });
+      }
+
+      function navigateToCurrentHash(behavior) {
+        const id = window.location.hash.slice(1);
+        if (!id) return;
+        navigateToSection(id, {
+          updateHistory: false,
+          behavior: behavior,
+        });
       }
 
       function updateActiveSection() {
-        const activationLine = getHeaderOffset() + 80;
+        const activationLine = getSectionScrollOffset() + 32;
         let currentId = navItems[0].id;
 
         navItems.forEach(function (item) {
@@ -3924,16 +5331,31 @@
         });
       }
 
-      navItems.forEach(function (item) {
-        item.link.addEventListener('click', function () {
-          setActiveSection(item.id);
+      sectionLinks.forEach(function (link) {
+        link.addEventListener('click', function (event) {
+          event.preventDefault();
+          navigateToSection(link.getAttribute('href').slice(1));
         });
       });
 
       window.addEventListener('scroll', scheduleUpdate, { passive: true });
-      window.addEventListener('resize', scheduleUpdate);
-      window.addEventListener('hashchange', scheduleUpdate);
-      window.addEventListener('load', scheduleUpdate);
+      window.addEventListener('resize', function () {
+        syncSectionScrollOffset();
+        scheduleUpdate();
+      });
+      window.addEventListener('hashchange', function () {
+        navigateToCurrentHash('auto');
+        scheduleUpdate();
+      });
+      window.addEventListener('load', function () {
+        syncSectionScrollOffset();
+        if (window.location.hash) {
+          navigateToCurrentHash('auto');
+        } else {
+          scheduleUpdate();
+        }
+      });
+      syncSectionScrollOffset();
       updateActiveSection();
     }());
 
@@ -4057,6 +5479,12 @@
             updateInsightsFreshness('Insights refreshed just now');
           }
         }
+
+        window.requestAnimationFrame(function () {
+          if (typeof window.refreshCandidateInsightDetailTriggers === 'function') {
+            window.refreshCandidateInsightDetailTriggers();
+          }
+        });
       }
 
       async function fetchJson(url, options) {
@@ -4370,6 +5798,25 @@
         });
       });
 
+      document.querySelectorAll('[data-open-activity-list]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          openModal(button.getAttribute('data-open-activity-list'), button);
+        });
+      });
+
+      document.querySelectorAll('[data-open-insight-detail]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const source = document.getElementById(button.getAttribute('data-insight-detail-source'));
+          const title = document.getElementById('insightDetailTitleText');
+          const text = document.getElementById('insightDetailText');
+          if (!source || !title || !text) return;
+
+          title.textContent = button.getAttribute('data-insight-detail-title') || 'Insight Details';
+          text.textContent = source.textContent.trim();
+          openModal('insightDetailModal', button);
+        });
+      });
+
       document.querySelectorAll('[data-close-modal]').forEach(function (button) {
         button.addEventListener('click', function () {
           closeModal(button.getAttribute('data-close-modal'));
@@ -4410,6 +5857,26 @@
       {% if profile_error %}
         openModal('updateProfileModal', document.querySelector('[data-open-update-profile]'));
       {% endif %}
+    }());
+
+    (function () {
+      const buttons = document.querySelectorAll('[data-open-insight-detail]');
+      if (!buttons.length) return;
+
+      function updateInsightDetailTriggers() {
+        const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
+
+        buttons.forEach(function (button) {
+          const source = document.getElementById(button.getAttribute('data-insight-detail-source'));
+          const isClipped = !!source && isDesktop && source.scrollHeight > source.clientHeight + 1;
+          button.classList.toggle('is-visible', isClipped);
+        });
+      }
+
+      window.refreshCandidateInsightDetailTriggers = updateInsightDetailTriggers;
+      window.addEventListener('load', updateInsightDetailTriggers);
+      window.addEventListener('resize', updateInsightDetailTriggers);
+      window.requestAnimationFrame(updateInsightDetailTriggers);
     }());
 
     (function () {

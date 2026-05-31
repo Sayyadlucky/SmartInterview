@@ -10,22 +10,29 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'smartInterview/css/style.css' %}?v=20260309j">
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <style>
     :root {
-      --bg: #07101f;
-      --bg-soft: #0d1b33;
-      --panel: rgba(10, 19, 35, 0.92);
-      --panel-strong: rgba(9, 17, 31, 0.98);
-      --line: rgba(123, 183, 255, 0.13);
-      --line-strong: rgba(123, 183, 255, 0.2);
-      --text: #ecf4ff;
-      --muted: #9bb1d3;
-      --accent: #56d3ff;
-      --accent-strong: #5f7cff;
-      --success: #7ee0a7;
-      --danger: #ff9a9a;
-      --radius: 8px;
-      --shadow: 0 20px 42px rgba(2, 10, 22, 0.34);
+      --rb-bg: #040811;
+      --rb-bg-soft: #070f1f;
+      --rb-panel: rgba(12, 22, 44, 0.9);
+      --rb-panel-strong: rgba(9, 17, 32, 0.96);
+      --rb-card: rgba(13, 24, 46, 0.68);
+      --rb-line: rgba(135, 198, 255, 0.1);
+      --rb-line-strong: rgba(135, 198, 255, 0.18);
+      --rb-text: #ecf4ff;
+      --rb-muted: #9eb0d0;
+      --rb-faint: #6f86a5;
+      --rb-cyan: #52d5ff;
+      --rb-blue: #5f7cff;
+      --rb-green: #77e4aa;
+      --rb-amber: #ffd589;
+      --rb-danger: #ff8c8c;
+      --rb-radius: 16px;
+      --rb-radius-sm: 12px;
+      --rb-shadow: 0 12px 28px rgba(2, 10, 22, 0.24);
+      --rb-shadow-strong: 0 18px 42px rgba(3, 8, 18, 0.42);
+      --rb-glow: 0 0 0 1px rgba(82, 213, 255, 0.16), 0 14px 32px rgba(35, 132, 255, 0.14);
     }
 
     * { box-sizing: border-box; }
@@ -34,94 +41,164 @@
       margin: 0;
       min-height: 100vh;
       font-family: "Manrope", sans-serif;
-      color: var(--text);
+      color: var(--rb-text);
       background:
-        radial-gradient(circle at top left, rgba(55, 98, 175, 0.2), transparent 32%),
-        radial-gradient(circle at bottom right, rgba(86, 211, 255, 0.12), transparent 26%),
-        linear-gradient(180deg, #081121 0%, #050a14 100%);
+        radial-gradient(circle at 18% -18%, #18305f 0%, #07101f 42%, #040811 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 78% 4%, rgba(82, 213, 255, 0.035), transparent 24%),
+        radial-gradient(circle at 18% 28%, rgba(95, 124, 255, 0.035), transparent 26%);
     }
 
     a { color: inherit; text-decoration: none; }
 
+    .resume-builder-shell,
     .builder-shell {
-      width: min(1380px, 100%);
+      width: min(1560px, 100%);
       margin: 0 auto;
-      padding: 28px 20px 40px;
+      padding: 10px 10px 32px;
       display: grid;
-      gap: 20px;
+      gap: 16px;
+      animation: rbFadeIn 0.55s ease both;
     }
 
-    body.preview-mode .builder-shell {
-      position: relative;
-    }
+    body.preview-mode .builder-shell { position: relative; }
 
     body.preview-mode .builder-grid,
-    body.preview-mode .builder-header {
-      filter: blur(2px);
-    }
+    body.preview-mode .builder-header { filter: blur(2px); }
 
-    .builder-header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 16px;
+    .builder-header,
+    .resume-builder-header {
+      position: sticky;
+      top: 12px;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) auto auto;
+      gap: 18px;
       align-items: center;
-      padding: 18px 20px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(8, 15, 28, 0.86);
-      box-shadow: var(--shadow);
+      padding: 20px 28px;
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      background:
+        radial-gradient(circle at 6% 0%, rgba(74, 144, 255, 0.2), transparent 30%),
+        linear-gradient(135deg, rgba(10, 24, 48, 0.94), rgba(6, 14, 30, 0.88));
+      box-shadow: 0 24px 80px rgba(0, 8, 22, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(18px);
     }
 
     .builder-header__meta {
-      display: grid;
-      gap: 8px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
     }
 
+    .builder-header__icon,
+    .panel-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--rb-radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #04101d;
+      background: linear-gradient(135deg, var(--rb-cyan), var(--rb-blue));
+      box-shadow: 0 14px 34px rgba(83, 215, 255, 0.24);
+      flex: 0 0 auto;
+    }
+
+    .builder-header__icon {
+      width: 56px;
+      height: 56px;
+      box-shadow: 0 18px 42px rgba(83, 215, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    }
+
+    .builder-header__icon i,
+    .panel-icon i { font-size: 1.45rem; }
+
+    .builder-header__copy {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .header-back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      margin-top: 6px;
+      color: var(--rb-faint);
+      font-size: 0.82rem;
+      font-weight: 800;
+      transition: color 0.18s ease;
+    }
+
+    .header-back-link:hover { color: var(--rb-cyan); }
+
     .eyebrow {
-      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.76rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--accent);
+      color: var(--rb-cyan);
       margin: 0;
     }
 
     .builder-header h1 {
       margin: 0;
       font-family: "Sora", sans-serif;
-      font-size: clamp(1.7rem, 2.8vw, 2.6rem);
-      line-height: 1.1;
+      font-size: clamp(1.45rem, 2vw, 2.05rem);
+      line-height: 1.05;
+      letter-spacing: 0;
     }
 
     .builder-header p {
       margin: 0;
-      color: var(--muted);
-      max-width: 760px;
+      color: var(--rb-muted);
+      max-width: 720px;
+      line-height: 1.45;
     }
 
     .header-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
+      justify-content: flex-end;
     }
 
-    .saved-pill {
+    .saved-pill,
+    .live-chip,
+    .meta-chip {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      min-height: 40px;
-      padding: 0 14px;
-      border: 1px solid var(--line);
+      gap: 7px;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--rb-line);
       border-radius: 999px;
-      color: var(--muted);
-      background: rgba(255, 255, 255, 0.03);
-      font-size: 0.92rem;
+      color: var(--rb-muted);
+      background: rgba(255, 255, 255, 0.045);
+      font-size: 0.88rem;
+      white-space: nowrap;
     }
 
-    .saved-pill.is-saving { color: #ffd589; }
-    .saved-pill.is-saved { color: var(--success); }
-    .saved-pill.is-error { color: var(--danger); }
+    .saved-pill.is-saving { color: var(--rb-amber); }
+    .saved-pill.is-saved { color: var(--rb-green); animation: rbSavedPulse 1.2s ease both; }
+    .saved-pill.is-error { color: var(--rb-danger); }
+
+    .header-status {
+      justify-self: center;
+    }
 
     .btn {
       display: inline-flex;
@@ -129,201 +206,707 @@
       justify-content: center;
       gap: 8px;
       min-height: 42px;
-      padding: 0 16px;
-      border-radius: var(--radius);
+      padding: 0 15px;
+      border-radius: var(--rb-radius-sm);
       border: 1px solid transparent;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
-      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      color: var(--rb-text);
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      white-space: nowrap;
     }
 
-    .btn:hover { transform: translateY(-1px); }
+    .btn i { font-size: 1.05rem; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:disabled { opacity: 0.42; cursor: not-allowed; transform: none; }
 
     .btn-primary {
-      color: #06101e;
-      background: linear-gradient(135deg, var(--accent), #8ce6ff);
+      color: #04101d;
+      background: linear-gradient(92deg, #35c9ff, #5a79ff);
+      box-shadow: 0 10px 24px rgba(2, 12, 28, 0.18);
     }
 
+    .btn-primary:hover { box-shadow: 0 14px 30px rgba(35, 132, 255, 0.22); }
+
     .btn-secondary {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
-      border-color: var(--line);
+      color: var(--rb-text);
+      background: rgba(255, 255, 255, 0.065);
+      border-color: var(--rb-line);
+    }
+
+    .btn-secondary:hover,
+    .btn-ghost:hover {
+      border-color: var(--rb-line-strong);
+      background: rgba(83, 215, 255, 0.09);
     }
 
     .btn-ghost {
-      color: var(--muted);
-      background: transparent;
-      border-color: var(--line);
+      color: var(--rb-muted);
+      background: rgba(255, 255, 255, 0.025);
+      border-color: var(--rb-line);
     }
 
-    .builder-grid {
+    .btn-subtle {
+      color: var(--rb-muted);
+      background: rgba(255, 255, 255, 0.025);
+      border-color: rgba(125, 187, 255, 0.12);
+      box-shadow: none;
+    }
+
+    .btn-icon {
+      width: 38px;
+      min-height: 38px;
+      padding: 0;
+      border-radius: var(--rb-radius);
+    }
+
+    .builder-grid,
+    .resume-layout {
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr) 320px;
-      gap: 20px;
+      grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(340px, 390px);
+      gap: 14px;
       align-items: start;
     }
 
     .panel {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: var(--panel);
-      box-shadow: var(--shadow);
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(83, 215, 255, 0.08), transparent 38%),
+        linear-gradient(180deg, rgba(11, 26, 52, 0.95), rgba(7, 16, 32, 0.88));
+      box-shadow: var(--rb-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.075);
       overflow: hidden;
+      backdrop-filter: blur(16px);
     }
 
-    .stepper {
+    .stepper,
+    .resume-progress-sidebar {
       position: sticky;
-      top: 18px;
-      padding: 18px;
+      top: 104px;
+      padding: 28px;
       display: grid;
-      gap: 16px;
+      gap: 14px;
+    }
+
+    .stepper__hero,
+    .sidebar-card,
+    .progress-card,
+    .ai-card {
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(83, 215, 255, 0.08), transparent 42%),
+        rgba(255, 255, 255, 0.045);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.075), 0 16px 46px rgba(0, 8, 22, 0.22);
     }
 
     .stepper__hero {
       display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
       gap: 12px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--line);
+      align-items: center;
+      padding: 13px;
     }
 
+    .stepper__photo,
     .stepper__hero img {
-      width: 100%;
-      aspect-ratio: 4 / 3;
+      width: 58px;
+      height: 58px;
       object-fit: cover;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
+      border-radius: var(--rb-radius);
+      border: 1px solid var(--rb-line);
       background: rgba(255, 255, 255, 0.04);
     }
 
     .stepper__hero strong {
-      font-size: 1.02rem;
+      display: block;
+      font-size: 1rem;
+      overflow-wrap: anywhere;
     }
 
-    .stepper__hero p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.92rem;
-      line-height: 1.5;
+    .stepper__hero p,
+    .progress-card p,
+    .ai-card p {
+      margin: 4px 0 0;
+      color: var(--rb-muted);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .progress-card {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 18px;
+    }
+
+    .progress-ring {
+      --progress: 0deg;
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(#6ce5ff 0deg, #436eff var(--progress), rgba(255, 255, 255, 0.08) 0);
+      box-shadow: 0 0 36px rgba(83, 215, 255, 0.24);
+      transition: background 0.35s ease;
+    }
+
+    .progress-ring::before {
+      content: "";
+      position: absolute;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: #071225;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .progress-ring strong {
+      position: relative;
+      z-index: 1;
+      font-family: "Sora", sans-serif;
+      font-size: 1rem;
+    }
+
+    .progress-title {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 900;
+      color: var(--rb-text);
+    }
+
+    .progress-track {
+      height: 6px;
+      margin-top: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .progress-fill {
+      display: block;
+      width: var(--progress-width, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--rb-cyan), var(--rb-blue));
+      box-shadow: 0 0 18px rgba(83, 215, 255, 0.45);
+      transition: width 0.35s ease;
     }
 
     .step-list {
       display: grid;
-      gap: 10px;
+      gap: 0;
+      position: relative;
+      padding: 8px 0;
+    }
+
+    .step-list::before {
+      content: "";
+      position: absolute;
+      top: 22px;
+      bottom: 22px;
+      left: 29px;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(83, 215, 255, 0.28), rgba(103, 230, 161, 0.16), transparent);
     }
 
     .step-pill {
+      position: relative;
       width: 100%;
       text-align: left;
-      padding: 12px 13px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.02);
-      color: var(--muted);
+      padding: 11px 12px;
+      border: 1px solid transparent;
+      border-radius: var(--rb-radius);
+      background: transparent;
+      color: var(--rb-muted);
       cursor: pointer;
       display: grid;
-      gap: 4px;
-      transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+      grid-template-columns: 36px minmax(0, 1fr) 16px;
+      gap: 12px;
+      align-items: center;
+      transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
     }
 
+    .step-pill:hover { transform: translateX(2px); border-color: var(--rb-line-strong); }
+
     .step-pill.is-active {
-      color: var(--text);
-      border-color: rgba(86, 211, 255, 0.4);
-      background: linear-gradient(135deg, rgba(86, 211, 255, 0.14), rgba(95, 124, 255, 0.14));
+      color: var(--rb-text);
+      border-color: rgba(83, 215, 255, 0.62);
+      background: linear-gradient(135deg, rgba(30, 156, 255, 0.34), rgba(86, 88, 255, 0.32));
+      box-shadow: var(--rb-glow);
+      animation: rbActiveGlow 2.6s ease-in-out infinite;
+    }
+
+    .step-pill.is-active::after {
+      content: "\203A";
+      color: var(--rb-text);
+      font-size: 1.4rem;
+      line-height: 1;
+      justify-self: center;
+    }
+
+    .step-pill.is-future {
+      opacity: 0.68;
+    }
+
+    .step-pill.is-complete .step-pill__mark {
+      color: #031121;
+      background: var(--rb-green);
+      border-color: transparent;
+    }
+
+    .step-pill__mark {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--rb-line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--rb-cyan);
+      position: relative;
+      z-index: 1;
     }
 
     .step-pill__index {
-      font-size: 0.76rem;
+      display: block;
+      font-size: 0.68rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
+      color: var(--rb-faint);
+      margin-bottom: 2px;
     }
 
-    .builder-main {
+    .step-pill strong { display: block; font-size: 0.91rem; }
+    .step-pill__copy { display: none; }
+
+    .ai-card {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+    }
+
+    .ai-card__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+    }
+
+    .ai-beta-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+      padding: 0 7px;
+      border: 1px solid rgba(83, 215, 255, 0.3);
+      border-radius: 999px;
+      color: var(--rb-cyan);
+      background: rgba(83, 215, 255, 0.12);
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .ai-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 68;
+      display: none;
+      background: rgba(2, 8, 18, 0.52);
+      backdrop-filter: blur(7px);
+      opacity: 0;
+      transition: opacity 0.22s ease;
+    }
+
+    .ai-drawer-backdrop.is-visible {
+      display: block;
+      opacity: 1;
+    }
+
+    .ai-drawer {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      pointer-events: none;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .ai-drawer-panel {
+      width: min(620px, calc(100vw - 28px));
+      height: calc(100vh - 24px);
+      margin: 12px;
+      pointer-events: auto;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid var(--rb-line-strong);
+      border-radius: var(--rb-radius);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(83, 215, 255, 0.13), transparent 36%),
+        linear-gradient(180deg, rgba(8, 19, 38, 0.98), rgba(5, 12, 25, 0.96));
+      box-shadow: var(--rb-shadow), var(--rb-glow);
+      backdrop-filter: blur(18px);
+      transform: translateX(calc(100% + 28px));
+      transition: transform 0.26s ease;
+      overflow: hidden;
+    }
+
+    .ai-drawer.is-visible .ai-drawer-panel {
+      transform: translateX(0);
+    }
+
+    .ai-drawer-head {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border-bottom: 1px solid var(--rb-line);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .ai-drawer-title-row,
+    .ai-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ai-drawer-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .ai-drawer-title h3 {
+      margin: 0;
+      font-family: "Sora", sans-serif;
+      font-size: 1.15rem;
+      letter-spacing: 0;
+    }
+
+    .ai-drawer-title p {
+      margin: 2px 0 0;
+      color: var(--rb-muted);
+      font-size: 0.84rem;
+    }
+
+    .ai-drawer-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px 18px 18px;
+    }
+
+    .ai-provider-chip,
+    .ai-confidence-chip,
+    .ai-section-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 9px;
+      border: 1px solid rgba(83, 215, 255, 0.24);
+      border-radius: 999px;
+      color: var(--rb-cyan);
+      background: rgba(83, 215, 255, 0.1);
+      font-size: 0.74rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .ai-provider-chip--pro {
+      color: var(--rb-amber);
+      border-color: rgba(255, 211, 122, 0.28);
+      background: rgba(255, 211, 122, 0.1);
+    }
+
+    .ai-suggestion-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .ai-suggestion-card {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(83, 215, 255, 0.08), transparent 42%),
+        rgba(255, 255, 255, 0.04);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .ai-suggestion-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(83, 215, 255, 0.34);
+      box-shadow: var(--rb-glow);
+    }
+
+    .ai-suggestion-card.is-muted {
+      opacity: 0.58;
+    }
+
+    .ai-suggestion-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ai-suggestion-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .ai-suggestion-title strong {
+      overflow-wrap: anywhere;
+    }
+
+    .ai-suggestion-card p {
+      margin: 0;
+      color: var(--rb-muted);
+      line-height: 1.45;
+      font-size: 0.86rem;
+    }
+
+    .ai-recommended-text {
+      padding: 12px;
+      border-radius: var(--rb-radius-sm);
+      border: 1px solid rgba(83, 215, 255, 0.18);
+      background: rgba(5, 14, 29, 0.42);
+      color: var(--rb-text);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .ai-suggestion-actions,
+    .ai-professional-prompt,
+    .ai-professional-result {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ai-professional-prompt,
+    .ai-professional-result {
+      display: none;
+      padding-top: 2px;
+    }
+
+    .ai-professional-prompt.is-visible,
+    .ai-professional-result.is-visible {
+      display: flex;
+    }
+
+    .ai-loading {
+      position: relative;
+      overflow: hidden;
+      min-height: 48px;
+      border-radius: var(--rb-radius-sm);
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .ai-loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(83, 215, 255, 0.18), transparent);
+      animation: rbAiShimmer 1.15s infinite;
+    }
+
+    .ai-empty-state {
+      padding: 12px;
+      border: 1px dashed var(--rb-line-strong);
+      border-radius: var(--rb-radius-sm);
+      color: var(--rb-muted);
+      background: rgba(83, 215, 255, 0.045);
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+
+    .ai-field-highlight {
+      animation: rbAiFieldPulse 2.6s ease;
+      border-color: var(--rb-cyan) !important;
+      box-shadow: 0 0 0 3px rgba(83, 215, 255, 0.18), 0 0 34px rgba(83, 215, 255, 0.28) !important;
+    }
+
+    .builder-main,
+    .resume-editor-panel {
       display: grid;
       gap: 0;
     }
 
-    .builder-main__head {
-      padding: 22px 24px 18px;
-      border-bottom: 1px solid var(--line);
+    .builder-main__head,
+    .resume-step-card {
+      position: relative;
+      overflow: hidden;
+      padding: 30px 30px;
+      border-bottom: 1px solid var(--rb-line);
       display: grid;
-      gap: 8px;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+      gap: 18px;
+      align-items: start;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(83, 215, 255, 0.14), transparent 34%),
+        linear-gradient(135deg, rgba(83, 215, 255, 0.1), transparent 44%),
+        rgba(255, 255, 255, 0.025);
     }
 
-    .builder-main__head h2 {
+    .resume-step-card::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(83, 215, 255, 0.42), transparent);
+    }
+
+    .step-title-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin: 8px 0 10px;
+    }
+
+    .step-title-row h2 {
       margin: 0;
       font-family: "Sora", sans-serif;
-      font-size: clamp(1.3rem, 2vw, 1.8rem);
+      font-size: clamp(1.7rem, 2.4vw, 2.3rem);
+      letter-spacing: 0;
     }
 
     .builder-main__head p {
       margin: 0;
-      color: var(--muted);
+      color: var(--rb-muted);
       max-width: 720px;
+      line-height: 1.55;
+    }
+
+    .step-tip {
+      border: 1px solid rgba(83, 215, 255, 0.18);
+      border-radius: var(--rb-radius);
+      padding: 16px;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(255, 211, 122, 0.08), transparent 40%),
+        rgba(83, 215, 255, 0.07);
+      color: var(--rb-muted);
+      line-height: 1.45;
+    }
+
+    .step-tip strong {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--rb-text);
+      margin-bottom: 5px;
     }
 
     .builder-section {
       display: none;
-      padding: 22px 24px 26px;
+      padding: 30px;
     }
 
     .builder-section.is-active {
       display: grid;
-      gap: 18px;
+      gap: 22px;
+      animation: rbSlideFade 0.28s ease both;
     }
 
     .field-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 20px 18px;
     }
 
-    .field-grid--single {
-      grid-template-columns: minmax(0, 1fr);
-    }
+    .field-grid--single { grid-template-columns: minmax(0, 1fr); }
 
     .field {
       display: grid;
       gap: 8px;
+      min-width: 0;
     }
 
     .field label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
       font-size: 0.86rem;
-      color: var(--muted);
-      font-weight: 700;
+      color: var(--rb-muted);
+      font-weight: 800;
+    }
+
+    .field label::after {
+      content: "";
+    }
+
+    .field--required label::after {
+      content: "*";
+      color: var(--rb-danger);
+      font-weight: 900;
     }
 
     .field input,
     .field textarea {
       width: 100%;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--text);
-      padding: 12px 13px;
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius-sm);
+      background: linear-gradient(180deg, rgba(10, 25, 50, 0.78), rgba(5, 14, 29, 0.78));
+      color: var(--rb-text);
+      padding: 13px 14px;
       resize: vertical;
-      min-height: 46px;
+      min-height: 52px;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }
 
+    .field input:hover,
+    .field textarea:hover { border-color: rgba(83, 215, 255, 0.32); }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: var(--rb-cyan);
+      box-shadow: 0 0 0 3px rgba(83, 215, 255, 0.14), 0 0 28px rgba(83, 215, 255, 0.12);
+      background: rgba(7, 18, 36, 0.92);
+    }
+
+    .field input[readonly],
+    .field textarea[readonly] { opacity: 0.68; cursor: default; }
+
     .field textarea {
-      min-height: 118px;
+      min-height: 136px;
       line-height: 1.55;
     }
 
     .helper {
       margin: 0;
-      font-size: 0.82rem;
-      color: var(--muted);
+      font-size: 0.84rem;
+      color: var(--rb-muted);
+      line-height: 1.45;
     }
 
     .tag-input {
       display: grid;
-      gap: 10px;
+      gap: 12px;
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      background: rgba(255, 255, 255, 0.028);
+      padding: 16px;
     }
 
     .tag-list {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+      min-width: 0;
     }
 
     .tag {
@@ -332,40 +915,66 @@
       gap: 8px;
       padding: 8px 10px;
       border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(86, 211, 255, 0.08);
+      border: 1px solid rgba(83, 215, 255, 0.24);
+      background: rgba(83, 215, 255, 0.09);
+      color: var(--rb-text);
       font-size: 0.86rem;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+      max-width: 100%;
     }
+
+    .tag:hover { transform: translateY(-1px); border-color: rgba(83, 215, 255, 0.45); }
+    .tag span { overflow-wrap: anywhere; }
 
     .tag button {
       border: 0;
       background: transparent;
-      color: var(--muted);
+      color: var(--rb-muted);
       cursor: pointer;
       padding: 0;
       line-height: 1;
+      font-size: 1rem;
     }
 
     .collection {
       display: grid;
-      gap: 12px;
+      gap: 14px;
     }
 
     .collection-empty {
-      padding: 18px;
-      border: 1px dashed var(--line-strong);
-      border-radius: var(--radius);
-      color: var(--muted);
-      background: rgba(255, 255, 255, 0.02);
+      padding: 22px;
+      border: 1px dashed var(--rb-line-strong);
+      border-radius: var(--rb-radius);
+      color: var(--rb-muted);
+      background: rgba(83, 215, 255, 0.045);
+      text-align: center;
     }
 
-    .item-card {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 16px;
+    .item-card,
+    .resume-entry-card {
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      padding: 22px;
       display: grid;
+      gap: 20px;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(83, 215, 255, 0.07), transparent 38%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.028));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 18px 50px rgba(0, 8, 22, 0.24);
+      animation: rbSlideFade 0.28s ease both;
+      transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .item-card:hover,
+    .resume-entry-card:hover {
+      border-color: rgba(83, 215, 255, 0.34);
+      box-shadow: var(--rb-glow);
+    }
+
+    .item-card--compact {
+      padding: 18px;
       gap: 14px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.035);
     }
 
     .item-card__head {
@@ -375,20 +984,56 @@
       gap: 12px;
     }
 
+    .item-card__title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .item-card__title .panel-icon {
+      width: 38px;
+      height: 38px;
+    }
+
+    .item-card__title .panel-icon i {
+      font-size: 1.1rem;
+    }
+
     .item-card__head strong {
+      display: block;
       font-size: 1rem;
+      overflow-wrap: anywhere;
+    }
+
+    .item-card__head span {
+      color: var(--rb-faint);
+      font-size: 0.8rem;
     }
 
     .item-card__remove {
-      border: 0;
-      background: transparent;
-      color: var(--danger);
+      border: 1px solid rgba(255, 142, 159, 0.24);
+      border-radius: var(--rb-radius-sm);
+      background: rgba(255, 142, 159, 0.08);
+      color: var(--rb-danger);
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 0 10px;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .item-card__remove:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255, 142, 159, 0.45);
     }
 
     .section-actions,
-    .builder-nav {
+    .builder-nav,
+    .resume-action-bar {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
@@ -397,45 +1042,110 @@
       padding-top: 6px;
     }
 
-    .builder-nav {
-      border-top: 1px solid var(--line);
-      padding: 18px 24px 22px;
-    }
-
-    .builder-preview {
-      position: sticky;
-      top: 18px;
+    .section-actions {
+      border: 1px dashed var(--rb-line-strong);
+      border-radius: var(--rb-radius);
       padding: 18px;
-      display: grid;
-      gap: 16px;
+      background: rgba(83, 215, 255, 0.035);
     }
 
-    .preview-block {
+    .builder-section[data-step="education"] .section-actions {
+      justify-content: center;
+      text-align: center;
+      background:
+        linear-gradient(90deg, rgba(83, 215, 255, 0.035), rgba(98, 132, 255, 0.055), rgba(83, 215, 255, 0.035));
+    }
+
+    .builder-section[data-step="education"] .section-actions .helper {
+      flex: 1 1 100%;
+    }
+
+    .section-actions .btn-secondary {
+      border-style: dashed;
+      flex: 0 0 auto;
+      min-width: 230px;
+      color: var(--rb-cyan);
+      box-shadow: 0 0 30px rgba(83, 215, 255, 0.13);
+    }
+
+    .builder-nav {
+      border-top: 1px solid var(--rb-line);
+      padding: 18px 30px 22px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .builder-preview,
+    .resume-preview-panel {
+      position: sticky;
+      top: 104px;
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+      max-height: calc(100vh - 124px);
+      overflow: auto;
+      scroll-margin-top: 100px;
+    }
+
+    .builder-preview.is-expanded {
+      border-color: rgba(83, 215, 255, 0.5);
+      box-shadow: var(--rb-glow);
+    }
+
+    .preview-panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      border-bottom: 1px solid var(--rb-line);
+      padding: 12px 12px 14px;
+    }
+
+    .preview-panel-head h3 {
+      margin: 5px 0 0;
+      font-family: "Sora", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .preview-content {
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-block,
+    .resume-preview-card {
       display: grid;
       gap: 10px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--line);
+      padding: 18px;
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(83, 215, 255, 0.06), transparent 45%),
+        rgba(255, 255, 255, 0.04);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
     }
 
-    .preview-block:last-child {
-      padding-bottom: 0;
-      border-bottom: 0;
+    .preview-profile-card {
+      padding: 20px;
+      background:
+        radial-gradient(circle at 16% 16%, rgba(83, 215, 255, 0.14), transparent 32%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03));
     }
 
     .preview-header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
 
     .preview-avatar {
-      width: 56px;
-      height: 56px;
-      border-radius: 8px;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
       overflow: hidden;
-      border: 1px solid var(--line);
+      border: 2px solid rgba(83, 215, 255, 0.28);
       background: rgba(255, 255, 255, 0.04);
-      flex: 0 0 56px;
+      flex: 0 0 86px;
+      box-shadow: 0 16px 34px rgba(0, 8, 22, 0.32);
     }
 
     .preview-avatar img {
@@ -449,21 +1159,95 @@
     .preview-block p,
     .preview-block ul {
       margin: 0;
+      min-width: 0;
+    }
+
+    .preview-header h3 {
+      overflow-wrap: anywhere;
+      font-family: "Sora", sans-serif;
+      font-size: 1.18rem;
+    }
+    .preview-header p,
+    .preview-block p { color: var(--rb-muted); line-height: 1.45; }
+
+    .preview-header p {
+      color: var(--rb-cyan);
+      font-weight: 800;
+    }
+
+    .preview-contact-grid {
+      display: grid;
+      gap: 8px;
+      color: var(--rb-muted);
+      font-size: 0.88rem;
+      margin-top: 4px;
+    }
+
+    .preview-contact-grid span {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow-wrap: anywhere;
+    }
+
+    .preview-contact-grid i {
+      color: var(--rb-cyan);
     }
 
     .preview-block h4 {
+      display: flex;
+      align-items: center;
+      gap: 7px;
       margin: 0;
-      font-size: 0.84rem;
+      font-size: 0.78rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--accent);
+      color: var(--rb-cyan);
+    }
+
+    .preview-overview-card {
+      background:
+        radial-gradient(circle at 86% 0%, rgba(142, 100, 255, 0.22), transparent 46%),
+        linear-gradient(135deg, rgba(30, 126, 255, 0.13), rgba(127, 80, 255, 0.16));
+      border-color: rgba(125, 187, 255, 0.2);
     }
 
     .preview-list {
       display: grid;
-      gap: 8px;
-      padding-left: 18px;
-      color: var(--muted);
+      gap: 9px;
+      padding: 0;
+      list-style: none;
+      color: var(--rb-muted);
+      position: relative;
+    }
+
+    .preview-list li {
+      position: relative;
+      padding-left: 24px;
+      line-height: 1.4;
+    }
+
+    .preview-list li:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 1.1em;
+      bottom: -11px;
+      width: 1px;
+      background: rgba(83, 215, 255, 0.22);
+    }
+
+    .preview-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.58em;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--rb-cyan);
+      box-shadow: 0 0 12px rgba(83, 215, 255, 0.45);
+      z-index: 1;
     }
 
     .status-row {
@@ -473,22 +1257,41 @@
     }
 
     .status-box {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border: 1px solid var(--rb-line);
+      border-radius: var(--rb-radius-sm);
       padding: 12px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(5, 14, 29, 0.36);
+      min-width: 0;
+      text-align: center;
     }
 
     .status-box strong {
       display: block;
-      font-size: 1.2rem;
+      font-family: "Sora", sans-serif;
+      font-size: 1.25rem;
       margin-bottom: 4px;
     }
 
     .status-box span {
-      color: var(--muted);
-      font-size: 0.82rem;
+      color: var(--rb-muted);
+      font-size: 0.8rem;
     }
+
+    .preview-full-btn {
+      width: 100%;
+      min-height: 48px;
+    }
+
+    .mobile-stepper {
+      display: none;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .mobile-stepper::-webkit-scrollbar,
+    .header-actions::-webkit-scrollbar { display: none; }
 
     .toast {
       position: fixed;
@@ -496,16 +1299,16 @@
       bottom: 18px;
       z-index: 50;
       padding: 12px 14px;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
+      border-radius: var(--rb-radius);
+      border: 1px solid var(--rb-line);
       background: rgba(7, 13, 26, 0.96);
-      color: var(--text);
-      box-shadow: var(--shadow);
+      color: var(--rb-text);
+      box-shadow: var(--rb-shadow);
       display: none;
       max-width: 320px;
     }
 
-    .toast.is-visible { display: block; }
+    .toast.is-visible { display: block; animation: rbSlideFade 0.2s ease both; }
 
     .auth-modal {
       position: fixed;
@@ -525,10 +1328,10 @@
 
     .auth-modal__panel {
       width: min(560px, 100%);
-      border: 1px solid var(--line-strong);
-      border-radius: var(--radius);
+      border: 1px solid var(--rb-line-strong);
+      border-radius: var(--rb-radius);
       background: rgba(8, 15, 28, 0.98);
-      box-shadow: var(--shadow);
+      box-shadow: var(--rb-shadow);
       padding: 24px;
       display: grid;
       gap: 16px;
@@ -539,7 +1342,7 @@
       font-size: 0.78rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--accent);
+      color: var(--rb-cyan);
     }
 
     .auth-modal__panel h2 {
@@ -551,7 +1354,7 @@
 
     .auth-modal__panel p {
       margin: 0;
-      color: var(--muted);
+      color: var(--rb-muted);
       line-height: 1.6;
     }
 
@@ -566,7 +1369,7 @@
     .auth-modal__list li {
       padding-left: 18px;
       position: relative;
-      color: var(--text);
+      color: var(--rb-text);
     }
 
     .auth-modal__list li::before {
@@ -577,7 +1380,7 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--rb-cyan);
     }
 
     .auth-modal__actions {
@@ -589,38 +1392,387 @@
 
     .auth-modal__note {
       font-size: 0.84rem;
-      color: var(--muted);
+      color: var(--rb-muted);
     }
 
-    @media (max-width: 1180px) {
-      .builder-grid {
+    /* Candidate dashboard theme alignment */
+    .builder-header,
+    .resume-builder-header {
+      border-color: rgba(135, 198, 255, 0.12);
+      background:
+        radial-gradient(circle at 84% 6%, rgba(82, 213, 255, 0.1), transparent 28%),
+        radial-gradient(circle at 3% 100%, rgba(95, 124, 255, 0.06), transparent 34%),
+        linear-gradient(145deg, rgba(16, 30, 55, 0.96), rgba(7, 15, 29, 0.98));
+      box-shadow: var(--rb-shadow-strong), inset 0 1px 0 rgba(177, 226, 255, 0.07);
+      backdrop-filter: blur(10px);
+    }
+
+    .builder-header__icon,
+    .panel-icon {
+      background: linear-gradient(135deg, #35c9ff, #5a79ff);
+      box-shadow: 0 10px 22px rgba(35, 132, 255, 0.18);
+    }
+
+    .panel {
+      border-color: rgba(135, 198, 255, 0.12);
+      background: linear-gradient(180deg, rgba(12, 21, 40, 0.92), rgba(9, 16, 31, 0.96));
+      box-shadow: var(--rb-shadow), inset 0 1px 0 rgba(177, 226, 255, 0.06);
+      backdrop-filter: blur(5px);
+    }
+
+    .stepper__hero,
+    .sidebar-card,
+    .progress-card,
+    .ai-card,
+    .ai-suggestion-card,
+    .preview-block,
+    .resume-preview-card,
+    .tag-input,
+    .status-box {
+      border-color: var(--rb-line);
+      background: var(--rb-card);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .step-pill.is-active {
+      border-color: rgba(82, 213, 255, 0.18);
+      background: linear-gradient(90deg, rgba(82, 213, 255, 0.13), rgba(95, 124, 255, 0.055));
+      box-shadow: none;
+      animation: none;
+    }
+
+    .step-pill:hover {
+      border-color: rgba(82, 213, 255, 0.18);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .progress-ring {
+      background: conic-gradient(#52d5ff 0deg, #5f7cff var(--progress), rgba(255, 255, 255, 0.08) 0);
+      box-shadow: none;
+    }
+
+    .progress-ring::before {
+      background: #091222;
+    }
+
+    .progress-fill {
+      box-shadow: none;
+    }
+
+    .builder-main__head,
+    .resume-step-card {
+      background:
+        radial-gradient(circle at 86% 4%, rgba(82, 213, 255, 0.08), transparent 28%),
+        linear-gradient(145deg, rgba(16, 30, 55, 0.72), rgba(9, 18, 34, 0.86));
+    }
+
+    .step-tip,
+    .section-actions,
+    .collection-empty,
+    .ai-empty-state {
+      border-color: rgba(135, 198, 255, 0.14);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .field input,
+    .field textarea {
+      border-color: var(--rb-line);
+      background: rgba(11, 22, 44, 0.48);
+    }
+
+    .field input:hover,
+    .field textarea:hover {
+      border-color: rgba(82, 213, 255, 0.22);
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: rgba(82, 213, 255, 0.55);
+      box-shadow: 0 0 0 4px rgba(82, 213, 255, 0.12);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .item-card,
+    .resume-entry-card {
+      border-color: var(--rb-line);
+      background: var(--rb-card);
+      box-shadow: inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .item-card:hover,
+    .resume-entry-card:hover,
+    .ai-suggestion-card:hover {
+      border-color: rgba(122, 192, 255, 0.18);
+      box-shadow: var(--rb-shadow);
+    }
+
+    .preview-profile-card,
+    .preview-overview-card {
+      border-color: rgba(135, 198, 255, 0.12);
+      background:
+        radial-gradient(circle at 88% 4%, rgba(82, 213, 255, 0.07), transparent 30%),
+        linear-gradient(145deg, rgba(16, 30, 55, 0.72), rgba(9, 18, 34, 0.86));
+    }
+
+    .tag {
+      border-color: rgba(82, 213, 255, 0.16);
+      background: rgba(82, 213, 255, 0.075);
+    }
+
+    .builder-nav {
+      background: rgba(9, 17, 32, 0.86);
+    }
+
+    .ai-drawer-backdrop,
+    .auth-modal {
+      background: rgba(1, 7, 18, 0.72);
+    }
+
+    .ai-drawer-panel,
+    .auth-modal__panel {
+      border-color: rgba(135, 198, 255, 0.14);
+      background: linear-gradient(180deg, rgba(12, 22, 42, 0.98), rgba(9, 17, 32, 0.99));
+      box-shadow: var(--rb-shadow-strong), inset 0 1px 0 rgba(177, 226, 255, 0.05);
+    }
+
+    .toast {
+      background: rgba(8, 18, 34, 0.97);
+      box-shadow: 0 10px 24px rgba(2, 12, 28, 0.18);
+    }
+
+    @keyframes rbFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes rbSlideFade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes rbActiveGlow {
+      0%, 100% { box-shadow: var(--rb-glow); }
+      50% { box-shadow: 0 0 0 1px rgba(83, 215, 255, 0.22), 0 18px 62px rgba(83, 215, 255, 0.23); }
+    }
+
+    @keyframes rbSavedPulse {
+      0% { box-shadow: 0 0 0 0 rgba(103, 230, 161, 0.32); }
+      70% { box-shadow: 0 0 0 8px rgba(103, 230, 161, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(103, 230, 161, 0); }
+    }
+
+    @keyframes rbAiShimmer {
+      100% { transform: translateX(100%); }
+    }
+
+    @keyframes rbAiFieldPulse {
+      0% { box-shadow: 0 0 0 0 rgba(83, 215, 255, 0.38); }
+      35% { box-shadow: 0 0 0 6px rgba(83, 215, 255, 0.16), 0 0 38px rgba(83, 215, 255, 0.34); }
+      100% { box-shadow: 0 0 0 0 rgba(83, 215, 255, 0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    @media (max-width: 1099px) {
+      .builder-header,
+      .resume-builder-header {
+        grid-template-columns: 1fr;
+        position: static;
+      }
+
+      .header-actions {
+        justify-content: flex-start;
+      }
+
+      .builder-grid,
+      .resume-layout {
         grid-template-columns: 1fr;
       }
 
       .stepper,
-      .builder-preview {
+      .resume-progress-sidebar,
+      .builder-preview,
+      .resume-preview-panel {
         position: static;
+        max-height: none;
+      }
+
+      .builder-preview,
+      .resume-preview-panel {
+        grid-column: auto;
+      }
+
+      .stepper,
+      .resume-progress-sidebar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .step-list { display: none; }
+      .mobile-stepper { display: flex; grid-column: 1 / -1; }
+      .ai-card { grid-column: 1 / -1; }
+
+      .builder-main__head,
+      .resume-step-card {
+        grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 767px) {
+      .ai-drawer {
+        align-items: flex-end;
+      }
+
+      .ai-drawer-panel {
+        width: 100%;
+        height: min(88vh, 760px);
+        margin: 0;
+        border-radius: var(--rb-radius) var(--rb-radius) 0 0;
+        transform: translateY(110%);
+      }
+
+      .ai-drawer.is-visible .ai-drawer-panel {
+        transform: translateY(0);
+      }
+
+      .ai-drawer-head {
+        padding: 14px;
+      }
+
+      .ai-drawer-body {
+        padding: 14px;
+      }
+
+      .resume-builder-shell,
       .builder-shell {
-        padding: 18px 14px 28px;
+        padding: 14px 12px calc(92px + env(safe-area-inset-bottom));
       }
 
       .builder-header,
+      .resume-builder-header {
+        padding: 14px;
+      }
+
+      .builder-header__meta {
+        align-items: flex-start;
+      }
+
+      .builder-header__icon,
+      .panel-icon {
+        width: 42px;
+        height: 42px;
+      }
+
+      .header-actions {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+      }
+
+      .btn {
+        min-height: 40px;
+        padding: 0 12px;
+      }
+
+      .saved-pill,
+      .live-chip,
+      .meta-chip {
+        min-height: 36px;
+        font-size: 0.82rem;
+      }
+
+      .stepper,
+      .resume-progress-sidebar {
+        grid-template-columns: 1fr;
+        padding: 14px;
+      }
+
+      .stepper__hero {
+        grid-template-columns: 52px minmax(0, 1fr);
+      }
+
+      .stepper__photo,
+      .stepper__hero img {
+        width: 52px;
+        height: 52px;
+      }
+
+      .progress-card {
+        grid-template-columns: 74px minmax(0, 1fr);
+      }
+
+      .progress-ring {
+        width: 68px;
+        height: 68px;
+      }
+
+      .progress-ring::before {
+        width: 50px;
+        height: 50px;
+      }
+
       .builder-main__head,
       .builder-section,
       .builder-nav,
-      .stepper,
-      .builder-preview {
-        padding-left: 16px;
-        padding-right: 16px;
+      .builder-preview,
+      .resume-preview-panel {
+        padding-left: 14px;
+        padding-right: 14px;
       }
 
       .field-grid,
       .status-row {
         grid-template-columns: 1fr;
+      }
+
+      .section-actions {
+        align-items: stretch;
+      }
+
+      .section-actions .btn {
+        width: 100%;
+      }
+
+      .builder-nav {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        margin: 0 -1px -1px;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom));
+        background: rgba(9, 17, 32, 0.94);
+        backdrop-filter: blur(16px);
+      }
+
+      .builder-nav > .btn,
+      .builder-nav .header-actions {
+        flex: 1 1 auto;
+      }
+
+      .builder-nav .header-actions {
+        justify-content: flex-end;
+      }
+
+      .preview-content {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.28s ease, opacity 0.2s ease;
+      }
+
+      .builder-preview.is-expanded .preview-content,
+      .resume-preview-panel.is-expanded .preview-content {
+        max-height: 1400px;
+        opacity: 1;
       }
     }
   </style>
@@ -628,43 +1780,70 @@
 <body{% if builder_requires_signup %} class="preview-mode"{% endif %}>
   {{ resume_builder_payload|json_script:"resumeBuilderPayload" }}
 
-  <div class="builder-shell">
-    <header class="builder-header">
+  <div class="builder-shell resume-builder-shell">
+    <header class="builder-header resume-builder-header">
       <div class="builder-header__meta">
-        <p class="eyebrow">Candidate Workspace</p>
-        <h1>Resume Builder</h1>
-        <p>{% if builder_requires_signup %}Preview the resume builder, then create your free candidate account to start writing, save drafts, and download polished copies.{% else %}Build a clean modern resume one section at a time, save progress as you go, and download polished PDF or Word copies without leaving your candidate workspace.{% endif %}</p>
+        <div class="builder-header__icon" aria-hidden="true"><i class="ph ph-file-text"></i></div>
+        <div class="builder-header__copy">
+          <h1>Resume Builder</h1>
+          <p>Create a professional resume that opens doors.</p>
+          <a class="header-back-link" href="{{ builder_back_url }}"><i class="ph ph-arrow-left"></i>{% if builder_requires_signup %}Back to Home{% else %}Back to Dashboard{% endif %}</a>
+        </div>
       </div>
+      <div class="saved-pill header-status" id="savedPill"><i class="ph ph-check-circle"></i><span>{% if builder_requires_signup %}Preview mode{% else %}Ready to save{% endif %}</span></div>
       <div class="header-actions">
-        <a class="btn btn-ghost" href="{{ builder_back_url }}">{% if builder_requires_signup %}Back to Home{% else %}Back to Dashboard{% endif %}</a>
-        <div class="saved-pill" id="savedPill">{% if builder_requires_signup %}Preview mode{% else %}Ready to save{% endif %}</div>
-        <button class="btn btn-secondary" type="button" id="saveDraftButton">Save Draft</button>
-        <button class="btn btn-secondary" type="button" id="downloadWordButton">Download Word</button>
-        <button class="btn btn-primary" type="button" id="downloadPdfButton">Download PDF</button>
+        <button class="btn btn-subtle" type="button" id="previewButton"><i class="ph ph-eye"></i>Preview</button>
+        <button class="btn btn-secondary" type="button" id="saveDraftButton"><i class="ph ph-floppy-disk"></i>Save Draft</button>
+        <button class="btn btn-secondary" type="button" id="downloadWordButton"><i class="ph ph-file-doc"></i>Download Word</button>
+        <button class="btn btn-primary" type="button" id="downloadPdfButton"><i class="ph ph-file-pdf"></i>Download PDF</button>
       </div>
     </header>
 
-    <div class="builder-grid">
-      <aside class="panel stepper">
+    <div class="builder-grid resume-layout">
+      <aside class="panel stepper resume-progress-sidebar">
         <div class="stepper__hero">
           {% if candidate.profile_picture_url %}
-            <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+            <img class="stepper__photo" src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
           {% else %}
-            <img src="{% static 'assets/images/select-evaluator.png' %}" alt="Resume builder workspace">
+            <img class="stepper__photo" src="{% static 'assets/images/select-evaluator.png' %}" alt="Resume builder workspace">
           {% endif %}
           <div>
             <strong>{{ candidate.name }}</strong>
-            <p>Use your current profile as the base, then shape each section until the resume reads the way you want.</p>
+            <p id="sidebarRole">Resume in progress</p>
+          </div>
+        </div>
+        <div class="progress-card">
+          <div class="progress-ring" id="progressRing"><strong id="progressPercent">0%</strong></div>
+          <div>
+            <p class="eyebrow">Overall Progress</p>
+            <strong class="progress-title" id="progressTitle">Great progress!</strong>
+            <p id="progressCopy">Step 1 of 9</p>
+            <div class="progress-track" aria-hidden="true"><span class="progress-fill" id="progressFill"></span></div>
           </div>
         </div>
         <div class="step-list" id="stepList"></div>
+        <div class="mobile-stepper resume-mobile-stepper" id="mobileStepList" aria-label="Resume builder steps"></div>
+        <div class="ai-card">
+          <div class="ai-card__title"><i class="ph ph-sparkle"></i> AI Assistant <span class="ai-beta-pill">Beta</span></div>
+          <p>Review your current step and ask for sharper phrasing when you are ready.</p>
+          <button class="btn btn-secondary" type="button" id="aiSuggestButton"><i class="ph ph-lightbulb"></i>Ask for suggestions</button>
+        </div>
       </aside>
 
-      <main class="panel builder-main">
-        <div class="builder-main__head">
-          <p class="eyebrow" id="stepEyebrow">Step 1</p>
-          <h2 id="stepTitle">Profile Basics</h2>
-          <p id="stepCopy">Start with the details recruiters scan first: your name, headline, summary, location, and professional links.</p>
+      <main class="panel builder-main resume-editor-panel">
+        <div class="builder-main__head resume-step-card">
+          <div>
+            <p class="eyebrow" id="stepEyebrow"><i class="ph ph-user"></i> Step 1 of 9</p>
+            <div class="step-title-row">
+              <div class="panel-icon" id="stepIcon"><i class="ph ph-user"></i></div>
+              <h2 id="stepTitle">Profile Basics</h2>
+            </div>
+            <p id="stepCopy">Start with the details recruiters scan first: your name, headline, summary, location, and professional links.</p>
+          </div>
+          <div class="step-tip">
+            <strong><i class="ph ph-lightbulb"></i> Editor tip</strong>
+            <span id="stepTip">Use concrete words and measurable proof wherever possible.</span>
+          </div>
         </div>
 
         <section class="builder-section is-active" data-step="basics">
@@ -686,7 +1865,7 @@
               <input id="basics_phone" type="text" data-field="basics.phone">
             </div>
             <div class="field">
-              <label for="basics_location">Location</label>
+              <label for="basics_location"><i class="ph ph-map-pin"></i>Location</label>
               <input id="basics_location" type="text" data-field="basics.location" placeholder="Pune, India">
             </div>
             <div class="field">
@@ -717,7 +1896,7 @@
           <div class="collection" id="experienceCollection"></div>
           <div class="section-actions">
             <p class="helper">Add your most relevant roles first. Each entry supports timeline, impact bullets, and tech stack.</p>
-            <button class="btn btn-secondary" type="button" data-add-item="experience">Add Experience</button>
+            <button class="btn btn-secondary" type="button" data-add-item="experience"><i class="ph ph-plus"></i>Add Experience</button>
           </div>
         </section>
 
@@ -725,7 +1904,7 @@
           <div class="collection" id="projectsCollection"></div>
           <div class="section-actions">
             <p class="helper">Highlight portfolio work, shipped features, academic builds, or freelance delivery with real outcomes.</p>
-            <button class="btn btn-secondary" type="button" data-add-item="projects">Add Project</button>
+            <button class="btn btn-secondary" type="button" data-add-item="projects"><i class="ph ph-plus"></i>Add Project</button>
           </div>
         </section>
 
@@ -733,7 +1912,7 @@
           <div class="collection" id="educationCollection"></div>
           <div class="section-actions">
             <p class="helper">Capture degree, institution, timeline, and the details that strengthen your background for the role.</p>
-            <button class="btn btn-secondary" type="button" data-add-item="education">Add Education</button>
+            <button class="btn btn-secondary" type="button" data-add-item="education"><i class="ph ph-plus"></i>Add Education</button>
           </div>
         </section>
 
@@ -752,82 +1931,173 @@
           <div class="collection" id="certificationsCollection"></div>
           <div class="section-actions">
             <p class="helper">Certifications help when they support the role you are targeting.</p>
-            <button class="btn btn-secondary" type="button" data-add-item="certifications">Add Certification</button>
+            <button class="btn btn-secondary" type="button" data-add-item="certifications"><i class="ph ph-plus"></i>Add Certification</button>
           </div>
           <div class="collection" id="achievementsCollection"></div>
           <div class="section-actions">
             <p class="helper">Awards, recognitions, speaking, publications, or measurable wins fit well here.</p>
-            <button class="btn btn-secondary" type="button" data-add-item="achievements">Add Achievement</button>
+            <button class="btn btn-secondary" type="button" data-add-item="achievements"><i class="ph ph-plus"></i>Add Achievement</button>
           </div>
           <div class="collection" id="languagesCollection"></div>
           <div class="section-actions">
             <p class="helper">List spoken languages and fluency so international teams can assess communication fit.</p>
-            <button class="btn btn-secondary" type="button" data-add-item="languages">Add Language</button>
+            <button class="btn btn-secondary" type="button" data-add-item="languages"><i class="ph ph-plus"></i>Add Language</button>
           </div>
         </section>
 
-        <div class="builder-nav">
-          <button class="btn btn-ghost" type="button" id="prevStepButton">Previous</button>
+        <section class="builder-section" data-step="summary">
+          <div class="preview-block resume-preview-card preview-profile-card">
+            <h4><i class="ph ph-file-text"></i> Summary Check</h4>
+            <p id="summaryReviewText">Your professional summary will show up here as you write it.</p>
+          </div>
+          <div class="field">
+            <label for="summaryPolishInput">Professional Summary</label>
+            <textarea id="summaryPolishInput" data-field="basics.summary" placeholder="Write a short summary that explains your strengths, the kind of work you do best, and the impact you create."></textarea>
+            <p class="helper">This is the same summary from Profile Basics, repeated here so you can polish it near the end.</p>
+          </div>
+        </section>
+
+        <section class="builder-section" data-step="review">
+          <div class="status-row">
+            <div class="status-box">
+              <strong id="reviewExperienceCount">0</strong>
+              <span>Experience entries</span>
+            </div>
+            <div class="status-box">
+              <strong id="reviewProjectCount">0</strong>
+              <span>Projects</span>
+            </div>
+            <div class="status-box">
+              <strong id="reviewEducationCount">0</strong>
+              <span>Education entries</span>
+            </div>
+          </div>
+          <div class="preview-block resume-preview-card preview-overview-card">
+            <h4><i class="ph ph-list-checks"></i> Review</h4>
+            <p>Use the live preview to scan contact details, summary, skills, and recent experience before downloading.</p>
+            <button class="btn btn-secondary" type="button" data-preview-trigger><i class="ph ph-eye"></i>View Full Preview</button>
+          </div>
+        </section>
+
+        <section class="builder-section" data-step="finish">
+          <div class="preview-block resume-preview-card">
+            <h4><i class="ph ph-check-circle"></i> Finish</h4>
+            <p>Save your latest draft, then download the Word or PDF version when everything reads correctly.</p>
+            <div class="header-actions">
+              <button class="btn btn-secondary" type="button" data-save-trigger><i class="ph ph-floppy-disk"></i>Save Draft</button>
+              <button class="btn btn-secondary" type="button" data-word-trigger><i class="ph ph-file-doc"></i>Download Word</button>
+              <button class="btn btn-primary" type="button" data-pdf-trigger><i class="ph ph-file-pdf"></i>Download PDF</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="builder-nav resume-action-bar">
+          <button class="btn btn-ghost" type="button" id="prevStepButton"><i class="ph ph-arrow-left"></i>Previous</button>
           <div class="header-actions">
-            <button class="btn btn-secondary" type="button" id="navSaveButton">Save Draft</button>
-            <button class="btn btn-primary" type="button" id="nextStepButton">Next</button>
+            <button class="btn btn-secondary" type="button" id="navSaveButton"><i class="ph ph-floppy-disk"></i>Save Draft</button>
+            <button class="btn btn-primary" type="button" id="nextStepButton">Next<i class="ph ph-arrow-right"></i></button>
           </div>
         </div>
       </main>
 
-      <aside class="panel builder-preview">
-        <div class="preview-block">
-          <div class="preview-header">
-            <div class="preview-avatar">
-              {% if candidate.profile_picture_url %}
-                <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
-              {% else %}
-                <img src="{% static 'assets/images/boy.png' %}" alt="Candidate preview">
-              {% endif %}
-            </div>
-            <div>
-              <h3 id="previewName">{{ candidate.name }}</h3>
-              <p id="previewHeadline">Headline will appear here</p>
-            </div>
+      <aside class="panel builder-preview resume-preview-panel" id="resumePreviewPanel">
+        <div class="preview-panel-head">
+          <div>
+            <p class="eyebrow"><i class="ph ph-eye"></i> Live Preview</p>
+            <h3>Profile Summary</h3>
           </div>
-          <p id="previewContact">Email and phone will appear here once added.</p>
-        </div>
-
-        <div class="preview-block">
-          <h4>Resume Coverage</h4>
-          <div class="status-row">
-            <div class="status-box">
-              <strong id="previewExperienceCount">0</strong>
-              <span>Experience</span>
-            </div>
-            <div class="status-box">
-              <strong id="previewProjectCount">0</strong>
-              <span>Projects</span>
-            </div>
-            <div class="status-box">
-              <strong id="previewSkillCount">0</strong>
-              <span>Skills</span>
-            </div>
+          <div class="header-actions">
+            <span class="live-chip"><i class="ph ph-check-circle"></i>Real-time updates</span>
+            <button class="btn btn-secondary btn-icon" type="button" id="refreshPreviewButton" aria-label="Refresh preview"><i class="ph ph-refresh"></i></button>
           </div>
         </div>
 
-        <div class="preview-block">
-          <h4>Summary Snapshot</h4>
-          <p id="previewSummary">Your professional summary will show up here as you write it.</p>
-        </div>
+        <div class="preview-content" id="previewContent">
+          <div class="preview-block resume-preview-card">
+            <div class="preview-header">
+              <div class="preview-avatar">
+                {% if candidate.profile_picture_url %}
+                  <img src="{{ candidate.profile_picture_url }}" alt="{{ candidate.name }}">
+                {% else %}
+                  <img src="{% static 'assets/images/boy.png' %}" alt="Candidate preview">
+                {% endif %}
+              </div>
+              <div>
+                <h3 id="previewName">{{ candidate.name }}</h3>
+                <p id="previewHeadline">Headline will appear here</p>
+              </div>
+            </div>
+            <div class="preview-contact-grid">
+              <span><i class="ph ph-envelope"></i><span id="previewEmail">Email will appear here</span></span>
+              <span><i class="ph ph-phone"></i><span id="previewPhone">Phone will appear here</span></span>
+              <span><i class="ph ph-map-pin"></i><span id="previewLocation">Location will appear here</span></span>
+            </div>
+          </div>
 
-        <div class="preview-block">
-          <h4>Top Skills</h4>
-          <div class="tag-list" id="previewSkills"></div>
-        </div>
+          <div class="preview-block resume-preview-card">
+            <h4><i class="ph ph-chart-line"></i> Resume Overview</h4>
+            <div class="status-row">
+              <div class="status-box">
+                <strong id="previewExperienceCount">0</strong>
+                <span>Years Experience</span>
+              </div>
+              <div class="status-box">
+                <strong id="previewProjectCount">0</strong>
+                <span>Projects</span>
+              </div>
+              <div class="status-box">
+                <strong id="previewSkillCount">0</strong>
+                <span>Skills</span>
+              </div>
+            </div>
+          </div>
 
-        <div class="preview-block">
-          <h4>Recent Experience</h4>
-          <ul class="preview-list" id="previewExperience"></ul>
+          <div class="preview-block resume-preview-card">
+            <h4><i class="ph ph-file-text"></i> Summary Snapshot</h4>
+            <p id="previewSummary">Your professional summary will show up here as you write it.</p>
+          </div>
+
+          <div class="preview-block resume-preview-card">
+            <h4><i class="ph ph-code"></i> Top Skills</h4>
+            <div class="tag-list" id="previewSkills"></div>
+          </div>
+
+          <div class="preview-block resume-preview-card">
+            <h4><i class="ph ph-briefcase"></i> Recent Experience</h4>
+            <ul class="preview-list" id="previewExperience"></ul>
+          </div>
+
+          <button class="btn btn-secondary preview-full-btn" type="button" id="viewFullPreviewButton"><i class="ph ph-eye"></i>View Full Preview</button>
         </div>
       </aside>
     </div>
   </div>
+
+  <div class="ai-drawer-backdrop" id="aiDrawerBackdrop"></div>
+  <aside class="ai-drawer" id="aiSuggestionsPanel" aria-live="polite" aria-modal="true" role="dialog" aria-labelledby="aiDrawerTitle">
+    <div class="ai-drawer-panel">
+      <div class="ai-drawer-head">
+        <div class="ai-drawer-title-row">
+          <div class="ai-drawer-title">
+            <div class="panel-icon" aria-hidden="true"><i class="ph ph-sparkle"></i></div>
+            <div>
+              <h3 id="aiDrawerTitle">Resume Assistant</h3>
+              <p>Local-first suggestions for the section you are editing.</p>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-icon" type="button" id="aiDrawerCloseButton" aria-label="Close resume assistant"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="ai-panel-head">
+          <span class="ai-provider-chip" id="aiProviderChip"><i class="ph ph-cpu"></i>Local AI</span>
+          <span class="ai-confidence-chip" id="aiScoreChip">Score 0</span>
+          <span class="ai-section-chip" id="aiRoleChip">General</span>
+        </div>
+      </div>
+      <div class="ai-drawer-body">
+        <div class="ai-suggestion-list" id="aiSuggestionList"></div>
+      </div>
+    </div>
+  </aside>
 
   <div class="toast" id="builderToast"></div>
   {% if builder_requires_signup %}
@@ -857,16 +2127,24 @@
       const saveUrl = '{% url "candidate-resume-builder" %}';
       const downloadWordUrl = '{% url "candidate-resume-builder-word" %}';
       const downloadPdfUrl = '{% url "candidate-resume-builder-pdf" %}';
+      const aiSuggestionsUrl = '{% url "candidate-resume-builder-ai-suggestions" %}';
+      const aiFeedbackUrl = '{% url "candidate-resume-builder-ai-feedback" %}';
+      const aiProfessionalReviewUrl = '{% url "candidate-resume-builder-ai-professional-review" %}';
+      const aiProfessionalReviewFeedbackUrl = '{% url "candidate-resume-builder-ai-professional-review-feedback" %}';
       const requiresSignup = {{ builder_requires_signup|yesno:"true,false" }};
+      const initialUpdatedAt = '{{ resume_builder_updated_at|escapejs }}';
       const authModal = document.getElementById('builderAuthModal');
 
       const stepConfig = [
-        { key: 'basics', title: 'Profile Basics', copy: 'Start with the essentials recruiters read first: identity, headline, contact, location, and a clear summary.' },
-        { key: 'experience', title: 'Experience', copy: 'Capture roles with impact, measurable outcomes, and the tools or technologies that matter for hiring teams.' },
-        { key: 'projects', title: 'Projects', copy: 'Use projects to show shipped work, initiative, experimentation, and domain depth beyond the job title.' },
-        { key: 'education', title: 'Education', copy: 'Add degree, institution, timeline, and any detail that strengthens the fit for your target role.' },
-        { key: 'skills', title: 'Skills', copy: 'Focus this list on the strongest technical, product, or business capabilities you want indexed quickly.' },
-        { key: 'extras', title: 'Extras', copy: 'Round out the resume with certifications, achievements, and languages that add useful context.' }
+        { key: 'basics', title: 'Profile Basics', icon: 'ph ph-user', copy: 'Start with the essentials recruiters read first: identity, headline, contact, location, and a clear summary.', tip: 'Lead with a headline that maps to the roles you want next.' },
+        { key: 'experience', title: 'Experience', icon: 'ph ph-briefcase', copy: 'Capture roles with impact, measurable outcomes, and the tools or technologies that matter for hiring teams.', tip: 'Use outcomes, scale, and business context wherever you can.' },
+        { key: 'projects', title: 'Projects', icon: 'ph ph-code', copy: 'Use projects to show shipped work, initiative, experimentation, and domain depth beyond the job title.', tip: 'Prioritize work that proves ownership or applied skill.' },
+        { key: 'education', title: 'Education', icon: 'ph ph-graduation-cap', copy: 'Add degree, institution, timeline, and any detail that strengthens the fit for your target role.', tip: 'Relevant coursework, honors, and focus areas belong here when they add signal.' },
+        { key: 'skills', title: 'Skills', icon: 'ph ph-list-checks', copy: 'Focus this list on the strongest technical, product, or business capabilities you want indexed quickly.', tip: 'Keep the list targeted instead of exhaustive.' },
+        { key: 'extras', title: 'Extras', icon: 'ph ph-sparkle', copy: 'Round out the resume with certifications, achievements, and languages that add useful context.', tip: 'Add extras only when they strengthen the story for your target role.' },
+        { key: 'summary', title: 'Summary', icon: 'ph ph-file-text', copy: 'Polish the opening summary and make sure it reflects the strongest evidence in your resume.', tip: 'Four to six specific lines usually work better than a long paragraph.' },
+        { key: 'review', title: 'Review', icon: 'ph ph-eye', copy: 'Scan the live preview for completeness, consistency, and recruiter readability.', tip: 'Check contact details, dates, and role titles before downloading.' },
+        { key: 'finish', title: 'Finish', icon: 'ph ph-check-circle', copy: 'Save your latest draft and download a polished PDF or Word copy.', tip: 'Save first so downloads include your latest edits.' }
       ];
 
       const state = {
@@ -993,13 +2271,35 @@
       let saveTimer = null;
       let toastTimer = null;
       let saving = false;
+      const aiState = {
+        suggestions: [],
+        score: 0,
+        provider: 'local',
+        professionalReviews: {}
+      };
 
       const stepList = document.getElementById('stepList');
+      const mobileStepList = document.getElementById('mobileStepList');
       const stepEyebrow = document.getElementById('stepEyebrow');
       const stepTitle = document.getElementById('stepTitle');
       const stepCopy = document.getElementById('stepCopy');
+      const stepTip = document.getElementById('stepTip');
+      const stepIcon = document.getElementById('stepIcon');
+      const progressRing = document.getElementById('progressRing');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressCopy = document.getElementById('progressCopy');
+      const progressTitle = document.getElementById('progressTitle');
+      const progressFill = document.getElementById('progressFill');
       const savedPill = document.getElementById('savedPill');
       const builderToast = document.getElementById('builderToast');
+      const previewPanel = document.getElementById('resumePreviewPanel');
+      const aiSuggestionsPanel = document.getElementById('aiSuggestionsPanel');
+      const aiSuggestionList = document.getElementById('aiSuggestionList');
+      const aiProviderChip = document.getElementById('aiProviderChip');
+      const aiScoreChip = document.getElementById('aiScoreChip');
+      const aiRoleChip = document.getElementById('aiRoleChip');
+      const aiDrawerBackdrop = document.getElementById('aiDrawerBackdrop');
+      const aiDrawerCloseButton = document.getElementById('aiDrawerCloseButton');
 
       function showToast(message) {
         if (!builderToast) return;
@@ -1015,20 +2315,68 @@
       }
 
       function setSavedState(mode, message) {
-        savedPill.textContent = message;
+        const iconClass = mode === 'is-error'
+          ? 'ph ph-x'
+          : mode === 'is-saving'
+            ? 'ph ph-refresh'
+            : 'ph ph-check-circle';
+        savedPill.innerHTML = `<i class="${iconClass}"></i><span>${escapeHtml(message)}</span>`;
         savedPill.classList.remove('is-saving', 'is-saved', 'is-error');
         if (mode) {
           savedPill.classList.add(mode);
         }
       }
 
+      function formatSavedMessage(updatedAt) {
+        if (!updatedAt) {
+          return requiresSignup ? 'Preview mode' : 'Ready to save';
+        }
+        const parsed = new Date(updatedAt);
+        if (Number.isNaN(parsed.getTime())) {
+          return 'Draft saved';
+        }
+        return `Draft saved ${parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      }
+
+      function updateProgress() {
+        const total = stepConfig.length;
+        const percent = Math.round(((currentStepIndex + 1) / total) * 100);
+        if (progressRing) {
+          progressRing.style.setProperty('--progress', `${Math.round((percent / 100) * 360)}deg`);
+        }
+        if (progressFill) {
+          progressFill.style.setProperty('--progress-width', `${percent}%`);
+        }
+        if (progressPercent) {
+          progressPercent.textContent = `${percent}%`;
+        }
+        if (progressTitle) {
+          progressTitle.textContent = percent >= 67 ? 'Great progress!' : 'Keep going';
+        }
+        if (progressCopy) {
+          progressCopy.textContent = `${currentStepIndex + 1} of ${total} steps completed`;
+        }
+      }
+
       function buildStepPills() {
         stepList.innerHTML = '';
+        mobileStepList.innerHTML = '';
         stepConfig.forEach((step, index) => {
           const button = document.createElement('button');
           button.type = 'button';
-          button.className = 'step-pill' + (index === currentStepIndex ? ' is-active' : '');
-          button.innerHTML = `<span class="step-pill__index">Step ${index + 1}</span><strong>${step.title}</strong><span>${step.copy}</span>`;
+          button.className = 'step-pill'
+            + (index === currentStepIndex ? ' is-active' : '')
+            + (index < currentStepIndex ? ' is-complete' : '')
+            + (index > currentStepIndex ? ' is-future' : '');
+          const markIcon = index < currentStepIndex ? 'ph ph-check-circle' : step.icon;
+          button.innerHTML = `
+            <span class="step-pill__mark"><i class="${markIcon}"></i></span>
+            <span>
+              <span class="step-pill__index">Step ${index + 1}</span>
+              <strong>${step.title}</strong>
+              <span class="step-pill__copy">${step.copy}</span>
+            </span>
+          `;
           button.addEventListener('click', () => {
             if (requiresSignup) {
               showAuthModal();
@@ -1038,6 +2386,16 @@
             renderStepState();
           });
           stepList.appendChild(button);
+          const mobileButton = button.cloneNode(true);
+          mobileButton.addEventListener('click', () => {
+            if (requiresSignup) {
+              showAuthModal();
+              return;
+            }
+            currentStepIndex = index;
+            renderStepState();
+          });
+          mobileStepList.appendChild(mobileButton);
         });
       }
 
@@ -1045,6 +2403,11 @@
         const parts = path.split('.');
         if (parts.length !== 2) return;
         state[parts[0]][parts[1]] = value;
+        document.querySelectorAll(`[data-field="${path}"]`).forEach((field) => {
+          if (field.value !== value) {
+            field.value = value;
+          }
+        });
         markDirty();
       }
 
@@ -1094,11 +2457,17 @@
       function createItemCard(type, item, index) {
         const config = templates[type];
         const card = document.createElement('article');
-        card.className = 'item-card';
+        card.className = 'item-card resume-entry-card' + (type === 'education' && index > 0 ? ' item-card--compact' : '');
         card.innerHTML = `
           <div class="item-card__head">
-            <strong>${config.title} ${index + 1}</strong>
-            <button class="item-card__remove" type="button">Remove</button>
+            <div class="item-card__title">
+              <span class="panel-icon" aria-hidden="true"><i class="${type === 'education' ? 'ph ph-graduation-cap' : type === 'experience' ? 'ph ph-briefcase' : type === 'projects' ? 'ph ph-code' : 'ph ph-file-text'}"></i></span>
+              <div>
+                <strong>${config.title} ${index + 1}</strong>
+                <span>${type === 'education' ? 'Degree, school, location, and focus areas' : 'Keep this entry concise and evidence-led'}</span>
+              </div>
+            </div>
+            <button class="item-card__remove" type="button"><i class="ph ph-trash"></i>Remove</button>
           </div>
           <div class="field-grid"></div>
           <div class="field-grid field-grid--single"></div>
@@ -1108,9 +2477,18 @@
 
         config.fields.forEach(([key, label]) => {
           const field = document.createElement('div');
-          field.className = 'field';
-          field.innerHTML = `<label>${label}</label><input type="text" value="${escapeHtml(item[key] || '')}">`;
+          const iconClass = key === 'location'
+            ? 'ph ph-map-pin'
+            : key === 'duration'
+              ? 'ph ph-calendar'
+              : key === 'degree'
+                ? 'ph ph-graduation-cap'
+                : '';
+          const isRequired = ['title', 'company', 'degree', 'institution', 'label'].includes(key);
+          field.className = `field field--${key}${isRequired ? ' field--required' : ''}`;
+          field.innerHTML = `<label>${iconClass ? `<i class="${iconClass}"></i>` : ''}${label}</label><input type="text" value="${escapeHtml(item[key] || '')}">`;
           const input = field.querySelector('input');
+          input.setAttribute('data-ai-field-target', `${type}.${index}.${key}`);
           if (requiresSignup) {
             input.setAttribute('readonly', 'readonly');
           }
@@ -1140,6 +2518,8 @@
               : (item[key] || '');
           field.innerHTML = `<label>${label}</label><textarea>${escapeHtml(value)}</textarea>`;
           const textarea = field.querySelector('textarea');
+          const targetKey = key === 'detailsText' ? 'details' : key === 'techStackText' ? 'tech_stack' : key;
+          textarea.setAttribute('data-ai-field-target', `${type}.${index}.${targetKey}`);
           if (requiresSignup) {
             textarea.setAttribute('readonly', 'readonly');
           }
@@ -1202,7 +2582,7 @@
         state.skills.forEach((skill, index) => {
           const pill = document.createElement('div');
           pill.className = 'tag';
-          pill.innerHTML = `<span>${escapeHtml(skill)}</span><button type="button" aria-label="Remove skill">&times;</button>`;
+          pill.innerHTML = `<span>${escapeHtml(skill)}</span><button type="button" aria-label="Remove skill"><i class="ph ph-x"></i></button>`;
           pill.querySelector('button').addEventListener('click', () => {
             state.skills.splice(index, 1);
             renderSkills();
@@ -1219,13 +2599,24 @@
       }
 
       function renderPreview() {
+        const previewEmail = document.getElementById('previewEmail');
+        const previewPhone = document.getElementById('previewPhone');
+        const previewLocation = document.getElementById('previewLocation');
+        const summaryReviewText = document.getElementById('summaryReviewText');
+        const sidebarRole = document.getElementById('sidebarRole');
         document.getElementById('previewName').textContent = state.basics.name || '{{ candidate.name|escapejs }}';
         document.getElementById('previewHeadline').textContent = state.basics.headline || 'Headline will appear here';
-        const contactParts = [state.basics.email, state.basics.phone, state.basics.location].filter(Boolean);
-        document.getElementById('previewContact').textContent = contactParts.length ? contactParts.join(' | ') : 'Email, phone, and location will appear here.';
+        if (previewEmail) previewEmail.textContent = state.basics.email || 'Email will appear here';
+        if (previewPhone) previewPhone.textContent = state.basics.phone || 'Phone will appear here';
+        if (previewLocation) previewLocation.textContent = state.basics.location || 'Location will appear here';
         document.getElementById('previewSummary').textContent = state.basics.summary || 'Your professional summary will show up here as you write it.';
+        if (summaryReviewText) summaryReviewText.textContent = state.basics.summary || 'Your professional summary will show up here as you write it.';
+        if (sidebarRole) sidebarRole.textContent = state.basics.headline || 'Resume in progress';
         document.getElementById('previewExperienceCount').textContent = String(state.experience.length);
         document.getElementById('previewProjectCount').textContent = String(state.projects.length);
+        document.getElementById('reviewExperienceCount').textContent = String(state.experience.length);
+        document.getElementById('reviewProjectCount').textContent = String(state.projects.length);
+        document.getElementById('reviewEducationCount').textContent = String(state.education.length);
 
         const experienceList = document.getElementById('previewExperience');
         experienceList.innerHTML = '';
@@ -1244,15 +2635,22 @@
 
       function renderStepState() {
         const current = stepConfig[currentStepIndex];
-        stepEyebrow.textContent = `Step ${currentStepIndex + 1}`;
+        stepEyebrow.innerHTML = `<i class="${current.icon}"></i> Step ${currentStepIndex + 1} of ${stepConfig.length}`;
         stepTitle.textContent = current.title;
         stepCopy.textContent = current.copy;
+        if (stepTip) {
+          stepTip.textContent = current.tip;
+        }
+        if (stepIcon) {
+          stepIcon.innerHTML = `<i class="${current.icon}"></i>`;
+        }
         document.querySelectorAll('.builder-section').forEach((section) => {
           section.classList.toggle('is-active', section.getAttribute('data-step') === current.key);
         });
         document.getElementById('prevStepButton').disabled = currentStepIndex === 0;
-        document.getElementById('nextStepButton').textContent = currentStepIndex === stepConfig.length - 1 ? 'Finish' : 'Next';
+        document.getElementById('nextStepButton').innerHTML = currentStepIndex === stepConfig.length - 1 ? '<i class="ph ph-check-circle"></i>Finish' : 'Next<i class="ph ph-arrow-right"></i>';
         buildStepPills();
+        updateProgress();
       }
 
       function escapeHtml(value) {
@@ -1302,7 +2700,7 @@
           if (!response.ok || !data.Success) {
             throw new Error(data.Error || 'Unable to save draft right now.');
           }
-          setSavedState('is-saved', 'Draft saved');
+          setSavedState('is-saved', formatSavedMessage(data.Data && data.Data.updated_at));
           if (showToastOnSuccess) {
             showToast('Draft saved');
           }
@@ -1334,8 +2732,363 @@
         markDirty();
       }
 
+      function openAiSuggestionsDrawer() {
+        if (aiSuggestionsPanel) {
+          aiSuggestionsPanel.classList.add('is-visible');
+        }
+        if (aiDrawerBackdrop) {
+          aiDrawerBackdrop.classList.add('is-visible');
+        }
+      }
+
+      function closeAiSuggestionsDrawer() {
+        if (aiSuggestionsPanel) {
+          aiSuggestionsPanel.classList.remove('is-visible');
+        }
+        if (aiDrawerBackdrop) {
+          aiDrawerBackdrop.classList.remove('is-visible');
+        }
+      }
+
+      async function postAiJson(url, payload) {
+        const response = await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify(payload || {}),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          credentials: 'same-origin'
+        });
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (error) {
+          data = {};
+        }
+        if (!response.ok || data.success === false) {
+          const message = data.message || 'AI Assistant is not available right now.';
+          const error = new Error(message);
+          error.data = data;
+          throw error;
+        }
+        return data;
+      }
+
+      function setAiLoading(message) {
+        if (!aiSuggestionsPanel || !aiSuggestionList) return;
+        openAiSuggestionsDrawer();
+        aiSuggestionList.innerHTML = `
+          <div class="ai-suggestion-card">
+            <div class="ai-loading" aria-hidden="true"></div>
+            <p>${escapeHtml(message || 'Reviewing your resume...')}</p>
+          </div>
+        `;
+      }
+
+      function renderAiSuggestions(result) {
+        if (!aiSuggestionsPanel || !aiSuggestionList) return;
+        aiState.suggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
+        aiState.score = result.score || 0;
+        aiState.provider = result.provider || 'local';
+        aiSuggestionsPanel.classList.add('is-visible');
+        if (aiProviderChip) {
+          aiProviderChip.innerHTML = `<i class="ph ph-cpu"></i>${aiState.provider === 'local' ? 'Local AI' : 'AI Review'}`;
+        }
+        if (aiScoreChip) {
+          aiScoreChip.textContent = `Score ${aiState.score}`;
+        }
+        if (aiRoleChip) {
+          const roleFamily = (result.role_family || 'general').replace(/_/g, ' ');
+          const resumeType = (result.resume_type || 'resume').replace(/_/g, ' ');
+          aiRoleChip.textContent = `${roleFamily} · ${resumeType}`;
+        }
+        if (!aiState.suggestions.length) {
+          aiSuggestionList.innerHTML = '<div class="ai-empty-state">No urgent suggestions found for this step. You can keep editing or move to another section.</div>';
+          return;
+        }
+        aiSuggestionList.innerHTML = aiState.suggestions.map((suggestion, index) => {
+          const actionable = suggestion.actionable !== false && Boolean(suggestion.apply_target && suggestion.recommended_text);
+          const primaryLabel = suggestion.primary_action_label || (actionable ? 'Apply' : 'View guidance');
+          return `
+            <article class="ai-suggestion-card" data-ai-index="${index}">
+              <div class="ai-suggestion-title">
+                <strong><i class="ph ph-lightbulb"></i> ${escapeHtml(suggestion.title || 'Resume suggestion')}</strong>
+                <div class="ai-suggestion-meta">
+                  <span class="ai-section-chip">${escapeHtml(suggestion.section_label || suggestion.section_key || 'Resume')}</span>
+                  <span class="ai-confidence-chip">${Math.round((suggestion.confidence || 0) * 100)}%</span>
+                </div>
+              </div>
+              <p>${escapeHtml(suggestion.message || '')}</p>
+              ${suggestion.recommended_text ? `<div class="ai-recommended-text">${escapeHtml(suggestion.recommended_text)}</div>` : ''}
+              ${suggestion.reason ? `<p><strong>Why:</strong> ${escapeHtml(suggestion.reason)}</p>` : ''}
+              <div class="ai-suggestion-actions">
+                ${actionable ? `<button class="btn btn-secondary" type="button" data-ai-action="apply" data-ai-target="${escapeHtml(suggestion.apply_target || '')}"><i class="ph ph-check-circle"></i>${escapeHtml(primaryLabel)}</button>` : `<button class="btn btn-secondary" type="button" data-ai-action="view-guidance"><i class="ph ph-eye"></i>${escapeHtml(primaryLabel)}</button>`}
+                <button class="btn btn-ghost" type="button" data-ai-action="ignore"><i class="ph ph-x"></i>Ignore</button>
+                <button class="btn btn-ghost" type="button" data-ai-action="not-useful"><i class="ph ph-thumbs-down"></i>Not useful</button>
+              </div>
+              <div class="ai-professional-prompt" data-ai-professional-prompt>
+                <p>Do you want a more professional review?</p>
+                <button class="btn btn-secondary" type="button" data-ai-action="professional-review"><i class="ph ph-magic-wand"></i>Get professional review</button>
+                <button class="btn btn-ghost" type="button" data-ai-action="skip-professional"><i class="ph ph-x"></i>Skip</button>
+              </div>
+              <div class="ai-professional-result" data-ai-professional-result></div>
+            </article>
+          `;
+        }).join('');
+
+        aiSuggestionList.querySelectorAll('[data-ai-action]').forEach((button) => {
+          button.addEventListener('click', () => handleAiAction(button));
+        });
+      }
+
+      async function requestAiSuggestions() {
+        if (requiresSignup) {
+          showAuthModal();
+          return;
+        }
+        const button = document.getElementById('aiSuggestButton');
+        const currentStep = stepConfig[currentStepIndex] ? stepConfig[currentStepIndex].key : 'basics';
+        setAiLoading('Reviewing your current resume step...');
+        if (button) button.disabled = true;
+        try {
+          const result = await postAiJson(aiSuggestionsUrl, {
+            payload: state,
+            current_step: currentStep
+          });
+          renderAiSuggestions(result);
+        } catch (error) {
+          aiSuggestionList.innerHTML = `<div class="ai-empty-state">${escapeHtml(error.message || 'AI Assistant is not available right now.')}</div>`;
+        } finally {
+          if (button) button.disabled = false;
+        }
+      }
+
+      function handleAiAction(button) {
+        const card = button.closest('[data-ai-index]');
+        if (!card) return;
+        const index = Number(card.getAttribute('data-ai-index'));
+        const suggestion = aiState.suggestions[index];
+        if (!suggestion) return;
+        const action = button.getAttribute('data-ai-action');
+        if (action === 'apply') {
+          if (applyAiSuggestion(suggestion)) {
+            sendAiFeedback(suggestion, 'applied');
+            card.classList.add('is-muted');
+            closeAiSuggestionsDrawer();
+          }
+        } else if (action === 'view-guidance') {
+          const reason = card.querySelector('.ai-suggestion-card p:last-of-type');
+          if (reason) {
+            reason.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+          showToast('Guidance is ready to review');
+        } else if (action === 'ignore') {
+          sendAiFeedback(suggestion, 'ignored');
+          card.classList.add('is-muted');
+        } else if (action === 'not-useful') {
+          sendAiFeedback(suggestion, 'not_useful', card);
+        } else if (action === 'professional-review') {
+          requestProfessionalReview(suggestion, card);
+        } else if (action === 'skip-professional') {
+          const prompt = card.querySelector('[data-ai-professional-prompt]');
+          if (prompt) prompt.classList.remove('is-visible');
+        }
+      }
+
+      async function sendAiFeedback(suggestion, feedback, card) {
+        if (!suggestion.suggestion_id) return;
+        try {
+          const result = await postAiJson(aiFeedbackUrl, {
+            suggestion_id: suggestion.suggestion_id,
+            feedback: feedback,
+            reason: ''
+          });
+          if (result.offer_professional_review && card) {
+            const prompt = card.querySelector('[data-ai-professional-prompt]');
+            if (prompt) prompt.classList.add('is-visible');
+          }
+        } catch (error) {
+          showToast(error.message || 'Unable to send feedback right now.');
+        }
+      }
+
+      async function requestProfessionalReview(suggestion, card) {
+        if (!suggestion.suggestion_id || !card) return;
+        const resultBox = card.querySelector('[data-ai-professional-result]');
+        if (!resultBox) return;
+        resultBox.classList.add('is-visible');
+        resultBox.innerHTML = '<div class="ai-loading" aria-hidden="true"></div><p>Requesting professional review...</p>';
+        try {
+          const result = await postAiJson(aiProfessionalReviewUrl, {
+            suggestion_id: suggestion.suggestion_id,
+            payload: state
+          });
+          aiState.professionalReviews[result.professional_review_id] = result;
+          resultBox.innerHTML = `
+            <span class="ai-provider-chip ai-provider-chip--pro"><i class="ph ph-sparkle"></i>Professional Review</span>
+            <p><strong>${escapeHtml(result.title || 'Professional Review')}</strong></p>
+            <p>${escapeHtml(result.message || '')}</p>
+            ${result.recommended_text ? `<div class="ai-recommended-text">${escapeHtml(result.recommended_text)}</div>` : ''}
+            <button class="btn btn-secondary" type="button" data-ai-professional-apply="${result.professional_review_id}"><i class="ph ph-check-circle"></i>Apply Professional Suggestion</button>
+            <button class="btn btn-ghost" type="button" data-ai-professional-keep="${result.professional_review_id}"><i class="ph ph-x"></i>Keep Original</button>
+          `;
+          const applyButton = resultBox.querySelector('[data-ai-professional-apply]');
+          const keepButton = resultBox.querySelector('[data-ai-professional-keep]');
+          if (applyButton) {
+            applyButton.addEventListener('click', () => applyProfessionalReview(result));
+          }
+          if (keepButton) {
+            keepButton.addEventListener('click', () => sendProfessionalReviewFeedback(result.professional_review_id, 'ignored', resultBox));
+          }
+        } catch (error) {
+          resultBox.innerHTML = '<div class="ai-empty-state">Professional review is not available right now. You can continue with local suggestions.</div>';
+        }
+      }
+
+      function applyProfessionalReview(review) {
+        if (!review) return;
+        const applied = applyAiSuggestion({
+          recommended_text: review.recommended_text,
+          apply_target: review.apply_target,
+          apply_mode: review.apply_mode || 'replace'
+        });
+        if (applied) {
+          sendProfessionalReviewFeedback(review.professional_review_id, 'applied');
+          closeAiSuggestionsDrawer();
+        }
+      }
+
+      async function sendProfessionalReviewFeedback(reviewId, feedback, resultBox) {
+        if (!reviewId) return;
+        try {
+          await postAiJson(aiProfessionalReviewFeedbackUrl, {
+            professional_review_id: reviewId,
+            feedback: feedback
+          });
+          if (resultBox) {
+            resultBox.classList.add('is-muted');
+          }
+        } catch (error) {
+          showToast(error.message || 'Unable to send review feedback right now.');
+        }
+      }
+
+      function applyAiSuggestion(suggestion) {
+        const target = suggestion.apply_target || '';
+        const text = (suggestion.recommended_text || '').trim();
+        const mode = suggestion.apply_mode || 'replace';
+        if (!target || !text) {
+          showToast('This suggestion is guidance only.');
+          return false;
+        }
+        const nextStep = resolveStepFromApplyTarget(target);
+        if (nextStep) {
+          const stepIndex = stepConfig.findIndex((step) => step.key === nextStep);
+          if (stepIndex >= 0 && stepIndex !== currentStepIndex) {
+            currentStepIndex = stepIndex;
+            renderStepState();
+          }
+        }
+        if (target.startsWith('basics.')) {
+          const currentValue = state.basics[target.split('.')[1]] || '';
+          const nextValue = mode === 'replace' || !currentValue ? text : `${currentValue}\n${text}`;
+          updateFieldFromPath(target, nextValue);
+          window.setTimeout(() => scrollToAndHighlightField(resolveFieldElementFromApplyTarget(target)), 80);
+          showToast(`Suggestion applied to ${suggestion.target_label || 'Profile Basics'}`);
+          return true;
+        }
+        if (target === 'skills') {
+          text.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean).forEach((skill) => {
+            if (!state.skills.includes(skill)) {
+              state.skills.push(skill);
+            }
+          });
+          renderSkills();
+          markDirty();
+          window.setTimeout(() => scrollToAndHighlightField(resolveFieldElementFromApplyTarget(target)), 80);
+          showToast('Suggestion added to Skills');
+          return true;
+        }
+        const match = target.match(/^(experience|projects|education|certifications|achievements|languages)\.(\d+)\.(details|description|tech_stack)$/);
+        if (match) {
+          const type = match[1];
+          const index = Number(match[2]);
+          const field = match[3];
+          if (!state[type] || !state[type][index]) return false;
+          if (field === 'details' || field === 'tech_stack') {
+            const values = field === 'tech_stack' ? text.split(',') : text.split('\n');
+            state[type][index][field] = state[type][index][field] || [];
+            values.map((item) => item.trim()).filter(Boolean).forEach((item) => {
+              if (!state[type][index][field].includes(item)) {
+                state[type][index][field].push(item);
+              }
+            });
+          } else {
+            const currentValue = state[type][index][field] || '';
+            state[type][index][field] = mode === 'replace' || !currentValue ? text : `${currentValue}\n${text}`;
+          }
+          renderCollections();
+          markDirty();
+          window.setTimeout(() => scrollToAndHighlightField(resolveFieldElementFromApplyTarget(target)), 120);
+          showToast(`Suggestion applied to ${suggestion.target_label || 'resume section'}`);
+          return true;
+        }
+        showToast('Suggestion is ready, but the target field could not be found.');
+        return false;
+      }
+
+      function resolveStepFromApplyTarget(target) {
+        if (!target) return '';
+        if (target.startsWith('basics.')) return 'basics';
+        if (target === 'skills') return 'skills';
+        const section = target.split('.')[0];
+        if (['experience', 'projects', 'education'].includes(section)) return section;
+        if (['certifications', 'achievements', 'languages'].includes(section)) return 'extras';
+        return '';
+      }
+
+      function resolveFieldElementFromApplyTarget(target) {
+        if (!target) return null;
+        if (target.startsWith('basics.')) {
+          return document.querySelector(`[data-field="${target}"]`);
+        }
+        if (target === 'skills') {
+          return document.getElementById('skillInput') || document.getElementById('skillsList');
+        }
+        return document.querySelector(`[data-ai-field-target="${target}"]`);
+      }
+
+      function scrollToAndHighlightField(element) {
+        if (!element) {
+          showToast('Suggestion is ready, but the target field could not be found.');
+          return;
+        }
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.remove('ai-field-highlight');
+        void element.offsetWidth;
+        element.classList.add('ai-field-highlight');
+        window.setTimeout(() => element.classList.remove('ai-field-highlight'), 2800);
+        if (typeof element.focus === 'function') {
+          element.focus({ preventScroll: true });
+        }
+      }
+
       document.querySelectorAll('[data-add-item]').forEach((button) => {
         button.addEventListener('click', () => addItem(button.getAttribute('data-add-item')));
+      });
+
+      if (aiDrawerCloseButton) {
+        aiDrawerCloseButton.addEventListener('click', closeAiSuggestionsDrawer);
+      }
+      if (aiDrawerBackdrop) {
+        aiDrawerBackdrop.addEventListener('click', closeAiSuggestionsDrawer);
+      }
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeAiSuggestionsDrawer();
+        }
       });
 
       document.getElementById('skillInput').addEventListener('keydown', (event) => {
@@ -1387,6 +3140,16 @@
 
       document.getElementById('saveDraftButton').addEventListener('click', () => saveDraft(true));
       document.getElementById('navSaveButton').addEventListener('click', () => saveDraft(true));
+      document.querySelectorAll('[data-save-trigger]').forEach((button) => {
+        button.addEventListener('click', () => saveDraft(true));
+      });
+
+      function openPreviewPanel() {
+        if (!previewPanel) return;
+        previewPanel.classList.add('is-expanded');
+        renderPreview();
+        previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
 
       async function saveThenDownload(url) {
         const saved = await saveDraft(false);
@@ -1397,13 +3160,31 @@
 
       document.getElementById('downloadWordButton').addEventListener('click', () => saveThenDownload(downloadWordUrl));
       document.getElementById('downloadPdfButton').addEventListener('click', () => saveThenDownload(downloadPdfUrl));
+      document.querySelectorAll('[data-word-trigger]').forEach((button) => {
+        button.addEventListener('click', () => saveThenDownload(downloadWordUrl));
+      });
+      document.querySelectorAll('[data-pdf-trigger]').forEach((button) => {
+        button.addEventListener('click', () => saveThenDownload(downloadPdfUrl));
+      });
+      document.getElementById('previewButton').addEventListener('click', openPreviewPanel);
+      document.getElementById('viewFullPreviewButton').addEventListener('click', openPreviewPanel);
+      document.getElementById('refreshPreviewButton').addEventListener('click', () => {
+        renderPreview();
+        showToast('Preview refreshed');
+      });
+      document.getElementById('aiSuggestButton').addEventListener('click', () => {
+        requestAiSuggestions();
+      });
+      document.querySelectorAll('[data-preview-trigger]').forEach((button) => {
+        button.addEventListener('click', openPreviewPanel);
+      });
 
       wireBasicFields();
       renderCollections();
       renderSkills();
       renderPreview();
       renderStepState();
-      setSavedState('', requiresSignup ? 'Preview mode' : 'Ready to save');
+      setSavedState(initialUpdatedAt && !requiresSignup ? 'is-saved' : '', formatSavedMessage(initialUpdatedAt));
     })();
   </script>
 </body>
