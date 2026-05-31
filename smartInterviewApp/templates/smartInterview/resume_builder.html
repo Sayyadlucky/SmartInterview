@@ -258,6 +258,7 @@
       min-height: 38px;
       padding: 0;
       border-radius: var(--rb-radius);
+      flex: 0 0 38px;
     }
 
     .builder-grid,
@@ -343,6 +344,8 @@
 
     .progress-ring {
       --progress: 0deg;
+      position: relative;
+      isolation: isolate;
       width: 82px;
       height: 82px;
       border-radius: 50%;
@@ -356,11 +359,15 @@
     .progress-ring::before {
       content: "";
       position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       width: 62px;
       height: 62px;
       border-radius: 50%;
       background: #071225;
       border: 1px solid rgba(255, 255, 255, 0.06);
+      z-index: 0;
     }
 
     .progress-ring strong {
@@ -368,6 +375,8 @@
       z-index: 1;
       font-family: "Sora", sans-serif;
       font-size: 1rem;
+      display: block;
+      line-height: 1;
     }
 
     .progress-title {
@@ -842,6 +851,13 @@
       font-size: 0.86rem;
       color: var(--rb-muted);
       font-weight: 800;
+    }
+
+    .field label i {
+      color: var(--rb-cyan);
+      font-size: 0.95em;
+      line-height: 1;
+      flex: 0 0 auto;
     }
 
     .field label::after {
@@ -1775,6 +1791,812 @@
         opacity: 1;
       }
     }
+
+    /* Candidate dashboard scale and responsive polish */
+    body {
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .resume-builder-shell,
+    .builder-shell {
+      gap: 14px;
+      padding: 12px 16px 28px;
+    }
+
+    .builder-header,
+    .resume-builder-header {
+      top: 10px;
+      gap: 14px;
+      padding: 16px 20px;
+    }
+
+    .builder-header__icon {
+      width: 48px;
+      height: 48px;
+    }
+
+    .builder-header__icon i,
+    .panel-icon i {
+      font-size: 1.2rem;
+    }
+
+    .builder-header h1 {
+      font-size: clamp(1.25rem, 1.8vw, 1.72rem);
+      letter-spacing: -0.025em;
+    }
+
+    .builder-header p,
+    .builder-main__head p,
+    .step-tip,
+    .preview-block p,
+    .ai-suggestion-card p,
+    .ai-recommended-text {
+      font-size: 0.84rem;
+    }
+
+    .eyebrow {
+      font-size: 0.68rem;
+      font-weight: 800;
+    }
+
+    .btn {
+      min-height: 38px;
+      padding: 0 12px;
+      font-size: 0.82rem;
+      border-radius: 12px;
+    }
+
+    .btn-icon {
+      width: 36px;
+      min-height: 36px;
+    }
+
+    .saved-pill,
+    .live-chip,
+    .meta-chip {
+      min-height: 34px;
+      padding: 0 10px;
+      font-size: 0.78rem;
+    }
+
+    .builder-grid,
+    .resume-layout {
+      grid-template-columns: minmax(250px, 288px) minmax(0, 1fr) minmax(300px, 350px);
+      gap: 12px;
+    }
+
+    .stepper,
+    .resume-progress-sidebar {
+      top: 94px;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .stepper__hero {
+      grid-template-columns: 52px minmax(0, 1fr);
+      padding: 12px;
+    }
+
+    .stepper__photo,
+    .stepper__hero img {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+    }
+
+    .stepper__hero strong,
+    .progress-title,
+    .ai-card__title {
+      font-size: 0.9rem;
+    }
+
+    .stepper__hero p,
+    .progress-card p,
+    .ai-card p {
+      font-size: 0.76rem;
+      line-height: 1.45;
+    }
+
+    .progress-card {
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 12px;
+      padding: 13px;
+    }
+
+    .progress-ring {
+      width: 68px;
+      height: 68px;
+    }
+
+    .progress-ring::before {
+      width: 50px;
+      height: 50px;
+    }
+
+    .progress-ring strong {
+      font-size: 0.82rem;
+    }
+
+    .step-list::before {
+      left: 24px;
+    }
+
+    .step-pill {
+      grid-template-columns: 30px minmax(0, 1fr) 12px;
+      gap: 10px;
+      min-height: 42px;
+      padding: 8px 10px;
+      border-radius: 12px;
+    }
+
+    .step-pill__mark {
+      width: 28px;
+      height: 28px;
+      font-size: 0.8rem;
+    }
+
+    .step-pill__index {
+      font-size: 0.6rem;
+      margin-bottom: 0;
+    }
+
+    .step-pill strong {
+      font-size: 0.78rem;
+      line-height: 1.25;
+    }
+
+    .step-pill.is-active::after {
+      font-size: 1.05rem;
+    }
+
+    .ai-card,
+    .ai-suggestion-card,
+    .preview-block,
+    .resume-preview-card {
+      gap: 9px;
+      padding: 13px;
+    }
+
+    .builder-main__head,
+    .resume-step-card {
+      padding: 18px;
+      gap: 14px;
+      grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
+    }
+
+    .step-title-row {
+      gap: 10px;
+      margin: 5px 0 8px;
+    }
+
+    .step-title-row h2 {
+      font-size: clamp(1.22rem, 2vw, 1.62rem);
+      letter-spacing: -0.02em;
+    }
+
+    .panel-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+    }
+
+    .step-tip {
+      padding: 12px;
+      line-height: 1.48;
+    }
+
+    .builder-section {
+      padding: 18px;
+    }
+
+    .builder-section.is-active {
+      gap: 16px;
+    }
+
+    .field-grid {
+      gap: 14px;
+    }
+
+    .field {
+      gap: 7px;
+    }
+
+    .field label {
+      font-size: 0.78rem;
+    }
+
+    .field input,
+    .field textarea {
+      min-height: 46px;
+      padding: 11px 12px;
+      font-size: 0.88rem;
+      border-radius: 12px;
+    }
+
+    .field textarea {
+      min-height: 118px;
+      line-height: 1.5;
+    }
+
+    .helper {
+      font-size: 0.76rem;
+    }
+
+    .tag-input,
+    .section-actions {
+      padding: 13px;
+      border-radius: 14px;
+    }
+
+    .tag {
+      padding: 6px 9px;
+      font-size: 0.76rem;
+    }
+
+    .collection {
+      gap: 12px;
+    }
+
+    .item-card,
+    .resume-entry-card {
+      gap: 14px;
+      padding: 15px;
+      border-radius: 14px;
+    }
+
+    .item-card__head strong {
+      font-size: 0.88rem;
+    }
+
+    .item-card__head span,
+    .item-card__remove {
+      font-size: 0.76rem;
+    }
+
+    .builder-nav {
+      padding: 13px 18px 16px;
+    }
+
+    .builder-preview,
+    .resume-preview-panel {
+      top: 94px;
+      gap: 12px;
+      padding: 12px;
+      max-height: calc(100vh - 114px);
+    }
+
+    .preview-panel-head {
+      padding: 10px 10px 12px;
+    }
+
+    .preview-panel-head h3 {
+      font-size: 0.98rem;
+    }
+
+    .preview-avatar {
+      width: 64px;
+      height: 64px;
+      flex-basis: 64px;
+    }
+
+    .preview-header h3 {
+      font-size: 1rem;
+    }
+
+    .preview-header p,
+    .preview-contact-grid,
+    .preview-list {
+      font-size: 0.78rem;
+    }
+
+    .preview-block h4 {
+      font-size: 0.68rem;
+    }
+
+    .status-box {
+      padding: 10px;
+    }
+
+    .status-box strong {
+      font-size: 1rem;
+    }
+
+    .status-box span {
+      font-size: 0.72rem;
+    }
+
+    @media (max-width: 1260px) {
+      .builder-grid,
+      .resume-layout {
+        grid-template-columns: minmax(230px, 270px) minmax(0, 1fr);
+      }
+
+      .builder-preview,
+      .resume-preview-panel {
+        grid-column: 1 / -1;
+        position: static;
+        max-height: none;
+      }
+
+      .preview-content {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .preview-profile-card {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 1099px) {
+      .resume-builder-shell,
+      .builder-shell {
+        width: min(940px, 100%);
+        padding: 14px 12px 30px;
+      }
+
+      .builder-header,
+      .resume-builder-header {
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .builder-header__meta {
+        align-items: center;
+      }
+
+      .header-status {
+        justify-self: start;
+      }
+
+      .builder-grid,
+      .resume-layout {
+        gap: 12px;
+        grid-template-columns: 1fr;
+      }
+
+      .stepper,
+      .resume-progress-sidebar {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .stepper__hero,
+      .progress-card {
+        min-height: 92px;
+      }
+
+      .mobile-stepper {
+        gap: 8px;
+        padding: 2px 0 4px;
+      }
+
+      .mobile-stepper .step-pill {
+        width: auto;
+        min-width: 132px;
+        flex: 0 0 auto;
+        grid-template-columns: 28px minmax(0, 1fr);
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.035);
+        border-color: var(--rb-line);
+      }
+
+      .mobile-stepper .step-pill::after {
+        display: none;
+      }
+
+      .mobile-stepper .step-pill__index {
+        display: none;
+      }
+
+      .mobile-stepper .step-pill strong {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .ai-card {
+        min-height: 0;
+      }
+
+      .builder-main__head,
+      .resume-step-card {
+        grid-template-columns: 1fr;
+      }
+
+      .step-tip {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .step-tip strong {
+        flex: 0 0 auto;
+        margin-bottom: 0;
+      }
+    }
+
+    @media (max-width: 767px) {
+      body {
+        font-size: 0.88rem;
+      }
+
+      .resume-builder-shell,
+      .builder-shell {
+        width: 100%;
+        gap: 10px;
+        padding: 10px 10px calc(82px + env(safe-area-inset-bottom));
+      }
+
+      .builder-header,
+      .resume-builder-header {
+        position: relative;
+        top: auto;
+        padding: 12px;
+        border-radius: 18px;
+      }
+
+      .builder-header__icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+      }
+
+      .builder-header h1 {
+        font-size: 1.16rem;
+      }
+
+      .builder-header p {
+        font-size: 0.76rem;
+        line-height: 1.42;
+      }
+
+      .header-back-link {
+        margin-top: 4px;
+        font-size: 0.72rem;
+      }
+
+      .header-actions {
+        gap: 8px;
+      }
+
+      .builder-header > .header-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        overflow: visible;
+      }
+
+      .builder-header > .header-actions .btn {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .saved-pill.header-status {
+        width: fit-content;
+      }
+
+      .builder-grid,
+      .resume-layout {
+        gap: 10px;
+      }
+
+      .panel {
+        border-radius: 18px;
+      }
+
+      .stepper,
+      .resume-progress-sidebar {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 9px;
+        padding: 10px;
+        border-radius: 18px;
+      }
+
+      .stepper__hero {
+        grid-template-columns: 46px minmax(0, 1fr);
+        min-height: 0;
+        padding: 10px;
+      }
+
+      .stepper__photo,
+      .stepper__hero img {
+        width: 46px;
+        height: 46px;
+      }
+
+      .stepper__hero strong {
+        font-size: 0.84rem;
+      }
+
+      .stepper__hero p {
+        font-size: 0.72rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .progress-card {
+        min-height: 0;
+        grid-template-columns: 56px minmax(0, 1fr);
+        padding: 10px;
+      }
+
+      .progress-ring {
+        width: 54px;
+        height: 54px;
+      }
+
+      .progress-ring::before {
+        width: 40px;
+        height: 40px;
+      }
+
+      .progress-ring strong {
+        font-size: 0.68rem;
+      }
+
+      .progress-title {
+        font-size: 0.82rem;
+        margin-bottom: 2px;
+      }
+
+      .progress-card p {
+        font-size: 0.7rem;
+        margin-top: 2px;
+      }
+
+      .progress-track {
+        height: 5px;
+        margin-top: 8px;
+      }
+
+      .mobile-stepper {
+        margin: 0 -2px;
+        padding: 1px 2px 3px;
+      }
+
+      .mobile-stepper .step-pill {
+        min-width: 112px;
+        min-height: 42px;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 8px;
+        padding: 7px 9px;
+        border-radius: 12px;
+      }
+
+      .mobile-stepper .step-pill__mark {
+        width: 24px;
+        height: 24px;
+        font-size: 0.72rem;
+      }
+
+      .mobile-stepper .step-pill strong {
+        font-size: 0.72rem;
+      }
+
+      .ai-card {
+        padding: 10px;
+      }
+
+      .ai-card p {
+        display: none;
+      }
+
+      .builder-main__head,
+      .builder-section,
+      .builder-nav,
+      .builder-preview,
+      .resume-preview-panel {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .builder-main__head,
+      .resume-step-card {
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+
+      .step-title-row {
+        gap: 8px;
+        margin: 4px 0 6px;
+      }
+
+      .panel-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 11px;
+      }
+
+      .step-title-row h2 {
+        font-size: 1.04rem;
+      }
+
+      .builder-main__head p {
+        font-size: 0.76rem;
+        line-height: 1.45;
+      }
+
+      .step-tip {
+        display: grid;
+        gap: 4px;
+        padding: 10px;
+        font-size: 0.74rem;
+      }
+
+      .builder-section {
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+
+      .builder-section.is-active {
+        gap: 12px;
+      }
+
+      .field-grid {
+        gap: 12px;
+      }
+
+      .field label {
+        font-size: 0.74rem;
+      }
+
+      .field input,
+      .field textarea {
+        min-height: 44px;
+        padding: 10px 11px;
+        font-size: 0.82rem;
+      }
+
+      .field textarea {
+        min-height: 108px;
+      }
+
+      .helper {
+        font-size: 0.72rem;
+      }
+
+      .section-actions {
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .section-actions .btn-secondary {
+        min-width: 0;
+      }
+
+      .item-card,
+      .resume-entry-card {
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .item-card__head {
+        align-items: flex-start;
+      }
+
+      .item-card__title .panel-icon {
+        width: 32px;
+        height: 32px;
+      }
+
+      .item-card__remove {
+        min-height: 32px;
+        padding: 0 9px;
+      }
+
+      .builder-nav,
+      .resume-action-bar {
+        display: grid;
+        grid-template-columns: 1fr 1.45fr;
+        gap: 8px;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+        border-radius: 0 0 18px 18px;
+      }
+
+      .builder-nav > .btn,
+      .builder-nav .header-actions,
+      .builder-nav .header-actions .btn {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .builder-nav .header-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .builder-preview,
+      .resume-preview-panel {
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+
+      .preview-panel-head {
+        align-items: center;
+        padding: 4px 0 10px;
+      }
+
+      .preview-panel-head .header-actions {
+        justify-content: flex-end;
+      }
+
+      .preview-panel-head .live-chip {
+        display: none;
+      }
+
+      .preview-content {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-header {
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .preview-avatar {
+        width: 52px;
+        height: 52px;
+        flex-basis: 52px;
+      }
+
+      .preview-header h3 {
+        font-size: 0.9rem;
+      }
+
+      .preview-header p,
+      .preview-contact-grid,
+      .preview-list,
+      .preview-block p {
+        font-size: 0.74rem;
+      }
+
+      .status-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+      }
+
+      .status-box {
+        padding: 9px 7px;
+      }
+
+      .status-box strong {
+        font-size: 0.9rem;
+      }
+
+      .status-box span {
+        font-size: 0.66rem;
+        line-height: 1.25;
+      }
+
+      .toast {
+        right: 10px;
+        bottom: calc(78px + env(safe-area-inset-bottom));
+        max-width: calc(100vw - 20px);
+        font-size: 0.8rem;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .builder-header > .header-actions,
+      .builder-nav .header-actions,
+      .status-row {
+        grid-template-columns: 1fr;
+      }
+
+      .builder-nav,
+      .resume-action-bar {
+        grid-template-columns: 1fr;
+      }
+
+      .mobile-stepper .step-pill {
+        min-width: 104px;
+      }
+    }
   </style>
 </head>
 <body{% if builder_requires_signup %} class="preview-mode"{% endif %}>
@@ -1849,19 +2671,19 @@
         <section class="builder-section is-active" data-step="basics">
           <div class="field-grid">
             <div class="field">
-              <label for="basics_name">Full Name</label>
+              <label for="basics_name"><i class="ph ph-user"></i>Full Name</label>
               <input id="basics_name" type="text" data-field="basics.name">
             </div>
             <div class="field">
-              <label for="basics_headline">Headline</label>
+              <label for="basics_headline"><i class="ph ph-identification-badge"></i>Headline</label>
               <input id="basics_headline" type="text" data-field="basics.headline" placeholder="Product Designer | SaaS | UX Research">
             </div>
             <div class="field">
-              <label for="basics_email">Email</label>
+              <label for="basics_email"><i class="ph ph-envelope-simple"></i>Email</label>
               <input id="basics_email" type="email" data-field="basics.email">
             </div>
             <div class="field">
-              <label for="basics_phone">Phone</label>
+              <label for="basics_phone"><i class="ph ph-phone"></i>Phone</label>
               <input id="basics_phone" type="text" data-field="basics.phone">
             </div>
             <div class="field">
@@ -1869,24 +2691,24 @@
               <input id="basics_location" type="text" data-field="basics.location" placeholder="Pune, India">
             </div>
             <div class="field">
-              <label for="basics_website">Website</label>
+              <label for="basics_website"><i class="ph ph-globe"></i>Website</label>
               <input id="basics_website" type="url" data-field="basics.website" placeholder="https://your-site.com">
             </div>
             <div class="field">
-              <label for="basics_linkedin">LinkedIn</label>
+              <label for="basics_linkedin"><i class="ph ph-linkedin-logo"></i>LinkedIn</label>
               <input id="basics_linkedin" type="url" data-field="basics.linkedin">
             </div>
             <div class="field">
-              <label for="basics_github">GitHub</label>
+              <label for="basics_github"><i class="ph ph-github-logo"></i>GitHub</label>
               <input id="basics_github" type="url" data-field="basics.github">
             </div>
             <div class="field field-grid--single" style="grid-column: 1 / -1;">
-              <label for="basics_portfolio">Portfolio</label>
+              <label for="basics_portfolio"><i class="ph ph-briefcase"></i>Portfolio</label>
               <input id="basics_portfolio" type="url" data-field="basics.portfolio" placeholder="https://portfolio.com">
             </div>
           </div>
           <div class="field">
-            <label for="basics_summary">Professional Summary</label>
+            <label for="basics_summary"><i class="ph ph-text-align-left"></i>Professional Summary</label>
             <textarea id="basics_summary" data-field="basics.summary" placeholder="Write a short summary that explains your strengths, the kind of work you do best, and the impact you create."></textarea>
             <p class="helper">Keep this tight and specific. Four to six strong lines work better than a long paragraph.</p>
           </div>
@@ -1919,7 +2741,7 @@
         <section class="builder-section" data-step="skills">
           <div class="tag-input">
             <div class="field">
-              <label for="skillInput">Skills</label>
+              <label for="skillInput"><i class="ph ph-stack"></i>Skills</label>
               <input id="skillInput" type="text" placeholder="Type a skill and press Enter">
             </div>
             <div class="tag-list" id="skillsList"></div>
@@ -1951,7 +2773,7 @@
             <p id="summaryReviewText">Your professional summary will show up here as you write it.</p>
           </div>
           <div class="field">
-            <label for="summaryPolishInput">Professional Summary</label>
+            <label for="summaryPolishInput"><i class="ph ph-text-aa"></i>Professional Summary</label>
             <textarea id="summaryPolishInput" data-field="basics.summary" placeholder="Write a short summary that explains your strengths, the kind of work you do best, and the impact you create."></textarea>
             <p class="helper">This is the same summary from Profile Basics, repeated here so you can polish it near the end.</p>
           </div>
@@ -2008,7 +2830,7 @@
           </div>
           <div class="header-actions">
             <span class="live-chip"><i class="ph ph-check-circle"></i>Real-time updates</span>
-            <button class="btn btn-secondary btn-icon" type="button" id="refreshPreviewButton" aria-label="Refresh preview"><i class="ph ph-refresh"></i></button>
+            <button class="btn btn-secondary btn-icon" type="button" id="refreshPreviewButton" aria-label="Refresh preview"><i class="ph ph-arrows-clockwise"></i></button>
           </div>
         </div>
 
@@ -2318,7 +3140,7 @@
         const iconClass = mode === 'is-error'
           ? 'ph ph-x'
           : mode === 'is-saving'
-            ? 'ph ph-refresh'
+            ? 'ph ph-arrows-clockwise'
             : 'ph ph-check-circle';
         savedPill.innerHTML = `<i class="${iconClass}"></i><span>${escapeHtml(message)}</span>`;
         savedPill.classList.remove('is-saving', 'is-saved', 'is-error');
@@ -2454,6 +3276,31 @@
         };
       }
 
+      function getFieldIconClass(key, label, type) {
+        const text = `${key || ''} ${label || ''}`.toLowerCase();
+        if (text.includes('title') || text.includes('role')) return 'ph ph-identification-badge';
+        if (text.includes('company') || text.includes('client') || text.includes('organization')) return 'ph ph-buildings';
+        if (text.includes('institution')) return 'ph ph-bank';
+        if (text.includes('issuer') || text.includes('issuing')) return 'ph ph-certificate';
+        if (text.includes('location')) return 'ph ph-map-pin';
+        if (text.includes('duration') || text.includes('date') || text.includes('validity') || text.includes('years')) return 'ph ph-calendar';
+        if (text.includes('degree')) return 'ph ph-graduation-cap';
+        if (text.includes('employment')) return 'ph ph-briefcase';
+        if (text.includes('summary') || text.includes('description') || text.includes('context') || text.includes('notes')) return 'ph ph-text-align-left';
+        if (text.includes('bullet') || text.includes('highlight') || text.includes('detail')) return 'ph ph-list-checks';
+        if (text.includes('tech') || text.includes('tool') || text.includes('skill') || text.includes('focus') || text.includes('topic')) return 'ph ph-stack';
+        if (text.includes('credential') || text.includes('link')) return 'ph ph-link';
+        if (text.includes('language')) return 'ph ph-translate';
+        if (text.includes('fluency')) return 'ph ph-chat-circle-text';
+        if (text.includes('outcome') || text.includes('achievement')) return 'ph ph-trophy';
+        if (type === 'projects') return 'ph ph-code';
+        if (type === 'education') return 'ph ph-graduation-cap';
+        if (type === 'certifications') return 'ph ph-certificate';
+        if (type === 'achievements') return 'ph ph-trophy';
+        if (type === 'languages') return 'ph ph-translate';
+        return 'ph ph-pencil-simple-line';
+      }
+
       function createItemCard(type, item, index) {
         const config = templates[type];
         const card = document.createElement('article');
@@ -2477,13 +3324,7 @@
 
         config.fields.forEach(([key, label]) => {
           const field = document.createElement('div');
-          const iconClass = key === 'location'
-            ? 'ph ph-map-pin'
-            : key === 'duration'
-              ? 'ph ph-calendar'
-              : key === 'degree'
-                ? 'ph ph-graduation-cap'
-                : '';
+          const iconClass = getFieldIconClass(key, label, type);
           const isRequired = ['title', 'company', 'degree', 'institution', 'label'].includes(key);
           field.className = `field field--${key}${isRequired ? ' field--required' : ''}`;
           field.innerHTML = `<label>${iconClass ? `<i class="${iconClass}"></i>` : ''}${label}</label><input type="text" value="${escapeHtml(item[key] || '')}">`;
@@ -2516,7 +3357,8 @@
             : key === 'techStackText'
               ? (item.tech_stack || []).join(', ')
               : (item[key] || '');
-          field.innerHTML = `<label>${label}</label><textarea>${escapeHtml(value)}</textarea>`;
+          const iconClass = getFieldIconClass(key, label, type);
+          field.innerHTML = `<label>${iconClass ? `<i class="${iconClass}"></i>` : ''}${label}</label><textarea>${escapeHtml(value)}</textarea>`;
           const textarea = field.querySelector('textarea');
           const targetKey = key === 'detailsText' ? 'details' : key === 'techStackText' ? 'tech_stack' : key;
           textarea.setAttribute('data-ai-field-target', `${type}.${index}.${targetKey}`);
