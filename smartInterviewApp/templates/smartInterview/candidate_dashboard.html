@@ -4222,7 +4222,7 @@
             <div class="section-head__copy">
               <span class="section-kicker">Opportunities</span>
               <h2 class="title-with-icon"><i class="ph ph-briefcase" aria-hidden="true"></i>Recommended Opportunities</h2>
-              <p class="subtle u-m-0">Browse a preview of current openings. Strong resume matches are highlighted.</p>
+              <p class="subtle u-m-0">Recommended opportunities based on your resume evidence. Browse all open roles in the jobs portal.</p>
             </div>
             <div class="section-head__meta">
               <span class="last-updated">Latest updates</span>
@@ -4232,8 +4232,8 @@
           {% if recent_job_postings %}
             <div class="posting-toolbar">
               <div class="posting-toolbar__filters">
-                <button class="filter-btn is-active" type="button" data-posting-filter="all">All</button>
-                <button class="filter-btn" type="button" data-posting-filter="recommended">Recommended</button>
+                <button class="filter-btn" type="button" data-posting-filter="all">All</button>
+                <button class="filter-btn is-active" type="button" data-posting-filter="recommended">Recommended</button>
                 <button class="filter-btn" type="button" data-posting-filter="applied">Applied</button>
                 <button class="filter-btn" type="button" data-posting-filter="new">New</button>
               </div>
@@ -4241,8 +4241,8 @@
               <div class="posting-toolbar__actions">
                 <label class="visually-hidden" for="jobSortSelect">Sort jobs</label>
                 <select class="sort-select" id="jobSortSelect" aria-label="Sort job postings">
-                  <option value="recommended">Sort: Best Match</option>
                   <option value="recent">Sort: Most Recent</option>
+                  <option value="recommended">Sort: Best Match</option>
                   <option value="status">Sort: Status</option>
                 </select>
               </div>
@@ -4253,6 +4253,7 @@
                 <article
                   class="posting-card opportunity-card {% if posting.is_recommended %}posting-card--recommended{% endif %}"
                   data-vacancy-card="{{ posting.id }}"
+                  data-posting-id="{{ posting.id }}"
                   data-posting-status="{{ posting.status|lower }}"
                   data-posting-date="{{ posting.date|date:'Y-m-d' }}"
                   data-posting-match="{% if posting.match_score %}{{ posting.match_score }}{% else %}0{% endif %}"
@@ -4332,11 +4333,11 @@
               </div>
             {% endif %}
           {% else %}
-            <div class="empty-state">
-              <strong>No recent postings available</strong>
-              <p>As new vacancies are added by your hiring team, role matches will appear here.</p>
+            <div class="empty-state" id="recommendedJobsEmpty">
+              <strong>No strong role matches yet.</strong>
+              <p>Browse all open roles or update your resume to improve matching.</p>
               <div class="card-actions">
-                <button class="card-link" type="button" data-open-profile>Review Profile</button>
+                <a class="card-link" href="{{ jobs_portal_url|default:'#' }}">View More Jobs</a>
               </div>
             </div>
           {% endif %}
@@ -6175,17 +6176,21 @@
         const cards = getCards();
 
         cards.sort(function (a, b) {
+          const scoreA = Number(a.getAttribute('data-posting-match') || 0);
+          const scoreB = Number(b.getAttribute('data-posting-match') || 0);
+          const idA = Number(a.getAttribute('data-posting-id') || 0);
+          const idB = Number(b.getAttribute('data-posting-id') || 0);
+          const dateDiff = new Date(b.getAttribute('data-posting-date')) - new Date(a.getAttribute('data-posting-date'));
+
           if (mode === 'recent') {
-            return new Date(b.getAttribute('data-posting-date')) - new Date(a.getAttribute('data-posting-date'));
+            return dateDiff || (scoreB - scoreA) || (idB - idA);
           }
 
           if (mode === 'status') {
             return (a.getAttribute('data-posting-status') || '').localeCompare(b.getAttribute('data-posting-status') || '');
           }
 
-          const scoreA = Number(a.getAttribute('data-posting-match') || 0);
-          const scoreB = Number(b.getAttribute('data-posting-match') || 0);
-          return scoreB - scoreA;
+          return (scoreB - scoreA) || dateDiff || (idB - idA);
         });
 
         cards.forEach(function (card) {
@@ -6207,8 +6212,8 @@
         });
       }
 
-      sortCards('recommended');
-      filterCards('all');
+      sortCards(sortSelect ? sortSelect.value : 'recent');
+      filterCards('recommended');
     }());
 
     (function () {

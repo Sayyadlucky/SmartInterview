@@ -4412,14 +4412,6 @@ def build_candidate_dashboard_context(
             'application_status': existing_applications[vacancy.id].status if vacancy.id in existing_applications else '',
         })
 
-    ranked_job_postings.sort(
-        key=lambda posting: (
-            not posting['is_recommended'],
-            -posting['match_score'],
-            -((posting['date'] or timezone.now()).timestamp()),
-            -posting['id'],
-        ),
-    )
     for index, posting in enumerate(ranked_job_postings, start=1):
         posting['modal_id'] = f'vacancyModal{index}'
         posting['has_applied'] = posting['application_status'] in {
@@ -4434,11 +4426,18 @@ def build_candidate_dashboard_context(
         posting['application_label'] = posting['application_status'].replace('_', ' ').title() if posting['application_status'] else 'Apply Now'
 
     ranked_job_postings = [posting for posting in ranked_job_postings if not posting['is_hidden_for_candidate']]
-    has_recommended_opportunities = any(posting['is_recommended'] for posting in ranked_job_postings)
+    recommended_job_postings = [posting for posting in ranked_job_postings if posting['is_recommended']]
+    recommended_job_postings.sort(
+        key=lambda posting: (
+            -((posting['date'] or timezone.now()).timestamp()),
+            -posting['match_score'],
+            -posting['id'],
+        ),
+    )
+    has_recommended_opportunities = bool(recommended_job_postings)
 
-    visible_job_postings = ranked_job_postings[:CANDIDATE_DASHBOARD_JOB_PREVIEW_LIMIT]
-    overflow_job_postings = ranked_job_postings[CANDIDATE_DASHBOARD_JOB_PREVIEW_LIMIT:]
-    has_more_job_postings = bool(overflow_job_postings)
+    visible_job_postings = recommended_job_postings[:CANDIDATE_DASHBOARD_JOB_PREVIEW_LIMIT]
+    has_more_job_postings = len(ranked_job_postings) > len(visible_job_postings)
 
     return {
         'form': form,
