@@ -19,6 +19,10 @@ from smartInterviewApp.services.resume_ai import detect_resume_type, detect_role
 
 
 CONFIDENCE_VALUES = {'low', 'medium', 'high'}
+GENERIC_ROLE_TOKENS = {
+    'engineer', 'developer', 'manager', 'executive', 'specialist', 'consultant',
+    'lead', 'senior', 'junior', 'associate', 'role', 'job', 'opening',
+}
 KNOWN_ROLE_REQUIREMENT_TERMS = (
     'Python', 'Django', 'Django REST Framework', 'REST API', 'Flask', 'FastAPI',
     'JavaScript', 'TypeScript', 'React', 'Angular', 'Vue', 'Node', 'Express',
@@ -208,6 +212,8 @@ def _extract_vacancy_requirements(vacancy, candidate_skills: list[str]) -> list[
         if _normalize_text(term) in normalized_vacancy:
             candidates.append(term)
     for skill in candidate_skills:
+        if not _is_valid_requirement_fragment(skill):
+            continue
         normalized_skill = _normalize_text(skill)
         if len(normalized_skill) >= 3 and normalized_skill in normalized_vacancy:
             candidates.append(skill)
@@ -226,9 +232,9 @@ def _term_matches(candidate_skill: str, requirement: str) -> bool:
         return False
     if skill_norm == requirement_norm:
         return True
-    if len(skill_norm) >= 3 and skill_norm in requirement_norm:
+    if len(skill_norm) >= 5 and skill_norm in requirement_norm:
         return True
-    if len(requirement_norm) >= 3 and requirement_norm in skill_norm:
+    if len(requirement_norm) >= 5 and requirement_norm in skill_norm:
         return True
     skill_tokens = _tokenize(skill_norm)
     requirement_tokens = _tokenize(requirement_norm)
@@ -272,6 +278,10 @@ def _is_valid_requirement_fragment(text: str) -> bool:
         'candidate',
         'job',
         'role',
+        'tool',
+        'tools',
+        'other',
+        'test',
     }
     if lowered in generic_labels:
         return False
@@ -365,6 +375,93 @@ def _build_role_fit_signal(resume: CandidateResume | None, interview: Interview 
         'matched': matched,
         'missing': missing,
         'evidence': _dedupe_strings(evidence, limit=6, item_limit=180),
+    }
+
+
+def score_candidate_vacancy_match(resume: CandidateResume | None, vacancy) -> dict[str, Any]:
+    if not vacancy:
+        return {
+            'match_score': 0,
+            'is_recommended': False,
+            'match_confidence': 'low',
+            'matched_requirements': [],
+            'missing_requirements': ['Open vacancy'],
+            'match_reason': 'A vacancy is required before matching can be calculated.',
+        }
+
+    if not resume or resume.status != CandidateResume.ParseStatus.COMPLETED:
+        return {
+            'match_score': 0,
+            'is_recommended': False,
+            'match_confidence': 'low',
+            'matched_requirements': [],
+            'missing_requirements': ['Completed parsed resume'],
+            'match_reason': 'Recommended roles need a completed parsed resume before matching.',
+        }
+
+    candidate_skills = _extract_resume_skills(resume)
+    resume_text = _resume_evidence_text(resume)
+    if not candidate_skills and not resume_text:
+        return {
+            'match_score': 0,
+            'is_recommended': False,
+            'match_confidence': 'low',
+            'matched_requirements': [],
+            'missing_requirements': ['Parsed resume skills or experience evidence'],
+            'match_reason': 'No parsed resume skills or experience evidence were available for matching.',
+        }
+
+    requirements = _extract_vacancy_requirements(vacancy, candidate_skills)
+    matched_skill_requirements = [
+        requirement for requirement in requirements
+        if any(_term_matches(skill, requirement) for skill in candidate_skills)
+    ]
+    matched = list(matched_skill_requirements)
+    missing = [requirement for requirement in requirements if requirement not in matched_skill_requirements]
+    resume_tokens = _tokenize(resume_text)
+    role_tokens = _tokenize(f'{vacancy.role} {vacancy.position}') - GENERIC_ROLE_TOKENS
+    title_overlap = sorted(role_tokens & resume_tokens)
+
+    required_years = _parse_years(vacancy.experience_required)
+    candidate_years = float(resume.total_experience_years) if resume.total_experience_years is not None else None
+    if required_years is not None:
+        if candidate_years is not None and candidate_years >= required_years:
+            matched.append(f'Experience requirement: {candidate_years:g}+ years available')
+        else:
+            missing.append(f'Experience requirement: {vacancy.experience_required}')
+
+    evidence_matches = _dedupe_strings(matched, limit=8)
+    skill_evidence_matches = _dedupe_strings(matched_skill_requirements, limit=8)
+    missing = _dedupe_strings(missing, limit=8)
+    requirement_count = max(1, len(requirements))
+    match_ratio = min(1, len(skill_evidence_matches) / requirement_count)
+    title_bonus = min(8, len(title_overlap) * 2) if evidence_matches else 0
+    experience_bonus = 6 if any(item.startswith('Experience requirement:') for item in evidence_matches) and skill_evidence_matches else 0
+    match_score = _clamp_score(18 + (match_ratio * 70) + title_bonus + experience_bonus) or 0
+    if requirements and not skill_evidence_matches:
+        match_score = min(match_score, 30)
+
+    confidence = 'low'
+    if len(requirements) >= 4 and len(candidate_skills) >= 5:
+        confidence = 'high' if match_ratio >= 0.5 else 'medium' if skill_evidence_matches else 'low'
+    elif len(requirements) >= 2 and skill_evidence_matches:
+        confidence = 'medium'
+
+    is_recommended = match_score >= 50 and bool(skill_evidence_matches) and (bool(title_overlap) or match_ratio >= 0.5)
+    if is_recommended:
+        reason = f"Matched {len(evidence_matches)} vacancy requirement{'s' if len(evidence_matches) != 1 else ''}: {', '.join(evidence_matches[:3])}."
+    elif evidence_matches:
+        reason = f"Some overlap found, but the match score is below the recommendation threshold: {', '.join(evidence_matches[:3])}."
+    else:
+        reason = 'No strong requirement overlap was found between the parsed resume and this vacancy.'
+
+    return {
+        'match_score': match_score,
+        'is_recommended': is_recommended,
+        'match_confidence': confidence,
+        'matched_requirements': evidence_matches,
+        'missing_requirements': missing,
+        'match_reason': _clean_text(reason, 240),
     }
 
 

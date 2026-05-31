@@ -1435,6 +1435,10 @@
       display: none !important;
     }
 
+    #recommendedJobsEmpty[hidden] {
+      display: none !important;
+    }
+
     .posting-main {
       display: grid;
       gap: var(--space-1);
@@ -4218,7 +4222,7 @@
             <div class="section-head__copy">
               <span class="section-kicker">Opportunities</span>
               <h2 class="title-with-icon"><i class="ph ph-briefcase" aria-hidden="true"></i>Recommended Opportunities</h2>
-              <p class="subtle u-m-0">Current role matches, sorted by AI fit and posting freshness.</p>
+              <p class="subtle u-m-0">Browse a preview of current openings. Strong resume matches are highlighted.</p>
             </div>
             <div class="section-head__meta">
               <span class="last-updated">Latest updates</span>
@@ -4317,10 +4321,14 @@
                 </article>
               {% endfor %}
             </div>
+            <div class="empty-state" id="recommendedJobsEmpty" hidden>
+              <strong>No strong role matches yet.</strong>
+              <p>Browse all open roles or update your resume to improve matching.</p>
+            </div>
 
-            {% if more_job_postings %}
+            {% if has_more_job_postings %}
               <div class="card-actions u-mt-2">
-                <button class="card-link" type="button" data-open-vacancy-list="vacancyListModal">View More Jobs ({{ more_job_postings|length }})</button>
+                <a class="card-link" href="{{ jobs_portal_url|default:'#' }}">View More Jobs</a>
               </div>
             {% endif %}
           {% else %}
@@ -4865,143 +4873,7 @@
     </div>
   {% endif %}
 
-  {% if more_job_postings %}
-    <div class="modal-overlay" id="vacancyListModal" data-modal-overlay>
-      <div class="profile-modal" style="max-width: 880px;" role="dialog" aria-modal="true" aria-labelledby="vacancyListTitle">
-        <button class="modal-close" type="button" data-close-modal="vacancyListModal" aria-label="Close vacancy list modal">&times;</button>
-        <div class="section-head u-mb-1">
-          <div class="section-head__copy">
-            <h2 id="vacancyListTitle" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>More Matching Vacancies</h2>
-            <p class="subtle u-m-0">Sorted by AI fit and posting freshness.</p>
-          </div>
-          <div class="section-head__meta">
-            <span class="status-pill">{{ more_job_postings|length }} additional jobs</span>
-          </div>
-        </div>
-
-        <div class="posting-list">
-          {% for posting in more_job_postings %}
-            <article class="posting-card {% if posting.is_recommended %}posting-card--recommended{% endif %}" data-vacancy-card="{{ posting.id }}">
-              <div class="posting-main">
-                <div class="posting-company-mark">
-                  <span class="posting-company-mark__logo" aria-hidden="true">
-                    {% if posting.company and posting.company.logo_url %}
-                      <img src="{{ posting.company.logo_url }}" alt="">
-                    {% else %}
-                      <i class="ph ph-buildings"></i>
-                    {% endif %}
-                  </span>
-                  <span>{% if posting.company %}{{ posting.company.display_name }}{% else %}Company details pending{% endif %}</span>
-                </div>
-
-                <div class="posting-head">
-                  <button class="posting-title-button" type="button" data-open-vacancy="{{ posting.modal_id }}">
-                    {# WARNING: posting.role must be sanitized server-side before using |safe #}
-                    <strong>{{ posting.role|safe }}</strong>
-                  </button>
-                  <span class="status-badge">{{ posting.status|title }}</span>
-                </div>
-
-                <div class="posting-subtitle">
-                  {{ posting.position }} openings
-                  {% if posting.job_type %} · {{ posting.job_type }}{% endif %}
-                  {% if posting.location %} · {{ posting.location }}{% endif %}
-                  · Posted {{ posting.date|date:"M d, Y" }}
-                </div>
-                {% if posting.experience_required or posting.salary_range %}
-                  <div class="posting-subtitle">
-                    {% if posting.experience_required %}{{ posting.experience_required }}{% endif %}
-                    {% if posting.experience_required and posting.salary_range %} · {% endif %}
-                    {% if posting.salary_range %}{{ posting.salary_range }}{% endif %}
-                  </div>
-                {% endif %}
-
-                {% if posting.description %}
-                  {# WARNING: posting.description must be sanitized server-side before using |safe #}
-                  <div class="posting-desc">{{ posting.description|safe }}</div>
-                {% else %}
-                  <p class="posting-desc">Detailed vacancy description is not available yet for this role.</p>
-                {% endif %}
-
-                <div class="posting-meta">
-                  {% if posting.is_recommended %}
-                    <span class="chip">AI Match {{ posting.match_score }}%</span>
-                  {% endif %}
-                  {% if posting.recruiters %}
-                    <span class="chip">Contacts {{ posting.recruiters|join:", " }}</span>
-                  {% else %}
-                    <span class="chip">Contact assignment in progress</span>
-                  {% endif %}
-                </div>
-              </div>
-
-              <div class="posting-side">
-                <div class="posting-actions">
-                  <button class="card-link" type="button" data-open-vacancy="{{ posting.modal_id }}"><i class="ph ph-arrow-square-out" aria-hidden="true"></i>View Details</button>
-                  <button class="card-link" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Apply</button>
-                  <button class="card-link" type="button" data-cancel-vacancy="{{ posting.id }}" {% if not posting.can_cancel_application %}style="display:none;"{% endif %}><i class="ph ph-arrow-u-up-left" aria-hidden="true"></i>Withdraw</button>
-                  <button class="card-link" type="button" data-vacancy-not-interested="{{ posting.id }}"><i class="ph ph-eye-slash" aria-hidden="true"></i>Hide</button>
-                </div>
-              </div>
-            </article>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  {% endif %}
-
   {% for posting in recent_job_postings %}
-    <div class="modal-overlay" id="{{ posting.modal_id }}" data-modal-overlay>
-      <div class="profile-modal" style="max-width: 760px;" role="dialog" aria-modal="true" aria-labelledby="{{ posting.modal_id }}Title">
-        <button class="modal-close" type="button" data-close-modal="{{ posting.modal_id }}" aria-label="Close vacancy details">&times;</button>
-
-        <div class="section-head u-mb-1">
-          <div class="section-head__copy">
-            <h2 id="{{ posting.modal_id }}Title" class="title-with-icon" style="font-size:1.45rem;"><i class="ph ph-briefcase" aria-hidden="true"></i>{# WARNING: posting.role must be sanitized server-side before using |safe #}{{ posting.role|safe }}</h2>
-            <div class="pill-row">
-              <span class="status-pill">{{ posting.position }} openings</span>
-              {% if posting.job_type %}<span class="status-pill">{{ posting.job_type }}</span>{% endif %}
-              {% if posting.location %}<span class="status-pill">{{ posting.location }}</span>{% endif %}
-              {% if posting.experience_required %}<span class="status-pill">{{ posting.experience_required }}</span>{% endif %}
-              {% if posting.salary_range %}<span class="status-pill">{{ posting.salary_range }}</span>{% endif %}
-              <span class="status-pill">Posted {{ posting.date|date:"M d, Y" }}</span>
-              <span class="status-pill">{{ posting.status|title }}</span>
-              {% if posting.is_recommended %}<span class="status-pill">AI Match {{ posting.match_score }}%</span>{% endif %}
-            </div>
-          </div>
-          <div class="section-head__meta">
-            {% if posting.recruiters %}
-              <span class="status-pill">Contacts {{ posting.recruiters|join:", " }}</span>
-            {% else %}
-              <span class="status-pill">Contact assignment in progress</span>
-            {% endif %}
-          </div>
-        </div>
-
-        <section class="resume-section">
-          <h4 class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>Role Description</h4>
-          {% if posting.description %}
-            {# WARNING: posting.description must be sanitized server-side before using |safe #}
-            <div class="posting-rich">{{ posting.description|safe }}</div>
-          {% else %}
-            <p>No detailed role description is available for this posting yet.</p>
-          {% endif %}
-        </section>
-
-        <div class="btn-row">
-          <button class="btn btn-primary" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Apply</button>
-          <button class="btn btn-ghost" type="button" data-cancel-vacancy="{{ posting.id }}" {% if not posting.can_cancel_application %}style="display:none;"{% endif %}><i class="ph ph-arrow-u-up-left" aria-hidden="true"></i>Withdraw</button>
-          <button class="btn btn-ghost" type="button" data-vacancy-not-interested="{{ posting.id }}"><i class="ph ph-eye-slash" aria-hidden="true"></i>Hide</button>
-        </div>
-
-        <div class="inline-message" data-vacancy-message="{{ posting.id }}">
-          {% if posting.has_applied %}Your application is {{ posting.application_label|lower }}. Check back here for the next update on this role.{% endif %}
-        </div>
-      </div>
-    </div>
-  {% endfor %}
-
-  {% for posting in more_job_postings %}
     <div class="modal-overlay" id="{{ posting.modal_id }}" data-modal-overlay>
       <div class="profile-modal" style="max-width: 760px;" role="dialog" aria-modal="true" aria-labelledby="{{ posting.modal_id }}Title">
         <button class="modal-close" type="button" data-close-modal="{{ posting.modal_id }}" aria-label="Close vacancy details">&times;</button>
@@ -5786,15 +5658,7 @@
       document.querySelectorAll('[data-open-vacancy]').forEach(function (button) {
         button.addEventListener('click', function () {
           const id = button.getAttribute('data-open-vacancy');
-          const listModal = document.getElementById('vacancyListModal');
-          if (listModal) listModal.classList.remove('is-open');
           openModal(id, button);
-        });
-      });
-
-      document.querySelectorAll('[data-open-vacancy-list]').forEach(function (button) {
-        button.addEventListener('click', function () {
-          openModal(button.getAttribute('data-open-vacancy-list'), button);
         });
       });
 
@@ -6278,25 +6142,33 @@
       const list = document.getElementById('jobPostingList');
       const filterButtons = document.querySelectorAll('[data-posting-filter]');
       const sortSelect = document.getElementById('jobSortSelect');
+      const recommendedEmpty = document.getElementById('recommendedJobsEmpty');
       if (!list) return;
 
       function getCards() {
-        return Array.from(list.querySelectorAll('[data-vacancy-card]'));
+        return Array.from(list.querySelectorAll('[data-vacancy-card], [data-posting-card]'));
       }
 
       function filterCards(filter) {
+        const activeFilter = filter || 'all';
+        let visibleCount = 0;
         getCards().forEach(function (card) {
           const isRecommended = card.getAttribute('data-posting-recommended') === 'true';
           const isApplied = card.getAttribute('data-posting-applied') === 'true';
 
           let visible = true;
 
-          if (filter === 'recommended') visible = isRecommended;
-          if (filter === 'applied') visible = isApplied;
-          if (filter === 'new') visible = !isApplied;
+          if (activeFilter === 'recommended') visible = isRecommended;
+          else if (activeFilter === 'applied') visible = isApplied;
+          else if (activeFilter === 'new') visible = !isApplied;
+          else if (activeFilter === 'saved') visible = false;
 
           card.hidden = !visible;
+          if (!card.hidden) visibleCount += 1;
         });
+        if (recommendedEmpty) {
+          recommendedEmpty.hidden = activeFilter !== 'recommended' || visibleCount > 0;
+        }
       }
 
       function sortCards(mode) {

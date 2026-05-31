@@ -52,7 +52,7 @@ from smartInterviewApp.notifications.channels import send_sms, send_template_mes
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.emailing import send_candidate_interview_email, send_candidate_welcome_email
 from smartInterviewApp.identity_verification import CandidateIdentityVerificationService
-from smartInterviewApp.insights import CandidateInsightService
+from smartInterviewApp.insights import CandidateInsightService, score_candidate_vacancy_match
 from smartInterviewApp.otp.services import request_email_otp, request_otp, verify_email_otp, verify_otp
 from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
@@ -4227,6 +4227,9 @@ def reviewRecruiterApplication(request):
     })
 
 
+CANDIDATE_DASHBOARD_JOB_PREVIEW_LIMIT = 5
+
+
 def build_candidate_dashboard_context(
     request,
     user: User,
@@ -4373,53 +4376,19 @@ def build_candidate_dashboard_context(
         for application in CandidateVacancyApplication.objects.filter(candidate=user)
     }
 
-    recommended_role_tokens = [
-        tokenize_text(role_name)
-        for role_name in (insights.get('recommended_roles') or [])
-        if role_name
-    ]
-    candidate_role_tokens = tokenize_text(
-        ' '.join(filter(None, [
-            resume_data.get('headline', ''),
-            latest_resume.current_title if latest_resume else '',
-            latest_resume.current_company if latest_resume else '',
-            latest_interview.role.role if latest_interview and latest_interview.role else '',
-        ]))
+    matching_resume = (
+        latest_resume
+        if latest_resume and latest_resume.status == CandidateResume.ParseStatus.COMPLETED
+        else None
     )
-    candidate_skill_tokens = tokenize_text(' '.join(resume_skills))
-    candidate_identity_tokens = candidate_role_tokens | candidate_skill_tokens
-    has_ai_role_recommendations = bool(recommended_role_tokens)
 
     ranked_job_postings = []
-    for vacancy in recent_job_postings_qs[:12]:
+    for vacancy in recent_job_postings_qs:
         recruiter_names = [
             f"{member.first_name} {member.last_name}".strip().title() or member.username
             for member in vacancy.recruiter.all()[:3]
         ]
-        vacancy_tokens = tokenize_text(f'{vacancy.role} {vacancy.description}')
-        role_tokens = tokenize_text(vacancy.role)
-        title_overlap = role_tokens & candidate_role_tokens
-        skill_overlap = vacancy_tokens & candidate_skill_tokens
-        identity_overlap = role_tokens & candidate_identity_tokens
-        score = 0
-        if title_overlap:
-            score += min(55, 28 + (len(title_overlap) * 9))
-        if skill_overlap:
-            score += min(30, len(skill_overlap) * 6)
-        matching_recommendation = next(
-            (index for index, tokens in enumerate(recommended_role_tokens) if tokens and role_tokens & tokens),
-            None,
-        )
-        if matching_recommendation is not None:
-            score += max(18, 30 - (matching_recommendation * 6))
-
-        strong_match = bool(title_overlap) or matching_recommendation is not None
-        if has_ai_role_recommendations:
-            is_relevant = matching_recommendation is not None or (bool(title_overlap) and bool(skill_overlap))
-        else:
-            is_relevant = (bool(title_overlap) and bool(skill_overlap)) or len(identity_overlap) >= 2
-        if score < 40:
-            is_relevant = False
+        match_signal = score_candidate_vacancy_match(matching_resume, vacancy)
 
         ranked_job_postings.append({
             'id': vacancy.id,
@@ -4434,20 +4403,23 @@ def build_candidate_dashboard_context(
             'description': (vacancy.description or '').strip(),
             'recruiters': recruiter_names,
             'company': serialize_company_summary(vacancy.company),
-            'match_score': min(score, 100),
-            'is_recommended': strong_match,
-            'is_relevant': is_relevant,
+            'match_score': match_signal['match_score'],
+            'is_recommended': match_signal['is_recommended'],
+            'match_confidence': match_signal['match_confidence'],
+            'matched_requirements': match_signal['matched_requirements'],
+            'missing_requirements': match_signal['missing_requirements'],
+            'match_reason': match_signal['match_reason'],
             'application_status': existing_applications[vacancy.id].status if vacancy.id in existing_applications else '',
         })
 
     ranked_job_postings.sort(
         key=lambda posting: (
-            not posting['is_relevant'],
+            not posting['is_recommended'],
             -posting['match_score'],
             -((posting['date'] or timezone.now()).timestamp()),
+            -posting['id'],
         ),
     )
-    ranked_job_postings = [posting for posting in ranked_job_postings if posting['is_relevant']]
     for index, posting in enumerate(ranked_job_postings, start=1):
         posting['modal_id'] = f'vacancyModal{index}'
         posting['has_applied'] = posting['application_status'] in {
@@ -4462,9 +4434,11 @@ def build_candidate_dashboard_context(
         posting['application_label'] = posting['application_status'].replace('_', ' ').title() if posting['application_status'] else 'Apply Now'
 
     ranked_job_postings = [posting for posting in ranked_job_postings if not posting['is_hidden_for_candidate']]
+    has_recommended_opportunities = any(posting['is_recommended'] for posting in ranked_job_postings)
 
-    visible_job_postings = ranked_job_postings[:4]
-    overflow_job_postings = ranked_job_postings[4:]
+    visible_job_postings = ranked_job_postings[:CANDIDATE_DASHBOARD_JOB_PREVIEW_LIMIT]
+    overflow_job_postings = ranked_job_postings[CANDIDATE_DASHBOARD_JOB_PREVIEW_LIMIT:]
+    has_more_job_postings = bool(overflow_job_postings)
 
     return {
         'form': form,
@@ -4523,7 +4497,10 @@ def build_candidate_dashboard_context(
         },
         'insights': insights,
         'recent_job_postings': visible_job_postings,
-        'more_job_postings': overflow_job_postings,
+        'more_job_postings': [],
+        'has_more_job_postings': has_more_job_postings,
+        'has_recommended_opportunities': has_recommended_opportunities,
+        'jobs_portal_url': build_host_link(request, 'jobs'),
     }
 
 
