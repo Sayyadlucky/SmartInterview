@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import threading
 import urllib.error
 import urllib.request
@@ -13,6 +14,398 @@ from django.db import close_old_connections
 from django.utils import timezone
 
 from smartInterviewApp.models import CandidateInsightSnapshot, CandidateResume, Interview, UserProfile
+from smartInterviewApp.services.resume_ai import detect_resume_type, detect_role_family, score_resume
+
+
+CONFIDENCE_VALUES = {'low', 'medium', 'high'}
+KNOWN_ROLE_REQUIREMENT_TERMS = (
+    'Python', 'Django', 'Django REST Framework', 'REST API', 'Flask', 'FastAPI',
+    'JavaScript', 'TypeScript', 'React', 'Angular', 'Vue', 'Node', 'Express',
+    'SQL', 'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'AWS', 'Azure', 'GCP',
+    'Docker', 'Kubernetes', 'CI/CD', 'Git', 'Linux', 'HTML', 'CSS',
+    'Machine Learning', 'Data Analysis', 'Power BI', 'Tableau', 'Excel',
+    'Sourcing', 'Screening', 'ATS', 'Interview Coordination', 'CRM',
+    'Client Handling', 'Lead Generation', 'Accounting', 'GST', 'Reporting',
+    'Figma', 'Wireframes', 'Product Analytics', 'Stakeholder Management',
+)
+
+
+def _clean_text(value: Any, limit: int | None = None) -> str:
+    text = re.sub(r'\s+', ' ', str(value or '')).strip()
+    if limit and len(text) > limit:
+        return f'{text[:limit].rstrip()}...'
+    return text
+
+
+def _normalize_text(value: Any) -> str:
+    return re.sub(r'[^a-z0-9+#.]+', ' ', str(value or '').lower()).strip()
+
+
+def _tokenize(value: Any) -> set[str]:
+    return {token for token in re.findall(r'[a-z0-9+#.]+', str(value or '').lower()) if len(token) > 1}
+
+
+def _dedupe_strings(values: list[Any], *, limit: int = 12, item_limit: int = 120) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = _clean_text(value, item_limit)
+        key = _normalize_text(text)
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(text)
+        if len(deduped) >= limit:
+            break
+    return deduped
+
+
+def _safe_list(value: Any, *, limit: int = 12, item_limit: int = 160) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return _dedupe_strings(value, limit=limit, item_limit=item_limit)
+
+
+def _safe_confidence(value: Any, fallback: str = 'low') -> str:
+    normalized = _clean_text(value, 20).lower()
+    return normalized if normalized in CONFIDENCE_VALUES else fallback
+
+
+def _clamp_score(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return max(0, min(100, int(round(float(value)))))
+    except (TypeError, ValueError):
+        return None
+
+
+def _iter_nested_strings(value: Any):
+    if isinstance(value, str):
+        clean = _clean_text(value)
+        if clean:
+            yield clean
+    elif isinstance(value, list):
+        for item in value:
+            yield from _iter_nested_strings(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_nested_strings(item)
+
+
+def _resume_payload_for_scoring(user: User, profile: UserProfile, resume: CandidateResume | None) -> dict[str, Any]:
+    if not resume or not isinstance(resume.structured_data, dict) or not resume.structured_data:
+        return {}
+
+    structured = resume.structured_data
+    contact = structured.get('contact') if isinstance(structured.get('contact'), dict) else {}
+    links = contact.get('links') if isinstance(contact.get('links'), list) else []
+    link_text = ' '.join(str(item) for item in links)
+    payload = {
+        'basics': {
+            'name': contact.get('name') or f'{user.first_name} {user.last_name}'.strip() or user.username,
+            'email': contact.get('email') or resume.email or user.email,
+            'phone': contact.get('phone') or resume.phone or profile.phone,
+            'location': contact.get('location') or resume.location,
+            'headline': resume.headline or structured.get('headline', ''),
+            'summary': resume.summary or structured.get('summary', ''),
+            'website': contact.get('website') or ('portfolio' if 'portfolio' in link_text.lower() else ''),
+            'linkedin': contact.get('linkedin') or ('linkedin' if 'linkedin.com' in link_text.lower() else ''),
+            'github': contact.get('github') or ('github' if 'github.com' in link_text.lower() else ''),
+            'portfolio': contact.get('portfolio') or ('portfolio' if 'portfolio' in link_text.lower() else ''),
+        },
+        'skills': structured.get('skills') if isinstance(structured.get('skills'), list) else [],
+        'experience': structured.get('experience') if isinstance(structured.get('experience'), list) else [],
+        'projects': structured.get('projects') if isinstance(structured.get('projects'), list) else [],
+        'education': structured.get('education') if isinstance(structured.get('education'), list) else [],
+        'certifications': structured.get('certifications') if isinstance(structured.get('certifications'), list) else [],
+        'achievements': structured.get('achievements') if isinstance(structured.get('achievements'), list) else [],
+    }
+    return payload
+
+
+def _deterministic_resume_score(user: User, profile: UserProfile, resume: CandidateResume | None) -> tuple[int | None, str, str, dict[str, Any]]:
+    payload = _resume_payload_for_scoring(user, profile, resume)
+    if not payload:
+        return None, 'general', 'incomplete', {}
+    role_family = detect_role_family(payload)
+    resume_type = detect_resume_type(payload, role_family)
+    return score_resume(payload, role_family=role_family, resume_type=resume_type), role_family, resume_type, payload
+
+
+def _extract_resume_skills(resume: CandidateResume | None) -> list[str]:
+    if not resume:
+        return []
+    structured = resume.structured_data if isinstance(resume.structured_data, dict) else {}
+    candidates: list[Any] = []
+    candidates.extend(structured.get('skills') if isinstance(structured.get('skills'), list) else [])
+
+    technical_expertise = structured.get('technical_expertise')
+    if isinstance(technical_expertise, dict):
+        for value in technical_expertise.values():
+            candidates.extend(list(_iter_nested_strings(value)))
+
+    for section_key in ('experience', 'projects'):
+        for item in structured.get(section_key, []) if isinstance(structured.get(section_key), list) else []:
+            if not isinstance(item, dict):
+                continue
+            candidates.extend(item.get('tech_stack') if isinstance(item.get('tech_stack'), list) else [])
+
+    try:
+        for section in resume.sections.all():
+            section_key = str(section.section_key or '').lower()
+            if 'skill' in section_key or 'technical' in section_key or 'expertise' in section_key:
+                candidates.extend(_iter_nested_strings(section.content))
+                candidates.extend(_iter_nested_strings(section.raw_text))
+    except Exception:
+        pass
+
+    split_candidates: list[str] = []
+    for candidate in candidates:
+        for part in re.split(r'[,;|/\n]+', str(candidate or '')):
+            split_candidates.append(part)
+    return _dedupe_strings(split_candidates, limit=40, item_limit=80)
+
+
+def _resume_evidence_text(resume: CandidateResume | None) -> str:
+    if not resume:
+        return ''
+    structured = resume.structured_data if isinstance(resume.structured_data, dict) else {}
+    parts = [
+        resume.headline,
+        resume.summary,
+        resume.current_title,
+        resume.current_company,
+        resume.location,
+        ' '.join(_extract_resume_skills(resume)),
+    ]
+    for key in ('experience', 'projects', 'education', 'certifications', 'achievements'):
+        values = structured.get(key) if isinstance(structured.get(key), list) else []
+        for item in values[:6]:
+            parts.extend(list(_iter_nested_strings(item)))
+    return ' '.join(_clean_text(part) for part in parts if _clean_text(part))
+
+
+def _extract_vacancy_requirements(vacancy, candidate_skills: list[str]) -> list[str]:
+    if not vacancy:
+        return []
+    vacancy_text = ' '.join([
+        vacancy.role or '',
+        vacancy.position or '',
+        vacancy.description or '',
+        vacancy.experience_required or '',
+        vacancy.location or '',
+        vacancy.job_type or '',
+    ])
+    normalized_vacancy = _normalize_text(vacancy_text)
+    candidates: list[str] = []
+    for term in KNOWN_ROLE_REQUIREMENT_TERMS:
+        if _normalize_text(term) in normalized_vacancy:
+            candidates.append(term)
+    for skill in candidate_skills:
+        normalized_skill = _normalize_text(skill)
+        if len(normalized_skill) >= 3 and normalized_skill in normalized_vacancy:
+            candidates.append(skill)
+    for fragment in re.split(r'[\n,;|•]+', vacancy.description or ''):
+        clean = _clean_text(fragment, 80)
+        if not clean or len(clean.split()) > 5:
+            continue
+        if any(marker in clean.lower() for marker in ('experience', 'skill', 'python', 'sql', 'react', 'django', 'aws', 'excel')):
+            candidates.append(clean)
+    return _dedupe_strings(candidates, limit=14, item_limit=90)
+
+
+def _term_matches(candidate_skill: str, requirement: str) -> bool:
+    skill_norm = _normalize_text(candidate_skill)
+    requirement_norm = _normalize_text(requirement)
+    if not skill_norm or not requirement_norm:
+        return False
+    if skill_norm == requirement_norm:
+        return True
+    if len(skill_norm) >= 3 and skill_norm in requirement_norm:
+        return True
+    if len(requirement_norm) >= 3 and requirement_norm in skill_norm:
+        return True
+    skill_tokens = _tokenize(skill_norm)
+    requirement_tokens = _tokenize(requirement_norm)
+    return bool(skill_tokens and requirement_tokens and skill_tokens & requirement_tokens and (skill_tokens <= requirement_tokens or requirement_tokens <= skill_tokens))
+
+
+def _parse_years(value: Any) -> float | None:
+    numbers = re.findall(r'\d+(?:\.\d+)?', str(value or ''))
+    if not numbers:
+        return None
+    try:
+        return float(numbers[0])
+    except ValueError:
+        return None
+
+
+def _build_role_fit_signal(resume: CandidateResume | None, interview: Interview | None) -> dict[str, Any]:
+    vacancy = getattr(interview, 'role', None) if interview else None
+    if not vacancy:
+        return {
+            'score': None,
+            'confidence': 'low',
+            'summary': 'Role-fit insight needs an assigned vacancy before a match can be calculated.',
+            'matched': [],
+            'missing': ['Assigned vacancy'],
+            'evidence': [],
+        }
+
+    candidate_skills = _extract_resume_skills(resume)
+    resume_text = _resume_evidence_text(resume)
+    if not candidate_skills and not resume_text:
+        return {
+            'score': None,
+            'confidence': 'low',
+            'summary': 'Role-fit insight needs a processed resume with skills or experience evidence.',
+            'matched': [],
+            'missing': _extract_vacancy_requirements(vacancy, [])[:6] or ['Parsed resume skills'],
+            'evidence': [_clean_text(f'Assigned vacancy: {vacancy.role}', 120)],
+        }
+
+    requirements = _extract_vacancy_requirements(vacancy, candidate_skills)
+    matched = [
+        requirement for requirement in requirements
+        if any(_term_matches(skill, requirement) for skill in candidate_skills)
+    ]
+    missing = [requirement for requirement in requirements if requirement not in matched]
+
+    resume_tokens = _tokenize(resume_text)
+    role_tokens = _tokenize(f'{vacancy.role} {vacancy.position}')
+    title_overlap = sorted(role_tokens & resume_tokens)
+    if title_overlap and not any('Role/title overlap' in item for item in matched):
+        matched.append(f"Role/title overlap: {', '.join(title_overlap[:4])}")
+
+    required_years = _parse_years(vacancy.experience_required)
+    candidate_years = float(resume.total_experience_years) if resume and resume.total_experience_years is not None else None
+    if required_years is not None:
+        if candidate_years is not None and candidate_years >= required_years:
+            matched.append(f'Experience requirement: {candidate_years:g}+ years available')
+        else:
+            missing.append(f'Experience requirement: {vacancy.experience_required}')
+
+    matched = _dedupe_strings(matched, limit=8)
+    missing = _dedupe_strings(missing, limit=8)
+    requirement_count = max(1, len(requirements) + (1 if required_years is not None else 0))
+    match_ratio = min(1, len([item for item in matched if not item.startswith('Role/title overlap')]) / requirement_count)
+    title_bonus = min(12, len(title_overlap) * 3)
+    score = _clamp_score(22 + (match_ratio * 64) + title_bonus)
+    if requirements and not matched:
+        score = min(score or 0, 35)
+
+    confidence = 'low'
+    if len(requirements) >= 4 and len(candidate_skills) >= 5:
+        confidence = 'high' if match_ratio >= 0.45 else 'medium'
+    elif len(requirements) >= 2 and candidate_skills:
+        confidence = 'medium'
+
+    evidence = []
+    if candidate_skills:
+        evidence.append(f"Parsed candidate skills: {', '.join(candidate_skills[:8])}")
+    if requirements:
+        evidence.append(f"Vacancy signals compared: {', '.join(requirements[:8])}")
+    if title_overlap:
+        evidence.append(f"Resume text overlaps role terms: {', '.join(title_overlap[:5])}")
+    if vacancy.experience_required:
+        evidence.append(f"Vacancy experience requirement: {vacancy.experience_required}")
+
+    return {
+        'score': score,
+        'confidence': confidence,
+        'summary': _clean_text(
+            f"Role fit is based on matched resume skills against the assigned {vacancy.role} vacancy.",
+            220,
+        ),
+        'matched': matched,
+        'missing': missing,
+        'evidence': _dedupe_strings(evidence, limit=6, item_limit=180),
+    }
+
+
+def _build_profile_strength_signal(user: User, profile: UserProfile, resume: CandidateResume | None, resume_score_value: int | None, role_family: str, resume_type: str, resume_payload: dict[str, Any]) -> dict[str, Any]:
+    missing: list[str] = []
+    evidence: list[str] = []
+    if not user.email:
+        missing.append('Email address')
+    else:
+        evidence.append('Profile includes email contact.')
+    if not profile.phone:
+        missing.append('Phone number')
+    else:
+        evidence.append('Profile includes phone contact.')
+    if not resume:
+        missing.append('Uploaded resume')
+    elif resume.status != CandidateResume.ParseStatus.COMPLETED:
+        missing.append('Completed resume parsing')
+
+    basics = resume_payload.get('basics') if isinstance(resume_payload.get('basics'), dict) else {}
+    skills = resume_payload.get('skills') if isinstance(resume_payload.get('skills'), list) else []
+    experience = resume_payload.get('experience') if isinstance(resume_payload.get('experience'), list) else []
+    education = resume_payload.get('education') if isinstance(resume_payload.get('education'), list) else []
+    projects = resume_payload.get('projects') if isinstance(resume_payload.get('projects'), list) else []
+
+    if resume_score_value is not None:
+        evidence.append(f'Deterministic resume score: {resume_score_value}/100.')
+    if basics.get('headline'):
+        evidence.append('Resume includes a headline.')
+    else:
+        missing.append('Resume headline')
+    if basics.get('summary'):
+        evidence.append('Resume includes a professional summary.')
+    else:
+        missing.append('Professional summary')
+    if skills:
+        evidence.append(f'Parsed skills count: {len(skills)}.')
+    else:
+        missing.append('Parsed skills')
+    if experience:
+        evidence.append(f'Experience entries: {len(experience)}.')
+    elif projects:
+        evidence.append(f'Project entries: {len(projects)}.')
+    else:
+        missing.append('Experience or project evidence')
+    if not education:
+        missing.append('Education details')
+
+    confidence = 'low'
+    if resume_score_value is not None:
+        confidence = 'high' if resume_score_value >= 70 and len(missing) <= 2 else 'medium' if resume_score_value >= 45 else 'low'
+
+    summary = 'Profile strength is based on parsed resume completeness, profile contact data, and evidence quality.'
+    if resume_score_value is not None:
+        summary = f'Profile strength uses a deterministic resume score of {resume_score_value}/100 for a {resume_type.replace("_", " ")} {role_family.replace("_", " ")} profile.'
+
+    return {
+        'summary': summary,
+        'evidence': _dedupe_strings(evidence, limit=8, item_limit=160),
+        'missing_items': _dedupe_strings(missing, limit=10, item_limit=100),
+        'confidence': confidence,
+    }
+
+
+def _build_data_quality_flags(profile: UserProfile, resume: CandidateResume | None, interview: Interview | None, role_fit_signal: dict[str, Any]) -> list[str]:
+    flags: list[str] = []
+    if not profile.phone:
+        flags.append('missing_profile_phone')
+    if not resume:
+        flags.append('missing_resume')
+    elif resume.status != CandidateResume.ParseStatus.COMPLETED:
+        flags.append('resume_not_processed')
+    elif not isinstance(resume.structured_data, dict) or not resume.structured_data:
+        flags.append('missing_structured_resume_data')
+    if not getattr(interview, 'role', None):
+        flags.append('missing_assigned_vacancy')
+    else:
+        vacancy = interview.role
+        if len(vacancy.description or '') < 80:
+            flags.append('limited_vacancy_description')
+        if not vacancy.experience_required:
+            flags.append('missing_vacancy_experience_requirement')
+    if not role_fit_signal.get('evidence'):
+        flags.append('limited_role_fit_evidence')
+    return _dedupe_strings(flags, limit=12, item_limit=80)
 
 
 class CandidateInsightService:
@@ -27,6 +420,20 @@ class CandidateInsightService:
         return snapshot
 
     def build_signature(self, user: User, profile: UserProfile, resume: CandidateResume | None, interview: Interview | None) -> str:
+        vacancy = interview.role if interview and interview.role else None
+        vacancy_payload = {
+            'role': vacancy.role if vacancy else '',
+            'position': vacancy.position if vacancy else '',
+            'description': vacancy.description if vacancy else '',
+            'experience_required': vacancy.experience_required if vacancy else '',
+            'location': vacancy.location if vacancy else '',
+            'job_type': vacancy.job_type if vacancy else '',
+            'salary_range': vacancy.salary_range if vacancy else '',
+            'status': vacancy.status if vacancy else '',
+        }
+        vacancy_signature = hashlib.sha256(
+            json.dumps(vacancy_payload, sort_keys=True).encode('utf-8')
+        ).hexdigest()
         signature_payload = {
             'user_id': user.id,
             'name': f'{user.first_name} {user.last_name}'.strip(),
@@ -39,6 +446,7 @@ class CandidateInsightService:
             'resume_headline': resume.headline if resume else '',
             'role_id': interview.role_id if interview else None,
             'role': interview.role.role if interview and interview.role else '',
+            'vacancy_signature': vacancy_signature,
             'interview_count': user.candidate_interviews.count(),
         }
         raw = json.dumps(signature_payload, sort_keys=True).encode('utf-8')
@@ -95,7 +503,16 @@ class CandidateInsightService:
                 'available': False,
                 'error_message': '',
                 'executive_summary': '',
+                'profile_strength_summary': '',
+                'profile_strength_evidence': [],
+                'profile_strength_missing_items': [],
+                'profile_strength_confidence': '',
                 'role_fit_summary': '',
+                'role_fit_confidence': '',
+                'role_fit_evidence': [],
+                'role_fit_matched_requirements': [],
+                'role_fit_missing_requirements': [],
+                'data_quality_flags': [],
                 'resume_score': None,
                 'role_fit_score': None,
                 'market_demand_score': None,
@@ -114,19 +531,25 @@ class CandidateInsightService:
             }
 
         payload = snapshot.payload if isinstance(snapshot.payload, dict) else {}
-        role_fit_summary = (
-            getattr(snapshot, 'role_fit_summary', '')
-            or payload.get('role_fit_summary')
-            or ''
-        )
+        profile_strength_summary = getattr(snapshot, 'profile_strength_summary', '') or payload.get('profile_strength_summary') or ''
+        role_fit_summary = getattr(snapshot, 'role_fit_summary', '') or payload.get('role_fit_summary') or ''
 
         return {
             'status': snapshot.status,
             'loading': snapshot.status in {CandidateInsightSnapshot.Status.PENDING, CandidateInsightSnapshot.Status.PROCESSING},
             'available': snapshot.status == CandidateInsightSnapshot.Status.COMPLETED,
             'error_message': snapshot.error_message,
-            'executive_summary': snapshot.executive_summary,
+            'executive_summary': snapshot.executive_summary or profile_strength_summary,
+            'profile_strength_summary': profile_strength_summary,
+            'profile_strength_evidence': _safe_list(getattr(snapshot, 'profile_strength_evidence', []) or payload.get('profile_strength_evidence'), limit=10),
+            'profile_strength_missing_items': _safe_list(getattr(snapshot, 'profile_strength_missing_items', []) or payload.get('profile_strength_missing_items'), limit=10),
+            'profile_strength_confidence': _safe_confidence(getattr(snapshot, 'profile_strength_confidence', '') or payload.get('profile_strength_confidence'), ''),
             'role_fit_summary': role_fit_summary,
+            'role_fit_confidence': _safe_confidence(getattr(snapshot, 'role_fit_confidence', '') or payload.get('role_fit_confidence'), ''),
+            'role_fit_evidence': _safe_list(getattr(snapshot, 'role_fit_evidence', []) or payload.get('role_fit_evidence'), limit=10),
+            'role_fit_matched_requirements': _safe_list(getattr(snapshot, 'role_fit_matched_requirements', []) or payload.get('role_fit_matched_requirements'), limit=10),
+            'role_fit_missing_requirements': _safe_list(getattr(snapshot, 'role_fit_missing_requirements', []) or payload.get('role_fit_missing_requirements'), limit=10),
+            'data_quality_flags': _safe_list(getattr(snapshot, 'data_quality_flags', []) or payload.get('data_quality_flags'), limit=12),
             'resume_score': snapshot.resume_score,
             'role_fit_score': snapshot.role_fit_score,
             'market_demand_score': snapshot.market_demand_score,
@@ -158,20 +581,30 @@ class CandidateInsightService:
             payload = self._generate_payload(user, profile, resume, interview)
             snapshot.status = CandidateInsightSnapshot.Status.COMPLETED
             snapshot.error_message = ''
-            snapshot.executive_summary = payload.get('executive_summary', '')
-            snapshot.resume_score = payload.get('resume_score')
-            snapshot.role_fit_score = payload.get('role_fit_score')
-            snapshot.market_demand_score = payload.get('market_demand_score')
-            snapshot.current_skills_impact_score = payload.get('current_skills_impact_score')
-            snapshot.market_demand_label = payload.get('market_demand_label', '')
-            snapshot.salary_range = payload.get('salary_range', '')
+            snapshot.profile_strength_summary = payload.get('profile_strength_summary', '')
+            snapshot.profile_strength_evidence = _safe_list(payload.get('profile_strength_evidence'), limit=10)
+            snapshot.profile_strength_missing_items = _safe_list(payload.get('profile_strength_missing_items'), limit=10)
+            snapshot.profile_strength_confidence = _safe_confidence(payload.get('profile_strength_confidence'), 'low')
+            snapshot.role_fit_summary = payload.get('role_fit_summary', '')
+            snapshot.role_fit_confidence = _safe_confidence(payload.get('role_fit_confidence'), 'low')
+            snapshot.role_fit_evidence = _safe_list(payload.get('role_fit_evidence'), limit=10)
+            snapshot.role_fit_matched_requirements = _safe_list(payload.get('role_fit_matched_requirements'), limit=10)
+            snapshot.role_fit_missing_requirements = _safe_list(payload.get('role_fit_missing_requirements'), limit=10)
+            snapshot.data_quality_flags = _safe_list(payload.get('data_quality_flags'), limit=12)
+            snapshot.executive_summary = payload.get('executive_summary') or snapshot.profile_strength_summary
+            snapshot.resume_score = _clamp_score(payload.get('resume_score'))
+            snapshot.role_fit_score = _clamp_score(payload.get('role_fit_score'))
+            snapshot.market_demand_score = _clamp_score(payload.get('market_demand_score'))
+            snapshot.current_skills_impact_score = _clamp_score(payload.get('current_skills_impact_score'))
+            snapshot.market_demand_label = _clean_text(payload.get('market_demand_label'), 80)
+            snapshot.salary_range = _clean_text(payload.get('salary_range'), 120)
             snapshot.salary_trend_summary = payload.get('salary_trend_summary', '')
             snapshot.market_demand_summary = payload.get('market_demand_summary', '')
             snapshot.current_skills_impact_summary = payload.get('current_skills_impact_summary', '')
-            snapshot.top_strengths = payload.get('top_strengths', [])
-            snapshot.growth_areas = payload.get('growth_areas', [])
-            snapshot.recommended_skills = payload.get('recommended_skills', [])
-            snapshot.recommended_roles = payload.get('recommended_roles', [])
+            snapshot.top_strengths = _safe_list(payload.get('top_strengths'), limit=5)
+            snapshot.growth_areas = _safe_list(payload.get('growth_areas'), limit=5)
+            snapshot.recommended_skills = _safe_list(payload.get('recommended_skills'), limit=8)
+            snapshot.recommended_roles = _safe_list(payload.get('recommended_roles'), limit=6)
             snapshot.payload = payload
             snapshot.generated_for_role = interview.role.role if interview and interview.role else ''
             snapshot.generated_for_title = resume.current_title if resume else ''
@@ -205,6 +638,34 @@ class CandidateInsightService:
                     'content': section.content,
                 })
 
+        vacancy = interview.role if interview and interview.role else None
+        deterministic_resume_score, role_family, resume_type, resume_payload = _deterministic_resume_score(user, profile, resume)
+        role_fit_signal = _build_role_fit_signal(resume, interview)
+        profile_strength_signal = _build_profile_strength_signal(
+            user,
+            profile,
+            resume,
+            deterministic_resume_score,
+            role_family,
+            resume_type,
+            resume_payload,
+        )
+        data_quality_flags = _build_data_quality_flags(profile, resume, interview, role_fit_signal)
+        computed_signals = {
+            'resume_score': deterministic_resume_score,
+            'resume_role_family': role_family,
+            'resume_type': resume_type,
+            'profile_strength_evidence': profile_strength_signal['evidence'],
+            'profile_strength_missing_items': profile_strength_signal['missing_items'],
+            'profile_strength_confidence': profile_strength_signal['confidence'],
+            'role_fit_score': role_fit_signal['score'],
+            'role_fit_confidence': role_fit_signal['confidence'],
+            'role_fit_matched_requirements': role_fit_signal['matched'],
+            'role_fit_missing_requirements': role_fit_signal['missing'],
+            'role_fit_evidence': role_fit_signal['evidence'],
+            'data_quality_flags': data_quality_flags,
+        }
+
         prompt_input = {
             'candidate': {
                 'name': f'{user.first_name} {user.last_name}'.strip(),
@@ -212,7 +673,15 @@ class CandidateInsightService:
                 'phone': profile.phone or '',
                 'gender': profile.gender or '',
             },
-            'role': interview.role.role if interview and interview.role else '',
+            'role': {
+                'title': vacancy.role if vacancy else '',
+                'position': vacancy.position if vacancy else '',
+                'description': vacancy.description if vacancy else '',
+                'experience_required': vacancy.experience_required if vacancy else '',
+                'location': vacancy.location if vacancy else '',
+                'job_type': vacancy.job_type if vacancy else '',
+                'salary_range': vacancy.salary_range if vacancy else '',
+            },
             'resume': {
                 'headline': resume.headline if resume else '',
                 'summary': resume.summary if resume else '',
@@ -223,11 +692,18 @@ class CandidateInsightService:
                 'structured_data': resume.structured_data if resume else {},
                 'sections': resume_sections[:12],
             },
+            'computed_signals': computed_signals,
             'note': (
                 'Generate premium dashboard insights for an AI hiring platform. '
                 'Use only the candidate profile and resume data provided. '
+                'Do not invent employers, degrees, years, salary, achievements, or skills. '
+                'Do not change computed resume_score or role_fit_score; explain those computed values. '
+                'Profile Strength must describe resume/profile quality only. '
+                'Role Fit must describe the match against the assigned vacancy only. '
+                'Skill Impact must describe skills value and gaps based on parsed skills and role evidence. '
                 'For market demand and salary trend, provide directional estimates and clearly keep them approximate, not authoritative. '
-                'Return concise recruiter-friendly insight summaries, with role_fit_summary distinct from executive_summary.'
+                'If evidence is weak, set confidence low and explain what data is missing. '
+                'Return concise recruiter-friendly insight summaries. Treat executive_summary as the backward-compatible Profile Strength summary, and keep role_fit_summary distinct.'
             ),
         }
 
@@ -267,6 +743,36 @@ class CandidateInsightService:
         if not text:
             raise RuntimeError('OpenAI insights response did not contain usable structured output.')
         parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise RuntimeError('OpenAI insights response did not contain a JSON object.')
+
+        parsed['resume_score'] = deterministic_resume_score if deterministic_resume_score is not None else _clamp_score(parsed.get('resume_score'))
+        parsed['role_fit_score'] = role_fit_signal['score']
+        parsed['profile_strength_summary'] = _clean_text(parsed.get('profile_strength_summary') or profile_strength_signal['summary'], 900)
+        parsed['profile_strength_evidence'] = _safe_list(
+            parsed.get('profile_strength_evidence') or profile_strength_signal['evidence'],
+            limit=10,
+        )
+        parsed['profile_strength_missing_items'] = _safe_list(
+            parsed.get('profile_strength_missing_items') or profile_strength_signal['missing_items'],
+            limit=10,
+        )
+        parsed['profile_strength_confidence'] = _safe_confidence(
+            parsed.get('profile_strength_confidence') or profile_strength_signal['confidence'],
+            profile_strength_signal['confidence'],
+        )
+        parsed['role_fit_summary'] = _clean_text(parsed.get('role_fit_summary') or role_fit_signal['summary'], 900)
+        parsed['role_fit_confidence'] = role_fit_signal['confidence']
+        parsed['role_fit_evidence'] = _safe_list(role_fit_signal['evidence'], limit=10)
+        parsed['role_fit_matched_requirements'] = _safe_list(role_fit_signal['matched'], limit=10)
+        parsed['role_fit_missing_requirements'] = _safe_list(role_fit_signal['missing'], limit=10)
+        parsed['data_quality_flags'] = _dedupe_strings(
+            data_quality_flags + _safe_list(parsed.get('data_quality_flags'), limit=12),
+            limit=12,
+            item_limit=80,
+        )
+        parsed['executive_summary'] = _clean_text(parsed['profile_strength_summary'] or parsed.get('executive_summary'), 900)
+        parsed['computed_signals'] = computed_signals
         return parsed
 
     def _extract_output_text(self, payload: dict[str, Any]) -> str:
@@ -286,9 +792,42 @@ class CandidateInsightService:
             'additionalProperties': False,
             'properties': {
                 'executive_summary': {'type': 'string'},
+                'profile_strength_summary': {'type': 'string'},
+                'profile_strength_evidence': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'maxItems': 10,
+                },
+                'profile_strength_missing_items': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'maxItems': 10,
+                },
+                'profile_strength_confidence': {'type': 'string', 'enum': ['low', 'medium', 'high']},
                 'role_fit_summary': {'type': 'string'},
-                'resume_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
-                'role_fit_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
+                'role_fit_confidence': {'type': 'string', 'enum': ['low', 'medium', 'high']},
+                'role_fit_evidence': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'maxItems': 10,
+                },
+                'role_fit_matched_requirements': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'maxItems': 10,
+                },
+                'role_fit_missing_requirements': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'maxItems': 10,
+                },
+                'data_quality_flags': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                    'maxItems': 12,
+                },
+                'resume_score': {'type': ['integer', 'null'], 'minimum': 0, 'maximum': 100},
+                'role_fit_score': {'type': ['integer', 'null'], 'minimum': 0, 'maximum': 100},
                 'market_demand_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
                 'current_skills_impact_score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
                 'market_demand_label': {'type': 'string'},
@@ -319,7 +858,16 @@ class CandidateInsightService:
             },
             'required': [
                 'executive_summary',
+                'profile_strength_summary',
+                'profile_strength_evidence',
+                'profile_strength_missing_items',
+                'profile_strength_confidence',
                 'role_fit_summary',
+                'role_fit_confidence',
+                'role_fit_evidence',
+                'role_fit_matched_requirements',
+                'role_fit_missing_requirements',
+                'data_quality_flags',
                 'resume_score',
                 'role_fit_score',
                 'market_demand_score',
