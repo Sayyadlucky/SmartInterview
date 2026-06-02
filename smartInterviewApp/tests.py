@@ -20,7 +20,7 @@ from django.utils import timezone
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
 from smartInterviewApp.api.serializers import ExotelWebhookSerializer
 from smartInterviewApp.integrations.providers.msg91 import Msg91OtpProvider, Msg91SmsProvider
-from smartInterviewApp.models import AutoInterviewEvaluationResult, CodingQuestion, JobInterviewBlueprint, JobInterviewSkill, Notification, NotificationAttempt, OtpRequest, QuestionGenerationJob, Skill, SkillQuestion, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
+from smartInterviewApp.models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CodingQuestion, JobInterviewBlueprint, JobInterviewSkill, Notification, NotificationAttempt, OtpRequest, QuestionGenerationJob, Skill, SkillQuestion, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
 from smartInterviewApp.otp.services import OtpService
 from smartInterviewApp.commonViews import (
@@ -30,6 +30,7 @@ from smartInterviewApp.commonViews import (
     ensure_candidate_signup_token,
     send_existing_candidate_sms,
 )
+from smartInterviewApp.identity_verification import CandidateLiveSelfieVerificationService
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.integrations.providers.meta_whatsapp import MetaWhatsappProvider
 from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
@@ -55,6 +56,249 @@ from smartInterviewApp.services.question_banks import (
     process_question_generation_task,
     resolve_equivalent_skill_ids_for_question_pool,
 )
+
+
+class CandidateLiveSelfieVerificationEndpointTests(TestCase):
+    jpeg_bytes = b'\xff\xd8\xff\xe0' + b'live-selfie-test' + b'\xff\xd9'
+
+    def setUp(self):
+        self.media_dir = tempfile.TemporaryDirectory()
+        self.override = override_settings(
+            MEDIA_ROOT=self.media_dir.name,
+            LIVE_SELFIE_VERIFICATION_ENABLED=True,
+            LIVE_SELFIE_FACE_MATCH_PROVIDER='local_face_recognition',
+            LIVE_SELFIE_FACE_MATCH_THRESHOLD=0.62,
+            LIVE_SELFIE_FACE_VERIFY_TIMEOUT_SECONDS=20,
+        )
+        self.override.enable()
+        self.candidate = User.objects.create_user(
+            username='candidate-live-selfie',
+            email='candidate-live-selfie@example.com',
+            password='pass1234',
+            first_name='Candidate',
+            last_name='Selfie',
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.candidate,
+            role='candidate',
+            gender='other',
+            phone='9876543210',
+        )
+        self.url = reverse('candidate-live-selfie-verify')
+
+    def tearDown(self):
+        self.override.disable()
+        self.media_dir.cleanup()
+
+    def _login_candidate(self):
+        self.client.login(username='candidate-live-selfie', password='pass1234')
+
+    def _attach_profile_photo(self):
+        self.profile.profile_picture.save(
+            'profile.jpg',
+            SimpleUploadedFile('profile.jpg', self.jpeg_bytes, content_type='image/jpeg'),
+            save=True,
+        )
+
+    def _selfie_upload(self, name='selfie.jpg', content_type='image/jpeg', content=None):
+        return SimpleUploadedFile(name, content or self.jpeg_bytes, content_type=content_type)
+
+    def _quality_payload(self):
+        return {
+            'provider': 'facemesh_quality_check',
+            'one_face_detected': True,
+            'alignment_passed': True,
+            'stable_face': True,
+            'liveness_check': 'stable_face',
+        }
+
+    def _post_live_selfie(self, extra=None):
+        data = {
+            'selfie': self._selfie_upload(),
+            'facemesh_quality_payload': json.dumps(self._quality_payload()),
+        }
+        if extra:
+            data.update(extra)
+        return self.client.post(self.url, data)
+
+    def _match_result(self, matched=True, reason=None, score=None):
+        return {
+            'available': True,
+            'matched': matched,
+            'score': 0.83 if score is None and matched else (0.31 if score is None else score),
+            'threshold': 0.62,
+            'reason': reason or ('face_matched' if matched else 'face_mismatch'),
+            'provider': 'local_face_recognition',
+            'profile_face_count': 1,
+            'selfie_face_count': 1,
+            'message': 'Face matched successfully.' if matched else 'We could not confidently match your selfie with your profile photo.',
+        }
+
+    def test_live_selfie_verify_requires_authentication(self):
+        response = self.client.post(self.url, {'selfie': self._selfie_upload()})
+        self.assertEqual(response.status_code, 302)
+
+    def test_live_selfie_verify_rejects_non_candidate(self):
+        user = User.objects.create_user(username='recruiter-live-selfie', password='pass1234')
+        UserProfile.objects.create(user=user, role='recruiter', gender='other', phone='9876543211')
+        self.client.login(username='recruiter-live-selfie', password='pass1234')
+
+        response = self.client.post(self.url, {'selfie': self._selfie_upload()})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['code'], 'candidate_required')
+
+    def test_live_selfie_verify_requires_profile_photo(self):
+        self._login_candidate()
+
+        response = self.client.post(self.url, {'selfie': self._selfie_upload()})
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+        self.assertEqual(payload['code'], 'profile_photo_required')
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.PROFILE_PHOTO_REQUIRED)
+
+    def test_live_selfie_verify_rejects_invalid_image(self):
+        self._login_candidate()
+        self._attach_profile_photo()
+
+        response = self.client.post(self.url, {
+            'selfie': self._selfie_upload('selfie.txt', 'text/plain', b'not an image'),
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['code'], 'invalid_image')
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_local_match_marks_identity_verified(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = self._match_result(matched=True, score=0.83)
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.assertTrue(response.json()['verified'])
+        self.assertEqual(response.json()['code'], 'face_matched')
+        self.assertEqual(response.json()['status'], CandidateIdentityVerification.Status.FACE_MATCHED)
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.verification_method, CandidateIdentityVerification.Method.LIVE_SELFIE)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.FACE_MATCHED)
+        self.assertEqual(record.face_match_score, 0.83)
+        self.assertEqual(record.face_match_threshold, 0.62)
+        self.assertEqual(record.face_match_payload['provider'], 'local_face_recognition')
+        self.assertEqual(record.face_match_payload['reason'], 'face_matched')
+        self.assertEqual(record.face_match_payload['facemesh_quality_payload']['provider'], 'facemesh_quality_check')
+        self.assertTrue(record.face_match_payload['profile_photo_match_claimed'])
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_local_mismatch_stores_face_mismatch(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = self._match_result(matched=False, score=0.31)
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['success'])
+        self.assertFalse(response.json()['verified'])
+        self.assertEqual(response.json()['code'], 'face_mismatch')
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.FACE_MISMATCH)
+        self.assertEqual(record.face_match_score, 0.31)
+        self.assertEqual(record.face_match_payload['provider'], 'local_face_recognition')
+        self.assertFalse(record.face_match_payload['profile_photo_match_claimed'])
+        self.assertIn('could not confidently match', record.error_message)
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_facemesh_payload_alone_cannot_verify_identity(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = {
+            'available': False,
+            'matched': False,
+            'score': 0,
+            'threshold': 0.62,
+            'reason': 'face_recognition_not_installed',
+            'provider': 'local_face_recognition',
+            'profile_face_count': 0,
+            'selfie_face_count': 0,
+            'message': 'Live selfie identity verification is temporarily unavailable.',
+        }
+
+        response = self._post_live_selfie({'facemesh_score': '0.99'})
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+        self.assertFalse(payload['verified'])
+        self.assertEqual(payload['code'], 'face_matching_unavailable')
+        mock_verify.assert_called_once()
+        self.assertFalse(CandidateIdentityVerification.objects.filter(candidate=self.candidate, status=CandidateIdentityVerification.Status.FACE_MATCHED).exists())
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_service_unavailable_does_not_mark_face_mismatch(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = {
+            'available': False,
+            'matched': False,
+            'score': 0,
+            'threshold': 0.62,
+            'reason': 'face_recognition_not_installed',
+            'provider': 'local_face_recognition',
+            'profile_face_count': 0,
+            'selfie_face_count': 0,
+            'message': 'Live selfie identity verification is temporarily unavailable.',
+        }
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+        self.assertFalse(payload['verified'])
+        self.assertEqual(payload['code'], 'face_matching_unavailable')
+        self.assertEqual(payload['message'], 'Identity verification is temporarily unavailable. Please try again later.')
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.FAILED)
+        self.assertNotEqual(record.status, CandidateIdentityVerification.Status.FACE_MISMATCH)
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_selfie_face_not_detected_returns_retry_safe_failure(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = self._match_result(
+            matched=False,
+            reason='selfie_face_not_detected',
+            score=0,
+        ) | {
+            'selfie_face_count': 0,
+            'message': 'We could not detect a clear face in your selfie. Please try again.',
+        }
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['code'], 'selfie_face_not_detected')
+        self.assertFalse(response.json()['verified'])
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.FACE_MISMATCH)
+        self.assertEqual(record.face_match_payload['reason'], 'selfie_face_not_detected')
+
+
+class CandidateLiveSelfieVerificationServiceTests(TestCase):
+    def test_local_face_recognition_missing_returns_unavailable(self):
+        with patch.dict('sys.modules', {'face_recognition': None}):
+            result = CandidateLiveSelfieVerificationService().verify_local_face_match(b'profile', b'selfie', 0.62)
+
+        self.assertFalse(result['available'])
+        self.assertFalse(result['matched'])
+        self.assertEqual(result['reason'], 'face_recognition_not_installed')
+        self.assertEqual(result['provider'], 'local_face_recognition')
 
 
 @override_settings(

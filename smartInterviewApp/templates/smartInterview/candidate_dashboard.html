@@ -1129,6 +1129,39 @@
       text-align: left;
     }
 
+    .match-explain-preview {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-1);
+      margin-top: var(--space-2);
+      color: #9fbdd5;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .match-explain-preview__label {
+      color: #d6ebff;
+      font-weight: 800;
+    }
+
+    .match-detail-grid {
+      display: grid;
+      gap: var(--space-3);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .match-detail-block {
+      display: grid;
+      gap: var(--space-2);
+      min-width: 0;
+    }
+
+    .match-detail-block strong {
+      color: #e7f4ff;
+      font-size: 0.84rem;
+    }
+
     .signal-card p,
     .metric-card small,
     .posting-subtitle,
@@ -1239,6 +1272,14 @@
       font-size: 0.8rem;
       line-height: 1.35;
       color: #eff8ff;
+    }
+
+    .verification-item__description {
+      display: block;
+      color: #9fc2de;
+      font-size: 0.74rem;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
     }
 
     .readiness-item,
@@ -1987,6 +2028,497 @@
       gap: var(--space-1);
       font-size: 0.82rem;
       line-height: 1.55;
+    }
+
+    .live-selfie-modal {
+      max-width: 760px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(82, 213, 255, 0.16), transparent 36%),
+        linear-gradient(145deg, rgba(13, 33, 55, 0.96), rgba(8, 19, 35, 0.98)),
+        var(--surface-2);
+      border-color: rgba(132, 205, 255, 0.2);
+    }
+
+    .live-selfie-shell {
+      display: grid;
+      gap: var(--space-3);
+      animation: liveSelfieContentIn 260ms ease both;
+    }
+
+    .live-selfie-shell [hidden] {
+      display: none !important;
+    }
+
+    .live-selfie-copy h2 {
+      margin: 0;
+      font-size: 1.38rem;
+    }
+
+    .selfie-steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-1);
+    }
+
+    .selfie-step {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 8px 10px;
+      color: #95b8d4;
+      background: rgba(255, 255, 255, 0.04);
+      font-size: 0.74rem;
+      text-align: center;
+      transition: border-color 180ms ease, background 180ms ease, color 180ms ease, transform 180ms ease;
+    }
+
+    .selfie-step::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(143, 228, 255, 0.16), transparent);
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+
+    .selfie-step.is-active {
+      border-color: rgba(82, 213, 255, 0.34);
+      color: #e4f9ff;
+      background: rgba(82, 213, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .selfie-step.is-active::before {
+      opacity: 1;
+      animation: selfieStepSweep 1.6s ease infinite;
+    }
+
+    .selfie-step.is-complete {
+      border-color: rgba(119, 228, 170, 0.32);
+      color: #dffceb;
+      background: rgba(119, 228, 170, 0.11);
+    }
+
+    .profile-photo-required,
+    .live-selfie-result,
+    .live-selfie-error {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-2);
+      padding: var(--space-4);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.05);
+      text-align: center;
+      animation: liveSelfieContentIn 240ms ease both;
+    }
+
+    .profile-photo-required i,
+    .live-selfie-result i {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(86, 211, 255, 0.12);
+      color: #bdefff;
+      font-size: 1.6rem;
+    }
+
+    .live-selfie-result i {
+      background: rgba(119, 228, 170, 0.13);
+      color: #dffceb;
+      animation: liveSelfieSuccessPop 420ms ease both;
+    }
+
+    .live-selfie-error i {
+      background: rgba(255, 213, 137, 0.12);
+      color: #ffe1a8;
+    }
+
+    .live-selfie-error {
+      animation: liveSelfieErrorIn 260ms ease both;
+    }
+
+    .profile-photo-required strong,
+    .live-selfie-result strong,
+    .live-selfie-error strong {
+      color: #eff8ff;
+      font-size: 1.05rem;
+    }
+
+    .profile-photo-required p,
+    .live-selfie-result p,
+    .live-selfie-error p {
+      margin: 0;
+      color: #a8c8e3;
+      line-height: 1.55;
+    }
+
+    .live-selfie-stage {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .live-selfie-stage--camera-active .live-selfie-actions,
+    .live-selfie-stage--ready .live-selfie-actions,
+    .live-selfie-stage--verifying .live-selfie-actions {
+      animation: liveSelfieActionsIn 220ms ease both;
+    }
+
+    .selfie-camera-card {
+      position: relative;
+      min-height: 420px;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      border-radius: 20px;
+      border: 1px solid rgba(132, 205, 255, 0.2);
+      background:
+        radial-gradient(circle at 50% 42%, rgba(82, 213, 255, 0.18), transparent 28%),
+        linear-gradient(145deg, rgba(13, 28, 51, 0.94), rgba(5, 13, 25, 0.98));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 26px 74px rgba(0, 0, 0, 0.32);
+      isolation: isolate;
+      transform-origin: center;
+      transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+    }
+
+    .selfie-camera-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      padding: 1px;
+      border-radius: inherit;
+      background: conic-gradient(from 120deg, rgba(82, 213, 255, 0.08), rgba(82, 213, 255, 0.62), rgba(95, 124, 255, 0.34), rgba(82, 213, 255, 0.08));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.78;
+      pointer-events: none;
+      z-index: 4;
+      animation: selfieBorderSweep 6s linear infinite;
+    }
+
+    .selfie-camera-card::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 45%;
+      width: min(54%, 290px);
+      height: min(74%, 360px);
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(82, 213, 255, 0.16), transparent 62%);
+      filter: blur(16px);
+      opacity: 0.76;
+      pointer-events: none;
+      z-index: 1;
+      transition: background 180ms ease, opacity 180ms ease;
+    }
+
+    .selfie-camera-card.is-camera-active {
+      animation: liveSelfieCameraIn 280ms ease both;
+    }
+
+    .selfie-camera-card.is-ready,
+    .selfie-camera-card[data-alignment-state="aligned"] {
+      border-color: rgba(119, 228, 170, 0.38);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 26px 78px rgba(2, 22, 14, 0.42), 0 0 34px rgba(119, 228, 170, 0.18);
+    }
+
+    .selfie-camera-card.is-ready::after,
+    .selfie-camera-card[data-alignment-state="aligned"]::after {
+      background: radial-gradient(circle, rgba(119, 228, 170, 0.2), transparent 64%);
+    }
+
+    .selfie-camera-card[data-alignment-state="warning"] {
+      border-color: rgba(255, 213, 137, 0.34);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 26px 74px rgba(0, 0, 0, 0.32), 0 0 30px rgba(255, 213, 137, 0.12);
+    }
+
+    .selfie-camera-card[data-alignment-state="error"] {
+      border-color: rgba(255, 155, 155, 0.36);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 26px 74px rgba(0, 0, 0, 0.32), 0 0 32px rgba(255, 155, 155, 0.14);
+    }
+
+    .selfie-camera-card video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      transform: scaleX(-1);
+      position: relative;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+
+    .selfie-camera-card.is-camera-active video {
+      opacity: 1;
+    }
+
+    .selfie-camera-placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 10px;
+      color: #b7d3eb;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(82, 213, 255, 0.16), transparent 26%),
+        linear-gradient(145deg, rgba(9, 21, 38, 0.86), rgba(4, 11, 22, 0.96));
+      text-align: center;
+      z-index: 6;
+      padding: var(--space-4);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .selfie-camera-placeholder i {
+      width: 66px;
+      height: 66px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(143, 228, 255, 0.22);
+      border-radius: 22px;
+      background: rgba(82, 213, 255, 0.1);
+      color: #ccefff;
+      font-size: 2rem;
+      box-shadow: 0 18px 34px rgba(0, 0, 0, 0.22);
+    }
+
+    .selfie-camera-placeholder strong {
+      color: #eff8ff;
+      font-size: 1.02rem;
+    }
+
+    .selfie-camera-placeholder span {
+      max-width: 34ch;
+      color: #a9c8df;
+      line-height: 1.55;
+      font-size: 0.86rem;
+    }
+
+    .selfie-camera-card.is-camera-active .selfie-camera-placeholder {
+      opacity: 0;
+      transform: scale(0.985);
+      pointer-events: none;
+    }
+
+    .selfie-camera-badge {
+      position: absolute;
+      top: var(--space-2);
+      z-index: 7;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 0 11px;
+      border: 1px solid rgba(143, 228, 255, 0.18);
+      border-radius: 999px;
+      background: rgba(6, 15, 28, 0.72);
+      color: #dff6ff;
+      backdrop-filter: blur(14px);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .selfie-camera-badge i {
+      color: #8fe4ff;
+      font-size: 0.88rem;
+    }
+
+    .selfie-camera-badge--left {
+      left: var(--space-2);
+    }
+
+    .selfie-camera-badge--right {
+      right: var(--space-2);
+    }
+
+    .selfie-guide {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(48%, 230px);
+      height: min(68%, 315px);
+      transform: translate(-50%, -50%);
+      border: 0;
+      border-radius: 50%;
+      box-shadow: 0 0 0 999px rgba(5, 12, 22, 0.24), 0 0 34px rgba(86, 211, 255, 0.16);
+      transition: box-shadow 180ms ease, opacity 180ms ease;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0;
+    }
+
+    .selfie-camera-card.is-camera-active .selfie-guide {
+      opacity: 1;
+      animation: selfieGuidePulse 1.8s ease-in-out infinite;
+    }
+
+    .selfie-guide::before,
+    .selfie-guide::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    .selfie-guide::before {
+      border: 2px solid rgba(137, 202, 255, 0.88);
+      clip-path: polygon(0 0, 38% 0, 38% 8%, 8% 8%, 8% 28%, 0 28%, 0 0, 62% 0, 100% 0, 100% 28%, 92% 28%, 92% 8%, 62% 8%, 62% 0, 100% 72%, 100% 100%, 62% 100%, 62% 92%, 92% 92%, 92% 72%, 100% 72%, 38% 100%, 0 100%, 0 72%, 8% 72%, 8% 92%, 38% 92%, 38% 100%);
+      filter: drop-shadow(0 0 14px rgba(82, 213, 255, 0.34));
+      transition: border-color 180ms ease, filter 180ms ease;
+    }
+
+    .selfie-guide::after {
+      inset: 9px;
+      border: 1px solid rgba(137, 202, 255, 0.34);
+      background: linear-gradient(180deg, transparent 0%, rgba(143, 228, 255, 0.2) 48%, transparent 54%);
+      background-size: 100% 220%;
+      animation: selfieScanLine 2.1s ease-in-out infinite;
+    }
+
+    .selfie-camera-card[data-alignment-state="aligned"] .selfie-guide {
+      box-shadow: 0 0 0 999px rgba(5, 12, 22, 0.2), 0 0 34px rgba(119, 228, 170, 0.5);
+    }
+
+    .selfie-camera-card[data-alignment-state="aligned"] .selfie-guide::before {
+      border-color: rgba(119, 228, 170, 0.95);
+      filter: drop-shadow(0 0 18px rgba(119, 228, 170, 0.48));
+    }
+
+    .selfie-camera-card[data-alignment-state="aligned"] .selfie-guide::after {
+      border-color: rgba(119, 228, 170, 0.36);
+      background: linear-gradient(180deg, transparent 0%, rgba(119, 228, 170, 0.22) 48%, transparent 54%);
+    }
+
+    .selfie-camera-card[data-alignment-state="warning"] .selfie-guide {
+      box-shadow: 0 0 0 999px rgba(5, 12, 22, 0.24), 0 0 30px rgba(255, 213, 137, 0.28);
+    }
+
+    .selfie-camera-card[data-alignment-state="warning"] .selfie-guide::before {
+      border-color: rgba(255, 213, 137, 0.95);
+      filter: drop-shadow(0 0 16px rgba(255, 213, 137, 0.36));
+    }
+
+    .selfie-camera-card[data-alignment-state="warning"] .selfie-guide::after {
+      border-color: rgba(255, 213, 137, 0.34);
+      background: linear-gradient(180deg, transparent 0%, rgba(255, 213, 137, 0.2) 48%, transparent 54%);
+    }
+
+    .selfie-camera-card[data-alignment-state="error"] .selfie-guide {
+      box-shadow: 0 0 0 999px rgba(5, 12, 22, 0.24), 0 0 30px rgba(255, 155, 155, 0.28);
+    }
+
+    .selfie-camera-card[data-alignment-state="error"] .selfie-guide::before {
+      border-color: rgba(255, 155, 155, 0.95);
+      filter: drop-shadow(0 0 16px rgba(255, 155, 155, 0.36));
+    }
+
+    .selfie-camera-card[data-alignment-state="error"] .selfie-guide::after {
+      border-color: rgba(255, 155, 155, 0.34);
+      background: linear-gradient(180deg, transparent 0%, rgba(255, 155, 155, 0.2) 48%, transparent 54%);
+    }
+
+    .selfie-status-badge {
+      position: absolute;
+      left: var(--space-2);
+      bottom: var(--space-2);
+      z-index: 7;
+      border: 1px solid rgba(132, 205, 255, 0.2);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: #d8efff;
+      background: rgba(8, 18, 32, 0.78);
+      backdrop-filter: blur(14px);
+      font-size: 0.78rem;
+    }
+
+    .selfie-instruction {
+      margin: 0;
+      color: #dff2ff;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      text-align: left;
+      position: absolute;
+      right: var(--space-2);
+      bottom: var(--space-2);
+      z-index: 7;
+      max-width: min(390px, calc(100% - 150px));
+      padding: 8px 12px;
+      border: 1px solid rgba(132, 205, 255, 0.18);
+      border-radius: 999px;
+      background: rgba(8, 18, 32, 0.78);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .live-selfie-actions {
+      justify-content: center;
+    }
+
+    .live-selfie-actions .btn {
+      transition: opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .live-selfie-actions .btn:not([hidden]) {
+      animation: liveSelfieActionsIn 200ms ease both;
+    }
+
+    #captureLiveSelfieBtn.is-ready {
+      color: #03111f;
+      background: linear-gradient(92deg, #77e4aa, #35c9ff);
+      box-shadow: 0 14px 30px rgba(43, 203, 158, 0.22);
+    }
+
+    @keyframes liveSelfieContentIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes liveSelfieCameraIn {
+      from { opacity: 0.82; transform: scale(0.985); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes liveSelfieActionsIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes liveSelfieSuccessPop {
+      0% { transform: scale(0.86); opacity: 0; }
+      70% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes liveSelfieErrorIn {
+      0% { opacity: 0; transform: translateX(-4px); }
+      45% { transform: translateX(4px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes selfieGuidePulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.018); }
+    }
+
+    @keyframes selfieScanLine {
+      0% { background-position: 0 -120%; opacity: 0.52; }
+      50% { opacity: 1; }
+      100% { background-position: 0 120%; opacity: 0.52; }
+    }
+
+    @keyframes selfieBorderSweep {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes selfieStepSweep {
+      to { transform: translateX(100%); }
     }
 
     .inline-form {
@@ -2890,6 +3422,14 @@
 
       .verification-grid {
         grid-template-columns: 1fr;
+      }
+
+      .selfie-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .selfie-camera-card {
+        min-height: 320px;
       }
 
       .data-table__head,
@@ -3894,7 +4434,7 @@
               {% elif not verification.email_verified_at %}
                 Verify your email address
               {% elif not verification.identity_verified %}
-                Complete identity verification
+                Complete live selfie verification
               {% elif analytics.has_missing_profile_uploads %}
                 Upload profile assets
               {% elif analytics.profile_completion < 100 %}
@@ -3911,7 +4451,7 @@
               {% elif not verification.email_verified_at %}
                 Email verification helps interview updates reach you.
               {% elif not verification.identity_verified %}
-                Identity verification completes your account trust checks.
+                Match your live selfie with your profile photo to confirm account ownership.
               {% elif analytics.has_missing_profile_uploads %}
                 Upload your {{ analytics.missing_profile_uploads|join:" and " }} to complete your profile.
               {% elif analytics.profile_completion < 100 %}
@@ -3931,7 +4471,7 @@
               {% elif not verification.email_verified_at %}
                 <button class="card-link" type="button" data-open-verification="email"><i class="ph ph-envelope-simple" aria-hidden="true"></i>Verify Email</button>
               {% elif not verification.identity_verified %}
-                <button class="card-link" type="button" data-open-verification="identity"><i class="ph ph-identification-card" aria-hidden="true"></i>Verify Identity</button>
+                <button class="card-link" type="button" data-open-verification="identity"><i class="ph ph-camera" aria-hidden="true"></i>Verify Identity</button>
               {% elif analytics.has_missing_profile_uploads %}
                 <button class="card-link" type="button" data-open-update-profile><i class="ph ph-upload-simple" aria-hidden="true"></i>Upload Now</button>
               {% else %}
@@ -4032,13 +4572,20 @@
                   </span>
                 </button>
 
-                <button class="verification-item" type="button" data-open-verification="identity">
+                <button class="verification-item" type="button" data-open-verification="identity" aria-describedby="identityChecklistDescription">
                   <span class="verification-item__head">
-                    <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-identification-card"></i></span>
-                    <span class="verification-item__label">Identity</span>
+                    <span class="verification-item__icon" aria-hidden="true"><i class="ph ph-camera"></i></span>
+                    <span class="verification-item__label">Live Selfie Verification</span>
+                  </span>
+                  <span class="verification-item__description" id="identityChecklistDescription">
+                    {% if verification.identity_verified %}
+                      Live selfie matched with profile photo
+                    {% else %}
+                      Match your live selfie with your profile photo to confirm account ownership.
+                    {% endif %}
                   </span>
                   <span class="check-badge {% if verification.identity_verified %}check-badge--done{% else %}check-badge--todo{% endif %}" id="identityChecklistBadge">
-                    {% if verification.identity_verified %}Done{% else %}Verify{% endif %}
+                    {% if verification.identity_verified %}Verified{% else %}Verify{% endif %}
                   </span>
                 </button>
               </div>
@@ -4202,7 +4749,7 @@
             </article>
             <article class="action-card">
               <strong class="title-with-icon"><i class="ph ph-shield-check" aria-hidden="true"></i>Verify Account</strong>
-              <p>Complete phone, email, or identity checks from one trusted flow.</p>
+              <p>Complete phone, email, and live selfie checks from one trusted flow.</p>
               <div class="card-actions">
                 <button class="card-link" type="button" data-open-verification="phone">Phone</button>
                 <button class="card-link" type="button" data-open-verification="email">Email</button>
@@ -4309,6 +4856,14 @@
                         <span class="chip">Applied</span>
                       {% endif %}
                     </div>
+                    {% if posting.matched_requirements_preview %}
+                      <div class="match-explain-preview">
+                        <span class="match-explain-preview__label">Why this match:</span>
+                        {% for requirement in posting.matched_requirements_preview %}
+                          <span class="chip">{{ requirement }}</span>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
                   </div>
 
                   <div class="posting-side">
@@ -4753,68 +5308,71 @@
   </div>
 
   <div class="modal-overlay" id="identityVerificationModal" data-modal-overlay>
-    <div class="profile-modal" style="max-width: 720px;" role="dialog" aria-modal="true" aria-labelledby="identityVerificationTitle">
+    <div class="profile-modal live-selfie-modal" role="dialog" aria-modal="true" aria-labelledby="identityVerificationTitle">
       <button class="modal-close" type="button" data-close-modal="identityVerificationModal" aria-label="Close identity verification modal">&times;</button>
-      <h2 id="identityVerificationTitle" class="title-with-icon" style="font-size:1.32rem; margin:0;"><i class="ph ph-identification-card" aria-hidden="true"></i>Aadhaar Verification</h2>
-      <p class="subtle" style="margin:0;">Choose the verification path that matches your Aadhaar access. Uploaded files are used only for your verification workflow.</p>
+	      <div class="live-selfie-shell" data-has-profile-photo="{% if verification.has_profile_photo %}true{% else %}false{% endif %}" data-profile-photo-url="{{ candidate.profile_picture_url|default:'' }}">
+        <div class="live-selfie-copy">
+          <span class="section-kicker">Account Trust</span>
+          <h2 id="identityVerificationTitle" class="title-with-icon"><i class="ph ph-camera" aria-hidden="true"></i>Live Selfie Identity Verification</h2>
+	          <p class="subtle">First we check that one live face is present, then we match it with your profile photo.</p>
+        </div>
 
-      <div class="verification-choices">
-        <button class="choice-btn is-active" type="button" data-identity-mode="xml">
-          <strong class="title-with-icon"><i class="ph ph-device-mobile-camera" aria-hidden="true"></i>Yes, mobile is linked</strong>
-          <span>Upload the extracted offline Aadhaar XML for the fastest verification path.</span>
-        </button>
-        <button class="choice-btn" type="button" data-identity-mode="documents">
-          <strong class="title-with-icon"><i class="ph ph-file-text" aria-hidden="true"></i>No, mobile is not linked</strong>
-          <span>Upload an Aadhaar PDF or both front and back images for document-based matching.</span>
-        </button>
-      </div>
+        <div class="selfie-steps" aria-label="Verification steps">
+          <span class="selfie-step is-active" data-selfie-step="permission">Permission</span>
+          <span class="selfie-step" data-selfie-step="align">Align</span>
+          <span class="selfie-step" data-selfie-step="capture">Capture</span>
+          <span class="selfie-step" data-selfie-step="verify">Verify</span>
+        </div>
 
-      <div class="verification-panel is-open" id="identityXmlPanel">
-        <p class="verification-note">Offline XML flow</p>
-        <ol class="verification-list">
-          <li>Download your Offline e-Aadhaar ZIP from the official myAadhaar portal: <a href="https://myaadhaar.uidai.gov.in/offline-ekyc" target="_blank" rel="noopener noreferrer" style="color:#8fdfff;">https://myaadhaar.uidai.gov.in/offline-ekyc</a></li>
-          <li>Extract the ZIP locally and select the XML file from the extracted folder.</li>
-          <li>Upload the XML here to match your Aadhaar name and gender with your profile.</li>
-        </ol>
-        <div class="input-with-icon input-with-icon--file">
-          <i class="ph ph-file-code" aria-hidden="true"></i>
-          <input class="portal-input portal-input--file" type="file" id="aadhaarXmlInput" accept=".xml,text/xml,application/xml">
+        <div class="profile-photo-required" id="profilePhotoRequiredPanel" {% if verification.has_profile_photo %}hidden{% endif %}>
+          <i class="ph ph-user-circle-plus" aria-hidden="true"></i>
+          <strong>Upload a profile photo first</strong>
+          <p>Please upload a profile photo before starting live selfie verification.</p>
+          <button class="btn btn-primary" type="button" data-open-update-profile><i class="ph ph-upload-simple" aria-hidden="true"></i>Upload Profile Photo</button>
         </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" type="button" id="submitAadhaarXmlBtn"><i class="ph ph-file-code" aria-hidden="true"></i>Verify with XML</button>
-        </div>
-      </div>
 
-      <div class="verification-panel" id="identityDocumentPanel">
-        <p class="verification-note">Document upload flow</p>
-        <ol class="verification-list">
-          <li>Upload either one Aadhaar PDF file.</li>
-          <li>Or upload both the front and back Aadhaar images together.</li>
-          <li>We will extract the details and compare them with your current profile.</li>
-        </ol>
-        <div class="input-with-icon input-with-icon--file">
-          <i class="ph ph-file-pdf" aria-hidden="true"></i>
-          <input class="portal-input portal-input--file" type="file" id="aadhaarPdfInput" accept=".pdf,application/pdf">
-        </div>
-        <div class="input-with-icon input-with-icon--file">
-          <i class="ph ph-image" aria-hidden="true"></i>
-          <input class="portal-input portal-input--file" type="file" id="aadhaarFrontInput" accept="image/png,image/jpeg,image/jpg,image/webp">
-        </div>
-        <div class="input-with-icon input-with-icon--file">
-          <i class="ph ph-image" aria-hidden="true"></i>
-          <input class="portal-input portal-input--file" type="file" id="aadhaarBackInput" accept="image/png,image/jpeg,image/jpg,image/webp">
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" type="button" id="submitAadhaarDocsBtn"><i class="ph ph-files" aria-hidden="true"></i>Verify with Documents</button>
-        </div>
-      </div>
+        <div class="live-selfie-stage" id="liveSelfieStage" {% if not verification.has_profile_photo %}hidden{% endif %}>
+          <div class="selfie-camera-card" data-alignment-state="waiting">
+            <video id="liveSelfieVideo" playsinline muted aria-label="Live camera preview"></video>
+            <canvas id="liveSelfieCanvas" hidden></canvas>
+            <div class="selfie-camera-badge selfie-camera-badge--left"><i class="ph ph-video-camera" aria-hidden="true"></i>Live camera</div>
+            <div class="selfie-camera-badge selfie-camera-badge--right"><i class="ph ph-shield-check" aria-hidden="true"></i>Face Mesh</div>
+            <div class="selfie-camera-placeholder" id="liveSelfiePlaceholder">
+              <i class="ph ph-camera" aria-hidden="true"></i>
+              <strong>Ready for live selfie check</strong>
+              <span>We'll ask for camera access only after you start.</span>
+            </div>
+            <div class="selfie-guide" id="liveSelfieGuide" aria-hidden="true"></div>
+            <div class="selfie-status-badge" id="liveSelfieStatusBadge">Waiting</div>
+            <p class="selfie-instruction" id="liveSelfieInstruction" aria-live="polite">Place your face inside the frame</p>
+          </div>
 
-      <div class="inline-message" id="identityVerificationMessage">
-        {% if verification.identity_verified and verification.identity_processed_at %}
-          Verified on {{ verification.identity_processed_at|date:"M d, Y h:i A" }}
-        {% elif verification.identity_error %}
-          {{ verification.identity_error }}
-        {% endif %}
+          <div class="btn-row live-selfie-actions">
+            <button class="btn btn-primary" type="button" id="startLiveSelfieBtn"><i class="ph ph-video-camera" aria-hidden="true"></i>Start Verification</button>
+            <button class="btn btn-ghost" type="button" id="captureLiveSelfieBtn" disabled hidden><i class="ph ph-camera" aria-hidden="true"></i>Capture Live Photo</button>
+            <button class="btn btn-ghost" type="button" id="retryLiveSelfieBtn" hidden><i class="ph ph-arrows-clockwise" aria-hidden="true"></i>Retry</button>
+          </div>
+        </div>
+
+        <div class="live-selfie-result" id="liveSelfieResult" hidden>
+          <i class="ph ph-check-circle" aria-hidden="true"></i>
+          <strong>Identity verification successful</strong>
+	          <p>Your live selfie matched your profile photo.</p>
+        </div>
+
+        <div class="live-selfie-error" id="liveSelfieError" hidden>
+          <i class="ph ph-warning-circle" aria-hidden="true"></i>
+          <strong id="liveSelfieErrorTitle">Verification unavailable</strong>
+          <p id="liveSelfieErrorText">Identity verification is temporarily unavailable. Please try again later.</p>
+        </div>
+
+        <div class="inline-message" id="identityVerificationMessage" aria-live="polite">
+          {% if verification.identity_verified and verification.identity_processed_at %}
+            Verified on {{ verification.identity_processed_at|date:"M d, Y h:i A" }}
+          {% elif verification.identity_error %}
+            {{ verification.identity_error }}
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
@@ -4911,6 +5469,41 @@
             <p>No detailed role description is available for this posting yet.</p>
           {% endif %}
         </section>
+
+        {% if posting.has_match_explanation %}
+          <section class="resume-section">
+            <h4 class="title-with-icon"><i class="ph ph-sparkle" aria-hidden="true"></i>AI Match Explanation</h4>
+            <div class="pill-row u-mb-1">
+              {% if posting.match_score %}<span class="status-pill">Match score {{ posting.match_score }}%</span>{% endif %}
+              {% if posting.match_confidence %}<span class="status-pill">Confidence {{ posting.match_confidence|title }}</span>{% endif %}
+            </div>
+            {% if posting.match_reason %}
+              <p>{{ posting.match_reason }}</p>
+            {% endif %}
+            <div class="match-detail-grid">
+              {% if posting.matched_requirements_display %}
+                <div class="match-detail-block">
+                  <strong>Matched requirements</strong>
+                  <div class="chip-list">
+                    {% for requirement in posting.matched_requirements_display %}
+                      <span class="chip">{{ requirement }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+              {% if posting.missing_requirements_display %}
+                <div class="match-detail-block">
+                  <strong>Possible gaps</strong>
+                  <div class="chip-list">
+                    {% for requirement in posting.missing_requirements_display %}
+                      <span class="chip">{{ requirement }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          </section>
+        {% endif %}
 
         <div class="btn-row">
           <button class="btn btn-primary" type="button" data-apply-vacancy="{{ posting.id }}" {% if posting.has_applied %}style="display:none;"{% endif %}><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>Apply</button>
@@ -5560,22 +6153,13 @@
         }
 
         if (id === 'identityVerificationModal') {
-          restoreButton(document.getElementById('submitAadhaarXmlBtn'));
-          restoreButton(document.getElementById('submitAadhaarDocsBtn'));
-          restoreInput(document.getElementById('aadhaarXmlInput'));
-          restoreInput(document.getElementById('aadhaarPdfInput'));
-          restoreInput(document.getElementById('aadhaarFrontInput'));
-          restoreInput(document.getElementById('aadhaarBackInput'));
+          restoreButton(document.getElementById('startLiveSelfieBtn'));
+          restoreButton(document.getElementById('captureLiveSelfieBtn'));
+          restoreButton(document.getElementById('retryLiveSelfieBtn'));
           restoreMessage(document.getElementById('identityVerificationMessage'));
-
-          document.querySelectorAll('[data-identity-mode]').forEach(function (button) {
-            button.classList.toggle('is-active', button.getAttribute('data-identity-mode') === 'xml');
-          });
-
-          const xmlPanel = document.getElementById('identityXmlPanel');
-          const documentPanel = document.getElementById('identityDocumentPanel');
-          if (xmlPanel) xmlPanel.classList.add('is-open');
-          if (documentPanel) documentPanel.classList.remove('is-open');
+          if (typeof window.resetLiveSelfieVerification === 'function') {
+            window.resetLiveSelfieVerification();
+          }
         }
       }
 
@@ -5585,14 +6169,11 @@
         document.getElementById('verifyPhoneOtpBtn'),
         document.getElementById('requestEmailOtpBtn'),
         document.getElementById('verifyEmailOtpBtn'),
-        document.getElementById('submitAadhaarXmlBtn'),
-        document.getElementById('submitAadhaarDocsBtn'),
+        document.getElementById('startLiveSelfieBtn'),
+        document.getElementById('captureLiveSelfieBtn'),
+        document.getElementById('retryLiveSelfieBtn'),
         document.getElementById('phoneOtpInput'),
         document.getElementById('emailOtpInput'),
-        document.getElementById('aadhaarXmlInput'),
-        document.getElementById('aadhaarPdfInput'),
-        document.getElementById('aadhaarFrontInput'),
-        document.getElementById('aadhaarBackInput'),
         document.getElementById('shareResumeMessage'),
         document.getElementById('phoneOtpMessage'),
         document.getElementById('emailOtpMessage'),
@@ -5618,16 +6199,33 @@
       window.openCandidateDashboardModal = openModal;
       window.updateCandidateDashboardModalMessageState = updateMessageResetState;
 
-      function closeModal(id) {
+      function closeModal(id, options) {
+        const settings = options || {};
         const modal = document.getElementById(id);
         if (!modal) return;
+        if (id === 'identityVerificationModal' && typeof window.stopLiveSelfieCamera === 'function') {
+          window.stopLiveSelfieCamera();
+        }
         modal.classList.remove('is-open');
         resetDashboardModalState(id);
         if (activeModal === modal) activeModal = null;
-        document.body.style.overflow = '';
-        if (lastFocused && typeof lastFocused.focus === 'function') {
+        if (!settings.keepBodyLocked) {
+          document.body.style.overflow = '';
+        }
+        if (settings.restoreFocus !== false && lastFocused && typeof lastFocused.focus === 'function') {
           lastFocused.focus();
         }
+      }
+
+      function switchModal(id, trigger) {
+        const restoreTarget = lastFocused || trigger || document.activeElement;
+        if (activeModal && activeModal.id !== id) {
+          closeModal(activeModal.id, {
+            keepBodyLocked: true,
+            restoreFocus: false,
+          });
+        }
+        openModal(id, restoreTarget);
       }
 
       document.querySelectorAll('[data-open-profile]').forEach(function (button) {
@@ -5638,7 +6236,7 @@
 
       document.querySelectorAll('[data-open-update-profile]').forEach(function (button) {
         button.addEventListener('click', function () {
-          openModal('updateProfileModal', button);
+          switchModal('updateProfileModal', button);
         });
       });
 
@@ -5804,7 +6402,7 @@
 
       function setChecklistBadge(element, verified) {
         if (!element) return;
-        element.textContent = verified ? 'Done' : 'Verify';
+        element.textContent = verified && element.id === 'identityChecklistBadge' ? 'Verified' : (verified ? 'Done' : 'Verify');
         element.classList.toggle('check-badge--done', verified);
         element.classList.toggle('check-badge--todo', !verified);
       }
@@ -6013,104 +6611,633 @@
         });
       }
 
-      const identityXmlBtn = document.getElementById('submitAadhaarXmlBtn');
-      const identityDocsBtn = document.getElementById('submitAadhaarDocsBtn');
       const identityMessage = document.getElementById('identityVerificationMessage');
       const identityBadge = document.getElementById('identityChecklistBadge');
-      const xmlInput = document.getElementById('aadhaarXmlInput');
-      const pdfInput = document.getElementById('aadhaarPdfInput');
-      const frontInput = document.getElementById('aadhaarFrontInput');
-      const backInput = document.getElementById('aadhaarBackInput');
-      const choiceButtons = document.querySelectorAll('[data-identity-mode]');
-      const xmlPanel = document.getElementById('identityXmlPanel');
-      const documentPanel = document.getElementById('identityDocumentPanel');
+      const liveSelfieShell = document.querySelector('.live-selfie-shell');
+      const profilePhotoRequiredPanel = document.getElementById('profilePhotoRequiredPanel');
+      const liveSelfieStage = document.getElementById('liveSelfieStage');
+      const startLiveSelfieBtn = document.getElementById('startLiveSelfieBtn');
+      const captureLiveSelfieBtn = document.getElementById('captureLiveSelfieBtn');
+      const retryLiveSelfieBtn = document.getElementById('retryLiveSelfieBtn');
+      const liveSelfieVideo = document.getElementById('liveSelfieVideo');
+      const liveSelfieCanvas = document.getElementById('liveSelfieCanvas');
+      const liveSelfiePlaceholder = document.getElementById('liveSelfiePlaceholder');
+      const liveSelfieCard = document.querySelector('.selfie-camera-card');
+      const liveSelfieStatusBadge = document.getElementById('liveSelfieStatusBadge');
+      const liveSelfieInstruction = document.getElementById('liveSelfieInstruction');
+      const liveSelfieResult = document.getElementById('liveSelfieResult');
+      const liveSelfieError = document.getElementById('liveSelfieError');
+	      const liveSelfieErrorTitle = document.getElementById('liveSelfieErrorTitle');
+	      const liveSelfieErrorText = document.getElementById('liveSelfieErrorText');
+	      const liveSelfieSteps = document.querySelector('.selfie-steps');
+	      const FACEMESH_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+	      const FACEMESH_ASSET_ROOT = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/';
+	      const LIVE_SELFIE_STABLE_MS = 600;
+	      const LIVE_SELFIE_MATCH_LANDMARKS = [
+	        { index: 33, mirrorIndex: 263, weight: 1.15 }, { index: 133, mirrorIndex: 362, weight: 1.15 },
+	        { index: 362, mirrorIndex: 133, weight: 1.15 }, { index: 263, mirrorIndex: 33, weight: 1.15 },
+	        { index: 159, mirrorIndex: 386, weight: 0.85 }, { index: 145, mirrorIndex: 374, weight: 0.85 },
+	        { index: 386, mirrorIndex: 159, weight: 0.85 }, { index: 374, mirrorIndex: 145, weight: 0.85 },
+	        { index: 168, mirrorIndex: 168, weight: 1.1 }, { index: 6, mirrorIndex: 6, weight: 1.1 },
+	        { index: 197, mirrorIndex: 197, weight: 0.9 }, { index: 1, mirrorIndex: 1, weight: 1.0 },
+	        { index: 4, mirrorIndex: 4, weight: 0.9 }, { index: 5, mirrorIndex: 5, weight: 0.8 },
+	        { index: 61, mirrorIndex: 291, weight: 1.0 }, { index: 291, mirrorIndex: 61, weight: 1.0 },
+	        { index: 13, mirrorIndex: 13, weight: 0.8 }, { index: 14, mirrorIndex: 14, weight: 0.8 },
+	        { index: 0, mirrorIndex: 0, weight: 0.65 }, { index: 17, mirrorIndex: 17, weight: 0.65 },
+	        { index: 152, mirrorIndex: 152, weight: 0.8 }, { index: 234, mirrorIndex: 454, weight: 0.55 },
+	        { index: 454, mirrorIndex: 234, weight: 0.55 }, { index: 172, mirrorIndex: 397, weight: 0.45 },
+	        { index: 397, mirrorIndex: 172, weight: 0.45 }, { index: 70, mirrorIndex: 300, weight: 0.45 },
+	        { index: 300, mirrorIndex: 70, weight: 0.45 }, { index: 105, mirrorIndex: 334, weight: 0.45 },
+	        { index: 334, mirrorIndex: 105, weight: 0.45 },
+	      ];
+	      let liveSelfieStream = null;
+	      let faceMesh = null;
+	      let faceMeshScriptPromise = null;
+	      let faceMeshResolve = null;
+	      let alignmentFrameId = null;
+	      let faceMeshDetecting = false;
+	      let stableAlignedAt = 0;
+	      let isAligned = false;
+	      let currentLiveSignature = null;
+	      let stableLiveSignature = null;
+	      let recentLiveSignatures = [];
 
-      function switchIdentityMode(mode) {
-        choiceButtons.forEach(function (button) {
-          button.classList.toggle('is-active', button.getAttribute('data-identity-mode') === mode);
-        });
-        if (xmlPanel) xmlPanel.classList.toggle('is-open', mode === 'xml');
-        if (documentPanel) documentPanel.classList.toggle('is-open', mode === 'documents');
-        setMessage(identityMessage, '', '');
-      }
-
-      choiceButtons.forEach(function (button) {
-        button.addEventListener('click', function () {
-          switchIdentityMode(button.getAttribute('data-identity-mode'));
-        });
-      });
-
-      if (identityXmlBtn) {
-        identityXmlBtn.addEventListener('click', async function () {
-          const xmlFile = xmlInput && xmlInput.files ? xmlInput.files[0] : null;
-          if (!xmlFile) {
-            setMessage(identityMessage, 'Upload the extracted Aadhaar XML file first.', 'error');
-            return;
-          }
-          const formData = new FormData();
-          formData.append('mode', 'offline_xml');
-          formData.append('xml_file', xmlFile);
-          identityXmlBtn.disabled = true;
-          setMessage(identityMessage, 'Verifying Aadhaar XML...', '');
-          try {
-            const data = await postForm('{% url "candidate-submit-identity-verification" %}', formData);
-            if (data.Success) {
-              setMessage(identityMessage, 'Aadhaar verification completed successfully.', 'success');
-              setChecklistBadge(identityBadge, true);
-              if (window.dashboardToast) window.dashboardToast('Identity verified', 'Aadhaar verification completed successfully.', 'success');
-            } else {
-              const msg = data.Error || 'Unable to verify Aadhaar XML.';
-              setMessage(identityMessage, msg, 'error');
-              if (window.dashboardToast) window.dashboardToast('Identity verification failed', msg, 'error');
-            }
-          } catch (error) {
-            setMessage(identityMessage, 'Unable to verify Aadhaar XML right now.', 'error');
-            if (window.dashboardToast) window.dashboardToast('Identity verification failed', 'Unable to verify Aadhaar XML right now.', 'error');
-          } finally {
-            identityXmlBtn.disabled = false;
-          }
-        });
-      }
-
-      if (identityDocsBtn) {
-        identityDocsBtn.addEventListener('click', async function () {
-          const pdfFile = pdfInput && pdfInput.files ? pdfInput.files[0] : null;
-          const frontFile = frontInput && frontInput.files ? frontInput.files[0] : null;
-          const backFile = backInput && backInput.files ? backInput.files[0] : null;
-
-          if (!pdfFile && !(frontFile && backFile)) {
-            setMessage(identityMessage, 'Upload an Aadhaar PDF or both front and back images.', 'error');
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append('mode', 'document_upload');
-          if (pdfFile) formData.append('aadhaar_pdf', pdfFile);
-          if (frontFile) formData.append('front_image', frontFile);
-          if (backFile) formData.append('back_image', backFile);
-
-          identityDocsBtn.disabled = true;
-          setMessage(identityMessage, 'Verifying Aadhaar documents...', '');
-
-          try {
-            const data = await postForm('{% url "candidate-submit-identity-verification" %}', formData);
-            if (data.Success) {
-              setMessage(identityMessage, 'Aadhaar verification completed successfully.', 'success');
-              setChecklistBadge(identityBadge, true);
-              if (window.dashboardToast) window.dashboardToast('Identity verified', 'Aadhaar verification completed successfully.', 'success');
-            } else {
-              const msg = data.Error || 'Unable to verify Aadhaar documents.';
-              setMessage(identityMessage, msg, 'error');
-              if (window.dashboardToast) window.dashboardToast('Identity verification failed', msg, 'error');
-            }
-          } catch (error) {
-            setMessage(identityMessage, 'Unable to verify Aadhaar documents right now.', 'error');
-            if (window.dashboardToast) window.dashboardToast('Identity verification failed', 'Unable to verify Aadhaar documents right now.', 'error');
-          } finally {
-            identityDocsBtn.disabled = false;
+      function setLiveSelfieStep(activeStep, options) {
+        const settings = options || {};
+        document.querySelectorAll('[data-selfie-step]').forEach(function (step) {
+          const value = step.getAttribute('data-selfie-step');
+          const order = ['permission', 'align', 'capture', 'verify'];
+          const isActive = !settings.completeAll && value === activeStep;
+          const isComplete = settings.completeAll || order.indexOf(value) < order.indexOf(activeStep);
+          step.classList.toggle('is-active', isActive);
+          step.classList.toggle('is-complete', isComplete);
+          if (isActive) {
+            step.setAttribute('aria-current', 'step');
+          } else {
+            step.removeAttribute('aria-current');
           }
         });
       }
+
+      function setLiveSelfieState(state, label, instruction) {
+        if (liveSelfieCard) liveSelfieCard.setAttribute('data-alignment-state', state);
+        if (liveSelfieStatusBadge) liveSelfieStatusBadge.textContent = label;
+        if (liveSelfieInstruction) liveSelfieInstruction.textContent = instruction;
+      }
+
+      function setLiveSelfieVisualMode(mode) {
+        if (liveSelfieStage) {
+          liveSelfieStage.classList.remove('live-selfie-stage--camera-active', 'live-selfie-stage--ready', 'live-selfie-stage--verifying');
+        }
+        if (liveSelfieCard) {
+          liveSelfieCard.classList.remove('is-camera-active', 'is-ready', 'is-verifying');
+        }
+
+        if (mode === 'camera' || mode === 'ready' || mode === 'verifying') {
+          if (liveSelfieStage) liveSelfieStage.classList.add('live-selfie-stage--camera-active');
+          if (liveSelfieCard) liveSelfieCard.classList.add('is-camera-active');
+        }
+        if (mode === 'ready') {
+          if (liveSelfieStage) liveSelfieStage.classList.add('live-selfie-stage--ready');
+          if (liveSelfieCard) liveSelfieCard.classList.add('is-ready');
+        }
+        if (mode === 'verifying') {
+          if (liveSelfieStage) liveSelfieStage.classList.add('live-selfie-stage--verifying');
+          if (liveSelfieCard) liveSelfieCard.classList.add('is-verifying');
+        }
+      }
+
+      function updateCaptureEnabled(enabled) {
+        isAligned = enabled;
+        if (captureLiveSelfieBtn) {
+          captureLiveSelfieBtn.disabled = !enabled;
+          captureLiveSelfieBtn.classList.toggle('is-ready', enabled);
+        }
+        if (liveSelfieStage) liveSelfieStage.classList.toggle('live-selfie-stage--ready', enabled);
+        if (liveSelfieCard) liveSelfieCard.classList.toggle('is-ready', enabled);
+      }
+
+      function setLiveSelfieButtons(settings) {
+        const state = settings || {};
+        if (startLiveSelfieBtn) {
+          startLiveSelfieBtn.hidden = !state.showStart;
+          startLiveSelfieBtn.disabled = !!state.disableStart;
+        }
+        if (captureLiveSelfieBtn) {
+          captureLiveSelfieBtn.hidden = !state.showCapture;
+        }
+        if (retryLiveSelfieBtn) {
+          retryLiveSelfieBtn.hidden = !state.showRetry;
+        }
+        updateCaptureEnabled(!!state.captureEnabled);
+      }
+
+      function setPanelHidden(element, hidden) {
+        if (!element) return;
+        element.hidden = hidden;
+      }
+
+      function hasProfilePhotoForSelfie() {
+        return !!liveSelfieShell && liveSelfieShell.dataset.hasProfilePhoto === 'true';
+      }
+
+      function setLiveSelfieError(title, message, options) {
+        const settings = options || {};
+        stopLiveSelfieCamera();
+        setPanelHidden(liveSelfieResult, true);
+        setPanelHidden(profilePhotoRequiredPanel, true);
+        setPanelHidden(liveSelfieError, false);
+        if (liveSelfieErrorTitle) liveSelfieErrorTitle.textContent = title || 'Verification unavailable';
+        if (liveSelfieErrorText) liveSelfieErrorText.textContent = message || 'Unable to complete live selfie verification right now.';
+        if (liveSelfieStage) liveSelfieStage.hidden = !!settings.hideCamera;
+        if (liveSelfieSteps) liveSelfieSteps.hidden = !!settings.hideSteps;
+        setLiveSelfieButtons({
+          showStart: !settings.hideStart,
+          showCapture: !settings.hideCapture,
+          showRetry: !!settings.allowRetry,
+          captureEnabled: false,
+        });
+        setLiveSelfieVisualMode(settings.hideCamera ? 'idle' : 'camera');
+        setLiveSelfieState(settings.state || 'error', settings.badge || 'Action needed', message || 'Unable to complete verification.');
+        setMessage(identityMessage, message || 'Unable to complete live selfie verification right now.', 'error');
+      }
+
+      function setProfilePhotoRequiredState() {
+        stopLiveSelfieCamera();
+        setPanelHidden(profilePhotoRequiredPanel, false);
+        setPanelHidden(liveSelfieStage, true);
+        setPanelHidden(liveSelfieResult, true);
+        setPanelHidden(liveSelfieError, true);
+        if (liveSelfieSteps) liveSelfieSteps.hidden = true;
+        setLiveSelfieButtons({ showStart: false, showCapture: false, showRetry: false, captureEnabled: false });
+        setLiveSelfieVisualMode('idle');
+        setMessage(identityMessage, 'Please upload a profile photo before starting live selfie verification.', 'error');
+      }
+
+      function isVerifiedSelfieResponse(data) {
+        const status = data && (data.status || (data.data && data.data.status));
+        const verified = data && (data.verified === true || (data.data && data.data.verified === true));
+        return !!data && data.success === true && data.code === 'face_matched' && (verified || status === 'face_matched');
+      }
+
+      function handleLiveSelfieErrorResponse(data) {
+        const code = data && data.code ? data.code : 'unknown_error';
+        if (code === 'profile_photo_required') {
+          setProfilePhotoRequiredState();
+          return;
+        }
+        if (code === 'face_matching_unavailable') {
+          setLiveSelfieError(
+            'Verification unavailable',
+            'Identity verification is temporarily unavailable. Please try again later.',
+            { hideCamera: true, hideStart: true, hideCapture: true, hideSteps: false, allowRetry: false, badge: 'Unavailable' }
+          );
+          return;
+        }
+        if (['face_mismatch', 'selfie_face_not_detected', 'profile_face_not_detected', 'multiple_faces_detected'].includes(code)) {
+          setPanelHidden(liveSelfieResult, true);
+          setPanelHidden(liveSelfieError, true);
+          setLiveSelfieState('warning', 'Try again', 'Face the camera directly with similar lighting');
+          setMessage(identityMessage, (data && data.message) || 'We could not confidently match your selfie with your profile photo.', 'error');
+          setLiveSelfieButtons({ showStart: false, showCapture: false, showRetry: true, captureEnabled: false });
+          setLiveSelfieVisualMode(liveSelfieStream ? 'camera' : 'idle');
+          return;
+        }
+        setLiveSelfieError(
+          'Verification failed',
+          (data && data.message) || 'Unable to complete live selfie verification right now.',
+          { hideCamera: false, hideStart: false, hideCapture: true, hideSteps: false, allowRetry: code !== 'rate_limited', badge: 'Failed' }
+        );
+      }
+
+      function stopAlignmentLoop() {
+	        if (alignmentFrameId) {
+	          window.cancelAnimationFrame(alignmentFrameId);
+	          alignmentFrameId = null;
+	        }
+	        faceMeshDetecting = false;
+	        faceMeshResolve = null;
+	      }
+
+      function stopLiveSelfieCamera() {
+	        stopAlignmentLoop();
+	        if (liveSelfieStream) {
+	          liveSelfieStream.getTracks().forEach(function (track) { track.stop(); });
+	          liveSelfieStream = null;
+	        }
+	        if (liveSelfieVideo) {
+	          liveSelfieVideo.srcObject = null;
+	        }
+	        setLiveSelfieVisualMode('idle');
+	      }
+
+	      function resetLiveSelfieVerification() {
+	        stopLiveSelfieCamera();
+	        stableAlignedAt = 0;
+	        currentLiveSignature = null;
+	        stableLiveSignature = null;
+	        recentLiveSignatures = [];
+	        setLiveSelfieButtons({ showStart: true, showCapture: false, showRetry: false, captureEnabled: false });
+	        setLiveSelfieVisualMode('idle');
+	        if (!hasProfilePhotoForSelfie()) {
+	          setLiveSelfieStep('permission');
+	          setProfilePhotoRequiredState();
+	          return;
+	        }
+	        setLiveSelfieStep('permission');
+	        setLiveSelfieState('waiting', 'Waiting', 'Place your face inside the frame');
+	        if (liveSelfiePlaceholder) liveSelfiePlaceholder.hidden = false;
+	        setPanelHidden(profilePhotoRequiredPanel, true);
+	        setPanelHidden(liveSelfieError, true);
+	        setPanelHidden(liveSelfieResult, true);
+	        if (liveSelfieSteps) liveSelfieSteps.hidden = false;
+	        setLiveSelfieButtons({ showStart: true, showCapture: false, showRetry: false, captureEnabled: false });
+	        setPanelHidden(liveSelfieStage, false);
+	      }
+
+	      window.stopLiveSelfieCamera = stopLiveSelfieCamera;
+	      window.resetLiveSelfieVerification = resetLiveSelfieVerification;
+
+	      function loadFaceMeshScript() {
+	        if (window.FaceMesh) return Promise.resolve();
+	        if (faceMeshScriptPromise) return faceMeshScriptPromise;
+	        faceMeshScriptPromise = new Promise(function (resolve, reject) {
+	          const script = document.createElement('script');
+	          script.src = FACEMESH_SCRIPT_URL;
+	          script.async = true;
+	          script.onload = resolve;
+	          script.onerror = reject;
+	          document.head.appendChild(script);
+	        });
+	        return faceMeshScriptPromise;
+	      }
+
+	      async function getFaceMesh() {
+	        await loadFaceMeshScript();
+	        if (!faceMesh) {
+	          faceMesh = new window.FaceMesh({
+	            locateFile: function (file) { return FACEMESH_ASSET_ROOT + file; },
+	          });
+	          faceMesh.setOptions({
+	            maxNumFaces: 2,
+	            refineLandmarks: true,
+	            minDetectionConfidence: 0.62,
+	            minTrackingConfidence: 0.62,
+	          });
+	          faceMesh.onResults(function (results) {
+	            if (faceMeshResolve) {
+	              const resolve = faceMeshResolve;
+	              faceMeshResolve = null;
+	              resolve(results || {});
+	            }
+	          });
+	        }
+	        return faceMesh;
+	      }
+
+	      async function detectFaceMesh(image) {
+	        const mesh = await getFaceMesh();
+	        return new Promise(async function (resolve, reject) {
+	          try {
+	            faceMeshResolve = resolve;
+	            await mesh.send({ image: image });
+	          } catch (error) {
+	            faceMeshResolve = null;
+	            reject(error);
+	          }
+	        });
+	      }
+
+	      function averagePoint(landmarks, indexes) {
+	        const total = indexes.reduce(function (acc, index) {
+	          const point = landmarks[index] || { x: 0, y: 0, z: 0 };
+	          acc.x += point.x || 0;
+	          acc.y += point.y || 0;
+	          acc.z += point.z || 0;
+	          return acc;
+	        }, { x: 0, y: 0, z: 0 });
+	        return { x: total.x / indexes.length, y: total.y / indexes.length, z: total.z / indexes.length };
+	      }
+
+	      function faceAnchors(landmarks) {
+	        const leftEye = averagePoint(landmarks, [33, 133, 159, 145]);
+	        const rightEye = averagePoint(landmarks, [362, 263, 386, 374]);
+	        const eyeMid = {
+	          x: (leftEye.x + rightEye.x) / 2,
+	          y: (leftEye.y + rightEye.y) / 2,
+	          z: (leftEye.z + rightEye.z) / 2,
+	        };
+	        const noseBridge = averagePoint(landmarks, [168, 6, 197]);
+	        const noseTip = averagePoint(landmarks, [1, 4, 5]);
+	        const center = {
+	          x: eyeMid.x * 0.72 + noseBridge.x * 0.28,
+	          y: eyeMid.y * 0.72 + noseBridge.y * 0.28,
+	          z: eyeMid.z * 0.72 + noseBridge.z * 0.28,
+	        };
+	        const dx = rightEye.x - leftEye.x;
+	        const dy = rightEye.y - leftEye.y;
+	        return {
+	          leftEye: leftEye,
+	          rightEye: rightEye,
+	          eyeMid: eyeMid,
+	          noseTip: noseTip,
+	          center: center,
+	          scale: Math.max(Math.hypot(dx, dy), 0.0001),
+	          angle: Math.atan2(dy, dx),
+	        };
+	      }
+
+	      function extractStableFaceSignature(landmarks) {
+	        const anchors = faceAnchors(landmarks);
+	        const cos = Math.cos(-anchors.angle);
+	        const sin = Math.sin(-anchors.angle);
+	        return LIVE_SELFIE_MATCH_LANDMARKS.map(function (spec) {
+	          const point = landmarks[spec.index] || anchors.center;
+	          const relX = (point.x || 0) - anchors.center.x;
+	          const relY = (point.y || 0) - anchors.center.y;
+	          return {
+	            index: spec.index,
+	            mirrorIndex: spec.mirrorIndex,
+	            weight: spec.weight || 1,
+	            x: (relX * cos - relY * sin) / anchors.scale,
+	            y: (relX * sin + relY * cos) / anchors.scale,
+	            z: ((point.z || 0) - anchors.center.z) / anchors.scale,
+	          };
+	        });
+	      }
+
+	      function averageSignatures(signatures) {
+	        if (!signatures.length) return null;
+	        return signatures[0].map(function (_, index) {
+	          const total = signatures.reduce(function (acc, signature) {
+	            acc.x += signature[index].x;
+	            acc.y += signature[index].y;
+	            acc.z += signature[index].z;
+	            return acc;
+	          }, { x: 0, y: 0, z: 0 });
+	          return {
+	            index: signatures[0][index].index,
+	            mirrorIndex: signatures[0][index].mirrorIndex,
+	            weight: signatures[0][index].weight,
+	            x: total.x / signatures.length,
+	            y: total.y / signatures.length,
+	            z: total.z / signatures.length,
+	          };
+	        });
+	      }
+
+	      function shouldLogLiveSelfieDebug() {
+	        let explicitDebug = false;
+	        try {
+	          explicitDebug = window.localStorage.getItem('debugLiveSelfie') === '1';
+	        } catch (error) {
+	          explicitDebug = false;
+	        }
+	        return ['localhost', '127.0.0.1'].includes(window.location.hostname)
+	          || window.location.hostname.endsWith('.lvh.me')
+	          || window.location.hostname.endsWith('.lvh.com')
+	          || explicitDebug;
+	      }
+
+	      function landmarksToFaceBox(landmarks) {
+	        const xs = landmarks.map(function (point) { return point.x; });
+	        const ys = landmarks.map(function (point) { return point.y; });
+	        const minX = Math.min.apply(Math, xs);
+	        const maxX = Math.max.apply(Math, xs);
+	        const minY = Math.min.apply(Math, ys);
+	        const maxY = Math.max.apply(Math, ys);
+	        const cardRect = liveSelfieCard.getBoundingClientRect();
+	        return {
+	          x: minX * cardRect.width,
+	          y: minY * cardRect.height,
+	          width: (maxX - minX) * cardRect.width,
+	          height: (maxY - minY) * cardRect.height,
+	        };
+	      }
+
+	      function getGuideRect() {
+	        if (!liveSelfieCard) return null;
+	        const cardRect = liveSelfieCard.getBoundingClientRect();
+	        return {
+	          centerX: cardRect.width / 2,
+	          centerY: cardRect.height / 2,
+	          width: Math.min(cardRect.width * 0.48, 230),
+	          height: Math.min(cardRect.height * 0.68, 315),
+	        };
+	      }
+
+	      function evaluateFaceBox(faceBox) {
+	        const guide = getGuideRect();
+	        if (!guide || !faceBox) return { aligned: false, message: 'Place your face inside the frame', state: 'waiting' };
+	        const faceCenterX = faceBox.x + faceBox.width / 2;
+	        const faceCenterY = faceBox.y + faceBox.height / 2;
+	        const centerToleranceX = guide.width * 0.32;
+	        const centerToleranceY = guide.height * 0.28;
+	        const widthRatio = faceBox.width / guide.width;
+	        const heightRatio = faceBox.height / guide.height;
+	        const centered = Math.abs(faceCenterX - guide.centerX) <= centerToleranceX && Math.abs(faceCenterY - guide.centerY) <= centerToleranceY;
+	        const sizeOk = widthRatio >= 0.48 && widthRatio <= 1.08 && heightRatio >= 0.42 && heightRatio <= 1.12;
+	        if (!centered) return { aligned: false, message: 'Center your face inside the frame', state: 'warning' };
+	        if (!sizeOk) return { aligned: false, message: widthRatio < 0.48 ? 'Move a little closer' : 'Move a little back', state: 'warning' };
+	        return { aligned: true, message: 'Face aligned. Hold steady.', state: 'aligned' };
+	      }
+
+	      function startAlignmentLoop() {
+	        if (!liveSelfieVideo || !liveSelfieCard) return;
+	        stopAlignmentLoop();
+	        async function runFrame() {
+	          if (!liveSelfieStream) return;
+	          if (liveSelfieVideo.readyState >= 2 && !faceMeshDetecting) {
+	            faceMeshDetecting = true;
+	            try {
+	              const results = await detectFaceMesh(liveSelfieVideo);
+	              const faces = results.multiFaceLandmarks || [];
+	              if (faces.length !== 1) {
+	                stableAlignedAt = 0;
+	                recentLiveSignatures = [];
+	                stableLiveSignature = null;
+	                updateCaptureEnabled(false);
+	                setLiveSelfieStep('align');
+	                setLiveSelfieState(faces.length > 1 ? 'error' : 'waiting', faces.length > 1 ? 'One face only' : 'Looking for face', faces.length > 1 ? 'Only one person should be in the frame' : 'Place your face inside the frame');
+	              } else {
+	                currentLiveSignature = extractStableFaceSignature(faces[0]);
+	                const result = evaluateFaceBox(landmarksToFaceBox(faces[0]));
+	                if (result.aligned) {
+	                  if (!stableAlignedAt) stableAlignedAt = Date.now();
+	                  recentLiveSignatures.push(currentLiveSignature);
+	                  recentLiveSignatures = recentLiveSignatures.slice(-5);
+	                  const stable = Date.now() - stableAlignedAt >= LIVE_SELFIE_STABLE_MS;
+	                  stableLiveSignature = stable ? averageSignatures(recentLiveSignatures) : null;
+	                  updateCaptureEnabled(stable);
+	                  setLiveSelfieStep(stable ? 'capture' : 'align');
+	                  setLiveSelfieState(result.state, stable ? 'Aligned' : 'Hold steady', stable ? 'Face aligned. Ready to capture.' : result.message);
+	                } else {
+	                  stableAlignedAt = 0;
+	                  recentLiveSignatures = [];
+	                  stableLiveSignature = null;
+	                  updateCaptureEnabled(false);
+	                  setLiveSelfieStep('align');
+	                  setLiveSelfieState(result.state, 'Adjusting', result.message);
+	                }
+	              }
+	            } catch (error) {
+	              stopAlignmentLoop();
+	              setLiveSelfieError(
+	                'Verification unavailable',
+	                'Identity verification is temporarily unavailable. Please try again later.',
+	                { hideCamera: true, hideStart: false, hideCapture: true, hideSteps: false, allowRetry: false, badge: 'Unavailable' }
+	              );
+	              return;
+	            } finally {
+	              faceMeshDetecting = false;
+	            }
+	          }
+	          alignmentFrameId = window.requestAnimationFrame(runFrame);
+	        }
+	        alignmentFrameId = window.requestAnimationFrame(runFrame);
+	      }
+
+	      async function startLiveSelfieCamera() {
+	        if (!hasProfilePhotoForSelfie()) {
+	          setProfilePhotoRequiredState();
+	          return;
+	        }
+	        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+	          setMessage(identityMessage, 'Camera access is not available in this browser.', 'error');
+	          return;
+	        }
+	        setLiveSelfieStep('permission');
+	        setPanelHidden(liveSelfieError, true);
+	          setMessage(identityMessage, 'Preparing live selfie identity verification...', '');
+	          setLiveSelfieButtons({ showStart: true, showCapture: false, showRetry: false, disableStart: true, captureEnabled: false });
+	        try {
+	          setMessage(identityMessage, 'Requesting camera permission...', '');
+	          liveSelfieStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+	          liveSelfieVideo.srcObject = liveSelfieStream;
+	          await liveSelfieVideo.play();
+	          if (liveSelfiePlaceholder) liveSelfiePlaceholder.hidden = true;
+	          setLiveSelfieVisualMode('camera');
+	          setLiveSelfieButtons({ showStart: false, showCapture: true, showRetry: false, captureEnabled: false });
+	          setLiveSelfieStep('align');
+	          setMessage(identityMessage, '', '');
+	          setLiveSelfieState('waiting', 'Looking for face', 'Place your face inside the frame');
+	          startAlignmentLoop();
+	        } catch (error) {
+	          setLiveSelfieButtons({ showStart: true, showCapture: false, showRetry: false, captureEnabled: false });
+	          const profileError = String(error && error.message);
+	          if (profileError === 'profile_photo_face_required') {
+	            setLiveSelfieError(
+	              'Clear profile photo needed',
+	              'We could not detect a clear face in your profile photo. Please upload a clearer profile photo.',
+	              { hideCamera: true, hideStart: false, hideCapture: true, hideSteps: false, allowRetry: false, badge: 'Profile photo needed' }
+	            );
+	            return;
+	          }
+	          if (profileError === 'profile_photo_reference_unreliable') {
+	            setLiveSelfieError(
+	              'Clear profile photo needed',
+	              'We could not build a reliable profile photo face reference. Please upload a clearer front-facing profile photo.',
+	              { hideCamera: true, hideStart: false, hideCapture: true, hideSteps: false, allowRetry: false, badge: 'Profile photo needed' }
+	            );
+	            return;
+	          }
+	        setLiveSelfieState('error', 'Permission needed', 'Camera permission is required to complete live selfie verification.');
+	        setMessage(identityMessage, 'Camera permission is required to complete live selfie verification.', 'error');
+	      }
+	      }
+
+	      async function captureLiveSelfie() {
+	        if (!liveSelfieVideo || !liveSelfieCanvas || !isAligned || !stableLiveSignature) return;
+	        const width = liveSelfieVideo.videoWidth || 960;
+	        const height = liveSelfieVideo.videoHeight || 720;
+	        liveSelfieCanvas.width = width;
+	        liveSelfieCanvas.height = height;
+	        const context = liveSelfieCanvas.getContext('2d');
+	        context.drawImage(liveSelfieVideo, 0, 0, width, height);
+	        if (shouldLogLiveSelfieDebug()) {
+	          console.debug('live selfie facemesh quality', {
+	            oneFaceDetected: true,
+	            alignmentPassed: true,
+	            stableFace: Boolean(stableLiveSignature),
+	            liveFaceReady: Boolean(stableLiveSignature),
+	          });
+	        }
+	        setLiveSelfieStep('verify');
+	        setMessage(identityMessage, 'Matching your selfie with your profile photo...', '');
+	        setLiveSelfieVisualMode('verifying');
+	        setLiveSelfieButtons({ showStart: false, showCapture: false, showRetry: false, captureEnabled: false });
+	        stopAlignmentLoop();
+	        try {
+	          const blob = await new Promise(function (resolve) {
+	            liveSelfieCanvas.toBlob(resolve, 'image/jpeg', 0.9);
+	          });
+	          if (!blob) throw new Error('capture_failed');
+	          const formData = new FormData();
+	          formData.append('selfie', blob, 'live-selfie.jpg');
+	          formData.append('facemesh_quality_payload', JSON.stringify({
+	            provider: 'facemesh_quality_check',
+	            one_face_detected: true,
+	            selfie_face_count: 1,
+	            alignment_passed: true,
+	            stable_face: true,
+	            liveness_check: 'stable_face',
+	          }));
+	          const data = await postForm('{% url "candidate-live-selfie-verify" %}', formData);
+	          if (isVerifiedSelfieResponse(data)) {
+	            stopLiveSelfieCamera();
+	            setChecklistBadge(identityBadge, true);
+	            setMessage(identityMessage, 'Identity verification successful.', 'success');
+	            setLiveSelfieStep('verify', { completeAll: true });
+	            setLiveSelfieButtons({ showStart: false, showCapture: false, showRetry: false, captureEnabled: false });
+	            setPanelHidden(liveSelfieStage, true);
+	            setPanelHidden(liveSelfieError, true);
+	            setPanelHidden(liveSelfieResult, false);
+	            if (window.dashboardToast) window.dashboardToast('Identity verified', 'Your live selfie matched your profile photo.', 'success');
+	            window.setTimeout(function () { window.location.reload(); }, 1200);
+	          } else {
+	            handleLiveSelfieErrorResponse(data);
+	            if (window.dashboardToast) {
+	              const retryableCodes = ['face_mismatch', 'selfie_face_not_detected', 'profile_face_not_detected', 'multiple_faces_detected'];
+	              const toastMessage = data && retryableCodes.includes(data.code)
+	                ? ((data && data.message) || 'We could not confidently match your selfie with your profile photo.')
+	                : ((data && data.message) || 'Unable to complete live selfie verification.');
+	              window.dashboardToast('Verification failed', toastMessage, 'error');
+	            }
+	          }
+	        } catch (error) {
+	          setLiveSelfieError(
+	            'Verification failed',
+	            'Unable to verify your selfie right now.',
+	            { hideCamera: false, hideStart: false, hideCapture: true, allowRetry: true, badge: 'Upload failed' }
+	          );
+	        }
+	      }
+
+	      if (startLiveSelfieBtn) {
+	        startLiveSelfieBtn.addEventListener('click', startLiveSelfieCamera);
+	      }
+	      if (captureLiveSelfieBtn) {
+	        captureLiveSelfieBtn.addEventListener('click', captureLiveSelfie);
+	      }
+	      if (retryLiveSelfieBtn) {
+	        retryLiveSelfieBtn.addEventListener('click', function () {
+	          setLiveSelfieStep('align');
+	          setMessage(identityMessage, '', '');
+	          recentLiveSignatures = [];
+	          stableLiveSignature = null;
+	          stableAlignedAt = 0;
+	          setLiveSelfieState('waiting', 'Looking for face', 'Place your face inside the frame');
+	          if (liveSelfieStream) {
+	            setLiveSelfieVisualMode('camera');
+	            setLiveSelfieButtons({ showStart: false, showCapture: true, showRetry: false, captureEnabled: false });
+	            startAlignmentLoop();
+	          } else {
+	            setLiveSelfieButtons({ showStart: true, showCapture: false, showRetry: false, captureEnabled: false });
+	            startLiveSelfieCamera();
+	          }
+	        });
+	      }
+	      resetLiveSelfieVerification();
     }());
 
     (function () {

@@ -22,7 +22,7 @@ from collections import Counter, defaultdict
 from datetime import timedelta, datetime, time
 from statistics import median
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
@@ -30,6 +30,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core import signing
 from django.core import serializers
+from django.core.files.base import ContentFile
 from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.views import View
@@ -51,7 +52,7 @@ from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
 from smartInterviewApp.notifications.channels import send_sms, send_template_message
 from smartInterviewApp.notifications.sms_templates import build_sms_message
 from smartInterviewApp.emailing import send_candidate_interview_email, send_candidate_welcome_email
-from smartInterviewApp.identity_verification import CandidateIdentityVerificationService
+from smartInterviewApp.identity_verification import CandidateIdentityVerificationService, CandidateLiveSelfieVerificationService
 from smartInterviewApp.insights import CandidateInsightService, score_candidate_vacancy_match
 from smartInterviewApp.otp.services import request_email_otp, request_otp, verify_email_otp, verify_otp
 from smartInterviewApp.resume_processing import ResumeProcessingService
@@ -67,6 +68,10 @@ SIGNUP_TOKEN_SALT = 'candidate-signup'
 SIGNUP_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 PASSWORD_RESET_SESSION_KEY = 'candidate_password_reset'
 PASSWORD_RESET_MAX_AGE_SECONDS = 60 * 15
+LIVE_SELFIE_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+LIVE_SELFIE_ALLOWED_CONTENT_TYPES = {'image/jpeg', 'image/png'}
+LIVE_SELFIE_QUALITY_PROVIDER = 'facemesh_quality_check'
+LIVE_SELFIE_MATCH_PROVIDER = 'local_face_recognition'
 PDF_RENDERER_PYTHON_CANDIDATES = [
     os.environ.get('PDF_RENDERER_PYTHON', ''),
     '/Users/sayyadlucky/PycharmProjects/smartvideo/.venv/bin/python',
@@ -320,6 +325,17 @@ def candidate_password_reset_rate_limited(request, action: str, identifier: str,
     return False
 
 
+def candidate_live_selfie_rate_limited(request, user_id: int, limit: int = 8, window_seconds: int = 60 * 10) -> bool:
+    ip = (request.META.get('REMOTE_ADDR') or 'unknown').strip()
+    digest = hashlib.sha256(f'live-selfie:{ip}:{user_id}'.encode('utf-8')).hexdigest()
+    key = f'candidate-live-selfie-rate:{digest}'
+    current = cache.get(key, 0)
+    if current >= limit:
+        return True
+    cache.set(key, current + 1, timeout=window_seconds)
+    return False
+
+
 def get_candidate_password_reset_state(request) -> dict | None:
     state = request.session.get(PASSWORD_RESET_SESSION_KEY)
     if not state:
@@ -382,6 +398,27 @@ def clean_job_text(value: str, *, limit: int | None = None) -> str:
 
 def clean_job_description(value: str, *, limit: int | None = None) -> str:
     return clean_job_text(value, limit=limit)
+
+
+def humanize_matched_requirement_label(value: str) -> str:
+    text = clean_job_text(value, limit=90)
+    lowered = text.lower()
+    if lowered.startswith('experience requirement:'):
+        return 'Experience fit'
+    if lowered.startswith('role/title overlap:'):
+        return 'Role/title alignment'
+    return text
+
+
+def humanize_possible_gap_label(value: str) -> str:
+    text = clean_job_text(value, limit=90)
+    lowered = text.lower()
+    if lowered.startswith('experience requirement:'):
+        suffix = text.split(':', 1)[1].strip() if ':' in text else ''
+        return f'Experience requirement: {suffix}' if suffix else 'Experience requirement'
+    if lowered.startswith('role/title overlap:'):
+        return 'Role/title alignment'
+    return text
 
 
 def split_job_description_points(value: str, *, limit: int = 4) -> list[str]:
@@ -633,6 +670,7 @@ def is_identity_verified(record: CandidateIdentityVerification | None) -> bool:
     return record.status in {
         CandidateIdentityVerification.Status.XML_VERIFIED,
         CandidateIdentityVerification.Status.DOCUMENT_MATCHED,
+        CandidateIdentityVerification.Status.FACE_MATCHED,
     }
 
 
@@ -3232,7 +3270,8 @@ def candidatePasswordResetComplete(request):
 def candidateDashboard(request):
     profile = getattr(request.user, 'profile', None)
     if not profile or profile.role != 'candidate':
-        logout(request)
+        if request.user.is_authenticated:
+            return redirect('/dashboard/')
         return redirect('candidate-login')
 
     profile_saved = request.GET.get('updated') == '1'
@@ -3254,6 +3293,7 @@ def candidateDashboard(request):
             new_name = f"{new_first_name} {new_last_name}".strip()
             old_gender = (profile.gender or '').strip().lower()
             new_gender = (form.cleaned_data['gender'] or '').strip().lower()
+            profile_photo_updated = bool(form.cleaned_data.get('profile_picture'))
 
             request.user.first_name = new_first_name
             request.user.last_name = new_last_name
@@ -3264,7 +3304,7 @@ def candidateDashboard(request):
             profile.phone = new_phone
             profile.gender = new_gender
 
-            if form.cleaned_data.get('profile_picture'):
+            if profile_photo_updated:
                 profile.profile_picture = form.cleaned_data['profile_picture']
 
             resume_uploaded = bool(form.cleaned_data.get('resume'))
@@ -3283,12 +3323,37 @@ def candidateDashboard(request):
             if updated_pref_fields:
                 prefs.save(update_fields=updated_pref_fields + ['updated_at'])
 
-            if identity_record and (old_name != new_name or old_gender != new_gender):
+            identity_fields_changed = old_name != new_name or old_gender != new_gender
+            if identity_record and (identity_fields_changed or profile_photo_updated):
+                if identity_record.live_selfie_image:
+                    try:
+                        identity_record.live_selfie_image.delete(save=False)
+                    except Exception:
+                        logger.warning('Unable to delete stale live selfie candidate=%s', request.user.id)
                 identity_record.status = CandidateIdentityVerification.Status.NOT_STARTED
                 identity_record.comparison = {}
+                identity_record.live_selfie_image = None
+                identity_record.face_match_score = None
+                identity_record.face_match_threshold = None
+                identity_record.face_match_payload = {}
                 identity_record.processed_at = None
-                identity_record.error_message = 'Identity verification was reset because profile identity fields changed.'
-                identity_record.save(update_fields=['status', 'comparison', 'processed_at', 'error_message', 'updated_at'])
+                if identity_fields_changed and profile_photo_updated:
+                    identity_record.error_message = 'Identity verification was reset because profile identity fields and profile photo changed.'
+                elif profile_photo_updated:
+                    identity_record.error_message = 'Live selfie verification was reset because profile photo changed.'
+                else:
+                    identity_record.error_message = 'Identity verification was reset because profile identity fields changed.'
+                identity_record.save(update_fields=[
+                    'status',
+                    'comparison',
+                    'live_selfie_image',
+                    'face_match_score',
+                    'face_match_threshold',
+                    'face_match_payload',
+                    'processed_at',
+                    'error_message',
+                    'updated_at',
+                ])
 
             CandidateInsightService().mark_stale(request.user)
 
@@ -4292,7 +4357,7 @@ def build_candidate_dashboard_context(
     profile_checklist = [
         {'key': 'phone', 'label': 'Phone verified', 'done': bool(prefs.phone_verified_at), 'interactive': True},
         {'key': 'email', 'label': 'Email verified', 'done': bool(prefs.email_verified_at), 'interactive': True},
-        {'key': 'identity', 'label': 'Aadhaar verified', 'done': identity_verified, 'interactive': True},
+        {'key': 'identity', 'label': 'Live Selfie Verification', 'done': identity_verified, 'interactive': True},
         {'key': 'photo', 'label': 'Profile photo uploaded', 'done': bool(profile.profile_picture), 'interactive': False},
         {'key': 'resume_uploaded', 'label': 'Resume uploaded', 'done': bool(profile.resume), 'interactive': False},
         {'key': 'resume', 'label': 'Resume processed', 'done': resume_data.get('status') == 'completed', 'interactive': False},
@@ -4424,6 +4489,23 @@ def build_candidate_dashboard_context(
         }
         posting['is_hidden_for_candidate'] = posting['application_status'] == CandidateVacancyApplication.Status.NOT_INTERESTED
         posting['application_label'] = posting['application_status'].replace('_', ' ').title() if posting['application_status'] else 'Apply Now'
+        posting['matched_requirements_display'] = [
+            label
+            for label in (humanize_matched_requirement_label(item) for item in posting['matched_requirements'])
+            if label
+        ]
+        posting['matched_requirements_preview'] = posting['matched_requirements_display'][:3]
+        posting['missing_requirements_display'] = [
+            label
+            for label in (humanize_possible_gap_label(item) for item in posting['missing_requirements'])
+            if label
+        ]
+        posting['has_match_explanation'] = bool(
+            posting['match_score']
+            or posting['matched_requirements_display']
+            or posting['missing_requirements_display']
+            or posting['match_reason']
+        )
 
     ranked_job_postings = [posting for posting in ranked_job_postings if not posting['is_hidden_for_candidate']]
     recommended_job_postings = [posting for posting in ranked_job_postings if posting['is_recommended']]
@@ -4465,6 +4547,9 @@ def build_candidate_dashboard_context(
             'identity_method': identity_record.verification_method if identity_record else '',
             'identity_error': identity_record.error_message if identity_record else '',
             'identity_processed_at': identity_record.processed_at if identity_record else None,
+            'identity_face_match_score': identity_record.face_match_score if identity_record else None,
+            'identity_face_match_threshold': identity_record.face_match_threshold if identity_record else None,
+            'has_profile_photo': bool(profile.profile_picture),
         },
         'analytics': {
             'profile_completion': profile_completion,
@@ -4651,6 +4736,259 @@ def submitCandidateIdentityVerification(request):
         }, status=200 if matched else 400)
     except Exception as exc:
         return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
+
+
+def _read_live_selfie_upload(request) -> tuple[bytes | None, str, str]:
+    upload = request.FILES.get('selfie') or request.FILES.get('image') or request.FILES.get('live_selfie')
+    if upload:
+        content_type = (getattr(upload, 'content_type', '') or '').lower()
+        if content_type not in LIVE_SELFIE_ALLOWED_CONTENT_TYPES:
+            return None, '', 'Please upload a JPEG or PNG selfie image.'
+        if upload.size > LIVE_SELFIE_MAX_UPLOAD_BYTES:
+            return None, '', 'Selfie image must be 5 MB or smaller.'
+        return upload.read(), content_type, ''
+
+    image_data = (request.POST.get('selfie_image') or request.POST.get('image_data') or '').strip()
+    if not image_data and (request.content_type or '').lower().startswith('application/json'):
+        try:
+            body = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None, '', 'Invalid selfie payload.'
+        image_data = str(body.get('selfie_image') or body.get('image_data') or '').strip()
+
+    if not image_data:
+        return None, '', 'Capture a live selfie before submitting verification.'
+
+    content_type = 'image/jpeg'
+    if image_data.startswith('data:'):
+        header, _, encoded = image_data.partition(',')
+        content_type = header[5:].split(';', 1)[0].lower()
+        image_data = encoded
+    if content_type not in LIVE_SELFIE_ALLOWED_CONTENT_TYPES:
+        return None, '', 'Please upload a JPEG or PNG selfie image.'
+
+    try:
+        image_bytes = base64.b64decode(image_data, validate=True)
+    except Exception:
+        return None, '', 'Invalid selfie image data.'
+    if len(image_bytes) > LIVE_SELFIE_MAX_UPLOAD_BYTES:
+        return None, '', 'Selfie image must be 5 MB or smaller.'
+    return image_bytes, content_type, ''
+
+
+def _read_live_selfie_quality_payload(request) -> dict:
+    raw_payload = (
+        request.POST.get('facemesh_quality_payload')
+        or request.POST.get('facemesh_payload')
+        or ''
+    ).strip()
+    payload: dict = {}
+    if raw_payload:
+        try:
+            parsed = json.loads(raw_payload)
+            if isinstance(parsed, dict):
+                payload = parsed
+        except json.JSONDecodeError:
+            payload = {}
+
+    if (request.content_type or '').lower().startswith('application/json'):
+        try:
+            body = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            body = {}
+        if isinstance(body, dict):
+            body_payload = body.get('facemesh_quality_payload') or body.get('facemesh_payload')
+            if isinstance(body_payload, dict):
+                payload = body_payload
+
+    payload['provider'] = LIVE_SELFIE_QUALITY_PROVIDER
+    return payload
+
+
+def _looks_like_allowed_live_selfie_image(image_bytes: bytes, content_type: str) -> bool:
+    if content_type == 'image/jpeg':
+        return image_bytes.startswith(b'\xff\xd8\xff')
+    if content_type == 'image/png':
+        return image_bytes.startswith(b'\x89PNG\r\n\x1a\n')
+    return False
+
+
+@csrf_exempt
+@login_required(login_url='candidate-login')
+def verifyCandidateLiveSelfie(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'code': 'method_not_allowed', 'verified': False, 'message': 'Only POST is allowed.'}, status=405)
+    if not _candidate_only(request):
+        return JsonResponse({'success': False, 'code': 'candidate_required', 'verified': False, 'message': 'Candidate access required.'}, status=403)
+    if candidate_live_selfie_rate_limited(request, request.user.id):
+        return JsonResponse({
+            'success': False,
+            'code': 'rate_limited',
+            'verified': False,
+            'message': 'Too many verification attempts. Please try again shortly.',
+        }, status=429)
+
+    profile = request.user.profile
+    record, _ = CandidateIdentityVerification.objects.get_or_create(candidate=request.user)
+    record.verification_method = CandidateIdentityVerification.Method.LIVE_SELFIE
+    record.face_match_score = None
+    record.face_match_threshold = float(getattr(settings, 'LIVE_SELFIE_FACE_MATCH_THRESHOLD', 0.62))
+    record.face_match_payload = {}
+
+    if not profile.profile_picture:
+        record.status = CandidateIdentityVerification.Status.PROFILE_PHOTO_REQUIRED
+        record.error_message = 'Please upload a profile photo before starting live selfie verification.'
+        record.processed_at = timezone.now()
+        record.save(update_fields=[
+            'verification_method',
+            'status',
+            'face_match_score',
+            'face_match_threshold',
+            'face_match_payload',
+            'error_message',
+            'processed_at',
+            'updated_at',
+        ])
+        return JsonResponse({
+            'success': False,
+            'code': 'profile_photo_required',
+            'verified': False,
+            'message': 'Please upload a profile photo before starting live selfie verification.',
+        }, status=400)
+
+    image_bytes, content_type, error = _read_live_selfie_upload(request)
+    if error:
+        return JsonResponse({'success': False, 'code': 'invalid_image', 'verified': False, 'message': error}, status=400)
+    if not image_bytes or not _looks_like_allowed_live_selfie_image(image_bytes, content_type):
+        return JsonResponse({'success': False, 'code': 'invalid_image', 'verified': False, 'message': 'Please submit a valid JPEG or PNG selfie.'}, status=400)
+
+    facemesh_quality_payload = _read_live_selfie_quality_payload(request)
+    threshold = float(getattr(settings, 'LIVE_SELFIE_FACE_MATCH_THRESHOLD', 0.62))
+    configured_provider = str(getattr(settings, 'LIVE_SELFIE_FACE_MATCH_PROVIDER', LIVE_SELFIE_MATCH_PROVIDER) or LIVE_SELFIE_MATCH_PROVIDER).strip().lower()
+    verification_enabled = bool(getattr(settings, 'LIVE_SELFIE_VERIFICATION_ENABLED', True))
+
+    if not verification_enabled or configured_provider == 'disabled' or configured_provider != LIVE_SELFIE_MATCH_PROVIDER:
+        result = {
+            'available': False,
+            'matched': False,
+            'score': 0,
+            'threshold': threshold,
+            'reason': 'face_matching_unavailable',
+            'provider': configured_provider or LIVE_SELFIE_MATCH_PROVIDER,
+            'profile_face_count': 0,
+            'selfie_face_count': 0,
+            'message': 'Identity verification is temporarily unavailable. Please try again later.',
+        }
+    else:
+        result = CandidateLiveSelfieVerificationService().verify_local_face_match(
+            profile.profile_picture,
+            image_bytes,
+            threshold,
+        )
+
+    reason = str(result.get('reason') or '')
+    threshold = result.get('threshold', threshold)
+
+    safe_payload = {
+        'provider': result.get('provider') or LIVE_SELFIE_MATCH_PROVIDER,
+        'reason': reason,
+        'profile_face_count': int(result.get('profile_face_count') or 0),
+        'selfie_face_count': int(result.get('selfie_face_count') or 0),
+        'facemesh_quality_payload': facemesh_quality_payload,
+        'assurance_level': 'identity_match' if result.get('matched') else 'identity_check',
+        'profile_photo_match_claimed': bool(result.get('matched')),
+    }
+
+    if not result.get('available', False):
+        record.status = CandidateIdentityVerification.Status.FAILED
+        record.face_match_score = None
+        record.face_match_threshold = float(threshold) if threshold is not None else None
+        record.face_match_payload = safe_payload
+        record.error_message = 'Identity verification is temporarily unavailable. Please try again later.'
+        record.processed_at = timezone.now()
+        record.save(update_fields=[
+            'verification_method',
+            'status',
+            'face_match_score',
+            'face_match_threshold',
+            'face_match_payload',
+            'error_message',
+            'processed_at',
+            'updated_at',
+        ])
+        return JsonResponse({
+            'success': False,
+            'code': 'face_matching_unavailable',
+            'verified': False,
+            'status': record.status,
+            'message': 'Identity verification is temporarily unavailable. Please try again later.',
+        }, status=503)
+
+    if record.live_selfie_image:
+        try:
+            record.live_selfie_image.delete(save=False)
+        except Exception:
+            logger.warning('Unable to delete previous live selfie candidate=%s', request.user.id)
+
+    extension = 'png' if content_type == 'image/png' else 'jpg'
+    file_name = f'candidate-{request.user.id}-{secrets.token_urlsafe(10)}.{extension}'
+    record.live_selfie_image.save(file_name, ContentFile(image_bytes), save=False)
+    record.status = CandidateIdentityVerification.Status.SELFIE_CAPTURED
+    record.error_message = ''
+    record.processed_at = None
+    record.save()
+
+    score = result.get('score')
+    matched = bool(result.get('matched'))
+
+    record.face_match_score = float(score) if score is not None else None
+    record.face_match_threshold = float(threshold) if threshold is not None else None
+    record.face_match_payload = safe_payload
+    record.processed_at = timezone.now()
+    if matched:
+        record.status = CandidateIdentityVerification.Status.FACE_MATCHED
+        record.error_message = ''
+        status_code = 200
+        response = {
+            'success': True,
+            'code': 'face_matched',
+            'verified': True,
+            'status': record.status,
+            'message': 'Identity verification successful.',
+            'data': {
+                'status': record.status,
+                'score': record.face_match_score,
+                'threshold': record.face_match_threshold,
+                'verified': True,
+            },
+        }
+    else:
+        record.status = CandidateIdentityVerification.Status.FACE_MISMATCH
+        record.error_message = result.get('message') or 'We could not confidently match your selfie with your profile photo.'
+        status_code = 400
+        response = {
+            'success': False,
+            'code': reason or 'face_mismatch',
+            'verified': False,
+            'status': record.status,
+            'message': record.error_message,
+            'data': {
+                'status': record.status,
+                'score': record.face_match_score,
+                'threshold': record.face_match_threshold,
+                'verified': False,
+            },
+        }
+    record.save(update_fields=[
+        'status',
+        'face_match_score',
+        'face_match_threshold',
+        'face_match_payload',
+        'error_message',
+        'processed_at',
+        'updated_at',
+    ])
+    return JsonResponse(response, status=status_code)
 
 
 @login_required

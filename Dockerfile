@@ -7,10 +7,15 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    cmake \
     chromium \
     fonts-liberation \
     libpq-dev \
     pkg-config \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    python3-dev \
     libcairo2-dev \
     libcairo2 \
     libpango1.0-dev \

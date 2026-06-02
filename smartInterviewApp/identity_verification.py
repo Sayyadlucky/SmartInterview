@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import mimetypes
 import re
@@ -310,3 +311,121 @@ class CandidateIdentityVerificationService:
 
     def _normalize_name(self, value: str) -> str:
         return re.sub(r'[^a-z0-9]+', ' ', (value or '').lower()).strip()
+
+
+class CandidateLiveSelfieVerificationService:
+    provider = 'local_face_recognition'
+
+    def verify_local_face_match(self, profile_photo_path_or_file: Any, selfie_file: Any, threshold: float | None = None) -> dict[str, Any]:
+        threshold = float(threshold if threshold is not None else getattr(settings, 'LIVE_SELFIE_FACE_MATCH_THRESHOLD', 0.62))
+
+        try:
+            import face_recognition  # type: ignore
+        except Exception:
+            return self._unavailable_result(threshold, 'face_recognition_not_installed')
+
+        try:
+            profile_image = face_recognition.load_image_file(self._image_input(profile_photo_path_or_file))
+            selfie_image = face_recognition.load_image_file(self._image_input(selfie_file))
+
+            profile_locations = face_recognition.face_locations(profile_image)
+            selfie_locations = face_recognition.face_locations(selfie_image)
+            profile_count = len(profile_locations)
+            selfie_count = len(selfie_locations)
+
+            count_failure = self._count_failure_result(profile_count, selfie_count, threshold)
+            if count_failure:
+                return count_failure
+
+            profile_encodings = face_recognition.face_encodings(profile_image, known_face_locations=profile_locations)
+            selfie_encodings = face_recognition.face_encodings(selfie_image, known_face_locations=selfie_locations)
+            if len(profile_encodings) != 1:
+                return self._failure_result('profile_face_not_detected', profile_count, selfie_count, threshold)
+            if len(selfie_encodings) != 1:
+                return self._failure_result('selfie_face_not_detected', profile_count, selfie_count, threshold)
+
+            distance = float(face_recognition.face_distance([profile_encodings[0]], selfie_encodings[0])[0])
+            score = round(max(0.0, min(1.0, 1.0 - distance)), 4)
+            matched = score >= threshold
+            return {
+                'available': True,
+                'matched': matched,
+                'score': score,
+                'threshold': threshold,
+                'reason': 'face_matched' if matched else 'face_mismatch',
+                'provider': self.provider,
+                'profile_face_count': profile_count,
+                'selfie_face_count': selfie_count,
+                'message': 'Face matched successfully.' if matched else 'We could not confidently match your selfie with your profile photo.',
+            }
+        except Exception:
+            return self._unavailable_result(threshold, 'face_matching_unavailable')
+
+    def _image_input(self, source: Any) -> Any:
+        if isinstance(source, (bytes, bytearray)):
+            return io.BytesIO(source)
+
+        try:
+            path = getattr(source, 'path', None)
+        except Exception:
+            path = None
+        if path:
+            try:
+                if Path(path).exists():
+                    return str(path)
+            except (OSError, TypeError, ValueError):
+                pass
+
+        if hasattr(source, 'open') and hasattr(source, 'read'):
+            try:
+                source.open('rb')
+            except Exception:
+                pass
+            try:
+                source.seek(0)
+            except Exception:
+                pass
+            return io.BytesIO(source.read())
+
+        return source
+
+    def _count_failure_result(self, profile_count: int, selfie_count: int, threshold: float) -> dict[str, Any] | None:
+        if profile_count > 1 or selfie_count > 1:
+            return self._failure_result('multiple_faces_detected', profile_count, selfie_count, threshold)
+        if profile_count < 1:
+            return self._failure_result('profile_face_not_detected', profile_count, selfie_count, threshold)
+        if selfie_count < 1:
+            return self._failure_result('selfie_face_not_detected', profile_count, selfie_count, threshold)
+        return None
+
+    def _failure_result(self, reason: str, profile_count: int, selfie_count: int, threshold: float) -> dict[str, Any]:
+        messages = {
+            'face_mismatch': 'We could not confidently match your selfie with your profile photo.',
+            'profile_face_not_detected': 'We could not detect a clear face in your profile photo. Please upload a clearer profile photo.',
+            'selfie_face_not_detected': 'We could not detect a clear face in your selfie. Please try again.',
+            'multiple_faces_detected': 'Only one face can be visible during identity verification.',
+        }
+        return {
+            'available': True,
+            'matched': False,
+            'score': 0.0,
+            'threshold': threshold,
+            'reason': reason,
+            'provider': self.provider,
+            'profile_face_count': profile_count,
+            'selfie_face_count': selfie_count,
+            'message': messages.get(reason, messages['face_mismatch']),
+        }
+
+    def _unavailable_result(self, threshold: float, reason: str) -> dict[str, Any]:
+        return {
+            'available': False,
+            'matched': False,
+            'score': 0,
+            'threshold': threshold,
+            'reason': reason,
+            'provider': self.provider,
+            'profile_face_count': 0,
+            'selfie_face_count': 0,
+            'message': 'Live selfie identity verification is temporarily unavailable.',
+        }

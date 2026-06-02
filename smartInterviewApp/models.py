@@ -585,6 +585,7 @@ class CandidateIdentityVerification(models.Model):
     class Method(models.TextChoices):
         OFFLINE_XML = 'offline_xml', 'Offline XML'
         DOCUMENT_UPLOAD = 'document_upload', 'Document Upload'
+        LIVE_SELFIE = 'live_selfie', 'Live Selfie'
 
     class Status(models.TextChoices):
         NOT_STARTED = 'not_started', 'Not Started'
@@ -592,6 +593,10 @@ class CandidateIdentityVerification(models.Model):
         XML_VERIFIED = 'xml_verified', 'XML Verified'
         DOCUMENT_MATCHED = 'document_matched', 'Document Matched'
         DOCUMENT_MISMATCH = 'document_mismatch', 'Document Mismatch'
+        SELFIE_CAPTURED = 'selfie_captured', 'Selfie Captured'
+        FACE_MATCHED = 'face_matched', 'Face Matched'
+        FACE_MISMATCH = 'face_mismatch', 'Face Mismatch'
+        PROFILE_PHOTO_REQUIRED = 'profile_photo_required', 'Profile Photo Required'
         FAILED = 'failed', 'Failed'
 
     candidate = models.OneToOneField(
@@ -606,6 +611,10 @@ class CandidateIdentityVerification(models.Model):
     uploaded_pdf = models.FileField(upload_to='identity/documents/', blank=True, null=True)
     uploaded_front_image = models.FileField(upload_to='identity/documents/', blank=True, null=True)
     uploaded_back_image = models.FileField(upload_to='identity/documents/', blank=True, null=True)
+    live_selfie_image = models.ImageField(upload_to='identity/live_selfies/', blank=True, null=True)
+    face_match_score = models.FloatField(null=True, blank=True)
+    face_match_threshold = models.FloatField(null=True, blank=True)
+    face_match_payload = models.JSONField(default=dict, blank=True)
     aadhaar_name = models.CharField(max_length=255, blank=True, default='')
     aadhaar_gender = models.CharField(max_length=20, blank=True, default='')
     aadhaar_dob = models.CharField(max_length=40, blank=True, default='')
