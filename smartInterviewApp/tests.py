@@ -212,6 +212,46 @@ class CandidateLiveSelfieVerificationEndpointTests(TestCase):
         self.assertEqual(record.face_match_payload['provider'], 'local_face_recognition')
         self.assertFalse(record.face_match_payload['profile_photo_match_claimed'])
         self.assertIn('could not confidently match', record.error_message)
+        self.assertNotIn('unclear or outdated', record.error_message)
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_close_mismatch_guides_profile_photo_update(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = self._match_result(matched=False, score=0.55)
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload['code'], 'face_mismatch')
+        self.assertIn('unclear or outdated', payload['message'])
+        self.assertIn('recent, clear, front-facing profile photo', payload['message'])
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.face_match_score, 0.55)
+        self.assertEqual(record.face_match_payload['score'], 0.55)
+        self.assertEqual(record.face_match_payload['threshold'], 0.62)
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_profile_face_low_quality_guides_photo_upload(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.return_value = self._match_result(
+            matched=False,
+            reason='profile_face_low_quality',
+            score=0,
+        ) | {
+            'message': 'Please upload a clearer front-facing profile photo before verification.',
+        }
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['code'], 'profile_face_low_quality')
+        self.assertEqual(response.json()['message'], 'Please upload a clearer front-facing profile photo before verification.')
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.FACE_MISMATCH)
+        self.assertEqual(record.face_match_payload['reason'], 'profile_face_low_quality')
 
     @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
     def test_live_selfie_verify_facemesh_payload_alone_cannot_verify_identity(self, mock_verify):
@@ -222,7 +262,7 @@ class CandidateLiveSelfieVerificationEndpointTests(TestCase):
             'matched': False,
             'score': 0,
             'threshold': 0.62,
-            'reason': 'face_recognition_not_installed',
+            'reason': 'local_face_recognition_unavailable',
             'provider': 'local_face_recognition',
             'profile_face_count': 0,
             'selfie_face_count': 0,
@@ -236,6 +276,7 @@ class CandidateLiveSelfieVerificationEndpointTests(TestCase):
         self.assertFalse(payload['success'])
         self.assertFalse(payload['verified'])
         self.assertEqual(payload['code'], 'face_matching_unavailable')
+        self.assertEqual(payload['status'], 'verification_unavailable')
         mock_verify.assert_called_once()
         self.assertFalse(CandidateIdentityVerification.objects.filter(candidate=self.candidate, status=CandidateIdentityVerification.Status.FACE_MATCHED).exists())
 
@@ -248,7 +289,7 @@ class CandidateLiveSelfieVerificationEndpointTests(TestCase):
             'matched': False,
             'score': 0,
             'threshold': 0.62,
-            'reason': 'face_recognition_not_installed',
+            'reason': 'local_face_recognition_unavailable',
             'provider': 'local_face_recognition',
             'profile_face_count': 0,
             'selfie_face_count': 0,
@@ -262,7 +303,27 @@ class CandidateLiveSelfieVerificationEndpointTests(TestCase):
         self.assertFalse(payload['success'])
         self.assertFalse(payload['verified'])
         self.assertEqual(payload['code'], 'face_matching_unavailable')
-        self.assertEqual(payload['message'], 'Identity verification is temporarily unavailable. Please try again later.')
+        self.assertEqual(payload['status'], 'verification_unavailable')
+        self.assertEqual(payload['message'], 'Live selfie identity verification is temporarily unavailable. Please try again later.')
+        self.assertEqual(payload['data'], {'verified': False})
+        record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
+        self.assertEqual(record.status, CandidateIdentityVerification.Status.FAILED)
+        self.assertNotEqual(record.status, CandidateIdentityVerification.Status.FACE_MISMATCH)
+
+    @patch('smartInterviewApp.commonViews.CandidateLiveSelfieVerificationService.verify_local_face_match')
+    def test_live_selfie_verify_matcher_system_exit_returns_json_unavailable(self, mock_verify):
+        self._login_candidate()
+        self._attach_profile_photo()
+        mock_verify.side_effect = SystemExit('face_recognition import failed')
+
+        response = self._post_live_selfie()
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+        self.assertEqual(payload['code'], 'face_matching_unavailable')
+        self.assertEqual(payload['status'], 'verification_unavailable')
+        self.assertEqual(payload['data'], {'verified': False})
         record = CandidateIdentityVerification.objects.get(candidate=self.candidate)
         self.assertEqual(record.status, CandidateIdentityVerification.Status.FAILED)
         self.assertNotEqual(record.status, CandidateIdentityVerification.Status.FACE_MISMATCH)
@@ -297,7 +358,7 @@ class CandidateLiveSelfieVerificationServiceTests(TestCase):
 
         self.assertFalse(result['available'])
         self.assertFalse(result['matched'])
-        self.assertEqual(result['reason'], 'face_recognition_not_installed')
+        self.assertEqual(result['reason'], 'local_face_recognition_unavailable')
         self.assertEqual(result['provider'], 'local_face_recognition')
 
 

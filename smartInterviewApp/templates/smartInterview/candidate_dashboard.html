@@ -5315,6 +5315,7 @@
           <span class="section-kicker">Account Trust</span>
           <h2 id="identityVerificationTitle" class="title-with-icon"><i class="ph ph-camera" aria-hidden="true"></i>Live Selfie Identity Verification</h2>
 	          <p class="subtle">First we check that one live face is present, then we match it with your profile photo.</p>
+          <p class="helper u-m-0">Use a recent, clear, front-facing profile photo for best verification results.</p>
         </div>
 
         <div class="selfie-steps" aria-label="Verification steps">
@@ -5340,7 +5341,7 @@
             <div class="selfie-camera-placeholder" id="liveSelfiePlaceholder">
               <i class="ph ph-camera" aria-hidden="true"></i>
               <strong>Ready for live selfie check</strong>
-              <span>We'll ask for camera access only after you start.</span>
+              <span>We'll ask for camera access only after you start. A recent, clear profile photo works best.</span>
             </div>
             <div class="selfie-guide" id="liveSelfieGuide" aria-hidden="true"></div>
             <div class="selfie-status-badge" id="liveSelfieStatusBadge">Waiting</div>
@@ -5364,6 +5365,7 @@
           <i class="ph ph-warning-circle" aria-hidden="true"></i>
           <strong id="liveSelfieErrorTitle">Verification unavailable</strong>
           <p id="liveSelfieErrorText">Identity verification is temporarily unavailable. Please try again later.</p>
+          <button class="btn btn-primary" type="button" id="liveSelfieErrorUploadPhotoBtn" data-open-update-profile hidden><i class="ph ph-upload-simple" aria-hidden="true"></i>Upload Profile Photo</button>
         </div>
 
         <div class="inline-message" id="identityVerificationMessage" aria-live="polite">
@@ -6629,6 +6631,7 @@
       const liveSelfieError = document.getElementById('liveSelfieError');
 	      const liveSelfieErrorTitle = document.getElementById('liveSelfieErrorTitle');
 	      const liveSelfieErrorText = document.getElementById('liveSelfieErrorText');
+	      const liveSelfieErrorUploadPhotoBtn = document.getElementById('liveSelfieErrorUploadPhotoBtn');
 	      const liveSelfieSteps = document.querySelector('.selfie-steps');
 	      const FACEMESH_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
 	      const FACEMESH_ASSET_ROOT = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/';
@@ -6749,6 +6752,7 @@
         setPanelHidden(liveSelfieError, false);
         if (liveSelfieErrorTitle) liveSelfieErrorTitle.textContent = title || 'Verification unavailable';
         if (liveSelfieErrorText) liveSelfieErrorText.textContent = message || 'Unable to complete live selfie verification right now.';
+        if (liveSelfieErrorUploadPhotoBtn) liveSelfieErrorUploadPhotoBtn.hidden = !settings.showUploadPhoto;
         if (liveSelfieStage) liveSelfieStage.hidden = !!settings.hideCamera;
         if (liveSelfieSteps) liveSelfieSteps.hidden = !!settings.hideSteps;
         setLiveSelfieButtons({
@@ -6768,6 +6772,7 @@
         setPanelHidden(liveSelfieStage, true);
         setPanelHidden(liveSelfieResult, true);
         setPanelHidden(liveSelfieError, true);
+        if (liveSelfieErrorUploadPhotoBtn) liveSelfieErrorUploadPhotoBtn.hidden = true;
         if (liveSelfieSteps) liveSelfieSteps.hidden = true;
         setLiveSelfieButtons({ showStart: false, showCapture: false, showRetry: false, captureEnabled: false });
         setLiveSelfieVisualMode('idle');
@@ -6794,9 +6799,18 @@
           );
           return;
         }
-        if (['face_mismatch', 'selfie_face_not_detected', 'profile_face_not_detected', 'multiple_faces_detected'].includes(code)) {
+        if (['profile_face_not_detected', 'profile_face_low_quality'].includes(code)) {
+          setLiveSelfieError(
+            'Clear profile photo needed',
+            (data && data.message) || 'Please upload a clearer front-facing profile photo before verification.',
+            { hideCamera: true, hideStart: false, hideCapture: true, hideSteps: false, allowRetry: false, badge: 'Profile photo needed', showUploadPhoto: true }
+          );
+          return;
+        }
+        if (['face_mismatch', 'selfie_face_not_detected', 'multiple_faces_detected'].includes(code)) {
           setPanelHidden(liveSelfieResult, true);
           setPanelHidden(liveSelfieError, true);
+          if (liveSelfieErrorUploadPhotoBtn) liveSelfieErrorUploadPhotoBtn.hidden = true;
           setLiveSelfieState('warning', 'Try again', 'Face the camera directly with similar lighting');
           setMessage(identityMessage, (data && data.message) || 'We could not confidently match your selfie with your profile photo.', 'error');
           setLiveSelfieButtons({ showStart: false, showCapture: false, showRetry: true, captureEnabled: false });
@@ -7197,7 +7211,7 @@
 	          } else {
 	            handleLiveSelfieErrorResponse(data);
 	            if (window.dashboardToast) {
-	              const retryableCodes = ['face_mismatch', 'selfie_face_not_detected', 'profile_face_not_detected', 'multiple_faces_detected'];
+	              const retryableCodes = ['face_mismatch', 'selfie_face_not_detected', 'profile_face_not_detected', 'profile_face_low_quality', 'multiple_faces_detected'];
 	              const toastMessage = data && retryableCodes.includes(data.code)
 	                ? ((data && data.message) || 'We could not confidently match your selfie with your profile photo.')
 	                : ((data && data.message) || 'Unable to complete live selfie verification.');

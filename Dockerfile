@@ -28,8 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/
-RUN python -m pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip wheel "setuptools==80.9.0"
+RUN python -m pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --force-reinstall "setuptools==80.9.0"
+RUN python -m pip show setuptools && python -m pip check
+RUN python -c "import pkg_resources; import face_recognition_models; import face_recognition; import dlib; print('face_recognition runtime probe ok', dlib.__version__)"
 
 COPY . /app/
 

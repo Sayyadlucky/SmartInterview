@@ -321,8 +321,8 @@ class CandidateLiveSelfieVerificationService:
 
         try:
             import face_recognition  # type: ignore
-        except Exception:
-            return self._unavailable_result(threshold, 'face_recognition_not_installed')
+        except (ModuleNotFoundError, ImportError, RuntimeError, SystemExit, BaseException):
+            return self._unavailable_result(threshold, 'local_face_recognition_unavailable')
 
         try:
             profile_image = face_recognition.load_image_file(self._image_input(profile_photo_path_or_file))
@@ -340,7 +340,7 @@ class CandidateLiveSelfieVerificationService:
             profile_encodings = face_recognition.face_encodings(profile_image, known_face_locations=profile_locations)
             selfie_encodings = face_recognition.face_encodings(selfie_image, known_face_locations=selfie_locations)
             if len(profile_encodings) != 1:
-                return self._failure_result('profile_face_not_detected', profile_count, selfie_count, threshold)
+                return self._failure_result('profile_face_low_quality', profile_count, selfie_count, threshold)
             if len(selfie_encodings) != 1:
                 return self._failure_result('selfie_face_not_detected', profile_count, selfie_count, threshold)
 
@@ -402,6 +402,7 @@ class CandidateLiveSelfieVerificationService:
         messages = {
             'face_mismatch': 'We could not confidently match your selfie with your profile photo.',
             'profile_face_not_detected': 'We could not detect a clear face in your profile photo. Please upload a clearer profile photo.',
+            'profile_face_low_quality': 'Please upload a clearer front-facing profile photo before verification.',
             'selfie_face_not_detected': 'We could not detect a clear face in your selfie. Please try again.',
             'multiple_faces_detected': 'Only one face can be visible during identity verification.',
         }

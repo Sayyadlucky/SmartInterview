@@ -72,6 +72,14 @@ LIVE_SELFIE_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 LIVE_SELFIE_ALLOWED_CONTENT_TYPES = {'image/jpeg', 'image/png'}
 LIVE_SELFIE_QUALITY_PROVIDER = 'facemesh_quality_check'
 LIVE_SELFIE_MATCH_PROVIDER = 'local_face_recognition'
+LIVE_SELFIE_CLOSE_MISMATCH_MARGIN = 0.12
+LIVE_SELFIE_DEFAULT_MISMATCH_MESSAGE = 'We could not confidently match your selfie with your profile photo.'
+LIVE_SELFIE_CLOSE_MISMATCH_MESSAGE = (
+    'We could not confidently match your selfie with your profile photo. '
+    'Your profile photo may be unclear or outdated. Please upload a recent, clear, '
+    'front-facing profile photo and try again.'
+)
+LIVE_SELFIE_UNAVAILABLE_MESSAGE = 'Live selfie identity verification is temporarily unavailable. Please try again later.'
 PDF_RENDERER_PYTHON_CANDIDATES = [
     os.environ.get('PDF_RENDERER_PYTHON', ''),
     '/Users/sayyadlucky/PycharmProjects/smartvideo/.venv/bin/python',
@@ -4813,6 +4821,21 @@ def _looks_like_allowed_live_selfie_image(image_bytes: bytes, content_type: str)
     return False
 
 
+def _live_selfie_failure_message(result: dict, reason: str, threshold: float | None) -> str:
+    if reason == 'face_mismatch':
+        try:
+            score = float(result.get('score'))
+            threshold_value = float(threshold)
+        except (TypeError, ValueError):
+            score = None
+            threshold_value = None
+        if score is not None and threshold_value is not None and score >= threshold_value - LIVE_SELFIE_CLOSE_MISMATCH_MARGIN:
+            return LIVE_SELFIE_CLOSE_MISMATCH_MESSAGE
+        return LIVE_SELFIE_DEFAULT_MISMATCH_MESSAGE
+
+    return str(result.get('message') or LIVE_SELFIE_DEFAULT_MISMATCH_MESSAGE)
+
+
 @csrf_exempt
 @login_required(login_url='candidate-login')
 def verifyCandidateLiveSelfie(request):
@@ -4877,14 +4900,32 @@ def verifyCandidateLiveSelfie(request):
             'provider': configured_provider or LIVE_SELFIE_MATCH_PROVIDER,
             'profile_face_count': 0,
             'selfie_face_count': 0,
-            'message': 'Identity verification is temporarily unavailable. Please try again later.',
+            'message': LIVE_SELFIE_UNAVAILABLE_MESSAGE,
         }
     else:
-        result = CandidateLiveSelfieVerificationService().verify_local_face_match(
-            profile.profile_picture,
-            image_bytes,
-            threshold,
-        )
+        try:
+            result = CandidateLiveSelfieVerificationService().verify_local_face_match(
+                profile.profile_picture,
+                image_bytes,
+                threshold,
+            )
+        except BaseException as exc:
+            logger.exception(
+                'Live selfie local face matcher failed candidate=%s error_type=%s',
+                request.user.id,
+                exc.__class__.__name__,
+            )
+            result = {
+                'available': False,
+                'matched': False,
+                'score': 0,
+                'threshold': threshold,
+                'reason': 'local_face_recognition_unavailable',
+                'provider': LIVE_SELFIE_MATCH_PROVIDER,
+                'profile_face_count': 0,
+                'selfie_face_count': 0,
+                'message': LIVE_SELFIE_UNAVAILABLE_MESSAGE,
+            }
 
     reason = str(result.get('reason') or '')
     threshold = result.get('threshold', threshold)
@@ -4892,6 +4933,8 @@ def verifyCandidateLiveSelfie(request):
     safe_payload = {
         'provider': result.get('provider') or LIVE_SELFIE_MATCH_PROVIDER,
         'reason': reason,
+        'score': result.get('score'),
+        'threshold': threshold,
         'profile_face_count': int(result.get('profile_face_count') or 0),
         'selfie_face_count': int(result.get('selfie_face_count') or 0),
         'facemesh_quality_payload': facemesh_quality_payload,
@@ -4904,7 +4947,7 @@ def verifyCandidateLiveSelfie(request):
         record.face_match_score = None
         record.face_match_threshold = float(threshold) if threshold is not None else None
         record.face_match_payload = safe_payload
-        record.error_message = 'Identity verification is temporarily unavailable. Please try again later.'
+        record.error_message = LIVE_SELFIE_UNAVAILABLE_MESSAGE
         record.processed_at = timezone.now()
         record.save(update_fields=[
             'verification_method',
@@ -4920,8 +4963,9 @@ def verifyCandidateLiveSelfie(request):
             'success': False,
             'code': 'face_matching_unavailable',
             'verified': False,
-            'status': record.status,
-            'message': 'Identity verification is temporarily unavailable. Please try again later.',
+            'status': 'verification_unavailable',
+            'message': LIVE_SELFIE_UNAVAILABLE_MESSAGE,
+            'data': {'verified': False},
         }, status=503)
 
     if record.live_selfie_image:
@@ -4964,7 +5008,7 @@ def verifyCandidateLiveSelfie(request):
         }
     else:
         record.status = CandidateIdentityVerification.Status.FACE_MISMATCH
-        record.error_message = result.get('message') or 'We could not confidently match your selfie with your profile photo.'
+        record.error_message = _live_selfie_failure_message(result, reason, threshold)
         status_code = 400
         response = {
             'success': False,
