@@ -90,7 +90,7 @@ export class AddUser {
   private getApiBaseUrl(): string {
     let port_number = '';
     if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-      port_number = '8000';
+      port_number = '8080';
     }
     return `${window.location.protocol}//${window.location.hostname}:${port_number}`;
   }

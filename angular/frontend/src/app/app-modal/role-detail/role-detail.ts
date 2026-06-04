@@ -63,7 +63,7 @@ closeModal() {
     this.errorMessage = '';
         let port_number = ''
         if(window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"){
-          port_number = '8000'
+          port_number = '8080'
         }
         const apiBaseUrl = `${window.location.protocol}//${window.location.hostname}:${port_number}`;
         this.http.get(apiBaseUrl + '/get-role-data/' + role_id)

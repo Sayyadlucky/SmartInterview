@@ -7,6 +7,7 @@ import { catchError, of } from 'rxjs';
 import { AppToastService } from '../../core/app-toast.service';
 
 type WorkflowActionMode = 'schedule' | 'bulk-assign' | 'evaluation-reviews';
+type ReviewFilterKey = 'all' | 'pending' | 'completed' | 'needs-decision' | 'overdue';
 
 interface WorkflowCandidate {
   id: number;
@@ -25,6 +26,8 @@ interface WorkflowCandidate {
   date?: string;
   role?: string;
   role_id?: number | null;
+  profile_picture_url?: string;
+  candidate_profile_picture_url?: string;
 }
 
 interface EvaluatorOption {
@@ -54,8 +57,34 @@ interface ReviewCandidateView extends WorkflowCandidate {
   statusLabel: string;
   evaluatorLabel: string;
   dateLabel: string;
+  updatedShortLabel: string;
+  initials: string;
+  profilePhotoUrl: string;
+  scoreLabel: string;
+  scorePercent: number;
+  scoreColor: string;
+  statusTone: 'success' | 'warning' | 'danger' | 'info';
+  decisionLabel: string;
+  decisionTone: 'success' | 'warning' | 'danger' | 'info';
+  qaCountLabel: string;
+  behaviorStatusLabel: string;
   decisionActions: ReviewDecisionAction[];
   canScheduleFurther: boolean;
+}
+
+interface ReviewSummaryCard {
+  key: string;
+  label: string;
+  value: number | string;
+  helper: string;
+  icon: string;
+  tone: 'pending' | 'completed' | 'decision' | 'overdue';
+}
+
+interface ReviewFilterTab {
+  key: ReviewFilterKey;
+  label: string;
+  count: number;
 }
 
 @Component({
@@ -71,6 +100,11 @@ export class WorkflowAction {
   candidates: WorkflowCandidate[] = [];
   reviewGroupsList: ReviewGroup[] = [];
   filteredReviewCandidatesList: ReviewCandidateView[] = [];
+  reviewCandidatesView: ReviewCandidateView[] = [];
+  selectedReviewCandidateView: ReviewCandidateView | null = null;
+  reviewFilterTabsList: ReviewFilterTab[] = [];
+  reviewSummaryCardsList: ReviewSummaryCard[] = [];
+  reviewAverageScoreText = '--';
   activeReviewGroupKey: ReviewGroup['key'] | null = null;
   saving = false;
   loadingEvaluators = false;
@@ -79,6 +113,8 @@ export class WorkflowAction {
 
   candidateSearch = '';
   reviewSearch = '';
+  activeReviewFilter: ReviewFilterKey = 'all';
+  selectedReviewId: number | null = null;
   candidateSearchOpen = false;
 
   selectedInterviewId: number | null = null;
@@ -133,7 +169,7 @@ export class WorkflowAction {
     if (this.mode === 'bulk-assign') {
       return 'Assign an evaluator across multiple candidates in one controlled workflow update.';
     }
-    return 'Review completed evaluations, scores, and interviewer notes from the current dashboard scope.';
+    return 'Review completed interviews, evaluator feedback, and final hiring decisions.';
   }
 
   get scheduleCandidates(): WorkflowCandidate[] {
@@ -165,17 +201,23 @@ export class WorkflowAction {
   }
 
   get reviewCandidates(): ReviewCandidateView[] {
-    return this.filteredReviewCandidatesList;
+    return this.reviewCandidatesView;
+  }
+
+  get selectedReviewCandidate(): ReviewCandidateView | null {
+    return this.selectedReviewCandidateView;
+  }
+
+  get reviewFilterTabs(): ReviewFilterTab[] {
+    return this.reviewFilterTabsList;
+  }
+
+  get reviewSummaryCards(): ReviewSummaryCard[] {
+    return this.reviewSummaryCardsList;
   }
 
   get reviewAverageScore(): string {
-    const scores = this.filteredReviewCandidatesList
-      .map((candidate) => candidate.score)
-      .filter((score): score is number => score !== null && score !== undefined)
-      .map((score) => Number(score))
-      .filter((score) => Number.isFinite(score));
-    if (!scores.length) return '--';
-    return (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1);
+    return this.reviewAverageScoreText;
   }
 
   get reviewsMissingFeedback(): number {
@@ -225,8 +267,19 @@ export class WorkflowAction {
           statusLabel: this.formatStatus(candidate.status),
           evaluatorLabel: candidate.interviewer || 'Last evaluator unavailable',
           dateLabel: this.formatDate(candidate.date),
+          updatedShortLabel: this.formatShortDate(candidate.date),
           decisionActions: this.buildReviewDecisionActions(normalized),
           canScheduleFurther: !['shortlisted', 'offer made', 'offer accepted', 'offer declined', 'hired', 'completed', 'rejected', 'cancelled'].includes(normalized),
+          initials: this.getInitials(candidate.name),
+          profilePhotoUrl: this.getProfilePhotoUrl(candidate),
+          scoreLabel: this.getReviewScoreLabel(candidate.score),
+          scorePercent: this.getReviewScorePercent(candidate.score),
+          scoreColor: this.getReviewScoreColor(candidate.score),
+          statusTone: this.getReviewStatusTone(normalized),
+          decisionLabel: this.getReviewDecisionLabel(normalized),
+          decisionTone: this.getReviewDecisionTone(normalized),
+          qaCountLabel: candidate.notes ? 'Feedback captured' : 'Not captured',
+          behaviorStatusLabel: candidate.notes ? 'Evaluator notes available' : 'Feedback incomplete',
         };
       });
   }
@@ -417,6 +470,16 @@ export class WorkflowAction {
     this.refreshReviewData();
   }
 
+  setActiveReviewFilter(key: ReviewFilterKey): void {
+    this.activeReviewFilter = key;
+    this.updateReviewViewState();
+  }
+
+  selectReviewCandidate(candidate: ReviewCandidateView): void {
+    this.selectedReviewId = candidate.id;
+    this.updateSelectedReviewCandidate();
+  }
+
   setActiveReviewGroup(key: ReviewGroup['key']): void {
     this.activeReviewGroupKey = key;
   }
@@ -602,12 +665,129 @@ export class WorkflowAction {
     this.reviewGroupsList = this.buildReviewGroups(this.filteredReviewCandidatesList);
     if (!this.reviewGroupsList.length) {
       this.activeReviewGroupKey = null;
+      this.selectedReviewId = null;
+      this.updateReviewViewState();
       return;
     }
     const hasActiveGroup = this.reviewGroupsList.some((group) => group.key === this.activeReviewGroupKey);
     if (!hasActiveGroup) {
       this.activeReviewGroupKey = this.reviewGroupsList[0].key;
     }
+    this.updateReviewViewState();
+  }
+
+  private updateReviewViewState(): void {
+    this.reviewCandidatesView = this.filteredReviewCandidatesList.filter((candidate) => this.matchesReviewFilter(candidate, this.activeReviewFilter));
+    this.reviewAverageScoreText = this.calculateReviewAverageScore();
+    this.reviewFilterTabsList = this.buildReviewFilterTabs();
+    this.reviewSummaryCardsList = this.buildReviewSummaryCards();
+    this.ensureSelectedReviewCandidate();
+  }
+
+  private updateSelectedReviewCandidate(): void {
+    this.selectedReviewCandidateView = this.filteredReviewCandidatesList.find((candidate) => candidate.id === this.selectedReviewId) || null;
+  }
+
+  private ensureSelectedReviewCandidate(): void {
+    const visible = this.reviewCandidatesView;
+    if (!visible.length) {
+      this.selectedReviewId = null;
+      this.selectedReviewCandidateView = null;
+      return;
+    }
+    const selectedVisible = visible.some((candidate) => candidate.id === this.selectedReviewId);
+    if (!selectedVisible) {
+      this.selectedReviewId = visible[0].id;
+    }
+    this.updateSelectedReviewCandidate();
+  }
+
+  private getReviewFilterCount(key: ReviewFilterKey): number {
+    return this.filteredReviewCandidatesList.filter((candidate) => this.matchesReviewFilter(candidate, key)).length;
+  }
+
+  private buildReviewFilterTabs(): ReviewFilterTab[] {
+    return [
+      { key: 'all', label: 'All', count: this.getReviewFilterCount('all') },
+      { key: 'pending', label: 'Pending Review', count: this.getReviewFilterCount('pending') },
+      { key: 'completed', label: 'Completed', count: this.getReviewFilterCount('completed') },
+      { key: 'needs-decision', label: 'Needs Decision', count: this.getReviewFilterCount('needs-decision') },
+      { key: 'overdue', label: 'Overdue', count: this.getReviewFilterCount('overdue') },
+    ];
+  }
+
+  private buildReviewSummaryCards(): ReviewSummaryCard[] {
+    return [
+      {
+        key: 'pending',
+        label: 'Pending Review',
+        value: this.getReviewFilterCount('pending'),
+        helper: 'Completed interviews awaiting recruiter review',
+        icon: 'ph-hourglass-medium',
+        tone: 'pending',
+      },
+      {
+        key: 'completed',
+        label: 'Completed Evaluations',
+        value: this.getReviewFilterCount('completed'),
+        helper: 'Evaluations with captured score or feedback',
+        icon: 'ph-check-circle',
+        tone: 'completed',
+      },
+      {
+        key: 'decision',
+        label: 'Needs Decision',
+        value: this.getReviewFilterCount('needs-decision'),
+        helper: 'Records requiring a hiring decision',
+        icon: 'ph-git-pull-request',
+        tone: 'decision',
+      },
+      {
+        key: 'overdue',
+        label: 'Overdue Feedback',
+        value: this.getReviewFilterCount('overdue'),
+        helper: 'Older feedback items still incomplete',
+        icon: 'ph-warning',
+        tone: 'overdue',
+      },
+    ];
+  }
+
+  private calculateReviewAverageScore(): string {
+    const scores = this.filteredReviewCandidatesList
+      .map((candidate) => candidate.score)
+      .filter((score): score is number => score !== null && score !== undefined)
+      .map((score) => Number(score))
+      .filter((score) => Number.isFinite(score));
+    if (!scores.length) return '--';
+    return (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1);
+  }
+
+  private matchesReviewFilter(candidate: ReviewCandidateView, key: ReviewFilterKey): boolean {
+    if (key === 'all') {
+      return true;
+    }
+    const normalized = this.normalizeStatus(candidate.status);
+    if (key === 'pending') {
+      return normalized === 'completed' || !candidate.notes || candidate.score === null || candidate.score === undefined;
+    }
+    if (key === 'completed') {
+      return !!candidate.notes || candidate.score !== null && candidate.score !== undefined || ['completed', 'shortlisted', 'offer made', 'offer accepted', 'offer declined', 'hired', 'rejected'].includes(normalized);
+    }
+    if (key === 'needs-decision') {
+      return ['completed', 'shortlisted', 'offer made', 'offer accepted'].includes(normalized) || candidate.decisionActions.length > 0;
+    }
+    return this.isReviewOverdue(candidate);
+  }
+
+  private isReviewOverdue(candidate: ReviewCandidateView): boolean {
+    const submittedAt = this.toTime(candidate.date);
+    if (!submittedAt) {
+      return false;
+    }
+    const ageMs = Date.now() - submittedAt;
+    const olderThanTwoDays = ageMs > 2 * 24 * 60 * 60 * 1000;
+    return olderThanTwoDays && (!candidate.notes || candidate.score === null || candidate.score === undefined || this.matchesReviewFilter(candidate, 'needs-decision'));
   }
 
   formatStatus(value: string): string {
@@ -619,6 +799,73 @@ export class WorkflowAction {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return 'Not scheduled';
     return parsed.toLocaleString();
+  }
+
+  formatShortDate(value?: string): string {
+    if (!value) return 'Not captured';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'Not captured';
+    return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  getProfilePhotoUrl(candidate: WorkflowCandidate): string {
+    return candidate.profile_picture_url || candidate.candidate_profile_picture_url || '';
+  }
+
+  private getInitials(name: string): string {
+    const parts = (name || 'Candidate')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') || 'C';
+  }
+
+  private getReviewScorePercent(score?: number | null): number {
+    if (score === null || score === undefined) {
+      return 0;
+    }
+    const numeric = Number(score);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    const percent = numeric <= 10 ? numeric * 10 : numeric;
+    return Math.max(0, Math.min(100, Math.round(percent)));
+  }
+
+  private getReviewScoreLabel(score?: number | null): string {
+    if (score === null || score === undefined || !Number.isFinite(Number(score))) {
+      return 'Not scored';
+    }
+    return `${this.getReviewScorePercent(score)}/100`;
+  }
+
+  private getReviewScoreColor(score?: number | null): string {
+    const percent = this.getReviewScorePercent(score);
+    if (!percent) return '#65b9ff';
+    if (percent >= 75) return '#20d892';
+    if (percent >= 50) return '#f6a11a';
+    return '#ff5f7a';
+  }
+
+  private getReviewStatusTone(normalized: string): 'success' | 'warning' | 'danger' | 'info' {
+    if (['hired', 'shortlisted', 'offer accepted'].includes(normalized)) return 'success';
+    if (['completed', 'offer made', 'scheduled'].includes(normalized)) return 'warning';
+    if (['rejected', 'offer declined', 'cancelled'].includes(normalized)) return 'danger';
+    return 'info';
+  }
+
+  private getReviewDecisionLabel(normalized: string): string {
+    if (['hired', 'offer accepted', 'shortlisted'].includes(normalized)) return 'Recommended';
+    if (['completed', 'offer made'].includes(normalized)) return 'Needs Decision';
+    if (['rejected', 'offer declined', 'cancelled'].includes(normalized)) return 'Not Recommended';
+    return 'Review Pending';
+  }
+
+  private getReviewDecisionTone(normalized: string): 'success' | 'warning' | 'danger' | 'info' {
+    if (['hired', 'offer accepted', 'shortlisted'].includes(normalized)) return 'success';
+    if (['completed', 'offer made'].includes(normalized)) return 'warning';
+    if (['rejected', 'offer declined', 'cancelled'].includes(normalized)) return 'danger';
+    return 'info';
   }
 
   trackCandidate(_: number, candidate: WorkflowCandidate): number {
@@ -687,7 +934,7 @@ export class WorkflowAction {
   private getApiBaseUrl(): string {
     let port = '';
     if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-      port = '8000';
+      port = '8080';
     }
     return `${window.location.protocol}//${window.location.hostname}:${port}`;
   }

@@ -656,7 +656,7 @@ export class CandidateProfile implements OnInit {
   private getApiBaseUrl(): string {
     let portNumber = '';
     if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-      portNumber = '8000';
+      portNumber = '8080';
     }
     return `${window.location.protocol}//${window.location.hostname}:${portNumber}`;
   }

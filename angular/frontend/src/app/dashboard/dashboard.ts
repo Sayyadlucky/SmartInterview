@@ -50,6 +50,9 @@ interface AttentionItem {
 }
 
 type AttentionFilterKey = 'overdue-feedback' | 'unscheduled-shortlisted' | 'pending-offers';
+type PendingActionKey = 'all' | 'new-applications' | 'assessment-pending' | 'overdue-feedback' | 'interviews-pending' | 'offer-decisions';
+type PendingActionPriorityFilter = 'all' | 'high' | 'medium' | 'low';
+type PendingActionSortKey = 'newest' | 'oldest' | 'priority';
 
 interface RecruiterApplicationItem {
   id: number;
@@ -64,8 +67,37 @@ interface RecruiterApplicationItem {
   applied_at: string;
   source?: string;
   public_profile_url?: string;
+  public_resume_pdf_url?: string;
+  public_profile_pdf_url?: string;
+  resume_pdf_url?: string;
   actionLoading?: boolean;
   removing?: boolean;
+}
+
+interface PendingActionCard {
+  key: PendingActionKey;
+  label: string;
+  helper: string;
+  icon: string;
+  count: number;
+  tone: string;
+}
+
+interface PendingActionListItem {
+  id: string;
+  actionKey: PendingActionKey;
+  actionLabel: string;
+  actionIcon: string;
+  actionTone: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: string;
+  date: string;
+  source: string;
+  kind: 'application' | 'candidate';
+  raw: any;
 }
 
 interface CandidateExportRow {
@@ -79,6 +111,14 @@ interface CandidateExportRow {
   score: string;
   date: string;
   notes: string;
+}
+
+interface CandidateFilterOption {
+  value: string | null;
+  label: string;
+  helper: string;
+  icon: string;
+  tone: string;
 }
 
 interface CompanyProfileData {
@@ -147,6 +187,8 @@ interface CompanyProfileFormData {
   timezone: string;
 }
 
+type CompanyProfileTab = 'details' | 'branding' | 'contact' | 'billing';
+
 interface CandidateEvaluationSummary {
   available: boolean;
   candidate_name: string;
@@ -177,6 +219,7 @@ interface CandidateEvaluationSummary {
   hire_recommendation_reason: string;
   early_exit: boolean;
   early_exit_reason: string;
+  profile_picture_data_url: string;
   updated_at: string;
   created_at: string;
 }
@@ -202,6 +245,41 @@ interface CandidateBehaviorSummary {
   summary: string;
   gaze_tracking: Record<string, unknown>;
   voice_verification: Record<string, unknown>;
+}
+
+interface EvaluationReportMetaItem {
+  label: string;
+  value: string;
+  icon: string;
+}
+
+interface EvaluationReportInsight {
+  label: string;
+  value: string;
+  helper: string;
+  icon: string;
+  tone: string;
+}
+
+interface EvaluationReportSkillRow {
+  label: string;
+  score: number | null;
+  proficiency: string;
+  tone: string;
+}
+
+interface EvaluationReportProgressStep {
+  label: string;
+  state: string;
+  score: string;
+  active: boolean;
+  tone: string;
+}
+
+interface EvaluationReportProfileItem {
+  label: string;
+  value: string;
+  icon: string;
 }
 
 interface WorkspaceTourStep {
@@ -253,12 +331,24 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   companyLinksData: Array<{ label: string; value: string; icon: string }> = [];
   companyContactsData: Array<{ label: string; value: string; icon: string }> = [];
   companyEditMode = false;
+  activeCompanyProfileTab: CompanyProfileTab = 'details';
   companySaving = false;
   selectedCompanyLogoFile: File | null = null;
   selectedCompanyLogoName = '';
   companyForm: CompanyProfileFormData = this.createEmptyCompanyForm();
   activeCandidates: any;
   searchQuery = '';
+  candidateFilterMenuOpen = false;
+  readonly candidateFilterOptions: CandidateFilterOption[] = [
+    { value: null, label: 'All Candidates', helper: 'Complete candidate pipeline', icon: 'ph-users-three', tone: 'all' },
+    { value: 'scheduled', label: 'In-Progress', helper: 'Candidates with active interviews', icon: 'ph-spinner-gap', tone: 'scheduled' },
+    { value: 'rejected', label: 'Disqualified', helper: 'Candidates removed from consideration', icon: 'ph-x-circle', tone: 'rejected' },
+    { value: 'shortlisted', label: 'Shortlisted', helper: 'Candidates ready for next steps', icon: 'ph-check-circle', tone: 'shortlisted' },
+    { value: 'completed', label: 'Hired', helper: 'Completed or hired candidates', icon: 'ph-handshake', tone: 'completed' },
+    { value: 'cancelled', label: 'Cancelled', helper: 'Stopped or cancelled processes', icon: 'ph-clock-counter-clockwise', tone: 'cancelled' },
+    { value: 'assessment pending', label: 'Assessment Pending', helper: 'Waiting for assessment completion', icon: 'ph-clipboard-text', tone: 'assessment' },
+    { value: 'auto screening scheduled', label: 'Auto Screening', helper: 'Automated screening scheduled', icon: 'ph-robot', tone: 'auto' },
+  ];
   attentionFilter: AttentionFilterKey | null = null;
   lastUpdatedAt: Date = new Date();
   roleCatalog: any[] = [];
@@ -269,14 +359,33 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   applicationToastMessage = '';
   pendingRequestsModalOpen = false;
   pendingRequestsSearch = '';
+  pendingActionPriorityFilter: PendingActionPriorityFilter = 'all';
+  pendingActionSortKey: PendingActionSortKey = 'newest';
+  activePendingActionKey: PendingActionKey = 'all';
+  activePendingActionItemId: string | null = null;
   talentPoolRoleId: string | null = null;
   activeInterviewLinkMenuId: number | null = null;
   resendingInterviewEmailId: number | null = null;
   evaluationSummaryModalOpen = false;
   evaluationSummaryLoading = false;
+  evaluationSummaryLoadingCandidateId: number | null = null;
   evaluationSummaryError = '';
   evaluationSummaryCandidate: any | null = null;
   evaluationSummary: CandidateEvaluationSummary = this.createEmptyEvaluationSummary();
+  evaluationReportOpen = false;
+  evaluationReportGeneratedAt = new Date();
+  evaluationReportMetaItems: EvaluationReportMetaItem[] = [];
+  evaluationReportProfileItems: EvaluationReportProfileItem[] = [];
+  evaluationReportInsightCards: EvaluationReportInsight[] = [];
+  evaluationReportSkillRows: EvaluationReportSkillRow[] = [];
+  evaluationReportProgressSteps: EvaluationReportProgressStep[] = [];
+  evaluationFeedbackRows: Array<{ avatar: string; evaluator: string; stage: string; score: string; summary: string; tone: string }> = [];
+  evaluationFeedbackHighlights: Array<{ title: string; description: string; icon: string }> = [];
+  evaluationCoreSkillTags: string[] = [];
+  evaluationNeedAttentionItems: string[] = [];
+  evaluationActionItems: string[] = [];
+  evaluationEducationItems: Array<{ title: string; detail: string }> = [];
+  evaluationReportQaRecords: QuestionAnswerRecord[] = [];
   qaExpandedKeys = new Set<string>();
   workspaceTourOpen = false;
   workspaceTourSteps: WorkspaceTourStep[] = [];
@@ -287,6 +396,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mobileNavToggleButton') mobileNavToggleButtonRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('companyModalCard') companyModalCardRef?: ElementRef<HTMLElement>;
   @ViewChild('companyModalCloseButton') companyModalCloseButtonRef?: ElementRef<HTMLButtonElement>;
+  @ViewChild('pendingRequestsDialog') pendingRequestsDialogRef?: ElementRef<HTMLElement>;
   private applicationIdsSeen = new Set<number>();
   private applicationPollTimer: ReturnType<typeof setInterval> | null = null;
   private applicationToastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -424,6 +534,11 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (event.key === 'Escape') {
+      if (this.evaluationReportOpen) {
+        event.preventDefault();
+        this.closeDetailedEvaluationReport();
+        return;
+      }
       if (this.evaluationSummaryModalOpen) {
         event.preventDefault();
         this.closeEvaluationSummaryModal();
@@ -434,9 +549,19 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
         this.closeInterviewLinkMenu();
         return;
       }
+      if (this.candidateFilterMenuOpen) {
+        event.preventDefault();
+        this.closeCandidateFilterMenu();
+        return;
+      }
       if (this.companyDetailsModalOpen) {
         event.preventDefault();
         this.closeCompanyDetailsModal();
+        return;
+      }
+      if (this.pendingRequestsModalOpen) {
+        event.preventDefault();
+        this.closePendingRequestsModal();
         return;
       }
       if (this.mobileNavOpen) {
@@ -455,6 +580,11 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.pendingRequestsModalOpen) {
+      this.trapFocus(event, this.pendingRequestsDialogRef?.nativeElement);
+      return;
+    }
+
     if (this.mobileNavOpen) {
       this.trapFocus(event, this.mobileNavPanelRef?.nativeElement);
     }
@@ -463,6 +593,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('document:click', ['$event'])
   handleDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
+    if (target?.closest('.candidate-filter-control')) {
+      return;
+    }
+    this.closeCandidateFilterMenu();
     if (target?.closest('.interview-link-menu')) {
       return;
     }
@@ -903,10 +1037,358 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
 
   openPendingRequestsModal(): void {
     this.pendingRequestsModalOpen = true;
+    this.activePendingActionKey = 'all';
+    this.activePendingActionItemId = null;
+    this.updateBodyScrollLock();
+    setTimeout(() => this.focusFirstElement(this.pendingRequestsDialogRef?.nativeElement), 0);
   }
 
   closePendingRequestsModal(): void {
     this.pendingRequestsModalOpen = false;
+    this.activePendingActionItemId = null;
+    this.updateBodyScrollLock();
+  }
+
+  get pendingActionCards(): PendingActionCard[] {
+    const list = this.candidatesData || [];
+    const now = new Date();
+    return [
+      {
+        key: 'new-applications',
+        label: 'New Applications',
+        helper: 'Needs review',
+        icon: 'ph ph-user-plus',
+        count: this.recruiterApplicationsCount || this.recruiterApplications.length || 0,
+        tone: 'purple'
+      },
+      {
+        key: 'assessment-pending',
+        label: 'Assessment Pending',
+        helper: 'Awaiting results',
+        icon: 'ph ph-clipboard-text',
+        count: this.assessmentPendingCandidates?.length || 0,
+        tone: 'orange'
+      },
+      {
+        key: 'overdue-feedback',
+        label: 'Overdue Feedback',
+        helper: 'Requires action',
+        icon: 'ph ph-clock-countdown',
+        count: this.getOverdueFeedbackCandidates(list, now).length,
+        tone: 'pink'
+      },
+      {
+        key: 'interviews-pending',
+        label: 'Interviews Pending',
+        helper: 'To be scheduled',
+        icon: 'ph ph-calendar-plus',
+        count: this.getUnscheduledShortlistedCandidates(list).length,
+        tone: 'blue'
+      },
+      {
+        key: 'offer-decisions',
+        label: 'Offer Decisions',
+        helper: 'Awaiting decision',
+        icon: 'ph ph-seal-check',
+        count: this.getPendingOfferCandidates(list, now).length,
+        tone: 'green'
+      }
+    ];
+  }
+
+  get activePendingAction(): PendingActionCard {
+    if (this.activePendingActionKey === 'all') {
+      return {
+        key: 'all',
+        label: 'All Actions',
+        helper: 'Needs attention',
+        icon: 'ph ph-list-checks',
+        count: this.pendingActionTotalCount,
+        tone: 'blue'
+      };
+    }
+    return this.pendingActionCards.find((card) => card.key === this.activePendingActionKey) || this.pendingActionCards[0];
+  }
+
+  get pendingActionTotalCount(): number {
+    return this.pendingActionCards.reduce((total, card) => total + (card.count || 0), 0);
+  }
+
+  get filteredPendingActionItems(): PendingActionListItem[] {
+    const term = this.pendingRequestsSearch.trim().toLowerCase();
+    let items = this.pendingActionItemsFor(this.activePendingActionKey);
+    if (term) {
+      items = items.filter((item) =>
+        [item.name, item.email, item.phone, item.role, item.status, item.source, item.actionLabel]
+          .map((value) => (value || '').toString().toLowerCase())
+          .some((value) => value.includes(term))
+      );
+    }
+    if (this.pendingActionPriorityFilter !== 'all') {
+      items = items.filter((item) => this.pendingActionPriorityTone(item) === this.pendingActionPriorityFilter);
+    }
+    return this.sortPendingActionItems(items);
+  }
+
+  get selectedPendingActionItem(): PendingActionListItem | null {
+    const items = this.filteredPendingActionItems;
+    return items.find((item) => item.id === this.activePendingActionItemId) || items[0] || null;
+  }
+
+  selectPendingAction(key: PendingActionKey): void {
+    this.activePendingActionKey = key;
+    this.activePendingActionItemId = null;
+  }
+
+  focusPendingActionItem(item: PendingActionListItem): void {
+    this.activePendingActionItemId = item.id;
+  }
+
+  openPendingActionItem(item: PendingActionListItem): void {
+    if (item.kind === 'application') {
+      this.openCandidatePublicProfile(item.raw);
+      return;
+    }
+    this.profileUpdate(item.raw);
+  }
+
+  reviewPendingActionItem(item: PendingActionListItem): void {
+    if (item.actionKey === 'overdue-feedback' && item.kind === 'candidate') {
+      this.closePendingRequestsModal();
+      this.openEvaluationSummary(item.raw);
+      return;
+    }
+    this.openPendingActionItem(item);
+  }
+
+  schedulePendingActionItem(item: PendingActionListItem): void {
+    if (item.kind === 'candidate') {
+      this.openWorkflowAction('schedule', item.raw);
+    }
+  }
+
+  pendingActionElapsedLabel(item: PendingActionListItem | null): string {
+    if (!item?.date) {
+      return 'Not scheduled';
+    }
+    const date = new Date(item.date);
+    if (Number.isNaN(date.getTime())) {
+      return 'Date pending';
+    }
+    const diffMs = Date.now() - date.getTime();
+    const absMs = Math.abs(diffMs);
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+    if (absMs < hour) {
+      const minutes = Math.max(1, Math.round(absMs / minute));
+      return `${minutes} min${minutes === 1 ? '' : 's'} ${diffMs >= 0 ? 'ago' : 'from now'}`;
+    }
+    if (absMs < day) {
+      const hours = Math.round(absMs / hour);
+      return `${hours} hour${hours === 1 ? '' : 's'} ${diffMs >= 0 ? 'ago' : 'from now'}`;
+    }
+    const days = Math.round(absMs / day);
+    return `${days} day${days === 1 ? '' : 's'} ${diffMs >= 0 ? 'ago' : 'from now'}`;
+  }
+
+  pendingActionPriorityLabel(item: PendingActionListItem | null): string {
+    if (!item) {
+      return 'Normal';
+    }
+    if (item.actionKey === 'overdue-feedback' || item.actionKey === 'new-applications') {
+      return 'High';
+    }
+    if (item.actionKey === 'interviews-pending' || item.actionKey === 'assessment-pending') {
+      return 'Medium';
+    }
+    return 'Low';
+  }
+
+  pendingActionPriorityTone(item: PendingActionListItem | null): string {
+    return this.pendingActionPriorityLabel(item).toLowerCase();
+  }
+
+  pendingActionSource(item: PendingActionListItem | null): string {
+    return item?.source || 'Dashboard pipeline';
+  }
+
+  pendingActionExperience(item: PendingActionListItem | null): string {
+    const raw = item?.raw || {};
+    const value = raw.experience_years ?? raw.total_experience ?? raw.years_experience ?? raw.experience;
+    if (value === null || value === undefined || value === '') {
+      return 'Not captured';
+    }
+    const numericValue = Number(value);
+    if (Number.isFinite(numericValue)) {
+      return `${numericValue} Year${numericValue === 1 ? '' : 's'}`;
+    }
+    return String(value);
+  }
+
+  pendingActionLocation(item: PendingActionListItem | null): string {
+    const raw = item?.raw || {};
+    const parts = [raw.location || raw.current_location || raw.city, raw.state, raw.country]
+      .map((value) => (value || '').toString().trim())
+      .filter(Boolean);
+    return parts.length ? Array.from(new Set(parts)).join(', ') : 'Not captured';
+  }
+
+  pendingActionResumeName(item: PendingActionListItem | null): string {
+    const raw = item?.raw || {};
+    const explicitName = raw.resume_name || raw.resume_filename || raw.file_name;
+    if (explicitName) {
+      return explicitName;
+    }
+    return `${(item?.name || 'Candidate').replace(/\s+/g, '_')}_Profile.pdf`;
+  }
+
+  pendingActionResumeMeta(item: PendingActionListItem | null): string {
+    const raw = item?.raw || {};
+    return raw.resume_size || raw.file_size || (this.pendingActionResumePdfUrl(item) ? 'PDF download available' : 'Profile record');
+  }
+
+  downloadPendingActionResumePdf(item: PendingActionListItem, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    const pdfUrl = this.pendingActionResumePdfUrl(item);
+    if (!pdfUrl) {
+      this.toast.showError('Resume unavailable', 'Public resume PDF is not available for this candidate yet.');
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  pendingActionResumePdfUrl(item: PendingActionListItem | null): string {
+    const raw = item?.raw || {};
+    const explicitUrl = raw.public_resume_pdf_url || raw.public_profile_pdf_url || raw.resume_pdf_url || raw.pdf_url;
+    if (explicitUrl) {
+      return String(explicitUrl);
+    }
+
+    const publicProfileUrl = raw.public_profile_url || raw.public_resume_url || raw.public_profile;
+    if (!publicProfileUrl) {
+      return '';
+    }
+
+    const normalizedUrl = String(publicProfileUrl);
+    try {
+      const url = new URL(normalizedUrl, window.location.origin);
+      const normalizedPath = url.pathname.replace(/\/$/, '');
+      if (normalizedPath.endsWith('/download-pdf')) {
+        url.pathname = `${normalizedPath}/`;
+      } else {
+        url.pathname = `${normalizedPath}/download-pdf/`;
+      }
+      return url.toString();
+    } catch {
+      const trimmedUrl = normalizedUrl.replace(/\/$/, '');
+      return trimmedUrl.endsWith('/download-pdf') ? `${trimmedUrl}/` : `${trimmedUrl}/download-pdf/`;
+    }
+  }
+
+  private sortPendingActionItems(items: PendingActionListItem[]): PendingActionListItem[] {
+    const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2, normal: 3 };
+    return [...items].sort((left, right) => {
+      if (this.pendingActionSortKey === 'priority') {
+        const rankDiff = (priorityRank[this.pendingActionPriorityTone(left)] ?? 3) - (priorityRank[this.pendingActionPriorityTone(right)] ?? 3);
+        if (rankDiff !== 0) {
+          return rankDiff;
+        }
+      }
+      const leftTime = this.pendingActionTimestamp(left);
+      const rightTime = this.pendingActionTimestamp(right);
+      if (this.pendingActionSortKey === 'oldest') {
+        return leftTime - rightTime;
+      }
+      return rightTime - leftTime;
+    });
+  }
+
+  private pendingActionTimestamp(item: PendingActionListItem): number {
+    const timestamp = item.date ? new Date(item.date).getTime() : Number.NaN;
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  }
+
+  private pendingActionItemsFor(key: PendingActionKey): PendingActionListItem[] {
+    const list = this.candidatesData || [];
+    const now = new Date();
+    switch (key) {
+      case 'all':
+        return [
+          ...this.pendingActionItemsFor('new-applications'),
+          ...this.pendingActionItemsFor('assessment-pending'),
+          ...this.pendingActionItemsFor('overdue-feedback'),
+          ...this.pendingActionItemsFor('interviews-pending'),
+          ...this.pendingActionItemsFor('offer-decisions')
+        ];
+      case 'new-applications':
+        return (this.recruiterApplications || []).map((application) => this.mapApplicationToPendingActionItem(application));
+      case 'assessment-pending':
+        return (this.assessmentPendingCandidates || []).map((candidate: any) => this.mapCandidateToPendingActionItem(candidate, key));
+      case 'overdue-feedback':
+        return this.getOverdueFeedbackCandidates(list, now).map((candidate: any) => this.mapCandidateToPendingActionItem(candidate, key));
+      case 'interviews-pending':
+        return this.getUnscheduledShortlistedCandidates(list).map((candidate: any) => this.mapCandidateToPendingActionItem(candidate, key));
+      case 'offer-decisions':
+        return this.getPendingOfferCandidates(list, now).map((candidate: any) => this.mapCandidateToPendingActionItem(candidate, key));
+    }
+  }
+
+  private mapApplicationToPendingActionItem(application: RecruiterApplicationItem): PendingActionListItem {
+    const card = this.getPendingActionCard('new-applications');
+    return {
+      id: `application-${application.id}`,
+      actionKey: 'new-applications',
+      actionLabel: card.label,
+      actionIcon: card.icon,
+      actionTone: card.tone,
+      name: application.candidate_name || 'Unnamed candidate',
+      email: application.candidate_email || 'No email',
+      phone: application.candidate_phone || 'Phone pending',
+      role: application.vacancy_role || 'Role pending',
+      status: application.status_label || 'New Application',
+      date: application.applied_at,
+      source: application.source || 'Career Portal',
+      kind: 'application',
+      raw: application
+    };
+  }
+
+  private mapCandidateToPendingActionItem(candidate: any, key: PendingActionKey): PendingActionListItem {
+    const card = this.getPendingActionCard(key);
+    return {
+      id: `candidate-${candidate?.id || key}-${candidate?.email || candidate?.name || ''}`,
+      actionKey: key,
+      actionLabel: card.label,
+      actionIcon: card.icon,
+      actionTone: card.tone,
+      name: candidate?.name || candidate?.candidate_name || 'Unnamed candidate',
+      email: candidate?.email || candidate?.candidate_email || 'No email',
+      phone: candidate?.phone || candidate?.candidate_phone || 'Phone pending',
+      role: candidate?.role || candidate?.role_title || candidate?.vacancy_role || 'Role pending',
+      status: candidate?.status || card.label,
+      date: candidate?.date || candidate?.updated_at || candidate?.created_at || '',
+      source: candidate?.recruiter || candidate?.interviewer || 'Dashboard pipeline',
+      kind: 'candidate',
+      raw: candidate
+    };
+  }
+
+  private getPendingActionCard(key: PendingActionKey): PendingActionCard {
+    if (key === 'all') {
+      return this.activePendingAction;
+    }
+    return this.pendingActionCards.find((card) => card.key === key) || this.pendingActionCards[0];
   }
 
   openCompanyDetailsModal(): void {
@@ -915,6 +1397,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       this.companyEditMode = false;
       this.selectedCompanyLogoFile = null;
       this.selectedCompanyLogoName = '';
+      this.activeCompanyProfileTab = 'details';
       this.populateCompanyForm();
       this.companyDetailsModalOpen = true;
       this.updateBodyScrollLock();
@@ -928,6 +1411,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     }
     this.companyDetailsModalOpen = false;
     this.companyEditMode = false;
+    this.activeCompanyProfileTab = 'details';
     this.companySaving = false;
     this.selectedCompanyLogoFile = null;
     this.selectedCompanyLogoName = '';
@@ -1178,7 +1662,7 @@ nextPage() {
   }
 
   private updateBodyScrollLock(): void {
-    const shouldLock = this.mobileNavOpen || this.companyDetailsModalOpen || this.evaluationSummaryModalOpen;
+    const shouldLock = this.mobileNavOpen || this.companyDetailsModalOpen || this.evaluationSummaryModalOpen || this.evaluationReportOpen || this.pendingRequestsModalOpen;
     if (shouldLock && !this.bodyScrollLocked) {
       document.body.style.overflow = 'hidden';
       this.bodyScrollLocked = true;
@@ -1277,6 +1761,37 @@ setStatusFilter(status: string | null, shouldScroll = false) {
   }
 }
 
+toggleCandidateFilterMenu(event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+  this.closeInterviewLinkMenu();
+  this.candidateFilterMenuOpen = !this.candidateFilterMenuOpen;
+}
+
+closeCandidateFilterMenu(): void {
+  this.candidateFilterMenuOpen = false;
+}
+
+applyCandidateFilter(status: string | null): void {
+  this.setStatusFilter(status);
+  this.closeCandidateFilterMenu();
+}
+
+isCandidateFilterSelected(status: string | null): boolean {
+  return this.normalizeStatus(this.selectedStatus) === this.normalizeStatus(status);
+}
+
+get selectedCandidateFilterLabel(): string {
+  return this.candidateFilterOptions.find((option) => this.isCandidateFilterSelected(option.value))?.label || 'Custom Filter';
+}
+
+getCandidateFilterOptionCount(status: string | null): number {
+  if (!status) {
+    return this.getSearchFilteredCandidates().length;
+  }
+  return this.getPipelineCount(status);
+}
+
 clearSearch(): void {
   this.searchQuery = '';
   this.currentPage = 1;
@@ -1288,15 +1803,23 @@ openEvaluationSummary(candidate: any, event?: Event): void {
 
   const candidateId = Number(candidate?.id || 0);
   if (!candidateId) {
+    this.toast.showError('Evaluation unavailable', 'Candidate interview details are missing.');
+    return;
+  }
+
+  if (this.evaluationSummaryLoading && this.evaluationSummaryLoadingCandidateId === candidateId) {
     return;
   }
 
   this.closeInterviewLinkMenu();
   this.evaluationSummaryCandidate = candidate;
-  this.evaluationSummaryModalOpen = true;
+  this.evaluationSummaryModalOpen = false;
+  this.evaluationReportOpen = false;
   this.evaluationSummaryLoading = true;
+  this.evaluationSummaryLoadingCandidateId = candidateId;
   this.evaluationSummaryError = '';
   this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.resetEvaluationReportViewData();
   this.qaExpandedKeys.clear();
   this.updateBodyScrollLock();
 
@@ -1307,18 +1830,30 @@ openEvaluationSummary(candidate: any, event?: Event): void {
       takeUntilDestroyed(this.destroyRef),
       catchError((error) => {
         console.error('Error loading candidate evaluation summary', error);
-        this.evaluationSummaryLoading = false;
-        this.evaluationSummaryError = 'Unable to load the evaluation summary right now.';
+        if (this.evaluationSummaryLoadingCandidateId === candidateId) {
+          this.evaluationSummaryLoading = false;
+          this.evaluationSummaryLoadingCandidateId = null;
+          this.evaluationSummaryCandidate = null;
+          this.toast.showError('Evaluation summary unavailable', 'Unable to load the evaluation summary right now.');
+        }
         return of(null);
       })
     )
     .subscribe((response) => {
+      if (this.evaluationSummaryLoadingCandidateId !== candidateId) {
+        return;
+      }
       this.evaluationSummaryLoading = false;
+      this.evaluationSummaryLoadingCandidateId = null;
       if (!response?.Success) {
-        this.evaluationSummaryError = response?.Error || 'Unable to load the evaluation summary right now.';
+        this.evaluationSummaryCandidate = null;
+        this.toast.showError('Evaluation summary unavailable', response?.Error || 'Unable to load the evaluation summary right now.');
         return;
       }
       this.evaluationSummary = this.normalizeEvaluationPayload(response?.Data?.evaluation_summary || {});
+      this.rebuildEvaluationReportViewData();
+      this.evaluationSummaryModalOpen = true;
+      this.updateBodyScrollLock();
     });
 }
 
@@ -1327,12 +1862,475 @@ closeEvaluationSummaryModal(): void {
     return;
   }
   this.evaluationSummaryModalOpen = false;
+  this.evaluationReportOpen = false;
   this.evaluationSummaryLoading = false;
+  this.evaluationSummaryLoadingCandidateId = null;
   this.evaluationSummaryError = '';
   this.evaluationSummaryCandidate = null;
   this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.resetEvaluationReportViewData();
   this.qaExpandedKeys.clear();
   this.updateBodyScrollLock();
+}
+
+openDetailedEvaluationReport(event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+  if (!this.evaluationSummary.available) {
+    return;
+  }
+  this.evaluationReportGeneratedAt = new Date();
+  const reportHtml = this.buildDetailedEvaluationReportHtml();
+  const reportUrl = window.URL.createObjectURL(new Blob([reportHtml], { type: 'text/html;charset=utf-8' }));
+  const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
+  if (!reportWindow) {
+    window.URL.revokeObjectURL(reportUrl);
+    this.toast.showError('Popup blocked', 'Allow popups for this site to open the detailed report in a new tab.');
+    return;
+  }
+  setTimeout(() => window.URL.revokeObjectURL(reportUrl), 60000);
+  this.evaluationSummaryModalOpen = false;
+  this.updateBodyScrollLock();
+}
+
+closeDetailedEvaluationReport(): void {
+  if (!this.evaluationReportOpen) {
+    return;
+  }
+  this.evaluationReportOpen = false;
+  this.evaluationSummaryCandidate = null;
+  this.evaluationSummary = this.createEmptyEvaluationSummary();
+  this.resetEvaluationReportViewData();
+  this.qaExpandedKeys.clear();
+  this.updateBodyScrollLock();
+}
+
+downloadDetailedEvaluationReport(event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+  setTimeout(() => window.print(), 0);
+}
+
+private buildDetailedEvaluationReportHtml(): string {
+  const score = this.getEvaluationScorePercent();
+  const scoreDegrees = score * 3.6;
+  const decisionColor = this.getReportDecisionColor();
+  const candidateName = this.evaluationSummary.candidate_name || this.evaluationSummaryCandidate?.name || 'Candidate';
+  const roleTitle = this.evaluationSummary.role_title || this.evaluationSummaryCandidate?.role || 'Not captured';
+  const profilePhotoUrl = this.getEvaluationProfilePhotoUrl();
+  const candidateInitials = this.escapeHtml(this.getEvaluationCandidateInitials());
+  const avatarClass = profilePhotoUrl ? 'report-avatar has-photo' : 'report-avatar';
+  const avatarHtml = `
+    ${profilePhotoUrl ? `<img src="${this.escapeHtmlAttr(profilePhotoUrl)}" alt="${this.escapeHtmlAttr(candidateName)}" onerror="this.parentElement.classList.add('is-fallback')">` : ''}
+    <span class="report-avatar-fallback">${candidateInitials}</span>
+  `;
+  const metaHtml = this.evaluationReportMetaItems.map((item) => `
+    <article>
+      <span class="report-meta-icon">${this.reportIconForLabel(item.label)}</span>
+      <div><small>${this.escapeHtml(item.label)}</small><strong>${this.escapeHtml(item.value)}</strong></div>
+    </article>
+  `).join('');
+  const insightsHtml = this.evaluationReportInsightCards.map((item) => `
+    <article class="report-insight-card is-${this.escapeHtmlAttr(item.tone)}">
+      <span>${this.reportIconForLabel(item.label)}</span>
+      <strong>${this.escapeHtml(item.value)}</strong>
+      <small>${this.escapeHtml(item.helper)}</small>
+    </article>
+  `).join('');
+  const skillsHtml = this.evaluationReportSkillRows.map((row) => {
+    const normalizedScore = row.score === null ? null : (row.score <= 5 ? row.score * 20 : row.score);
+    const width = normalizedScore === null ? 0 : Math.max(0, Math.min(100, normalizedScore));
+    return `
+      <article class="report-skill-row">
+        <strong>${this.escapeHtml(row.label)}</strong>
+        <span>${normalizedScore === null ? 'N/A' : `${this.escapeHtml(this.formatScore(normalizedScore))}/100`}</span>
+        <div class="report-skill-meter"><i class="is-${this.escapeHtmlAttr(row.tone)}" style="width:${width}%"></i></div>
+        <em class="is-${this.escapeHtmlAttr(row.tone)}">${this.escapeHtml(row.proficiency)}</em>
+      </article>
+    `;
+  }).join('');
+  const progressHtml = this.evaluationReportProgressSteps.map((step, index) => `
+    <article class="${step.active ? 'is-active' : ''}">
+      <span>${step.active ? '&#10003;' : index + 1}</span>
+      <strong>${this.escapeHtml(step.label)}</strong>
+      <small>${this.escapeHtml(step.state)}</small>
+      <em>${this.escapeHtml(step.score)}</em>
+    </article>
+  `).join('');
+  const qaHtml = this.evaluationReportQaRecords.length
+    ? `
+      <div class="report-qa-table">
+        <div class="report-qa-head"><span>#</span><span>Question</span><span>Skill</span><span>Answer Quality</span></div>
+        ${this.evaluationReportQaRecords.map((record, index) => {
+          const quality = this.deriveAnswerQuality(record);
+          const qualityClass = this.getQualityClass(quality);
+          return `
+          <article class="report-qa-row ${this.isWeakQuality(quality) ? 'is-warning' : ''}">
+            <span>${this.escapeHtml(String(record.turn_index || index + 1))}</span>
+            <div class="report-qa-copy">
+              <p class="report-question">${this.escapeHtml(record.question_text || 'Question unavailable')}</p>
+              <div class="report-qa-detail">
+                <strong>Candidate Answer</strong>
+                <p>${this.escapeHtml(record.candidate_answer || 'No answer captured')}</p>
+              </div>
+              <div class="report-qa-detail is-expected">
+                <strong>Expected Signal</strong>
+                <p>${this.escapeHtml(record.expected_signal || 'Expected signal not captured')}</p>
+              </div>
+            </div>
+            <strong>${this.escapeHtml(record.skill || 'Not captured')}</strong>
+            <em class="${this.escapeHtmlAttr(qualityClass)}">${this.escapeHtml(quality)}</em>
+          </article>
+        `;
+        }).join('')}
+      </div>
+    `
+    : '<p>No Q/A records captured for this evaluation.</p>';
+  const profileHtml = this.evaluationReportProfileItems.map((item) => `
+    <article class="report-profile-row">
+      <span>${this.reportIconForLabel(item.label)}</span>
+      <div><strong>${this.escapeHtml(item.label)}</strong><small>${this.escapeHtml(item.value)}</small></div>
+    </article>
+  `).join('');
+  const coreSkillsHtml = (this.evaluationCoreSkillTags.length ? this.evaluationCoreSkillTags : ['No skills captured'])
+    .map((skill) => `<span>${this.escapeHtml(skill)}</span>`)
+    .join('');
+  const educationHtml = this.evaluationEducationItems.map((item) => `
+    <article class="report-education-item"><strong>${this.escapeHtml(item.title)}</strong><small>${this.escapeHtml(item.detail || 'Not captured')}</small></article>
+  `).join('');
+  const attentionHtml = this.evaluationNeedAttentionItems.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('');
+  const actionsHtml = this.evaluationActionItems.map((item) => `<label><span>&#10003;</span><small>${this.escapeHtml(item)}</small></label>`).join('');
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${this.escapeHtml(candidateName)} - Candidate Evaluation Report</title>
+  <style>${this.getDetailedReportStaticCss()}</style>
+</head>
+<body>
+  <main class="report-page">
+    <div class="report-accent-bar"></div>
+    <header class="report-header">
+      <div>
+        ${this.getReportLogoHtml()}
+        <p>Candidate Evaluation Report</p>
+      </div>
+      <div class="report-generated">
+        <span>Generated on ${this.escapeHtml(this.evaluationReportGeneratedAt.toLocaleString())}</span>
+        <span>Report ID: ${this.escapeHtml(this.getEvaluationReportId())}</span>
+      </div>
+    </header>
+
+    <section class="report-hero-grid">
+      <article class="report-candidate-hero report-card">
+        <div class="${avatarClass}">${avatarHtml}</div>
+        <div class="report-candidate-copy">
+          <h1>${this.escapeHtml(candidateName)}</h1>
+          <strong>${this.escapeHtml(roleTitle)}</strong>
+          <p>${this.escapeHtml(this.getExecutiveSummary())}</p>
+        </div>
+      </article>
+      <article class="report-score-decision report-card">
+        <div class="report-score-ring" style="background:conic-gradient(${decisionColor} 0deg ${scoreDegrees}deg, #e6eaf0 ${scoreDegrees}deg 360deg)">
+          <div class="report-score-copy">
+            <span>${this.escapeHtml(this.formatReportScore())}</span>
+            <small>/100</small>
+          </div>
+        </div>
+        <div class="report-decision-copy">
+          <span>Decision</span>
+          <strong class="is-${this.escapeHtmlAttr(this.getDecisionTone())}">${this.escapeHtml(this.getEvaluationDecisionLabel())}</strong>
+          <hr>
+          <span>Recommendation</span>
+          <p>${this.escapeHtml(this.getEvaluationRecommendationText())}</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="report-meta-strip report-card">${metaHtml}</section>
+
+    <div class="report-body-grid">
+      <section class="report-main-column">
+        <article class="report-card report-section">
+          <h2><span>▦</span> Executive Summary</h2>
+          <p>${this.escapeHtml(this.getExecutiveSummary())}</p>
+          <div class="report-evidence-grid">
+            <div class="report-evidence-card is-strong">
+              <h3>☝ Strongest Evidence</h3>
+              <span>${this.escapeHtml(this.getEvidenceSkillLabel())}</span>
+              <p>${this.escapeHtml(this.getStrongestEvidence())}</p>
+            </div>
+            <div class="report-evidence-card is-weak">
+              <h3>☟ Weakest Evidence</h3>
+              <span>${this.escapeHtml(this.getEvidenceSkillLabel(true))}</span>
+              <p>${this.escapeHtml(this.getWeakestEvidence())}</p>
+            </div>
+          </div>
+          <div class="report-guidance"><span>◎</span><p>${this.escapeHtml(this.evaluationSummary.hire_recommendation_reason || this.evaluationSummary.next_round_focus[0] || 'Review the captured evidence before confirming the next hiring action.')}</p></div>
+        </article>
+
+        <article class="report-card report-section">
+          <h2><span>✥</span> Summary Insights</h2>
+          <div class="report-insight-grid">${insightsHtml}</div>
+        </article>
+
+        <article class="report-card report-section">
+          <h2><span>⚙</span> Skills Assessment</h2>
+          <div class="report-skills-layout">
+            <div class="report-mini-score-ring" style="background:conic-gradient(${decisionColor} 0deg ${scoreDegrees}deg, #e6eaf0 ${scoreDegrees}deg 360deg)">
+              <div class="report-score-copy">
+                <span>${this.escapeHtml(this.formatReportScore())}</span><small>/100</small>
+              </div>
+              <em>Overall Score</em>
+            </div>
+            <div class="report-skill-table">
+              <div class="report-skill-head"><span>Skill Area</span><span>Score</span><span>Proficiency</span></div>
+              ${skillsHtml}
+            </div>
+          </div>
+        </article>
+
+        <article class="report-card report-section">
+          <h2><span>⌁</span> Evaluation Progress</h2>
+          <div class="report-progress-line">${progressHtml}</div>
+        </article>
+
+        <article class="report-card report-section">
+          <h2><span>▣</span> Detailed Question & Answer Summary</h2>
+          ${qaHtml}
+        </article>
+      </section>
+
+      <aside class="report-sidebar">
+        <article class="report-card report-section">
+          <h2><span>♙</span> Candidate Profile</h2>
+          ${profileHtml}
+        </article>
+        <article class="report-card report-section">
+          <h2><span>✺</span> Core Skills</h2>
+          <div class="report-chip-cloud">${coreSkillsHtml}</div>
+        </article>
+        <article class="report-card report-section">
+          <h2><span>▱</span> Education</h2>
+          ${educationHtml}
+        </article>
+        <article class="report-card report-section report-attention">
+          <h2><span>△</span> Need Attention</h2>
+          <ul>${attentionHtml}</ul>
+        </article>
+        <article class="report-card report-section report-actions-list">
+          <h2><span>▤</span> Action Items</h2>
+          ${actionsHtml}
+        </article>
+        <article class="report-card report-section report-actions-card">
+          <h2><span>▣</span> Reports</h2>
+          <button type="button" class="report-download-btn" onclick="window.print()">Detailed Report <span>⇩</span></button>
+          <button type="button" class="report-close-btn" onclick="window.close()">Close</button>
+        </article>
+      </aside>
+    </div>
+    <footer class="report-footer"><span>◎ Shared through Shortlistii.com</span></footer>
+  </main>
+</body>
+</html>`;
+}
+
+private getEvaluationProfilePhotoUrl(): string {
+  return this.stringValue(
+    this.evaluationSummary.profile_picture_data_url
+    || this.evaluationSummary.evaluation_payload['profile_picture_data_url']
+    || this.evaluationSummaryCandidate?.profile_picture_url
+    || this.evaluationSummaryCandidate?.candidate_profile_picture_url
+    || this.evaluationSummary.evaluation_payload['profile_picture_url']
+    || this.evaluationSummary.evaluation_payload['candidate_profile_picture_url']
+  );
+}
+
+private getReportLogoHtml(): string {
+  return `
+    <div class="shortlistii-logo shortlistii-navbar shortlistii-report-logo" aria-label="shortlistii.com">
+      <span class="logo-text">shortlist</span>
+      <span class="logo-ii" aria-hidden="true">
+        <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+        <span class="person"><span class="head"></span><span class="body"></span><span class="tie"></span></span>
+      </span>
+    </div>
+  `;
+}
+
+private reportIconForLabel(label: string): string {
+  const normalized = this.normalizeEvaluationLabel(label);
+  if (normalized.includes('role') || normalized.includes('experience') || normalized.includes('company')) return '▣';
+  if (normalized.includes('stage') || normalized.includes('evaluation')) return '☷';
+  if (normalized.includes('interview')) return '▻';
+  if (normalized.includes('source') || normalized.includes('location')) return '◎';
+  if (normalized.includes('email')) return '✉';
+  if (normalized.includes('phone')) return '☏';
+  if (normalized.includes('question')) return '?';
+  if (normalized.includes('score')) return '◷';
+  if (normalized.includes('fit')) return '▤';
+  if (normalized.includes('signal')) return '✦';
+  return '•';
+}
+
+private escapeHtml(value: unknown): string {
+  return this.stringValue(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+private escapeHtmlAttr(value: unknown): string {
+  return this.escapeHtml(value).replace(/`/g, '&#96;');
+}
+
+private escapeJsString(value: unknown): string {
+  return this.stringValue(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
+private getDetailedReportStaticCss(): string {
+  return `
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #e9eff7; color: #111a33; font-family: Inter, Arial, Helvetica, sans-serif; }
+    body { padding: 24px; }
+    .report-page { position: relative; width: min(1080px, 100%); margin: 0 auto; background: #fff; padding: 28px 30px 28px 44px; box-shadow: 0 24px 70px rgba(15, 23, 42, 0.14); }
+    .report-accent-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: linear-gradient(180deg, #1d4ed8, #06b6d4, #10b981, #f59e0b); }
+    .report-card { border: 1px solid #dce4ef; border-radius: 8px; background: #fff; box-shadow: 0 10px 26px rgba(15, 23, 42, 0.035); }
+    .report-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 24px; margin-bottom: 18px; }
+    .shortlistii-report-logo, .shortlistii-report-logo.shortlistii-logo { display: inline-flex; align-items: flex-end; gap: 0.015em; line-height: 1; text-decoration: none; height: 31px; }
+    .shortlistii-report-logo .logo-text { font-family: Georgia, 'Times New Roman', serif; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.045em; color: #101a32; display: inline-flex; align-items: center; line-height: 1; }
+    .shortlistii-report-logo .logo-ii { display: inline-flex; align-items: center; gap: 0.025em; margin-left: .3em; margin-bottom: 0.2em; line-height: 1; font-size: 1.4rem; transform: none; transform-origin: bottom center; }
+    .shortlistii-report-logo .person { position: relative; width: 0.36em; height: 0.84em; display: inline-block; flex: 0 0 auto; }
+    .shortlistii-report-logo .person .head { position: absolute; top: 0; left: 50%; width: 0.27em; height: 0.27em; transform: translateX(-50%); border-radius: 50%; background: linear-gradient(180deg, #8fd0ff 0%, #5aa9ff 100%); box-shadow: 0 0 12px rgba(90,169,255,.18); }
+    .shortlistii-report-logo .person .body { position: absolute; left: 50%; bottom: 0; width: 0.24em; height: 0.53em; transform: translateX(-50%); border-radius: 0.12em 0.12em 0.10em 0.10em; background: #101a32; box-shadow: 0 2px 6px rgba(0,0,0,.14); }
+    .shortlistii-report-logo .person .tie { position: absolute; top: 0.30em; left: 50%; width: 0.08em; height: 0.30em; transform: translateX(-50%); background: linear-gradient(180deg, #9dd5ff 0%, #5aa9ff 100%); clip-path: polygon(50% 0%, 100% 18%, 72% 100%, 28% 100%, 0% 18%); }
+    .report-header p, .report-generated span { margin: 7px 0 0; color: #4b5874; font-size: 0.82rem; font-weight: 600; }
+    .report-generated { display: grid; gap: 4px; text-align: right; padding-top: 4px; }
+    .report-hero-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.85fr); gap: 14px; align-items: stretch; }
+    .report-candidate-hero { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 22px; align-items: center; min-height: 170px; padding: 18px; }
+    .report-avatar { width: 132px; height: 132px; border-radius: 8px; overflow: hidden; background: linear-gradient(145deg, #edf4ff, #d8e6ff); display: grid; place-items: center; }
+    .report-avatar img, .report-avatar-fallback { grid-area: 1 / 1; }
+    .report-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .report-avatar-fallback { color: #0b74c8; font-size: 3.1rem; font-weight: 900; letter-spacing: -0.04em; }
+    .report-avatar.has-photo:not(.is-fallback) .report-avatar-fallback { display: none; }
+    .report-avatar.has-photo.is-fallback img { display: none; }
+    .report-candidate-copy { min-width: 0; }
+    .report-candidate-copy h1 { margin: 0 0 8px; color: #111827; font-size: 1.72rem; line-height: 1.05; letter-spacing: 0; }
+    .report-candidate-copy strong { display: block; color: #0057ff; font-size: 0.86rem; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
+    .report-candidate-copy p, .report-section p, .report-evidence-card p, .report-guidance p, .report-profile-row small, .report-education-item small, .report-attention li, .report-actions-list small { margin: 0; color: #25314d; font-size: 0.82rem; line-height: 1.55; overflow-wrap: anywhere; }
+    .report-score-decision { display: grid; grid-template-columns: 132px minmax(0, 1fr); align-items: center; gap: 22px; padding: 18px 22px; min-height: 170px; }
+    .report-score-ring, .report-mini-score-ring { position: relative; display: grid; place-items: center; border-radius: 50%; }
+    .report-score-ring { width: 132px; height: 132px; }
+    .report-score-ring::before, .report-mini-score-ring::before { content: ''; position: absolute; inset: 10px; border-radius: 50%; background: #fff; }
+    .report-score-copy { position: relative; z-index: 1; display: grid; place-items: center; gap: 5px; line-height: 1; }
+    .report-score-copy span { color: #111827; font-size: 2.15rem; font-weight: 900; line-height: 1; }
+    .report-score-copy small { color: #111827; font-size: 0.95rem; font-weight: 900; line-height: 1; }
+    .report-decision-copy span, .report-meta-strip small, .report-section h2, .report-skill-head span, .report-qa-head span { color: #111a33; font-size: 0.74rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
+    .report-decision-copy strong { display: block; margin: 8px 0 14px; color: #f59e0b; font-size: 1.35rem; font-weight: 900; text-transform: uppercase; }
+    .report-decision-copy strong.is-success { color: #059669; } .report-decision-copy strong.is-danger { color: #dc2626; }
+    .report-decision-copy hr { margin: 0 0 14px; border: 0; border-top: 1px solid #dfe6ef; }
+    .report-decision-copy p { margin: 8px 0 0; color: #059669; font-size: 0.86rem; font-weight: 900; }
+    .report-meta-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 18px 0 14px; padding: 14px 16px; }
+    .report-meta-strip article { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; border-right: 1px solid #e4e9f1; padding: 0 14px; }
+    .report-meta-strip article:first-child { padding-left: 0; } .report-meta-strip article:last-child { border-right: 0; padding-right: 0; }
+    .report-meta-icon { color: #0057ff; font-size: 1.45rem; font-weight: 900; }
+    .report-meta-strip strong { display: block; margin-top: 5px; color: #111827; font-size: 0.84rem; line-height: 1.35; overflow-wrap: anywhere; }
+    .report-body-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(305px, 0.95fr); align-items: start; gap: 14px; }
+    .report-main-column, .report-sidebar { display: grid; gap: 14px; min-width: 0; }
+    .report-section { display: grid; gap: 14px; padding: 16px; min-width: 0; }
+    .report-section h2 { display: flex; align-items: center; gap: 9px; margin: 0; letter-spacing: 0.06em; }
+    .report-section h2 span { color: #0057ff; font-size: 1rem; }
+    .report-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .report-evidence-card { border-radius: 8px; padding: 14px; min-width: 0; }
+    .report-evidence-card.is-strong { border: 1px solid #bbf7d0; background: linear-gradient(145deg, #effdf5, #f8fffb); }
+    .report-evidence-card.is-weak { border: 1px solid #fecaca; background: linear-gradient(145deg, #fff1f2, #fffafa); }
+    .report-evidence-card h3 { margin: 0 0 12px; color: #16a34a; font-size: 0.9rem; text-transform: uppercase; } .report-evidence-card.is-weak h3 { color: #ef4444; }
+    .report-evidence-card > span, .report-chip-cloud span { display: inline-flex; width: fit-content; border-radius: 5px; background: #dbeafe; color: #0f3d7a; font-size: 0.68rem; font-weight: 900; padding: 5px 8px; margin-bottom: 10px; }
+    .report-evidence-card.is-strong > span { background: #dcfce7; color: #047857; } .report-evidence-card.is-weak > span { background: #fee2e2; color: #dc2626; }
+    .report-guidance { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: center; gap: 10px; border: 1px solid #dbeafe; border-radius: 8px; background: #eff6ff; padding: 12px; color: #0057ff; }
+    .report-insight-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .report-insight-card { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 10px; align-items: center; min-height: 74px; border: 1px solid #dfe6ef; border-radius: 8px; padding: 12px; }
+    .report-insight-card > span { grid-row: span 2; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(0, 87, 255, 0.1); color: #0057ff; font-weight: 900; }
+    .report-insight-card strong { color: #111827; font-size: 1.18rem; line-height: 1; overflow-wrap: anywhere; }
+    .report-insight-card small { color: #4b5874; font-size: 0.68rem; line-height: 1.25; }
+    .report-skills-layout { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 22px; align-items: center; }
+    .report-mini-score-ring { width: 118px; height: 118px; }
+    .report-mini-score-ring em { position: absolute; top: calc(100% + 7px); color: #4b5874; font-size: 0.68rem; font-style: normal; white-space: nowrap; }
+    .report-mini-score-ring .report-score-copy span { font-size: 1.9rem; }
+    .report-skill-table { display: grid; gap: 0; min-width: 0; }
+    .report-skill-head, .report-skill-row { display: grid; grid-template-columns: minmax(120px, 1fr) 78px minmax(110px, 1.35fr) 82px; align-items: center; gap: 12px; }
+    .report-skill-head { padding-bottom: 8px; } .report-skill-row { min-height: 34px; border-top: 1px solid #e7ebf2; }
+    .report-skill-row strong, .report-skill-row span { color: #111827; font-size: 0.75rem; overflow-wrap: anywhere; }
+    .report-skill-row em { font-size: 0.7rem; font-style: normal; font-weight: 900; }
+    .is-good { color: #059669; } .is-average { color: #f59e0b; } .is-warning { color: #c2410c; } .is-neutral { color: #64748b; }
+    .report-skill-meter { height: 5px; border-radius: 999px; background: #e7ebf2; overflow: hidden; } .report-skill-meter i { display: block; height: 100%; border-radius: inherit; background: #0284c7; } .report-skill-meter i.is-good { background: #10b981; } .report-skill-meter i.is-average { background: #f59e0b; } .report-skill-meter i.is-warning { background: #ef4444; } .report-skill-meter i.is-neutral { background: #94a3b8; }
+    .report-progress-line { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .report-progress-line::before { content: ''; position: absolute; top: 19px; left: 8%; right: 8%; height: 2px; background: linear-gradient(90deg, #10b981, #38bdf8, #8b5cf6); }
+    .report-progress-line article { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; text-align: center; min-width: 0; }
+    .report-progress-line article > span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #8b5cf6; color: #fff; font-size: 0.86rem; font-weight: 900; } .report-progress-line article.is-active > span { background: #10b981; }
+    .report-progress-line strong { color: #111827; font-size: 0.72rem; line-height: 1.25; } .report-progress-line small, .report-progress-line em { color: #4b5874; font-size: 0.66rem; font-style: normal; }
+    .report-qa-table { display: grid; overflow: hidden; border: 1px solid #e5eaf2; border-radius: 8px; }
+    .report-qa-head, .report-qa-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 130px 132px; gap: 12px; align-items: start; padding: 10px 12px; }
+    .report-qa-head { background: #f8fafc; } .report-qa-row { border-top: 1px solid #e7ebf2; } .report-qa-row.is-warning { background: #fff1f2; }
+    .report-qa-copy { display: grid; gap: 8px; min-width: 0; }
+    .report-qa-row > span, .report-qa-row > strong, .report-qa-row p { margin: 0; color: #111827; font-size: 0.72rem; overflow-wrap: anywhere; }
+    .report-question { font-weight: 800; }
+    .report-qa-detail { display: grid; gap: 4px; border-left: 2px solid #dbeafe; padding-left: 10px; }
+    .report-qa-detail.is-expected { border-left-color: #bbf7d0; }
+    .report-qa-detail strong { color: #0057ff; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .report-qa-detail p { color: #34405c; }
+    .report-qa-row em { justify-self: start; border-radius: 6px; background: #e0f2fe; font-size: 0.68rem; font-style: normal; font-weight: 900; padding: 7px 10px; }
+    .report-qa-row em.is-good { background: #dcfce7; color: #047857; } .report-qa-row em.is-warning { background: #ffedd5; color: #c2410c; } .report-qa-row em.is-neutral { background: #e0f2fe; color: #075985; }
+    .report-profile-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; gap: 10px; }
+    .report-profile-row > span { color: #0057ff; font-weight: 900; } .report-profile-row strong, .report-education-item strong { display: block; color: #111827; font-size: 0.78rem; } .report-profile-row small, .report-education-item small { display: block; margin-top: 3px; }
+    .report-chip-cloud { display: flex; flex-wrap: wrap; gap: 8px; } .report-chip-cloud span { background: #eaf2ff; color: #26324f; margin: 0; }
+    .report-education-item { display: grid; gap: 4px; border-left: 2px solid #e5eaf2; padding-left: 12px; }
+    .report-attention ul { margin: 0; padding-left: 18px; }
+    .report-actions-list { border-top: 1px solid #edf1f6; } .report-actions-list label { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; } .report-actions-list label > span { color: #10b981; font-weight: 900; }
+    .report-download-btn, .report-close-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 38px; border-radius: 6px; font-weight: 900; cursor: pointer; }
+    .report-download-btn { border: 1px solid #0b63ff; background: linear-gradient(95deg, #1649e9, #0057ff); color: #fff; } .report-close-btn { border: 1px solid #0b63ff; background: #fff; color: #0057ff; }
+    .report-footer { margin-top: 14px; color: #64748b; font-size: 0.78rem; }
+    @media (max-width: 900px) { body { padding: 12px; } .report-page { padding: 22px 16px 22px 28px; } .report-header, .report-hero-grid, .report-body-grid, .report-meta-strip, .report-evidence-grid, .report-insight-grid, .report-skills-layout { grid-template-columns: 1fr; } .report-generated { text-align: left; } .report-meta-strip article { border-right: 0; border-bottom: 1px solid #e4e9f1; padding: 10px 0; } .report-candidate-hero, .report-score-decision { grid-template-columns: 112px minmax(0, 1fr); } .report-avatar, .report-score-ring { width: 112px; height: 112px; } .report-progress-line { grid-template-columns: 1fr; } .report-progress-line::before { display: none; } .report-skill-head, .report-qa-head { display: none; } .report-skill-row { grid-template-columns: 1fr; gap: 6px; padding: 10px 0; } .report-qa-row { grid-template-columns: 28px minmax(0, 1fr); } .report-qa-row strong, .report-qa-row em { grid-column: 2; } }
+    @media print { body { background: #fff; padding: 0; } .report-page { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; padding: 12mm 10mm 12mm 14mm; } .report-card, .report-section, .report-meta-strip article, .report-qa-row, .report-progress-line article { break-inside: avoid; } .report-actions-card { display: none; } }
+  `;
+}
+
+private resetEvaluationReportViewData(): void {
+  this.evaluationReportMetaItems = [];
+  this.evaluationReportProfileItems = [];
+  this.evaluationReportInsightCards = [];
+  this.evaluationReportSkillRows = [];
+  this.evaluationReportProgressSteps = [];
+  this.evaluationFeedbackRows = [];
+  this.evaluationFeedbackHighlights = [];
+  this.evaluationCoreSkillTags = [];
+  this.evaluationNeedAttentionItems = [];
+  this.evaluationActionItems = [];
+  this.evaluationEducationItems = [];
+  this.evaluationReportQaRecords = [];
+}
+
+private rebuildEvaluationReportViewData(): void {
+  this.evaluationReportSkillRows = this.getReportSkillRows();
+  this.evaluationCoreSkillTags = this.getCoreSkillTags();
+  this.evaluationReportMetaItems = this.getEvaluationMetaItems();
+  this.evaluationReportProfileItems = this.getReportProfileItems();
+  this.evaluationReportInsightCards = this.getReportInsightCards();
+  this.evaluationReportProgressSteps = this.getReportProgressSteps();
+  this.evaluationFeedbackRows = this.getFeedbackRows();
+  this.evaluationFeedbackHighlights = this.getFeedbackHighlights();
+  this.evaluationNeedAttentionItems = this.getNeedAttentionItems();
+  this.evaluationActionItems = this.getActionItems();
+  this.evaluationEducationItems = this.getEducationItems();
+  this.evaluationReportQaRecords = this.evaluationSummary.question_answer_records.slice(0, 25);
 }
 
 isInterviewLinkMenuOpen(candidate: any): boolean {
@@ -1535,6 +2533,10 @@ toggleCompanyEditMode(): void {
     this.selectedCompanyLogoFile = null;
     this.selectedCompanyLogoName = '';
   }
+}
+
+setCompanyProfileTab(tab: CompanyProfileTab): void {
+  this.activeCompanyProfileTab = tab;
 }
 
 onCompanyLogoSelected(event: Event): void {
@@ -2090,6 +3092,7 @@ normalizeEvaluationPayload(report: Record<string, any>): CandidateEvaluationSumm
     hire_recommendation_reason: this.stringValue(hireRecommendation['reason']),
     early_exit: Boolean(field('early_exit')),
     early_exit_reason: this.stringValue(field('early_exit_reason')),
+    profile_picture_data_url: this.stringValue(field('profile_picture_data_url')),
     updated_at: this.stringValue(field('updated_at')),
     created_at: this.stringValue(field('created_at')),
   };
@@ -2201,6 +3204,463 @@ hasCandidateBehaviorSignals(): boolean {
   );
 }
 
+getEvaluationCandidateInitials(): string {
+  return this.getCandidateInitials(this.evaluationSummary.candidate_name || this.evaluationSummaryCandidate?.name || 'Candidate');
+}
+
+getEvaluationCandidateEmail(): string {
+  return this.stringValue(
+    this.evaluationSummaryCandidate?.email
+    || this.evaluationSummaryCandidate?.candidate_email
+    || this.evaluationSummary.evaluation_payload['candidate_email']
+  );
+}
+
+getEvaluationCandidatePhone(): string {
+  return this.stringValue(
+    this.evaluationSummaryCandidate?.phone
+    || this.evaluationSummaryCandidate?.candidate_phone
+    || this.evaluationSummary.evaluation_payload['candidate_phone']
+  );
+}
+
+getEvaluationCurrentStage(): string {
+  return this.humanizeLabel(
+    this.stringValue(
+      this.evaluationSummaryCandidate?.current_stage
+      || this.evaluationSummaryCandidate?.status
+      || this.evaluationSummary.evaluation_payload['current_stage']
+      || this.evaluationSummary.evaluation_payload['stage']
+    )
+  ) || 'Not captured';
+}
+
+getEvaluationInterviewType(): string {
+  const type = this.stringValue(this.evaluationSummaryCandidate?.interview_type || this.evaluationSummary.evaluation_payload['interview_type']);
+  if (!type) {
+    return 'Not captured';
+  }
+  return type.toLowerCase() === 'auto' ? 'Technical' : this.humanizeLabel(type);
+}
+
+getEvaluationSource(): string {
+  return this.humanizeLabel(this.stringValue(this.evaluationSummaryCandidate?.source || this.evaluationSummary.evaluation_payload['source'])) || 'Not captured';
+}
+
+getEvaluationReportId(): string {
+  const candidateId = this.stringValue(this.evaluationSummaryCandidate?.id || this.evaluationSummary.evaluation_payload['candidate_id']) || 'candidate';
+  const date = this.evaluationReportGeneratedAt.toISOString().slice(0, 10).replace(/-/g, '');
+  return `EV-${date}-${candidateId}`;
+}
+
+getEvaluationDecisionLabel(): string {
+  return this.humanizeLabel(this.evaluationSummary.decision || this.evaluationSummary.recommendation) || 'Needs More Data';
+}
+
+getEvaluationRecommendationText(): string {
+  return this.evaluationSummary.recommendation
+    || this.evaluationSummary.hire_recommendation_action
+    || this.evaluationSummary.hire_recommendation_reason
+    || 'No recommendation captured';
+}
+
+getEvaluationScorePercent(): number {
+  const value = this.numberOrNull(this.evaluationSummary.score);
+  if (value === null) {
+    return 0;
+  }
+  if (value <= 5) {
+    return Math.max(0, Math.min(100, value * 20));
+  }
+  return Math.max(0, Math.min(100, value));
+}
+
+formatReportScore(): string {
+  const score = this.getEvaluationScorePercent();
+  if (!score) {
+    return 'N/A';
+  }
+  return Number.isInteger(score) ? `${score}` : score.toFixed(1);
+}
+
+scoreRingStyle(score: number | null = null, color = '#f59e0b', track = '#e5e7eb'): Record<string, string> {
+  const value = score === null ? this.getEvaluationScorePercent() : Math.max(0, Math.min(100, score));
+  return {
+    background: `conic-gradient(${color} 0deg ${value * 3.6}deg, ${track} ${value * 3.6}deg 360deg)`,
+  };
+}
+
+getDecisionTone(): string {
+  const normalized = this.normalizeEvaluationLabel(this.evaluationSummary.decision || this.evaluationSummary.recommendation);
+  if (normalized.includes('reject') || normalized.includes('no hire') || normalized.includes('not recommended')) {
+    return 'danger';
+  }
+  if (normalized.includes('maybe') || normalized.includes('hold') || normalized.includes('needs more data')) {
+    return 'warning';
+  }
+  if (normalized.includes('hire') || normalized.includes('advance') || normalized.includes('recommended')) {
+    return 'success';
+  }
+  return 'neutral';
+}
+
+getReportDecisionColor(): string {
+  const tone = this.getDecisionTone();
+  if (tone === 'success') return '#10b981';
+  if (tone === 'danger') return '#ef4444';
+  return '#f59e0b';
+}
+
+getEvaluationMetaItems(): EvaluationReportMetaItem[] {
+  return [
+    { label: 'Role', value: this.evaluationSummary.role_title || this.evaluationSummaryCandidate?.role || 'Not captured', icon: 'ph ph-briefcase' },
+    { label: 'Current Stage', value: this.getEvaluationCurrentStage(), icon: 'ph ph-users-three' },
+    { label: 'Evaluations', value: this.getEvaluationEvaluationCountLabel(), icon: 'ph ph-clipboard-text' },
+    { label: 'Interview Type', value: this.getEvaluationInterviewType(), icon: 'ph ph-video-camera' },
+    { label: 'Source', value: this.getEvaluationSource(), icon: 'ph ph-globe-hemisphere-east' },
+  ];
+}
+
+getEvaluationEvaluationCountLabel(): string {
+  const count = this.evaluationSummary.question_answer_records.length;
+  if (count) {
+    return `${count} record${count === 1 ? '' : 's'} captured`;
+  }
+  if (this.evaluationSummary.available) {
+    return 'Summary captured';
+  }
+  return 'Not captured';
+}
+
+getReportProfileItems(): EvaluationReportProfileItem[] {
+  return [
+    { label: 'Email', value: this.getEvaluationCandidateEmail() || 'Not captured', icon: 'ph ph-envelope-simple' },
+    { label: 'Phone', value: this.getEvaluationCandidatePhone() || 'Not captured', icon: 'ph ph-phone' },
+    { label: 'Experience', value: this.stringValue(this.evaluationSummaryCandidate?.experience || this.evaluationSummary.evaluation_payload['experience']) || 'Not specified', icon: 'ph ph-briefcase' },
+    { label: 'Current Company', value: this.stringValue(this.evaluationSummaryCandidate?.current_company || this.evaluationSummary.evaluation_payload['current_company']) || 'Not captured', icon: 'ph ph-buildings' },
+    { label: 'Location', value: this.stringValue(this.evaluationSummaryCandidate?.location || this.evaluationSummary.evaluation_payload['location']) || 'Not captured', icon: 'ph ph-map-pin' },
+  ];
+}
+
+getExecutiveSummary(): string {
+  return this.evaluationSummary.executive_summary
+    || this.evaluationSummary.summary_verdict
+    || this.evaluationSummary.professional_summary_fallback
+    || 'No executive summary captured for this evaluation.';
+}
+
+getStrongestEvidence(): string {
+  return this.evaluationSummary.strengths[0]
+    || this.evaluationSummary.evidence_highlights[0]
+    || this.evaluationSummary.question_answer_records.find((record) => this.isPositiveQuality(record.answer_quality_state))?.question_text
+    || 'No strongest evidence captured';
+}
+
+getWeakestEvidence(): string {
+  return this.evaluationSummary.concerns[0]
+    || this.evaluationSummary.gaps[0]
+    || this.evaluationSummary.question_answer_records.find((record) => this.isWeakQuality(record.answer_quality_state))?.question_text
+    || 'No weakest evidence captured';
+}
+
+getEvidenceSkillLabel(preferWeak = false): string {
+  const record = this.evaluationSummary.question_answer_records.find((item) => preferWeak ? this.isWeakQuality(item.answer_quality_state) : this.isPositiveQuality(item.answer_quality_state));
+  return record?.skill || this.getCoreSkillTags()[0] || 'Interview Evidence';
+}
+
+getReportInsightCards(): EvaluationReportInsight[] {
+  const codingSummary = this.isObjectRecord(this.evaluationSummary.evaluation_payload['coding_summary'])
+    ? this.evaluationSummary.evaluation_payload['coding_summary'] as Record<string, unknown>
+    : {};
+  const codingResponses = this.numberOrNull(codingSummary['responses'] || codingSummary['response_count']) ?? 0;
+  return [
+    { label: 'Questions Answered', value: `${this.evaluationSummary.question_answer_records.length}`, helper: 'Questions Answered', icon: 'ph ph-question', tone: 'purple' },
+    { label: 'Coding Responses', value: `${codingResponses}`, helper: 'Coding Responses', icon: 'ph ph-sparkle', tone: 'green' },
+    { label: 'Overall Score', value: this.formatReportScore(), helper: 'Overall Score', icon: 'ph ph-gauge', tone: 'blue' },
+    { label: 'Expected Fit', value: this.formatExpectedFit(), helper: 'Expected Fit for Role', icon: 'ph ph-calendar-check', tone: 'orange' },
+    { label: 'Hiring Signal', value: this.getEvaluationDecisionLabel().toUpperCase(), helper: 'Hiring Signal', icon: 'ph ph-star', tone: 'cyan' },
+  ];
+}
+
+formatExpectedFit(): string {
+  const score = this.getEvaluationScorePercent();
+  return score ? `${Math.round(score)}%` : 'N/A';
+}
+
+getReportSkillRows(): EvaluationReportSkillRow[] {
+  const sources = [
+    this.evaluationSummary.technical_breakdown,
+    this.isObjectRecord(this.evaluationSummary.evaluation_payload['rubric']) ? this.evaluationSummary.evaluation_payload['rubric'] as Record<string, unknown> : {},
+    this.isObjectRecord(this.evaluationSummary.evaluation_payload['skills_assessment']) ? this.evaluationSummary.evaluation_payload['skills_assessment'] as Record<string, unknown> : {},
+  ];
+  const rows: EvaluationReportSkillRow[] = [];
+  sources.forEach((source) => {
+    Object.entries(source || {}).forEach(([key, value]) => {
+      if (rows.length >= 6 || key === 'overall') {
+        return;
+      }
+      const score = this.extractScore(value);
+      const label = this.extractLabel(value) || this.humanizeLabel(key);
+      const proficiency = this.extractProficiency(value, score);
+      rows.push({
+        label,
+        score,
+        proficiency,
+        tone: this.skillTone(score),
+      });
+    });
+  });
+
+  if (!rows.length) {
+    const inferred = ['Technical Proficiency', 'Problem Solving', 'Communication', 'System Design', 'Overall Potential'];
+    return inferred.map((label) => ({
+      label,
+      score: null,
+      proficiency: 'Not captured',
+      tone: 'neutral',
+    }));
+  }
+  return rows.slice(0, 5);
+}
+
+getReportProgressSteps(): EvaluationReportProgressStep[] {
+  const current = this.normalizeEvaluationLabel(this.getEvaluationCurrentStage());
+  const score = this.formatReportScore() === 'N/A' ? 'Not captured' : `${this.formatReportScore()} / 100`;
+  const labels = ['Application Review', 'Technical Assessment', 'Technical Interview', 'HR Interview', 'Final Evaluation'];
+  const currentIndex = labels.findIndex((label) => current.includes(label.toLowerCase()));
+  const activeIndex = currentIndex >= 0 ? currentIndex : (this.evaluationSummary.available ? 2 : 0);
+  return labels.map((label, index) => ({
+    label,
+    state: index <= activeIndex ? 'Completed' : 'Pending',
+    score: index <= activeIndex ? score : 'Not captured',
+    active: index <= activeIndex,
+    tone: index <= activeIndex ? (index === activeIndex ? 'current' : 'done') : 'pending',
+  }));
+}
+
+getFeedbackRows(): Array<{ avatar: string; evaluator: string; stage: string; score: string; summary: string; tone: string }> {
+  const evidence = [
+    ...this.evaluationSummary.evidence_highlights,
+    ...this.evaluationSummary.strengths,
+    ...this.evaluationSummary.concerns,
+    ...this.evaluationSummary.gaps,
+  ].filter(Boolean);
+  const rows = this.evaluationSummary.question_answer_records.slice(0, 3).map((record, index) => ({
+    avatar: record.skill ? record.skill.slice(0, 2).toUpperCase() : `E${index + 1}`,
+    evaluator: record.skill || 'Evidence-based feedback',
+    stage: record.section_role ? this.humanizeLabel(record.section_role) : this.getEvaluationCurrentStage(),
+    score: record.answer_quality_state ? this.humanizeLabel(record.answer_quality_state) : 'Captured',
+    summary: record.expected_signal || record.question_text || record.candidate_answer || 'No feedback summary captured',
+    tone: this.isWeakQuality(record.answer_quality_state) ? 'warning' : 'success',
+  }));
+  if (rows.length) {
+    return rows;
+  }
+  return (evidence.length ? evidence.slice(0, 3) : ['No evaluator feedback captured']).map((item, index) => ({
+    avatar: `E${index + 1}`,
+    evaluator: 'Evidence-based feedback',
+    stage: this.getEvaluationCurrentStage(),
+    score: this.formatReportScore(),
+    summary: item,
+    tone: index === 0 ? 'success' : 'neutral',
+  }));
+}
+
+getFeedbackHighlights(): Array<{ title: string; description: string; icon: string }> {
+  const rows = this.getReportSkillRows();
+  const summary = this.evaluationSummary.evidence_highlights;
+  return [
+    { title: 'Technical Skills', description: rows[0]?.proficiency || summary[0] || 'Not captured', icon: 'ph ph-stack' },
+    { title: 'Problem Solving', description: rows.find((row) => row.label.toLowerCase().includes('problem'))?.proficiency || summary[1] || 'Not captured', icon: 'ph ph-flask' },
+    { title: 'Communication', description: rows.find((row) => row.label.toLowerCase().includes('communication'))?.proficiency || this.textFromUnknown(this.evaluationSummary.behavior_breakdown['communication']) || 'Not captured', icon: 'ph ph-chat-circle-text' },
+    { title: 'Learning Agility', description: this.evaluationSummary.follow_up_areas[0] || this.evaluationSummary.next_round_focus[0] || 'Not captured', icon: 'ph ph-rocket-launch' },
+  ];
+}
+
+getCoreSkillTags(): string[] {
+  const skills = new Set<string>();
+  this.getReportSkillRows().forEach((row) => {
+    if (row.label && row.proficiency !== 'Not captured') {
+      skills.add(row.label);
+    }
+  });
+  this.evaluationSummary.question_answer_records.forEach((record) => {
+    if (record.skill) {
+      skills.add(record.skill);
+    }
+  });
+  this.evaluationSummary.strengths.slice(0, 4).forEach((item) => skills.add(item));
+  return Array.from(skills).slice(0, 18);
+}
+
+getNeedAttentionItems(): string[] {
+  const items = [
+    ...this.evaluationSummary.concerns,
+    ...this.evaluationSummary.gaps,
+    ...this.evaluationSummary.follow_up_areas,
+  ].filter(Boolean);
+  return items.length ? items.slice(0, 4) : ['No attention items captured'];
+}
+
+getActionItems(): string[] {
+  const items = [
+    this.evaluationSummary.hire_recommendation_reason,
+    ...this.evaluationSummary.next_round_focus,
+    ...this.evaluationSummary.follow_up_areas,
+  ].filter(Boolean);
+  return items.length ? items.slice(0, 4) : ['Review detailed evidence before the next hiring decision'];
+}
+
+getEducationItems(): Array<{ title: string; detail: string }> {
+  const education = this.evaluationSummary.evaluation_payload['education'];
+  if (Array.isArray(education)) {
+    return education
+      .map((item) => {
+        if (this.isObjectRecord(item)) {
+          return {
+            title: this.stringValue(item['degree'] || item['title'] || item['qualification']) || 'Education',
+            detail: this.stringValue(item['institution'] || item['school'] || item['summary']) || 'Not captured',
+          };
+        }
+        return { title: this.stringValue(item), detail: '' };
+      })
+      .filter((item) => item.title)
+      .slice(0, 3);
+  }
+  const text = this.textFromUnknown(education);
+  return text ? [{ title: text, detail: '' }] : [{ title: 'Education', detail: 'Not captured' }];
+}
+
+getQualityClass(value: string): string {
+  if (this.isWeakQuality(value)) {
+    return 'is-warning';
+  }
+  if (this.isPositiveQuality(value)) {
+    return 'is-good';
+  }
+  return 'is-neutral';
+}
+
+deriveAnswerQuality(record: QuestionAnswerRecord): string {
+  const answer = this.stringValue(record.candidate_answer);
+  const expected = this.stringValue(record.expected_signal);
+  if (!answer) {
+    return 'Not Answered';
+  }
+  if (!expected) {
+    return 'Evidence Captured';
+  }
+
+  const answerTokens = this.qualityTokens(answer);
+  const expectedTokens = this.qualityTokens(expected);
+  if (!answerTokens.length || !expectedTokens.length) {
+    return 'Needs Review';
+  }
+
+  const answerSet = new Set(answerTokens);
+  const expectedSet = new Set(expectedTokens);
+  const overlap = Array.from(expectedSet).filter((token) => answerSet.has(token)).length;
+  const expectedCoverage = overlap / expectedSet.size;
+  const answerCoverage = overlap / Math.max(1, Math.min(answerSet.size, expectedSet.size * 2));
+  const evidenceScore = (expectedCoverage * 0.75) + (answerCoverage * 0.25);
+
+  if (evidenceScore >= 0.52) {
+    return 'Strong Match';
+  }
+  if (evidenceScore >= 0.28) {
+    return 'Partial Match';
+  }
+  if (overlap > 0) {
+    return 'Needs Review';
+  }
+  return 'Off Target';
+}
+
+skillBarStyle(score: number | null): Record<string, string> {
+  const width = score === null ? 0 : Math.max(0, Math.min(100, score <= 5 ? score * 20 : score));
+  return { width: `${width}%` };
+}
+
+isPositiveQuality(value: string): boolean {
+  const normalized = this.normalizeEvaluationLabel(value);
+  return normalized.includes('good')
+    || normalized.includes('strong')
+    || normalized.includes('match')
+    || normalized.includes('well')
+    || normalized.includes('excellent')
+    || normalized.includes('complete');
+}
+
+isWeakQuality(value: string): boolean {
+  const normalized = this.normalizeEvaluationLabel(value);
+  return normalized.includes('weak')
+    || normalized.includes('partial')
+    || normalized.includes('review')
+    || normalized.includes('off target')
+    || normalized.includes('not answered')
+    || normalized.includes('improvement')
+    || normalized.includes('gap')
+    || normalized.includes('poor');
+}
+
+private qualityTokens(value: string): string[] {
+  const stopWords = new Set([
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'can', 'for', 'from', 'how', 'in', 'is', 'it',
+    'of', 'on', 'or', 'that', 'the', 'their', 'this', 'to', 'understand', 'understands', 'use',
+    'uses', 'using', 'with', 'would', 'you', 'your',
+  ]);
+  return Array.from(new Set(
+    this.stringValue(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.]+/g, ' ')
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length > 2 && !stopWords.has(token))
+  ));
+}
+
+private extractScore(value: unknown): number | null {
+  if (typeof value === 'number' || typeof value === 'string') {
+    return this.numberOrNull(value);
+  }
+  if (this.isObjectRecord(value)) {
+    return this.numberOrNull(value['score'] ?? value['value'] ?? value['percentage'] ?? value['rating'] ?? value['points']);
+  }
+  return null;
+}
+
+private extractLabel(value: unknown): string {
+  if (this.isObjectRecord(value)) {
+    return this.stringValue(value['label'] || value['name'] || value['skill'] || value['title']);
+  }
+  return '';
+}
+
+private extractProficiency(value: unknown, score: number | null): string {
+  if (this.isObjectRecord(value)) {
+    const text = this.stringValue(value['proficiency'] || value['level'] || value['rating_label'] || value['summary']);
+    if (text) {
+      return this.humanizeLabel(text);
+    }
+  }
+  if (score === null) {
+    return 'Not captured';
+  }
+  const normalized = score <= 5 ? score * 20 : score;
+  if (normalized >= 80) return 'High';
+  if (normalized >= 60) return 'Good';
+  if (normalized >= 45) return 'Average';
+  return 'Needs Improvement';
+}
+
+private skillTone(score: number | null): string {
+  if (score === null) return 'neutral';
+  const normalized = score <= 5 ? score * 20 : score;
+  if (normalized >= 70) return 'good';
+  if (normalized >= 50) return 'average';
+  return 'warning';
+}
+
 behaviorMetric(source: Record<string, unknown>, key: string): string {
   const value = source[key];
   if (value === null || value === undefined || value === '') {
@@ -2269,6 +3729,7 @@ private createEmptyEvaluationSummary(): CandidateEvaluationSummary {
     hire_recommendation_reason: '',
     early_exit: false,
     early_exit_reason: '',
+    profile_picture_data_url: '',
     updated_at: '',
     created_at: '',
   };
@@ -2369,7 +3830,7 @@ private normalizeEvaluationLabel(value: string): string {
   return this.stringValue(value).toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-private humanizeLabel(value: string): string {
+humanizeLabel(value: string): string {
   return value
     .replace(/_/g, ' ')
     .replace(/\s+/g, ' ')
@@ -2786,11 +4247,13 @@ addRRole(): void {
   }
 
   openWorkflowAction(mode: 'schedule' | 'bulk-assign' | 'evaluation-reviews', candidate?: any): void {
+    const isEvaluationReviews = mode === 'evaluation-reviews';
     const dialogRef = this.dialog.open(WorkflowAction, {
       disableClose: true,
-      width: mode === 'evaluation-reviews' ? '980px' : '900px',
-      maxWidth: '95vw',
-      panelClass: 'workflow-action-dialog',
+      width: isEvaluationReviews ? '1060px' : '900px',
+      maxWidth: isEvaluationReviews ? 'calc(100vw - 48px)' : '95vw',
+      panelClass: isEvaluationReviews ? ['workflow-action-dialog', 'evaluation-reviews-dialog'] : 'workflow-action-dialog',
+      backdropClass: isEvaluationReviews ? 'evaluation-reviews-overlay' : undefined,
       autoFocus: false,
       data: {
         mode,

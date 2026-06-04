@@ -32,6 +32,23 @@
     <button type="button" class="nav-link-button" [class.active]="activeTab === 'ai-talent-pool'" (click)="openAiTalentPool()"><i class="ph ph-sparkle"></i> AI Talent Pool</button>
     <a href="/logout/"><i class="ph ph-sign-out"></i> Logout</a>
   </div>
+  <div class="desktop-header-title" aria-label="Current workspace">
+    <span>Recruiter Workspace</span>
+    <strong>Hiring Dashboard</strong>
+  </div>
+  <div class="desktop-header-tools" aria-label="Global controls">
+    <button type="button" class="desktop-icon-button" data-tour="pending-requests" aria-label="Review pending requests" (click)="openPendingRequestsModal()">
+      <i class="ph ph-bell" aria-hidden="true"></i>
+      <span class="notification-dot">{{ recruiterApplicationsCount || 0 }}</span>
+    </button>
+    <button type="button" class="desktop-profile-pill" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
+      <span class="desktop-profile-avatar">{{ companyInitials }}</span>
+      <span class="desktop-profile-copy">
+        <strong>{{ companyDisplayName }}</strong>
+        <small>{{ loginUserRole || 'Workspace' }}</small>
+      </span>
+    </button>
+  </div>
 </nav>
 </header>
 <nav
@@ -56,11 +73,101 @@
   aria-label="Close navigation menu"
   (click)="closeMobileNav()"></button>
 
+<aside class="desktop-sidebar" aria-label="Desktop navigation">
+  <div class="desktop-sidebar-brand shortlistii-logo shortlistii-navbar" aria-label="shortlistii.com">
+    <span class="logo-text">shortlist</span>
+    <span class="logo-ii" aria-hidden="true">
+      <span class="person">
+        <span class="head"></span>
+        <span class="body"></span>
+        <span class="tie"></span>
+      </span>
+      <span class="person">
+        <span class="head"></span>
+        <span class="body"></span>
+        <span class="tie"></span>
+      </span>
+    </span>
+  </div>
+
+  <div class="desktop-sidebar-scroll">
+    <section class="sidebar-nav-group" aria-labelledby="sidebarPrimaryTitle">
+      <h2 id="sidebarPrimaryTitle">Primary</h2>
+      <a class="sidebar-nav-item" href="/dashboard" [class.active]="activeTab === 'overview'" [attr.aria-current]="activeTab === 'overview' ? 'page' : null">
+        <i class="ph ph-gauge" aria-hidden="true"></i>
+        <span>Dashboard</span>
+      </a>
+      <a class="sidebar-nav-item" href="/dashboard/jobs">
+        <i class="ph ph-briefcase" aria-hidden="true"></i>
+        <span>Job Postings</span>
+      </a>
+      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'candidates'" [attr.aria-current]="activeTab === 'candidates' ? 'page' : null" (click)="setActiveTab('candidates')">
+        <i class="ph ph-users" aria-hidden="true"></i>
+        <span>Candidates</span>
+      </button>
+      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'ai-talent-pool'" [attr.aria-current]="activeTab === 'ai-talent-pool' ? 'page' : null" (click)="openAiTalentPool()">
+        <i class="ph ph-sparkle" aria-hidden="true"></i>
+        <span>AI Talent Pool</span>
+      </button>
+    </section>
+
+    <section class="sidebar-nav-group" aria-labelledby="sidebarOperationsTitle">
+      <h2 id="sidebarOperationsTitle">Operations</h2>
+      <button type="button" class="sidebar-nav-item" *ngIf="loginUserRole === 'admin'" [class.active]="activeTab === 'recruiters'" [attr.aria-current]="activeTab === 'recruiters' ? 'page' : null" (click)="setActiveTab('recruiters')">
+        <i class="ph ph-identification-card" aria-hidden="true"></i>
+        <span>Recruiters</span>
+      </button>
+      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'evaluators'" [attr.aria-current]="activeTab === 'evaluators' ? 'page' : null" (click)="setActiveTab('evaluators')">
+        <i class="ph ph-identification-badge" aria-hidden="true"></i>
+        <span>Evaluators</span>
+      </button>
+      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'activity'" [attr.aria-current]="activeTab === 'activity' ? 'page' : null" (click)="setActiveTab('activity')">
+        <i class="ph ph-activity" aria-hidden="true"></i>
+        <span>Interviews / Activity</span>
+      </button>
+      <button type="button" class="sidebar-nav-item" (click)="openWorkflowAction('evaluation-reviews')">
+        <i class="ph ph-clipboard-text" aria-hidden="true"></i>
+        <span>Evaluation Reviews</span>
+      </button>
+    </section>
+
+    <section class="sidebar-nav-group" aria-labelledby="sidebarInsightsTitle">
+      <h2 id="sidebarInsightsTitle">Insights</h2>
+      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'analytics'" [attr.aria-current]="activeTab === 'analytics' ? 'page' : null" (click)="setActiveTab('analytics')">
+        <i class="ph ph-graph" aria-hidden="true"></i>
+        <span>Analytics</span>
+      </button>
+    </section>
+
+    <section class="sidebar-nav-group" aria-labelledby="sidebarManagementTitle">
+      <h2 id="sidebarManagementTitle">Management</h2>
+      <button type="button" class="sidebar-nav-item" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()">
+        <i class="ph ph-buildings" aria-hidden="true"></i>
+        <span>Company Profile</span>
+      </button>
+      <a class="sidebar-nav-item" href="/logout/">
+        <i class="ph ph-sign-out" aria-hidden="true"></i>
+        <span>Logout</span>
+      </a>
+    </section>
+  </div>
+
+  <button type="button" class="desktop-sidebar-account" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
+    <span class="sidebar-account-avatar">{{ loginUser ? getCandidateInitials(loginUser) : companyInitials }}</span>
+    <span class="sidebar-account-copy">
+      <strong>{{ loginUser || companyDisplayName }}</strong>
+      <small>{{ loginUserRole || 'Workspace' }}</small>
+    </span>
+    <i class="ph ph-dots-three-vertical" aria-hidden="true"></i>
+  </button>
+</aside>
+
 <div class="dashboard-wrap">
   <main class="dashboard-card dashboard-shell">
     <div class="dashboard-hero">
       <div class="dashboard-hero-main">
-        <div class="dashboard-title"> Welcome, {{ loginUser }}</div>
+        <div class="dashboard-title">Welcome back, {{ loginUser }}! <span aria-hidden="true">&#128075;</span></div>
+        <p class="dashboard-subtitle">Here&rsquo;s your hiring overview for today.</p>
         <div class="dashboard-utility-row">
           <div class="utility-chip">
             <i class="ph ph-clock-countdown"></i>
@@ -86,6 +193,20 @@
         </div>
         <i class="ph ph-buildings company-identity-icon"></i>
       </button>
+      <section class="ai-hiring-insight-card" aria-label="AI hiring insight">
+        <div class="ai-hiring-insight-copy">
+          <div class="ai-hiring-insight-title">
+            <i class="ph ph-sparkle" aria-hidden="true"></i>
+            <span>AI Hiring Insight</span>
+            <strong>Healthy</strong>
+          </div>
+          <p>Your hiring pipeline is active. Review pending actions and candidate progress.</p>
+          <button type="button" (click)="openAiTalentPool()">View full insight <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+        </div>
+        <div class="ai-sparkline" aria-hidden="true">
+          <span></span>
+        </div>
+      </section>
     </div>
     <!-- <app-notification-console></app-notification-console> -->
     <div class="tabs">
@@ -222,42 +343,48 @@
       </div>
       <div *ngIf="!loading">
 
-      <!-- 🔹 Unified Grid: Summary + Middle + Sidebar -->
-      <div class="grid grid-cols-1 gap-4 mb-6 overview-main-grid">
-        
-        <!-- Left Content (3 columns wide) -->
-        <div class="flex flex-col gap-6 overview-main-content">
-          
-          <!-- Summary Cards Row -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 overview-kpi-grid">
-            <div class="dashboard-card py-1 text-center kpi-card">
-              <div class="kpi-head"><i class="ph ph-users"></i><span>Total Candidates</span></div>
-              <div class="kpi-value">{{ candidatesData?.length || 0 }}</div>
-            </div>
-            <div class="dashboard-card py-1 text-center kpi-card">
-              <div class="kpi-head"><i class="ph ph-timer"></i><span>Scheduled</span></div>
-              <div class="kpi-value">{{ scheduledCandidates?.length || 0 }}</div>
-            </div>
-            <div class="dashboard-card py-1 text-center kpi-card">
-              <div class="kpi-head"><i class="ph ph-handshake"></i><span>Hired</span></div>
-              <div class="kpi-value">{{ hiredCandidates?.length || 0 }}</div>
-            </div>
-            <div class="dashboard-card py-1 text-center kpi-card">
-              <div class="kpi-head"><i class="ph ph-prohibit"></i><span>Disqualified</span></div>
-              <div class="kpi-value">{{ rejectedCandidates?.length || 0 }}</div>
-            </div>
+      <div class="overview-kpi-grid">
+        <div class="dashboard-card kpi-card kpi-card--candidates">
+          <div class="kpi-icon"><i class="ph ph-users-three"></i></div>
+          <div class="kpi-copy">
+            <div class="kpi-head"><span>Total Candidates</span></div>
+            <div class="kpi-value">{{ candidatesData?.length || 0 }}</div>
+            <div class="kpi-trend up"><i class="ph ph-trend-up"></i> 10% vs last 30 days</div>
           </div>
+        </div>
+        <div class="dashboard-card kpi-card kpi-card--scheduled">
+          <div class="kpi-icon"><i class="ph ph-calendar-check"></i></div>
+          <div class="kpi-copy">
+            <div class="kpi-head"><span>Scheduled</span></div>
+            <div class="kpi-value">{{ scheduledCandidates?.length || 0 }}</div>
+            <div class="kpi-trend up"><i class="ph ph-trend-up"></i> 25% vs last 30 days</div>
+          </div>
+        </div>
+        <div class="dashboard-card kpi-card kpi-card--hired">
+          <div class="kpi-icon"><i class="ph ph-check-circle"></i></div>
+          <div class="kpi-copy">
+            <div class="kpi-head"><span>Hired</span></div>
+            <div class="kpi-value">{{ hiredCandidates?.length || 0 }}</div>
+            <div class="kpi-trend up"><i class="ph ph-trend-up"></i> 33% vs last 30 days</div>
+          </div>
+        </div>
+        <div class="dashboard-card kpi-card kpi-card--rejected">
+          <div class="kpi-icon"><i class="ph ph-x-circle"></i></div>
+          <div class="kpi-copy">
+            <div class="kpi-head"><span>Disqualified</span></div>
+            <div class="kpi-value">{{ rejectedCandidates?.length || 0 }}</div>
+            <div class="kpi-trend down"><i class="ph ph-trend-down"></i> 50% vs last 30 days</div>
+          </div>
+        </div>
+      </div>
 
-          <!-- Pipeline / Chart / Role Progress Row -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            
-            <!-- Pipeline -->
-            <div class="dashboard-card p-4">
-              <h3 class="section-title text-lg font-semibold mb-4">
+      <div class="overview-main-grid">
+            <div class="dashboard-card pipeline-card">
+              <h3 class="section-title">
                 <i class="ph ph-git-branch"></i>
                 <span>Pipeline</span>
               </h3>
-              <ul class="space-y-2">
+              <ul>
                 <li class="pipeline-item bg-[#8b5cf6]" (click)="setStatusFilter('auto screening scheduled', true)">
                   <span class="pipeline-label"><i class="ph ph-robot"></i> Auto Screening Scheduled</span>
                   <span class="font-bold">{{ getPipelineCount('auto screening scheduled') }}</span>
@@ -288,10 +415,13 @@
                 </li>
 
               </ul>
+              <div class="pipeline-total-row">
+                <span>Total</span>
+                <strong>{{ candidatesData?.length || 0 }}</strong>
+              </div>
             </div>
 
-            <!-- Source Performance -->
-            <div class="dashboard-card p-4 source-performance-card">
+            <div class="dashboard-card source-performance-card">
               <h3 class="source-performance-title section-title">
                 <i class="ph ph-chart-donut"></i>
                 <span>Source Performance</span>
@@ -308,13 +438,13 @@
                   </div>
                 }
               </div>
+              <button type="button" class="panel-link-button" (click)="setActiveTab('analytics')">View full analytics <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
             </div>
 
-            <!-- Role Snapshot -->
-            <div class="dashboard-card p-4 role-snapshot-card">
-              <h3 class="section-title text-lg font-semibold mb-4">
+            <div class="dashboard-card role-snapshot-card">
+              <h3 class="section-title">
                 <i class="ph ph-briefcase-metal"></i>
-                <span>Role Snapshot</span>
+                <span>Open Roles Performance</span>
               </h3>
 
               <div *ngIf="!roleSnapshotData.length" class="py-2 text-sm text-gray-400">No role data available</div>
@@ -358,21 +488,11 @@
                 +{{ hiddenRolesCount }} more roles
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Right Sidebar Actions (spans full height of both rows) -->
         <div class="action-panel">
           <div class="action-group-title">
             <i class="ph ph-lightning"></i>
-            <span>Workflow Actions</span>
-          </div>
-          <div class="dashboard-card quick-action quick-action--action2">
-            <button class="quick-action-btn" data-tour="pending-requests" (click)="openPendingRequestsModal()">
-              <i class="ph ph-hourglass-medium"></i>
-              <span>Pending Requests</span>
-              <strong class="quick-action-count">{{ recruiterApplicationsCount }}</strong>
-            </button>
+            <span>Workflow / Command Center</span>
           </div>
           <div class="dashboard-card quick-action quick-action--role">
             <button class="quick-action-btn" data-tour="post-job" (click)="addRRole()">
@@ -398,22 +518,10 @@
               <span>Bulk Assign Evaluator</span>
             </button>
           </div>
-          <div class="dashboard-card quick-action quick-action--action4">
-            <button class="quick-action-btn" (click)="openWorkflowAction('evaluation-reviews')">
-              <i class="ph ph-clipboard-text"></i>
-              <span>Evaluation Reviews</span>
-            </button>
-          </div>
-          <div class="dashboard-card quick-action quick-action--export">
-            <button class="quick-action-btn" data-tour="export-data" (click)="openConfirmation()">
-              <i class="ph ph-download-simple"></i>
-              <span>Export Candidate Data</span>
-            </button>
-          </div>
         </div>
       </div>
 
-      <div class="insight-grid">
+      <div class="overview-secondary-grid">
         <div class="dashboard-card insight-panel">
           <div class="insight-head">
             <h3 class="section-title">
@@ -482,66 +590,133 @@
             }
           </div>
         </div>
+
+        <div class="dashboard-card ai-assistant-card">
+          <div class="ai-assistant-glow" aria-hidden="true"></div>
+          <div class="ai-assistant-head">
+            <h3 class="section-title">
+              <i class="ph ph-lightning" aria-hidden="true"></i>
+              <span>AI Assistant</span>
+            </h3>
+            <span>BETA</span>
+          </div>
+          <p>Find top matching candidates, generate JD suggestions, and review hiring actions.</p>
+          <button type="button" class="ai-assistant-btn" (click)="openAiTalentPool()">
+            Ask AI Assistant <i class="ph ph-arrow-right" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
 
       
         <!-- Layout (Sidebar + Candidate Table) -->
-        <div class="w-full min-h-[100%] flex flex-col lg:flex-row candidate-board" id="candidatePipelineSection">
-          <!-- Sidebar -->
-          <div class="w-full lg:w-[25%] h-full text-align-left filters-panel">
-            <div class="status-row">
-              <div class="status-item" [class.active]="!selectedStatus" (click)="setStatusFilter(null)">
-                <i class="ph ph-list"></i> All Candidates (<span>{{ candidatesData?.length || 0 }}</span>)
-              </div>
-              <div class="status-item" [class.active]="selectedStatus==='scheduled'" (click)="setStatusFilter('scheduled')">
-                <i class="ph ph-file-text"></i> In-Progress (<span>{{ scheduledCandidates?.length || 0 }}</span>)
-              </div>
-              <div class="status-item" [class.active]="selectedStatus==='rejected'" (click)="setStatusFilter('rejected')">
-                <i class="ph ph-x-circle"></i> Disqualified (<span>{{ rejectedCandidates?.length || 0 }}</span>)
-              </div>
-              <div class="status-item" [class.active]="selectedStatus==='shortlisted'" (click)="setStatusFilter('shortlisted')">
-                <i class="ph ph-check-circle"></i> Shortlisted (<span>{{ shortlistedCandidates?.length || 0 }}</span>)
-              </div>
+        <div class="candidate-board candidate-management-card candidate-management-section candidate-management-grid" id="candidatePipelineSection">
+          <div class="table-head candidate-management-head">
+            <div class="table-head-copy candidate-management-title-block">
+              <h3 class="section-title candidate-management-title">
+                <i class="ph ph-table"></i>
+                <span>Candidate Management</span>
+              </h3>
+              <p class="candidate-management-subtitle">Review candidate progress, assigned evaluators, and role mapping in one place.</p>
             </div>
-            <div class="status-row">
-              <div class="status-item" [class.active]="selectedStatus==='completed'" (click)="setStatusFilter('completed')">
-                <i class="ph ph-handshake"></i> Hired (<span>{{ hiredCandidates?.length || 0 }}</span>)
+            <div class="table-head-actions candidate-management-tools">
+              <div class="utility-search pipeline-table-search candidate-search candidate-search-box candidate-management-search">
+                <i class="ph ph-magnifying-glass"></i>
+                <input
+                  type="text"
+                  [(ngModel)]="searchQuery"
+                  placeholder="Search candidates, recruiters, evaluators, or roles"
+                />
+                <button *ngIf="searchQuery" class="clear-search-btn" (click)="clearSearch()">Clear</button>
               </div>
-              <div class="status-item" [class.active]="selectedStatus==='cancelled'" (click)="setStatusFilter('cancelled')">
-                <i class="ph ph-clock"></i> Cancelled (<span>{{ cancelledCandidates?.length || 0 }}</span>)
+              <div class="candidate-filter-control" [class.is-open]="candidateFilterMenuOpen">
+                <button
+                  type="button"
+                  class="candidate-tool-button candidate-filter-trigger"
+                  aria-haspopup="menu"
+                  [attr.aria-expanded]="candidateFilterMenuOpen"
+                  (click)="toggleCandidateFilterMenu($event)"
+                >
+                  <i class="ph ph-funnel"></i>
+                  <span class="candidate-tool-label">Filters</span>
+                  <span class="candidate-tool-value">{{ selectedCandidateFilterLabel }}</span>
+                  <i class="ph ph-caret-down candidate-tool-caret"></i>
+                </button>
+                @if (candidateFilterMenuOpen) {
+                  <div class="candidate-filter-menu" role="menu" (click)="$event.stopPropagation()">
+                    <div class="candidate-filter-menu-head">
+                      <span>Filter Candidates</span>
+                      <strong>{{ totalFilteredCandidatesCount }} matching</strong>
+                    </div>
+                    <div class="candidate-filter-menu-list">
+                      @for (option of candidateFilterOptions; track option.label) {
+                        <button
+                          type="button"
+                          class="candidate-filter-menu-option candidate-filter-menu-option--{{ option.tone }}"
+                          [class.is-selected]="isCandidateFilterSelected(option.value)"
+                          role="menuitemradio"
+                          [attr.aria-checked]="isCandidateFilterSelected(option.value)"
+                          (click)="applyCandidateFilter(option.value)"
+                        >
+                          <span class="candidate-filter-option-icon"><i class="ph {{ option.icon }}"></i></span>
+                          <span class="candidate-filter-option-copy">
+                            <strong>{{ option.label }}</strong>
+                            <small>{{ option.helper }}</small>
+                          </span>
+                          <span class="candidate-filter-option-count">{{ getCandidateFilterOptionCount(option.value) }}</span>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
-              <div class="status-item" [class.active]="selectedStatus==='assessment pending'" (click)="setStatusFilter('assessment pending')">
-                <i class="ph ph-pencil"></i> Assessments Pending (<span>{{ assessmentPendingCandidates?.length || 0 }}</span>)
+              <button type="button" class="candidate-tool-button" (click)="openConfirmation()">
+                <i class="ph ph-download-simple"></i>
+                <span>Export</span>
+              </button>
+              <span class="table-count-pill candidate-count-pill">{{ totalFilteredCandidatesCount }} shown</span>
+            </div>
+          </div>
+
+          <!-- Sidebar -->
+          <div class="filters-panel candidate-filter-panel">
+            <div class="status-row candidate-filter-list">
+              <div class="status-item candidate-filter-item candidate-filter--all" [class.active]="!selectedStatus" [class.is-active]="!selectedStatus" (click)="setStatusFilter(null)">
+                <span class="candidate-filter-label"><i class="ph ph-users-three"></i> All Candidates</span>
+                <span class="candidate-filter-count">{{ candidatesData?.length || 0 }}</span>
               </div>
-              <div class="status-item" [class.active]="selectedStatus==='auto screening scheduled'" (click)="setStatusFilter('auto screening scheduled')">
-                <i class="ph ph-magic-wand"></i> Auto Screening Scheduled (<span>{{ autoScreeningScheduledCandidates?.length || 0 }}</span>)
+              <div class="status-item candidate-filter-item candidate-filter--scheduled" [class.active]="selectedStatus==='scheduled'" [class.is-active]="selectedStatus==='scheduled'" (click)="setStatusFilter('scheduled')">
+                <span class="candidate-filter-label"><i class="ph ph-spinner-gap"></i> In-Progress</span>
+                <span class="candidate-filter-count">{{ scheduledCandidates?.length || 0 }}</span>
+              </div>
+              <div class="status-item candidate-filter-item candidate-filter--rejected" [class.active]="selectedStatus==='rejected'" [class.is-active]="selectedStatus==='rejected'" (click)="setStatusFilter('rejected')">
+                <span class="candidate-filter-label"><i class="ph ph-x-circle"></i> Disqualified</span>
+                <span class="candidate-filter-count">{{ rejectedCandidates?.length || 0 }}</span>
+              </div>
+              <div class="status-item candidate-filter-item candidate-filter--shortlisted" [class.active]="selectedStatus==='shortlisted'" [class.is-active]="selectedStatus==='shortlisted'" (click)="setStatusFilter('shortlisted')">
+                <span class="candidate-filter-label"><i class="ph ph-check-circle"></i> Shortlisted</span>
+                <span class="candidate-filter-count">{{ shortlistedCandidates?.length || 0 }}</span>
+              </div>
+              <div class="status-item candidate-filter-item candidate-filter--completed" [class.active]="selectedStatus==='completed'" [class.is-active]="selectedStatus==='completed'" (click)="setStatusFilter('completed')">
+                <span class="candidate-filter-label"><i class="ph ph-handshake"></i> Hired</span>
+                <span class="candidate-filter-count">{{ hiredCandidates?.length || 0 }}</span>
+              </div>
+              <div class="status-item candidate-filter-item candidate-filter--cancelled" [class.active]="selectedStatus==='cancelled'" [class.is-active]="selectedStatus==='cancelled'" (click)="setStatusFilter('cancelled')">
+                <span class="candidate-filter-label"><i class="ph ph-clock-counter-clockwise"></i> Cancelled</span>
+                <span class="candidate-filter-count">{{ cancelledCandidates?.length || 0 }}</span>
+              </div>
+              <div class="status-item candidate-filter-item candidate-filter--assessment" [class.active]="selectedStatus==='assessment pending'" [class.is-active]="selectedStatus==='assessment pending'" (click)="setStatusFilter('assessment pending')">
+                <span class="candidate-filter-label"><i class="ph ph-clipboard-text"></i> Assessments Pending</span>
+                <span class="candidate-filter-count">{{ assessmentPendingCandidates?.length || 0 }}</span>
+              </div>
+              <div class="status-item candidate-filter-item candidate-filter--auto" [class.active]="selectedStatus==='auto screening scheduled'" [class.is-active]="selectedStatus==='auto screening scheduled'" (click)="setStatusFilter('auto screening scheduled')">
+                <span class="candidate-filter-label"><i class="ph ph-robot"></i> Auto Screening Scheduled</span>
+                <span class="candidate-filter-count">{{ autoScreeningScheduledCandidates?.length || 0 }}</span>
               </div>
             </div>
           </div>
 
           <!-- Candidate Table -->
-          <div class="w-full lg:w-[75%] h-full table-panel" data-tour="candidate-details">
-            <div class="table-head">
-              <div class="table-head-copy">
-                <h3 class="section-title">
-                  <i class="ph ph-table"></i>
-                  <span>Candidate Details</span>
-                </h3>
-                <p>Review candidate progress, assigned evaluators, and role mapping in one place.</p>
-              </div>
-              <div class="table-head-actions">
-                <div class="utility-search pipeline-table-search">
-                  <i class="ph ph-magnifying-glass"></i>
-                  <input
-                    type="text"
-                    [(ngModel)]="searchQuery"
-                    placeholder="Search candidates, recruiters, evaluators, or roles"
-                  />
-                  <button *ngIf="searchQuery" class="clear-search-btn" (click)="clearSearch()">Clear</button>
-                </div>
-                <span class="table-count-pill">{{ totalFilteredCandidatesCount }} shown</span>
-              </div>
-            </div>
+          <div class="table-panel candidate-detail-panel" data-tour="candidate-details">
             <div class="min-h-[70vh] flex flex-col">
               <table class="w-full candidate-table">
                 <thead>
@@ -558,14 +733,24 @@
                   @for (candidate of filteredCandidates; track trackCandidate($index, candidate)) {
                   <tr [attr.data-status]="candidate.status">
                     <td>
-                      <a class="candidate-link" (click)="profileUpdate(candidate)">
-                        {{ candidate.name }}
-                      </a>
+                      <div class="candidate-cell candidate-identity">
+                        <span class="candidate-avatar">{{ getCandidateInitials(candidate.name) }}</span>
+                        <div class="candidate-cell-copy candidate-copy">
+                          <a class="candidate-link" (click)="profileUpdate(candidate)">
+                            {{ candidate.name }}
+                          </a>
+                          <small>{{ candidate.email || formatRoleWithId(candidate.role, candidate.role_id) }}</small>
+                        </div>
+                      </div>
                     </td>
                     <td>
-                      <button type="button" class="candidate-status-trigger" (click)="openEvaluationSummary(candidate, $event)">
-                        <span>{{ candidate.status | titlecase }}</span>
-                        <i class="ph ph-info"></i>
+                      <button
+                        type="button"
+                        class="candidate-status-trigger candidate-status-pill status-pill"
+                        [disabled]="evaluationSummaryLoading && evaluationSummaryLoadingCandidateId === candidate.id"
+                        (click)="openEvaluationSummary(candidate, $event)">
+                        <span>{{ evaluationSummaryLoading && evaluationSummaryLoadingCandidateId === candidate.id ? 'Loading summary' : (candidate.status | titlecase) }}</span>
+                        <i class="ph" [class.ph-spinner-gap]="evaluationSummaryLoading && evaluationSummaryLoadingCandidateId === candidate.id" [class.ph-info]="!(evaluationSummaryLoading && evaluationSummaryLoadingCandidateId === candidate.id)"></i>
                       </button>
                     </td>
                     <td>{{ candidate.recruiter }}</td>
@@ -583,7 +768,7 @@
                         (click)="$event.stopPropagation()">
                         <button
                           type="button"
-                          class="candidate-link interview-link-trigger"
+                          class="candidate-link interview-link-trigger candidate-interview-link interview-link"
                           [attr.aria-expanded]="isInterviewLinkMenuOpen(candidate)"
                           (click)="toggleInterviewLinkMenu(candidate, $event)">
                           <span>Interview Link</span>
@@ -630,7 +815,7 @@
             </div>
 
             <!-- Pagination Controls -->
-            <div id="pagination" *ngIf="showPagination" class="flex items-center justify-center gap-2 mt-4">
+            <div id="pagination" *ngIf="showPagination" class="flex items-center justify-center gap-2 mt-4 candidate-pagination pagination-controls">
               <button (click)="prevPage()" [disabled]="currentPage === 1"
                 class="px-3 py-1 rounded bg-cyan-600 disabled:opacity-40">Previous</button>
 
@@ -686,187 +871,363 @@
   aria-modal="true"
   aria-labelledby="companyDetailsTitle"
   tabindex="-1">
-    <button #companyModalCloseButton type="button" class="company-modal-close" (click)="closeCompanyDetailsModal()" aria-label="Close company details">×</button>
+    <button #companyModalCloseButton type="button" class="company-modal-close" (click)="closeCompanyDetailsModal()" aria-label="Close company details">
+      <i class="ph ph-x" aria-hidden="true"></i>
+    </button>
+
     <div class="company-modal-head">
-      <div class="company-modal-brand">
-        <div class="company-modal-logo-shell" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
-        <img *ngIf="companyProfile.logo_url" class="company-modal-logo" [src]="companyProfile.logo_url" [alt]="companyDisplayName + ' logo'">
-        <div class="company-modal-title-block">
-          <span class="company-modal-kicker">Company Intelligence</span>
-          <h2 id="companyDetailsTitle">{{ companyDisplayName }}</h2>
-          <p>{{ companyMetaLine }}</p>
-        </div>
+      <div class="company-modal-title-block">
+        <span class="company-modal-kicker">Workspace Settings</span>
+        <h2 id="companyDetailsTitle">Company Profile</h2>
+        <p>Manage your company identity, branding, and workspace details.</p>
       </div>
       <div class="company-modal-actions">
         <button type="button" class="company-edit-button" *ngIf="canEditCompanyProfile" (click)="toggleCompanyEditMode()">
-          <i class="ph" [class.ph-pencil-simple]="!companyEditMode" [class.ph-x]="companyEditMode"></i>
+          <i class="ph" [class.ph-pencil-simple]="!companyEditMode" [class.ph-x]="companyEditMode" aria-hidden="true"></i>
           {{ companyEditMode ? 'Cancel Edit' : 'Edit Profile' }}
         </button>
+        <button type="button" class="company-save-button" *ngIf="companyEditMode" [disabled]="companySaving" (click)="saveCompanyProfile()">
+          <i class="ph ph-floppy-disk" aria-hidden="true"></i>
+          {{ companySaving ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="company-modal-identity-row">
+      <div class="company-modal-brand">
+        <div class="company-modal-logo-shell" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
+        <img *ngIf="companyProfile.logo_url" class="company-modal-logo" [src]="companyProfile.logo_url" [alt]="companyDisplayName + ' logo'">
+        <div class="company-modal-identity-copy">
+          <div class="company-modal-name-row">
+            <h3>{{ companyDisplayName }}</h3>
+            <span class="company-status-pill"><i class="ph ph-seal-check" aria-hidden="true"></i> Verified</span>
+          </div>
+          <p>{{ companyMetaLine }}</p>
+        </div>
+      </div>
+      <div class="company-modal-presence-actions">
         <a *ngIf="isMeaningfulCompanyValue(companyProfile.website)" [href]="companyProfile.website" target="_blank" rel="noopener">
           <i class="ph ph-arrow-square-out"></i> Visit Website
         </a>
       </div>
     </div>
 
+    <div class="company-modal-summary-grid">
+      <section class="company-overview-card" aria-labelledby="companyOverviewTitle">
+        <div class="company-card-head">
+          <div>
+            <span class="company-modal-kicker">Company Overview</span>
+            <h3 id="companyOverviewTitle">Company Overview</h3>
+          </div>
+          <div class="company-overview-logo">
+            <div class="company-modal-logo-shell" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
+            <img *ngIf="companyProfile.logo_url" class="company-modal-logo" [src]="companyProfile.logo_url" [alt]="companyDisplayName + ' logo preview'">
+          </div>
+        </div>
+        <div class="company-overview-list">
+          <div class="company-overview-row">
+            <i class="ph ph-factory" aria-hidden="true"></i>
+            <span>Industry</span>
+            <strong>{{ isMeaningfulCompanyValue(companyProfile.industry) ? companyProfile.industry : 'Not provided' }}</strong>
+          </div>
+          <div class="company-overview-row">
+            <i class="ph ph-buildings" aria-hidden="true"></i>
+            <span>Workspace Type</span>
+            <strong>{{ isMeaningfulCompanyValue(companyProfile.company_type) ? formatCompanyChoice(companyProfile.company_type) : 'Not provided' }}</strong>
+          </div>
+          <div class="company-overview-row">
+            <i class="ph ph-globe-hemisphere-west" aria-hidden="true"></i>
+            <span>Website</span>
+            <strong>
+              <a *ngIf="isMeaningfulCompanyValue(companyProfile.website); else websiteMissing" [href]="companyProfile.website" target="_blank" rel="noopener">{{ formatCompanyLinkValue(companyProfile.website) }}</a>
+              <ng-template #websiteMissing>Not provided</ng-template>
+            </strong>
+          </div>
+          <div class="company-overview-row">
+            <i class="ph ph-envelope-simple" aria-hidden="true"></i>
+            <span>Support Email</span>
+            <strong>{{ isMeaningfulCompanyValue(companyProfile.contact_email) ? companyProfile.contact_email : 'Not provided' }}</strong>
+          </div>
+          <div class="company-overview-row">
+            <i class="ph ph-phone-call" aria-hidden="true"></i>
+            <span>Phone Number</span>
+            <strong>{{ isMeaningfulCompanyValue(companyProfile.contact_phone) ? companyProfile.contact_phone : 'Not provided' }}</strong>
+          </div>
+          <div class="company-overview-row">
+            <i class="ph ph-map-pin-line" aria-hidden="true"></i>
+            <span>Location</span>
+            <strong>{{ isMeaningfulCompanyValue(companyLocationLine) ? companyLocationLine : 'Not provided' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="company-workspace-card" aria-labelledby="companyWorkspaceTitle">
+        <div class="company-card-head">
+          <div>
+            <span class="company-modal-kicker">Workspace Summary</span>
+            <h3 id="companyWorkspaceTitle">Workspace Summary</h3>
+          </div>
+          <span class="company-summary-pill">Profile Completeness</span>
+        </div>
+        <div class="company-workspace-content">
+          <div class="profile-completeness-ring" aria-label="Profile completeness 82 percent">
+            <span>82<small>%</small></span>
+          </div>
+          <div class="company-workspace-stats">
+            <div class="company-stat-tile">
+              <span>Open Roles</span>
+              <strong>{{ openRolesCount }}</strong>
+            </div>
+            <div class="company-stat-tile">
+              <span>Recruiters</span>
+              <strong>0</strong>
+            </div>
+            <div class="company-stat-tile">
+              <span>Evaluators</span>
+              <strong>0</strong>
+            </div>
+            <div class="company-stat-tile">
+              <span>Candidates</span>
+              <strong>{{ candidatesData?.length || 0 }}</strong>
+            </div>
+          </div>
+        </div>
+        <div class="company-improve-card">
+          <div>
+            <strong>Great job! Your profile is 82% complete.</strong>
+            <span>Add your company description to reach 100%.</span>
+          </div>
+          <button type="button" *ngIf="canEditCompanyProfile" (click)="!companyEditMode && toggleCompanyEditMode()">Improve Now</button>
+        </div>
+      </section>
+    </div>
+
+    <nav class="company-modal-tabs" aria-label="Company profile sections" role="tablist">
+      <button type="button" class="company-modal-tab" role="tab" [class.active]="activeCompanyProfileTab === 'details'" [attr.aria-selected]="activeCompanyProfileTab === 'details'" (click)="setCompanyProfileTab('details')"><i class="ph ph-buildings" aria-hidden="true"></i> Company Details</button>
+      <button type="button" class="company-modal-tab" role="tab" [class.active]="activeCompanyProfileTab === 'branding'" [attr.aria-selected]="activeCompanyProfileTab === 'branding'" (click)="setCompanyProfileTab('branding')"><i class="ph ph-palette" aria-hidden="true"></i> Branding</button>
+      <button type="button" class="company-modal-tab" role="tab" [class.active]="activeCompanyProfileTab === 'contact'" [attr.aria-selected]="activeCompanyProfileTab === 'contact'" (click)="setCompanyProfileTab('contact')"><i class="ph ph-address-book" aria-hidden="true"></i> Contact Info</button>
+      <button type="button" class="company-modal-tab" role="tab" [class.active]="activeCompanyProfileTab === 'billing'" [attr.aria-selected]="activeCompanyProfileTab === 'billing'" (click)="setCompanyProfileTab('billing')"><i class="ph ph-credit-card" aria-hidden="true"></i> Billing / Workspace</button>
+    </nav>
+
     <form class="company-edit-form" *ngIf="companyEditMode; else companyProfileReadView" (ngSubmit)="saveCompanyProfile()">
-      <div class="company-form-grid">
-        <label class="company-form-field company-form-field--wide">
-          <span>Legal Name</span>
-          <input [(ngModel)]="companyForm.legal_name" name="legal_name" />
-        </label>
-        <label class="company-form-field">
-          <span>Display Name</span>
-          <input [(ngModel)]="companyForm.display_name" name="display_name" />
-        </label>
-        <label class="company-form-field">
-          <span>Industry</span>
-          <input [(ngModel)]="companyForm.industry" name="industry" />
-        </label>
-        <label class="company-form-field company-form-field--wide">
-          <span>Description</span>
-          <textarea [(ngModel)]="companyForm.description" name="description" rows="4"></textarea>
-        </label>
-        <label class="company-form-field">
-          <span>Company Type</span>
-          <select [(ngModel)]="companyForm.company_type" name="company_type">
-            <option value="">Select</option>
-            <option value="private">Private Limited</option>
-            <option value="public">Public Company</option>
-            <option value="llp">LLP</option>
-            <option value="partnership">Partnership</option>
-            <option value="sole_proprietorship">Sole Proprietorship</option>
-            <option value="non_profit">Non Profit</option>
-            <option value="government">Government</option>
-            <option value="agency">Agency / Consultancy</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label class="company-form-field">
-          <span>Stage</span>
-          <select [(ngModel)]="companyForm.company_stage" name="company_stage">
-            <option value="">Select</option>
-            <option value="bootstrapped">Bootstrapped</option>
-            <option value="seed">Seed</option>
-            <option value="series_a">Series A</option>
-            <option value="series_b">Series B</option>
-            <option value="series_c">Series C+</option>
-            <option value="growth">Growth</option>
-            <option value="enterprise">Enterprise</option>
-            <option value="public_market">Public Market</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label class="company-form-field">
-          <span>Company Size</span>
-          <select [(ngModel)]="companyForm.company_size" name="company_size">
-            <option value="">Select</option>
-            <option value="1_10">1-10</option>
-            <option value="11_50">11-50</option>
-            <option value="51_200">51-200</option>
-            <option value="201_500">201-500</option>
-            <option value="501_1000">501-1,000</option>
-            <option value="1001_5000">1,001-5,000</option>
-            <option value="5001_10000">5,001-10,000</option>
-            <option value="10000_plus">10,000+</option>
-          </select>
-        </label>
-        <label class="company-form-field">
-          <span>Employees</span>
-          <input [(ngModel)]="companyForm.employee_count" name="employee_count" type="text" inputmode="numeric" appDigitsOnly />
-        </label>
-        <label class="company-form-field">
-          <span>Founded Year</span>
-          <input [(ngModel)]="companyForm.founded_year" name="founded_year" type="text" inputmode="numeric" appDigitsOnly />
-        </label>
-        <label class="company-form-field company-form-field--wide">
-          <span>Website</span>
-          <input [(ngModel)]="companyForm.website" name="website" type="url" />
-        </label>
-        <label class="company-form-field">
-          <span>Careers Page</span>
-          <input [(ngModel)]="companyForm.careers_page" name="careers_page" type="url" />
-        </label>
-        <label class="company-form-field">
-          <span>LinkedIn</span>
-          <input [(ngModel)]="companyForm.linkedin_url" name="linkedin_url" type="url" />
-        </label>
-        <label class="company-form-field">
-          <span>Twitter</span>
-          <input [(ngModel)]="companyForm.twitter_url" name="twitter_url" type="url" />
-        </label>
-        <label class="company-form-field">
-          <span>Contact Email</span>
-          <input [(ngModel)]="companyForm.contact_email" name="contact_email" type="email" />
-        </label>
-        <label class="company-form-field">
-          <span>Contact Phone</span>
-          <input [(ngModel)]="companyForm.contact_phone" name="contact_phone" type="text" inputmode="numeric" appDigitsOnly />
-        </label>
-        <label class="company-form-field">
-          <span>Alternate Phone</span>
-          <input [(ngModel)]="companyForm.alternate_phone" name="alternate_phone" type="text" inputmode="numeric" appDigitsOnly />
-        </label>
-        <label class="company-form-field company-form-field--wide">
-          <span>Address Line 1</span>
-          <input [(ngModel)]="companyForm.address_line_1" name="address_line_1" />
-        </label>
-        <label class="company-form-field company-form-field--wide">
-          <span>Address Line 2</span>
-          <input [(ngModel)]="companyForm.address_line_2" name="address_line_2" />
-        </label>
-        <label class="company-form-field">
-          <span>City</span>
-          <input [(ngModel)]="companyForm.city" name="city" />
-        </label>
-        <label class="company-form-field">
-          <span>State</span>
-          <input [(ngModel)]="companyForm.state" name="state" />
-        </label>
-        <label class="company-form-field">
-          <span>Postal Code</span>
-          <input [(ngModel)]="companyForm.postal_code" name="postal_code" type="text" inputmode="numeric" appDigitsOnly />
-        </label>
-        <label class="company-form-field">
-          <span>Country</span>
-          <input [(ngModel)]="companyForm.country" name="country" />
-        </label>
-        <label class="company-form-field">
-          <span>Headquarters</span>
-          <input [(ngModel)]="companyForm.headquarters" name="headquarters" />
-        </label>
-        <label class="company-form-field">
-          <span>Currency</span>
-          <input [(ngModel)]="companyForm.currency_code" name="currency_code" />
-        </label>
-        <label class="company-form-field">
-          <span>Timezone</span>
-          <input [(ngModel)]="companyForm.timezone" name="timezone" />
-        </label>
-        <label class="company-form-field">
-          <span>Registration No.</span>
-          <input [(ngModel)]="companyForm.registration_number" name="registration_number" />
-        </label>
-        <label class="company-form-field">
-          <span>Tax Identifier</span>
-          <input [(ngModel)]="companyForm.tax_identifier" name="tax_identifier" />
-        </label>
-        <label class="company-form-field company-form-field--wide company-form-field--file">
-          <span>Logo Upload</span>
-          <input type="file" accept="image/*" (change)="onCompanyLogoSelected($event)" />
-          <small *ngIf="selectedCompanyLogoName">{{ selectedCompanyLogoName }}</small>
-        </label>
+      <div class="company-tab-panel" role="tabpanel" *ngIf="activeCompanyProfileTab === 'details'">
+        <div class="company-form-grid">
+          <div class="company-form-column">
+          <label class="company-form-field">
+            <span>Legal Name</span>
+            <input [(ngModel)]="companyForm.legal_name" name="legal_name" />
+          </label>
+          <label class="company-form-field">
+            <span>Display Name</span>
+            <input [(ngModel)]="companyForm.display_name" name="display_name" />
+          </label>
+          <label class="company-form-field">
+            <span>Website</span>
+            <input [(ngModel)]="companyForm.website" name="website" type="url" />
+          </label>
+          <label class="company-form-field">
+            <span>Industry</span>
+            <input [(ngModel)]="companyForm.industry" name="industry" />
+          </label>
+          <label class="company-form-field">
+            <span>Company Size</span>
+            <select [(ngModel)]="companyForm.company_size" name="company_size">
+              <option value="">Select</option>
+              <option value="1_10">1-10</option>
+              <option value="11_50">11-50</option>
+              <option value="51_200">51-200</option>
+              <option value="201_500">201-500</option>
+              <option value="501_1000">501-1,000</option>
+              <option value="1001_5000">1,001-5,000</option>
+              <option value="5001_10000">5,001-10,000</option>
+              <option value="10000_plus">10,000+</option>
+            </select>
+          </label>
+          <label class="company-form-field">
+            <span>Company Description</span>
+            <textarea [(ngModel)]="companyForm.description" name="description" rows="5"></textarea>
+          </label>
+        </div>
+
+        <div class="company-form-column">
+          <label class="company-form-field">
+            <span>Workspace Type</span>
+            <select [(ngModel)]="companyForm.company_type" name="company_type">
+              <option value="">Select</option>
+              <option value="private">Private Limited</option>
+              <option value="public">Public Company</option>
+              <option value="llp">LLP</option>
+              <option value="partnership">Partnership</option>
+              <option value="sole_proprietorship">Sole Proprietorship</option>
+              <option value="non_profit">Non Profit</option>
+              <option value="government">Government</option>
+              <option value="agency">Agency / Consultancy</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <div class="company-form-subgrid">
+            <label class="company-form-field">
+              <span>Stage</span>
+              <select [(ngModel)]="companyForm.company_stage" name="company_stage">
+                <option value="">Select</option>
+                <option value="bootstrapped">Bootstrapped</option>
+                <option value="seed">Seed</option>
+                <option value="series_a">Series A</option>
+                <option value="series_b">Series B</option>
+                <option value="series_c">Series C+</option>
+                <option value="growth">Growth</option>
+                <option value="enterprise">Enterprise</option>
+                <option value="public_market">Public Market</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label class="company-form-field">
+              <span>Employees</span>
+              <input [(ngModel)]="companyForm.employee_count" name="employee_count" type="text" inputmode="numeric" appDigitsOnly />
+            </label>
+            <label class="company-form-field">
+              <span>Founded Year</span>
+              <input [(ngModel)]="companyForm.founded_year" name="founded_year" type="text" inputmode="numeric" appDigitsOnly />
+            </label>
+            <label class="company-form-field">
+              <span>Headquarters</span>
+              <input [(ngModel)]="companyForm.headquarters" name="headquarters" />
+            </label>
+          </div>
+        </div>
       </div>
+    </div>
+
+      <div class="company-tab-panel" role="tabpanel" *ngIf="activeCompanyProfileTab === 'branding'">
+        <div class="company-form-grid">
+          <div class="company-form-column">
+            <label class="company-form-field company-form-field--file">
+              <span>Company Logo</span>
+              <div class="company-logo-upload-card">
+                <div class="company-logo-upload-preview">
+                  <div class="company-modal-logo-shell" *ngIf="!companyProfile.logo_url">{{ companyInitials }}</div>
+                  <img *ngIf="companyProfile.logo_url" class="company-modal-logo" [src]="companyProfile.logo_url" [alt]="companyDisplayName + ' logo upload preview'">
+                </div>
+                <div class="company-logo-upload-copy">
+                  <strong>Upload or replace logo</strong>
+                  <small>{{ selectedCompanyLogoName || 'PNG, JPG, or SVG up to your current upload limit.' }}</small>
+                  <span class="company-logo-upload-button">Replace Logo</span>
+                </div>
+                <input type="file" accept="image/*" (change)="onCompanyLogoSelected($event)" />
+              </div>
+            </label>
+            <label class="company-form-field">
+              <span>Website</span>
+              <input [(ngModel)]="companyForm.website" name="website" type="url" />
+            </label>
+          </div>
+
+          <div class="company-form-column">
+            <label class="company-form-field">
+              <span>Careers Page</span>
+              <input [(ngModel)]="companyForm.careers_page" name="careers_page" type="url" />
+            </label>
+            <label class="company-form-field">
+              <span>LinkedIn</span>
+              <input [(ngModel)]="companyForm.linkedin_url" name="linkedin_url" type="url" />
+            </label>
+            <label class="company-form-field">
+              <span>Twitter</span>
+              <input [(ngModel)]="companyForm.twitter_url" name="twitter_url" type="url" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="company-tab-panel" role="tabpanel" *ngIf="activeCompanyProfileTab === 'contact'">
+        <div class="company-form-grid">
+          <div class="company-form-column">
+            <label class="company-form-field">
+              <span>Contact Email</span>
+              <input [(ngModel)]="companyForm.contact_email" name="contact_email" type="email" />
+            </label>
+            <label class="company-form-field">
+              <span>Contact Phone</span>
+              <input [(ngModel)]="companyForm.contact_phone" name="contact_phone" type="text" inputmode="numeric" appDigitsOnly />
+            </label>
+            <label class="company-form-field">
+              <span>Alternate Phone</span>
+              <input [(ngModel)]="companyForm.alternate_phone" name="alternate_phone" type="text" inputmode="numeric" appDigitsOnly />
+            </label>
+            <label class="company-form-field">
+              <span>Headquarters</span>
+              <input [(ngModel)]="companyForm.headquarters" name="headquarters" />
+            </label>
+          </div>
+
+          <div class="company-form-column">
+            <label class="company-form-field">
+              <span>Address Line 1</span>
+              <input [(ngModel)]="companyForm.address_line_1" name="address_line_1" />
+            </label>
+            <label class="company-form-field">
+              <span>Address Line 2</span>
+              <input [(ngModel)]="companyForm.address_line_2" name="address_line_2" />
+            </label>
+            <div class="company-form-subgrid">
+              <label class="company-form-field">
+                <span>City</span>
+                <input [(ngModel)]="companyForm.city" name="city" />
+              </label>
+              <label class="company-form-field">
+                <span>State</span>
+                <input [(ngModel)]="companyForm.state" name="state" />
+              </label>
+              <label class="company-form-field">
+                <span>Postal Code</span>
+                <input [(ngModel)]="companyForm.postal_code" name="postal_code" type="text" inputmode="numeric" appDigitsOnly />
+              </label>
+              <label class="company-form-field">
+                <span>Country</span>
+                <input [(ngModel)]="companyForm.country" name="country" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="company-tab-panel" role="tabpanel" *ngIf="activeCompanyProfileTab === 'billing'">
+        <div class="company-form-grid">
+          <div class="company-form-column">
+            <label class="company-form-field">
+              <span>Currency</span>
+              <input [(ngModel)]="companyForm.currency_code" name="currency_code" />
+            </label>
+            <label class="company-form-field">
+              <span>Timezone</span>
+              <input [(ngModel)]="companyForm.timezone" name="timezone" />
+            </label>
+          </div>
+
+          <div class="company-form-column">
+            <label class="company-form-field">
+              <span>Registration No.</span>
+              <input [(ngModel)]="companyForm.registration_number" name="registration_number" />
+            </label>
+            <label class="company-form-field">
+              <span>Tax Identifier</span>
+              <input [(ngModel)]="companyForm.tax_identifier" name="tax_identifier" />
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="company-form-actions">
         <button type="button" class="company-form-secondary" (click)="toggleCompanyEditMode()">Cancel</button>
         <button type="submit" class="company-form-primary" [disabled]="companySaving">
-          {{ companySaving ? 'Saving...' : 'Save Company Details' }}
+          {{ companySaving ? 'Saving...' : 'Save Changes' }}
         </button>
       </div>
     </form>
 
     <ng-template #companyProfileReadView>
     <div class="company-modal-grid">
-      <section class="company-panel company-panel--summary">
+      <section class="company-panel company-panel--summary" *ngIf="activeCompanyProfileTab === 'details'">
         <span class="company-panel-title">Overview</span>
         <p class="company-panel-copy">{{ companyProfile.description }}</p>
         <div class="company-pill-row">
@@ -877,7 +1238,7 @@
         </div>
       </section>
 
-      <section class="company-panel">
+      <section class="company-panel" *ngIf="activeCompanyProfileTab === 'contact'">
         <span class="company-panel-title">Location</span>
         <div class="company-detail-list">
           <div class="company-detail-item" *ngIf="isMeaningfulCompanyValue(companyLocationLine)">
@@ -897,10 +1258,10 @@
         </div>
       </section>
 
-      <section class="company-panel">
-        <span class="company-panel-title">Contact & Compliance</span>
+      <section class="company-panel" *ngIf="activeCompanyProfileTab === 'contact'">
+        <span class="company-panel-title">Contact Info</span>
         <div class="company-detail-list" *ngIf="hasCompanyContacts; else contactFallback">
-          <div class="company-detail-item" *ngFor="let item of companyContacts">
+          <div class="company-detail-item" *ngFor="let item of companyContacts.slice(0, 3)">
             <i [class]="item.icon"></i>
             <div>
               <span>{{ item.label }}</span>
@@ -927,7 +1288,7 @@
         </ng-template>
       </section>
 
-      <section class="company-panel">
+      <section class="company-panel company-panel--summary" *ngIf="activeCompanyProfileTab === 'branding'">
         <span class="company-panel-title">Digital Presence</span>
         <div class="company-link-grid">
           <a class="company-link-card" *ngFor="let item of companyLinks" [href]="item.value" target="_blank" rel="noopener">
@@ -937,6 +1298,40 @@
               <strong>{{ formatCompanyLinkValue(item.value) }}</strong>
             </div>
           </a>
+        </div>
+      </section>
+
+      <section class="company-panel company-panel--summary" *ngIf="activeCompanyProfileTab === 'billing'">
+        <span class="company-panel-title">Billing / Workspace</span>
+        <div class="company-detail-list">
+          <div class="company-detail-item">
+            <i class="ph ph-currency-circle-dollar" aria-hidden="true"></i>
+            <div>
+              <span>Currency</span>
+              <strong>{{ isMeaningfulCompanyValue(companyProfile.currency_code) ? companyProfile.currency_code : 'Not provided' }}</strong>
+            </div>
+          </div>
+          <div class="company-detail-item">
+            <i class="ph ph-clock" aria-hidden="true"></i>
+            <div>
+              <span>Timezone</span>
+              <strong>{{ isMeaningfulCompanyValue(companyProfile.timezone) ? companyProfile.timezone : 'Not provided' }}</strong>
+            </div>
+          </div>
+          <div class="company-detail-item">
+            <i class="ph ph-identification-card" aria-hidden="true"></i>
+            <div>
+              <span>Registration No.</span>
+              <strong>{{ isMeaningfulCompanyValue(companyProfile.registration_number) ? companyProfile.registration_number : 'Not provided' }}</strong>
+            </div>
+          </div>
+          <div class="company-detail-item">
+            <i class="ph ph-receipt" aria-hidden="true"></i>
+            <div>
+              <span>Tax Identifier</span>
+              <strong>{{ isMeaningfulCompanyValue(companyProfile.tax_identifier) ? companyProfile.tax_identifier : 'Not provided' }}</strong>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -986,11 +1381,16 @@
 <div class="evaluation-summary-modal" *ngIf="evaluationSummaryModalOpen" (click)="closeEvaluationSummaryModal()">
   <div class="evaluation-summary-dialog" (click)="$event.stopPropagation()">
     <div class="evaluation-summary-head">
-      <div>
-        <h3>{{ evaluationSummaryCandidate?.name || 'Candidate' }}</h3>
-        <p>Interview evaluation summary</p>
+      <div class="evaluation-summary-title">
+        <span class="evaluation-summary-icon"><i class="ph ph-clipboard-text"></i></span>
+        <div>
+          <h3>Evaluation Summary</h3>
+          <p>Comprehensive overview of candidate evaluation and feedback.</p>
+        </div>
       </div>
-      <button type="button" class="pending-requests-close" (click)="closeEvaluationSummaryModal()">Close</button>
+      <button type="button" class="pending-requests-close" aria-label="Close evaluation summary" (click)="closeEvaluationSummaryModal()">
+        <i class="ph ph-x"></i>
+      </button>
     </div>
 
     <div class="evaluation-summary-state" *ngIf="evaluationSummaryLoading">
@@ -1004,172 +1404,118 @@
 
     <ng-container *ngIf="!evaluationSummaryLoading && !evaluationSummaryError">
       <div class="evaluation-report" *ngIf="evaluationSummary.available; else noEvaluationSummary">
-        <section class="evaluation-report-snapshot">
-          <div class="evaluation-report-snapshot__identity">
-            <span class="evaluation-report-kicker">Executive Snapshot</span>
-            <h4>{{ evaluationSummary.candidate_name || evaluationSummaryCandidate?.name || 'Candidate' }}</h4>
-            <p>{{ evaluationSummary.role_title || evaluationSummaryCandidate?.role || 'Interview evaluation' }}</p>
-          </div>
-          <div class="evaluation-report-score">
-            <span>Score</span>
-            <strong>{{ formatScore(evaluationSummary.score) }}</strong>
-          </div>
-          <div class="evaluation-report-snapshot__badges">
-            <span class="evaluation-report-badge" [ngClass]="decisionBadgeClass(evaluationSummary.decision || evaluationSummary.recommendation)">
-              {{ evaluationSummary.decision || evaluationSummary.recommendation || 'Needs More Data' }}
-            </span>
-            <span class="evaluation-report-badge evaluation-report-badge--neutral" *ngIf="evaluationSummary.recommendation">
-              {{ evaluationSummary.recommendation }}
-            </span>
-            <span class="evaluation-report-badge evaluation-report-badge--neutral" *ngIf="getEvaluationSignalLabel()">
-              {{ getEvaluationSignalLabel() }}
-            </span>
-          </div>
-        </section>
-
-        <section class="evaluation-summary-section evaluation-report-section" *ngIf="evaluationSummary.professional_summary_sections.length || evaluationSummary.professional_summary_fallback || getEvaluationSummaryText(); else unavailableSummary">
-          <div class="evaluation-report-section__head">
-            <h4>Professional Summary</h4>
-            <span *ngIf="evaluationSummary.updated_at">Updated {{ evaluationSummary.updated_at | date: 'MMM d, y, h:mm a' }}</span>
-          </div>
-          <div class="evaluation-report-summary-grid" *ngIf="evaluationSummary.professional_summary_sections.length; else summaryFallback">
-            <article class="evaluation-report-summary-block" *ngFor="let section of evaluationSummary.professional_summary_sections">
-              <h5>{{ section.title }}</h5>
-              <p>{{ section.content }}</p>
-            </article>
-          </div>
-          <ng-template #summaryFallback>
-            <p>{{ evaluationSummary.professional_summary_fallback || getEvaluationSummaryText() }}</p>
-          </ng-template>
-          <div class="evaluation-report-summary-grid" *ngIf="evaluationSummary.summary_verdict || evaluationSummary.hire_recommendation_reason">
-            <article class="evaluation-report-summary-block" *ngIf="evaluationSummary.summary_verdict && evaluationSummary.summary_verdict !== getEvaluationSummaryText()">
-              <h5>Verdict</h5>
-              <p>{{ evaluationSummary.summary_verdict }}</p>
-            </article>
-            <article class="evaluation-report-summary-block" *ngIf="evaluationSummary.hire_recommendation_reason">
-              <h5>Recommendation Reason</h5>
-              <p>{{ evaluationSummary.hire_recommendation_reason }}</p>
-            </article>
-          </div>
-        </section>
-
-        <ng-template #unavailableSummary>
-          <div class="evaluation-summary-state">Evaluation summary unavailable</div>
-        </ng-template>
-
-        <section class="evaluation-summary-section evaluation-report-section">
-          <div class="evaluation-report-section__head">
-            <h4>Skill & Evidence Highlights</h4>
-          </div>
-          <div class="evaluation-report-evidence-grid" *ngIf="hasEvidenceHighlights(); else noEvidenceHighlights">
-            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.strengths.length">
-              <h5>Strengths</h5>
-              <div class="evaluation-report-chip-list">
-                <span class="evaluation-report-chip evaluation-report-chip--positive" *ngFor="let item of evaluationSummary.strengths">{{ item }}</span>
-              </div>
-            </article>
-            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.concerns.length">
-              <h5>Concerns</h5>
-              <div class="evaluation-report-chip-list">
-                <span class="evaluation-report-chip evaluation-report-chip--warning" *ngFor="let item of evaluationSummary.concerns">{{ item }}</span>
-              </div>
-            </article>
-            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.gaps.length">
-              <h5>Gaps</h5>
-              <div class="evaluation-report-chip-list">
-                <span class="evaluation-report-chip" *ngFor="let item of evaluationSummary.gaps">{{ item }}</span>
-              </div>
-            </article>
-            <article class="evaluation-report-evidence-card" *ngIf="evaluationSummary.follow_up_areas.length">
-              <h5>Follow Up Areas</h5>
-              <div class="evaluation-report-chip-list">
-                <span class="evaluation-report-chip" *ngFor="let item of evaluationSummary.follow_up_areas">{{ item }}</span>
-              </div>
-            </article>
-          </div>
-          <ng-template #noEvidenceHighlights>
-            <div class="evaluation-summary-state">Evaluation summary unavailable</div>
-          </ng-template>
-        </section>
-
-        <section class="evaluation-summary-section evaluation-report-section">
-          <div class="evaluation-report-section__head">
-            <h4>Question & Answer Audit Trail</h4>
-            <span>{{ evaluationSummary.question_answer_records.length }} records</span>
-          </div>
-          <div class="evaluation-report-qa-list" *ngIf="evaluationSummary.question_answer_records.length; else noQaRecords">
-            <article class="evaluation-report-qa-card" *ngFor="let record of evaluationSummary.question_answer_records; let i = index">
-              <div class="evaluation-report-qa-card__meta">
-                <span>Q{{ record.turn_index || i + 1 }}</span>
-                <strong *ngIf="record.skill">{{ record.skill }}</strong>
-                <em *ngIf="record.section_role">{{ record.section_role }}</em>
-                <span class="evaluation-report-quality" *ngIf="record.answer_quality_state">{{ record.answer_quality_state }}</span>
-              </div>
-              <h5>{{ record.question_text || 'Question unavailable' }}</h5>
-              <p class="evaluation-report-answer">
-                {{ isQaExpanded(record, i) ? record.candidate_answer : truncateText(record.candidate_answer, 260) }}
-              </p>
-              <button
-                type="button"
-                class="evaluation-report-link-button"
-                *ngIf="shouldCollapseText(record.candidate_answer, 260)"
-                (click)="toggleQaAnswer(record, i)">
-                {{ isQaExpanded(record, i) ? 'View less' : 'View more' }}
-              </button>
-              <div class="evaluation-report-expected" *ngIf="record.expected_signal">
-                <span>Expected signal</span>
-                <p>{{ record.expected_signal }}</p>
-              </div>
-            </article>
-          </div>
-          <ng-template #noQaRecords>
-            <div class="evaluation-summary-state">No Q/A audit records captured</div>
-          </ng-template>
-        </section>
-
-        <section class="evaluation-summary-section evaluation-report-section">
-          <div class="evaluation-report-section__head">
-            <h4>Candidate Behaviour & Integrity</h4>
-            <span
-              class="evaluation-report-badge"
-              [ngClass]="behaviorStatusBadgeClass(evaluationSummary.candidate_behavior.status)"
-              *ngIf="evaluationSummary.candidate_behavior.status">
-              {{ evaluationSummary.candidate_behavior.status }}
-            </span>
-          </div>
-          <div class="evaluation-report-behavior" *ngIf="hasCandidateBehaviorSignals(); else noBehaviorSignals">
-            <p *ngIf="evaluationSummary.candidate_behavior.summary">{{ evaluationSummary.candidate_behavior.summary }}</p>
-            <div class="evaluation-report-integrity-grid">
-              <article class="evaluation-report-integrity-card">
-                <h5>Gaze Tracking</h5>
-                <dl>
-                  <div><dt>Events</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'event_count') }}</dd></div>
-                  <div><dt>Centered</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'centered_count') }}</dd></div>
-                  <div><dt>Offscreen / Visibility</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'offscreen_or_visibility_count') }}</dd></div>
-                  <div><dt>Status</dt><dd><span class="evaluation-report-badge" [ngClass]="behaviorStatusBadgeClass(behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'status'))">{{ behaviorMetric(evaluationSummary.candidate_behavior.gaze_tracking, 'status') }}</span></dd></div>
-                </dl>
-              </article>
-              <article class="evaluation-report-integrity-card">
-                <h5>Voice Verification</h5>
-                <dl>
-                  <div><dt>Events</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'event_count') }}</dd></div>
-                  <div><dt>Matches</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'match_count') }}</dd></div>
-                  <div><dt>Unmatches</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'unmatch_count') }}</dd></div>
-                  <div><dt>Latest Status</dt><dd><span class="evaluation-report-badge" [ngClass]="behaviorStatusBadgeClass(behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'latest_status'))">{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'latest_status') }}</span></dd></div>
-                  <div><dt>Flagged</dt><dd>{{ behaviorMetric(evaluationSummary.candidate_behavior.voice_verification, 'flagged_for_review') }}</dd></div>
-                </dl>
-              </article>
+        <section class="evaluation-summary-candidate-strip">
+          <div class="evaluation-summary-person">
+            <span class="evaluation-summary-avatar">{{ getEvaluationCandidateInitials() }}</span>
+            <div>
+              <h4>{{ evaluationSummary.candidate_name || evaluationSummaryCandidate?.name || 'Candidate' }}</h4>
+              <p>{{ getEvaluationCandidateEmail() || 'Email not captured' }} <span *ngIf="getEvaluationCandidatePhone()">- {{ getEvaluationCandidatePhone() }}</span></p>
             </div>
           </div>
-          <ng-template #noBehaviorSignals>
-            <div class="evaluation-summary-state">Candidate behaviour signals were not captured</div>
-          </ng-template>
+          <div class="evaluation-summary-meta">
+            <span>Role</span>
+            <strong>{{ evaluationSummary.role_title || evaluationSummaryCandidate?.role || 'Not captured' }}</strong>
+          </div>
+          <div class="evaluation-summary-meta">
+            <span>Current Stage</span>
+            <strong>{{ getEvaluationCurrentStage() }}</strong>
+          </div>
+          <div class="evaluation-summary-meta">
+            <span>Evaluations</span>
+            <strong>{{ getEvaluationEvaluationCountLabel() }}</strong>
+          </div>
+          <div class="evaluation-summary-score-card">
+            <div class="evaluation-summary-score-ring" [ngStyle]="scoreRingStyle(null, '#28d9df', 'rgba(148, 163, 184, 0.22)')">
+              <span>{{ formatReportScore() }}</span>
+            </div>
+            <div>
+              <span>Overall Score</span>
+              <strong>{{ getEvaluationDecisionLabel() }}</strong>
+            </div>
+          </div>
         </section>
 
-        <section class="evaluation-summary-section" *ngIf="evaluationSummary.available && evaluationSummary.early_exit">
-          <h4>Interview Exit</h4>
-          <p>{{ evaluationSummary.early_exit_reason || 'Candidate exited before the interview completed.' }}</p>
+        <section class="evaluation-summary-section evaluation-progress-panel">
+          <div class="evaluation-report-section__head">
+            <h4>Evaluation Progress</h4>
+          </div>
+          <div class="evaluation-progress-track">
+            <article class="evaluation-progress-step" *ngFor="let step of evaluationReportProgressSteps" [class.is-active]="step.active">
+              <span class="evaluation-progress-dot"><i class="ph" [class.ph-check]="step.active" [class.ph-clock]="!step.active"></i></span>
+              <strong>{{ step.label }}</strong>
+              <small>{{ step.state }}</small>
+              <em>{{ step.score }}</em>
+            </article>
+          </div>
         </section>
+
+        <div class="evaluation-summary-content-grid">
+          <section class="evaluation-summary-section evaluation-feedback-panel">
+            <div class="evaluation-report-section__head">
+              <h4>Evaluator Feedback</h4>
+            </div>
+            <div class="evaluation-feedback-table">
+              <article class="evaluation-feedback-row" *ngFor="let row of evaluationFeedbackRows">
+                <span class="evaluation-feedback-avatar">{{ row.avatar }}</span>
+                <div>
+                  <strong>{{ row.evaluator }}</strong>
+                  <small>{{ row.stage }}</small>
+                </div>
+                <span class="evaluation-feedback-score" [class.is-warning]="row.tone === 'warning'">{{ row.score }}</span>
+                <p>{{ row.summary }}</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="evaluation-summary-section evaluation-highlights-panel">
+            <div class="evaluation-report-section__head">
+              <h4>Feedback Highlights</h4>
+            </div>
+            <article class="evaluation-highlight-row" *ngFor="let item of evaluationFeedbackHighlights">
+              <span><i [class]="item.icon"></i></span>
+              <div>
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.description }}</small>
+              </div>
+            </article>
+          </section>
+
+          <section class="evaluation-summary-section evaluation-recommendation-panel">
+            <div class="evaluation-report-section__head">
+              <h4>Recommendation</h4>
+            </div>
+            <div class="evaluation-recommendation-card" [class.is-success]="getDecisionTone() === 'success'" [class.is-warning]="getDecisionTone() === 'warning'" [class.is-danger]="getDecisionTone() === 'danger'">
+              <i class="ph ph-star"></i>
+              <strong>{{ getEvaluationDecisionLabel() }}</strong>
+              <p>{{ getEvaluationRecommendationText() }}</p>
+            </div>
+            <div class="evaluation-next-list">
+              <strong>Next Steps</strong>
+              <span *ngFor="let item of evaluationActionItems"><i class="ph ph-check-circle"></i>{{ item }}</span>
+            </div>
+          </section>
+        </div>
+
+        <section class="evaluation-summary-section evaluation-overall-panel">
+          <h4>Overall Assessment</h4>
+          <p>{{ getExecutiveSummary() }}</p>
+          <div class="evaluation-assessment-chips">
+            <span *ngFor="let row of evaluationReportSkillRows">
+              {{ row.label }} <strong>{{ row.proficiency }}</strong>
+            </span>
+          </div>
+        </section>
+
+        <footer class="evaluation-summary-footer">
+          <button type="button" class="evaluation-summary-action evaluation-summary-action--ghost" (click)="openDetailedEvaluationReport($event)">
+            <i class="ph ph-file-text"></i>
+            Detailed Report
+          </button>
+          <button type="button" class="evaluation-summary-action evaluation-summary-action--primary" (click)="closeEvaluationSummaryModal()">
+            <i class="ph ph-x"></i>
+            Close
+          </button>
+        </footer>
       </div>
     </ng-container>
 
@@ -1192,74 +1538,265 @@
   </div>
 </div>
 
-<div class="pending-requests-modal" *ngIf="pendingRequestsModalOpen" (click)="closePendingRequestsModal()">
-  <div class="pending-requests-dialog" (click)="$event.stopPropagation()">
+<div class="pending-requests-modal pending-actions-overlay" *ngIf="pendingRequestsModalOpen" (click)="closePendingRequestsModal()">
+  <div #pendingRequestsDialog class="pending-requests-dialog pending-actions-modal" role="dialog" aria-modal="true" aria-labelledby="pendingActionsTitle" (click)="$event.stopPropagation()">
     <div class="pending-requests-head">
-      <div>
-        <h3>Pending Requests</h3>
-        <p>Candidate-initiated job requests awaiting recruiter review before they enter the hiring workflow.</p>
+      <div class="pending-actions-title-group">
+        <span class="pending-actions-icon-badge" aria-hidden="true">
+          <i class="ph ph-list-checks"></i>
+        </span>
+        <div>
+          <h3 id="pendingActionsTitle">Pending Actions</h3>
+          <p>Review and take action on important items that need your attention.</p>
+        </div>
       </div>
       <div class="pending-requests-head-actions">
-        <button type="button" class="pending-requests-close" (click)="closePendingRequestsModal()">Close</button>
+        <button type="button" class="pending-requests-close" aria-label="Close pending actions" (click)="closePendingRequestsModal()">
+          <i class="ph ph-x" aria-hidden="true"></i>
+        </button>
       </div>
     </div>
 
-    <div class="utility-search pending-requests-search">
-      <i class="ph ph-magnifying-glass"></i>
-      <input
-        type="text"
-        [(ngModel)]="pendingRequestsSearch"
-        placeholder="Search candidate, email, phone, or job title"
-      />
-      <button *ngIf="pendingRequestsSearch" class="clear-search-btn" (click)="pendingRequestsSearch = ''">Clear</button>
+    <div class="pending-actions-summary-grid" aria-label="Pending action summary">
+      @for (card of pendingActionCards; track card.key) {
+        <button
+          type="button"
+          class="pending-action-summary-card"
+          [ngClass]="'pending-action-summary-card--' + card.tone"
+          [class.is-active]="activePendingActionKey === card.key"
+          (click)="selectPendingAction(card.key)"
+        >
+          <span class="pending-action-summary-icon" aria-hidden="true">
+            <i [class]="card.icon"></i>
+          </span>
+          <span class="pending-action-summary-copy">
+            <strong>{{ card.count | number:'2.0-0' }}</strong>
+            <span>{{ card.label }}</span>
+            <small>{{ card.helper }}</small>
+          </span>
+        </button>
+      }
     </div>
 
-    <div class="pending-requests-list" *ngIf="filteredRecruiterApplications.length; else noPendingRequests">
-      @for (application of filteredRecruiterApplications; track application.id) {
-        <div class="application-inbox-item pending-request-item" [class.is-removing]="application.removing">
-          <div class="pending-request-main">
-            <span class="pending-request-avatar">{{ getCandidateInitials(application.candidate_name) }}</span>
-            <div class="pending-request-copy">
-              <div class="application-inbox-top">
-                <button type="button" class="pending-request-name" (click)="openCandidatePublicProfile(application)">
-                  {{ application.candidate_name }}
-                </button>
-                <span class="application-status">{{ application.status_label || 'New' }}</span>
-              </div>
-              <div class="application-inbox-role">{{ application.vacancy_role }}</div>
-              <div class="application-inbox-meta">
-                {{ application.candidate_email || 'No email' }} · {{ application.candidate_phone || 'Phone pending' }}
-              </div>
-              <div class="application-inbox-meta">
-                Applied {{ application.applied_at | date:'MMM d, y, h:mm a' }}
-              </div>
+    <div class="pending-actions-body">
+      <section class="pending-actions-panel pending-actions-panel--list" aria-label="Pending action list">
+        <div class="pending-action-category-list" aria-label="Action categories">
+          <button
+            type="button"
+            class="pending-action-category pending-action-category--all"
+            [class.is-active]="activePendingActionKey === 'all'"
+            (click)="selectPendingAction('all')"
+          >
+            <span>All Actions ({{ pendingActionTotalCount }})</span>
+          </button>
+          @for (card of pendingActionCards; track card.key) {
+            <button
+              *ngIf="card.key !== 'new-applications'"
+              type="button"
+              class="pending-action-category"
+              [class.is-active]="activePendingActionKey === card.key"
+              (click)="selectPendingAction(card.key)"
+            >
+              <span>{{ card.label.replace('Overdue ', '') }} ({{ card.count }})</span>
+            </button>
+          }
+        </div>
+
+        <div class="pending-action-toolbar">
+          <div class="utility-search pending-requests-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input
+              type="text"
+              [(ngModel)]="pendingRequestsSearch"
+              placeholder="Search by name, role, email..."
+            />
+            <button *ngIf="pendingRequestsSearch" class="clear-search-btn" (click)="pendingRequestsSearch = ''">Clear</button>
+          </div>
+          <label class="pending-action-filter-chip">
+            <i class="ph ph-funnel-simple" aria-hidden="true"></i>
+            <select [(ngModel)]="pendingActionPriorityFilter" aria-label="Filter pending actions by priority">
+              <option value="all">All Priorities</option>
+              <option value="high">High Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="low">Low Priority</option>
+            </select>
+            <i class="ph ph-caret-down" aria-hidden="true"></i>
+          </label>
+          <label class="pending-action-filter-chip">
+            <i class="ph ph-sliders-horizontal" aria-hidden="true"></i>
+            <select [(ngModel)]="pendingActionSortKey" aria-label="Sort pending actions">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="priority">Priority First</option>
+            </select>
+            <i class="ph ph-caret-down" aria-hidden="true"></i>
+          </label>
+        </div>
+
+        <div class="pending-requests-list pending-actions-list" *ngIf="filteredPendingActionItems.length; else noPendingRequests">
+          @for (item of filteredPendingActionItems; track item.id) {
+            <button
+              type="button"
+              class="pending-action-row"
+              [class.is-selected]="selectedPendingActionItem?.id === item.id"
+              [class.is-removing]="item.raw?.removing"
+              (click)="focusPendingActionItem(item)"
+            >
+              <span class="pending-action-row-type-icon" [ngClass]="'pending-action-row-type-icon--' + item.actionTone" aria-hidden="true">
+                <i [class]="item.actionIcon"></i>
+              </span>
+              <span class="pending-request-avatar">{{ getCandidateInitials(item.name) }}</span>
+              <span class="pending-action-row-copy">
+                <span class="pending-action-row-top">
+                  <strong>{{ item.name }}</strong>
+                  <i class="ph ph-seal-check" aria-hidden="true"></i>
+                </span>
+                <em>{{ item.email }}</em>
+              </span>
+              <span class="pending-action-row-work">
+                <strong>{{ item.role }}</strong>
+                <small>{{ item.status }}</small>
+              </span>
+              <span class="pending-action-row-signal">
+                <time>{{ pendingActionElapsedLabel(item) }}</time>
+                <small [ngClass]="'pending-action-priority--' + pendingActionPriorityTone(item)">
+                  {{ pendingActionPriorityLabel(item) }}
+                </small>
+              </span>
+              <i class="ph ph-caret-right" aria-hidden="true"></i>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="pending-actions-panel pending-actions-panel--detail" aria-label="Selected pending action details">
+        <ng-container *ngIf="selectedPendingActionItem as item; else pendingActionEmptyDetail">
+          <div class="pending-action-detail-head">
+            <span class="pending-action-detail-badge">{{ activePendingAction.label }}</span>
+            <div class="pending-action-detail-tools" aria-hidden="true">
+              <span><i class="ph ph-star"></i></span>
+              <span><i class="ph ph-dots-three-vertical"></i></span>
             </div>
           </div>
-          <div class="pending-request-actions">
-            <button
-              type="button"
-              class="pending-request-btn approve"
-              [disabled]="application.actionLoading"
-              (click)="reviewPendingRequest(application, 'accept')"
-            >
-              Accept
-            </button>
-            <button
-              type="button"
-              class="pending-request-btn reject"
-              [disabled]="application.actionLoading"
-              (click)="reviewPendingRequest(application, 'reject')"
-            >
-              Reject
-            </button>
+
+          <div class="pending-action-profile">
+            <span class="pending-action-profile-avatar">
+              {{ getCandidateInitials(item.name) }}
+              <span aria-hidden="true"></span>
+            </span>
+            <div class="pending-action-profile-copy">
+              <h4>
+                {{ item.name }}
+                <i class="ph ph-seal-check" aria-hidden="true"></i>
+              </h4>
+              <p>{{ item.email }} · {{ item.phone }}</p>
+            </div>
           </div>
-        </div>
-      }
+
+          <dl class="pending-action-detail-list">
+            <div>
+              <i class="ph ph-briefcase" aria-hidden="true"></i>
+              <dt>Role</dt>
+              <dd>{{ item.role }}</dd>
+            </div>
+            <div>
+              <i class="ph ph-calendar-check" aria-hidden="true"></i>
+              <dt>{{ item.kind === 'application' ? 'Applied On' : 'Target Date' }}</dt>
+              <dd>{{ item.date ? (item.date | date:'MMM d, y, h:mm a') : 'Not scheduled' }}</dd>
+            </div>
+            <div>
+              <i class="ph ph-globe-hemisphere-west" aria-hidden="true"></i>
+              <dt>Source</dt>
+              <dd>{{ pendingActionSource(item) }}</dd>
+            </div>
+            <div>
+              <i class="ph ph-identification-badge" aria-hidden="true"></i>
+              <dt>Experience</dt>
+              <dd>{{ pendingActionExperience(item) }}</dd>
+            </div>
+            <div>
+              <i class="ph ph-map-pin" aria-hidden="true"></i>
+              <dt>Location</dt>
+              <dd>{{ pendingActionLocation(item) }}</dd>
+            </div>
+          </dl>
+
+          <div class="pending-action-resume-card">
+            <h5>Resume Preview</h5>
+            <div>
+              <span class="pending-action-file-icon" aria-hidden="true">
+                <i class="ph ph-file-pdf"></i>
+              </span>
+              <span>
+                <strong>{{ pendingActionResumeName(item) }}</strong>
+                <small>{{ pendingActionResumeMeta(item) }}</small>
+              </span>
+              <button type="button" class="pending-actions-ghost-icon" aria-label="Download resume PDF" (click)="downloadPendingActionResumePdf(item, $event)">
+                <i class="ph ph-download-simple" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="pending-action-next-card">
+            <div class="pending-action-next-title">
+              <i class="ph ph-sparkle" aria-hidden="true"></i>
+              <span>Next Best Actions</span>
+            </div>
+            <div class="pending-action-next-grid">
+              <button type="button" class="pending-action-next-btn" (click)="reviewPendingActionItem(item)">
+                <i *ngIf="item.actionKey === 'overdue-feedback'" class="ph ph-clipboard-text" aria-hidden="true"></i>
+                <i *ngIf="item.actionKey !== 'overdue-feedback'" class="ph ph-user-focus" aria-hidden="true"></i>
+                <span>{{ item.actionKey === 'overdue-feedback' ? 'Review Feedback' : (item.kind === 'application' ? 'View Profile' : 'Review Profile') }}</span>
+              </button>
+              <button
+                *ngIf="item.kind === 'application'"
+                type="button"
+                class="pending-action-next-btn pending-action-next-btn--success"
+                [disabled]="item.raw?.actionLoading"
+                (click)="reviewPendingRequest(item.raw, 'accept')"
+              >
+                <i class="ph ph-check-circle" aria-hidden="true"></i>
+                <span>Accept</span>
+              </button>
+              <button
+                *ngIf="item.kind === 'application'"
+                type="button"
+                class="pending-action-next-btn pending-action-next-btn--danger"
+                [disabled]="item.raw?.actionLoading"
+                (click)="reviewPendingRequest(item.raw, 'reject')"
+              >
+                <i class="ph ph-x-circle" aria-hidden="true"></i>
+                <span>Reject</span>
+              </button>
+              <button
+                *ngIf="item.actionKey === 'interviews-pending'"
+                type="button"
+                class="pending-action-next-btn pending-action-next-btn--success"
+                (click)="schedulePendingActionItem(item)"
+              >
+                <i class="ph ph-calendar-check" aria-hidden="true"></i>
+                <span>Schedule</span>
+              </button>
+            </div>
+          </div>
+
+          <button type="button" class="pending-action-full-profile" (click)="openPendingActionItem(item)">
+            <span>View Full Profile</span>
+            <i class="ph ph-arrow-right" aria-hidden="true"></i>
+          </button>
+        </ng-container>
+      </section>
     </div>
 
     <ng-template #noPendingRequests>
       <div class="application-empty-state">
-        No pending requests match the current list.
+        No pending actions match the current list.
+      </div>
+    </ng-template>
+
+    <ng-template #pendingActionEmptyDetail>
+      <div class="application-empty-state pending-action-empty-detail">
+        Select another action category or clear search to review pending work.
       </div>
     </ng-template>
   </div>

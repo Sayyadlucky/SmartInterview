@@ -15,19 +15,18 @@
     </div>
   </div>
 
-  <div class="workflow-summary" *ngIf="mode === 'evaluation-reviews'">
-    <div class="summary-card">
-      <span>Reviewed Candidates</span>
-      <strong>{{ reviewCandidates.length }}</strong>
-    </div>
-    <div class="summary-card">
-      <span>Average Score</span>
-      <strong>{{ reviewAverageScore }}</strong>
-    </div>
-    <div class="summary-card">
-      <span>Needs Follow-up</span>
-      <strong>{{ reviewsMissingFeedback }}</strong>
-    </div>
+  <div class="evaluation-reviews-summary-grid" *ngIf="mode === 'evaluation-reviews'">
+    <article
+      class="evaluation-review-summary-card"
+      *ngFor="let card of reviewSummaryCards"
+      [ngClass]="'is-' + card.tone">
+      <span class="evaluation-review-summary-icon"><i class="ph" [ngClass]="card.icon"></i></span>
+      <div>
+        <strong>{{ card.value }}</strong>
+        <span>{{ card.label }}</span>
+        <small>{{ card.helper }}</small>
+      </div>
+    </article>
   </div>
 
   <div class="feedback-message feedback-message--error" *ngIf="errorMessage">{{ errorMessage }}</div>
@@ -230,94 +229,98 @@
       </div>
     </div>
 
-    <div *ngSwitchCase="'evaluation-reviews'" class="reviews-shell">
-      <div class="field-shell field-shell--wide">
-        <i class="ph ph-magnifying-glass"></i>
-        <input type="text" [ngModel]="reviewSearch" (ngModelChange)="onReviewSearchChange($event)" placeholder="Search by candidate, recruiter, evaluator, role, or note" />
+    <div *ngSwitchCase="'evaluation-reviews'" class="evaluation-reviews-shell">
+      <div class="evaluation-review-toolbar">
+        <div class="field-shell field-shell--wide evaluation-review-search">
+          <i class="ph ph-magnifying-glass"></i>
+          <input
+            type="text"
+            [ngModel]="reviewSearch"
+            (ngModelChange)="onReviewSearchChange($event)"
+            placeholder="Search candidate, role, evaluator" />
+        </div>
+        <div class="evaluation-review-average">
+          <span>Average Score</span>
+          <strong>{{ reviewAverageScore }}</strong>
+        </div>
       </div>
 
-      <div class="review-tab-shell" *ngIf="reviewGroups.length > 0 && activeReviewGroup">
-        <div class="review-tab-list">
-          <button
-            type="button"
-            class="review-tab-btn"
-            *ngFor="let group of reviewGroups"
-            [class.active]="group.key === activeReviewGroupKey"
-            (click)="setActiveReviewGroup(group.key)">
-            <span>{{ group.title }}</span>
-            <strong>{{ group.items.length }}</strong>
-          </button>
-        </div>
+      <div class="evaluation-review-filter-tabs" *ngIf="filteredReviewCandidatesList.length > 0">
+        <button
+          type="button"
+          class="evaluation-review-filter"
+          *ngFor="let tab of reviewFilterTabs"
+          [class.active]="tab.key === activeReviewFilter"
+          (click)="setActiveReviewFilter(tab.key)">
+          <span>{{ tab.label }}</span>
+          <strong>{{ tab.count }}</strong>
+        </button>
+      </div>
 
-        <section class="review-group review-group--active">
-          <div class="review-group-head">
+      <div class="evaluation-reviews-body" *ngIf="filteredReviewCandidatesList.length > 0; else evaluationReviewsEmpty">
+        <section class="evaluation-review-queue" aria-label="Evaluation review queue">
+          <div class="evaluation-review-section-head">
             <div>
-              <h4>{{ activeReviewGroup.title }}</h4>
-              <p>{{ activeReviewGroup.helper }}</p>
+              <h4>Review Queue</h4>
+              <p>{{ reviewCandidates.length }} record{{ reviewCandidates.length === 1 ? '' : 's' }} in current view</p>
             </div>
-            <span class="review-group-count">{{ activeReviewGroup.items.length }}</span>
           </div>
 
-          <div class="review-list">
-            <div class="review-card" *ngFor="let candidate of activeReviewGroup.items; trackBy: trackCandidate">
-              <div class="review-card-main">
-                <div class="review-head">
-                  <div class="review-head-copy">
-                    <div class="review-identity-row">
-                      <button type="button" class="review-candidate-link" (click)="openCandidateProfile(candidate)">
-                        {{ candidate.name }}
-                      </button>
-                      <div class="score-badge" [class.score-badge--empty]="candidate.score === null || candidate.score === undefined">
-                        {{ candidate.score === null || candidate.score === undefined ? 'No Score' : (candidate.score + '/10') }}
-                      </div>
-                    </div>
-                    <p>{{ candidate.role || 'Role not mapped' }}</p>
-                  </div>
-                  <div class="review-head-aside">
-                    <div class="review-status-pill">{{ candidate.statusLabel }}</div>
-                  </div>
+          <div class="evaluation-review-list" *ngIf="reviewCandidates.length > 0; else evaluationReviewsNoMatches">
+            <article
+              class="evaluation-review-row"
+              *ngFor="let candidate of reviewCandidates; trackBy: trackCandidate"
+              [class.active]="candidate.id === selectedReviewId"
+              role="button"
+              tabindex="0"
+              [attr.aria-pressed]="candidate.id === selectedReviewId"
+              (click)="selectReviewCandidate(candidate)"
+              (keydown.enter)="selectReviewCandidate(candidate)"
+              (keydown.space)="selectReviewCandidate(candidate); $event.preventDefault()">
+              <div class="evaluation-review-avatar">
+                <span>{{ candidate.initials }}</span>
+              </div>
+              <div class="evaluation-review-row-main">
+                <div class="evaluation-review-row-title">
+                  <strong>{{ candidate.name }}</strong>
+                  <span class="evaluation-review-status" [ngClass]="'is-' + candidate.statusTone">{{ candidate.statusLabel }}</span>
                 </div>
-                <div class="review-meta-strip">
-                  <div class="review-meta-inline">
-                    <span class="review-meta-label">Recruiter</span>
-                    <strong>{{ candidate.recruiter || 'Recruiter not assigned' }}</strong>
-                  </div>
-                  <div class="review-meta-inline">
-                    <span class="review-meta-label">Evaluator</span>
-                    <strong>{{ candidate.evaluatorLabel }}</strong>
-                  </div>
-                  <div class="review-meta-inline">
-                    <span class="review-meta-label">Interview Date</span>
-                    <strong>{{ candidate.dateLabel }}</strong>
-                  </div>
-                </div>
-                <div class="review-note" *ngIf="candidate.notes">
-                  <span class="review-note-label">Interview Feedback</span>
-                  {{ candidate.notes }}
+                <p>{{ candidate.role || 'Role not mapped' }}</p>
+                <div class="evaluation-review-row-meta">
+                  <span><i class="ph ph-user-check"></i>{{ candidate.evaluatorLabel }}</span>
+                  <span><i class="ph ph-clock"></i>{{ candidate.dateLabel }}</span>
+                  <span><i class="ph ph-git-pull-request"></i>{{ candidate.decisionLabel }}</span>
                 </div>
               </div>
-              <div class="review-actions-stack review-actions-stack--side" *ngIf="candidate.decisionActions.length || candidate.canScheduleFurther">
-                <button type="button" class="secondary-btn review-feedback-btn" (click)="openEvaluationSummary(candidate)">View Detailed Interview Feedback</button>
-                <button
-                  *ngFor="let action of candidate.decisionActions"
-                  type="button"
-                  [class.primary-btn]="action.tone === 'primary'"
-                  [class.secondary-btn]="action.tone === 'secondary'"
-                  [class.review-primary-btn]="action.tone === 'primary'"
-                  [class.review-decision-btn]="action.tone === 'secondary'"
-                  [disabled]="saving"
-                  (click)="updateReviewDecision(candidate, action.key)">
-                  {{ action.label }}
-                </button>
-                <button *ngIf="candidate.canScheduleFurther" type="button" class="primary-btn review-primary-btn" (click)="scheduleFurtherInterview(candidate)">Schedule Further Interview</button>
+              <div class="evaluation-review-row-score">
+                <strong>{{ candidate.scoreLabel }}</strong>
+                <small>Score</small>
               </div>
-            </div>
+              <div class="evaluation-review-row-actions">
+                <button type="button" class="evaluation-review-row-action" (click)="openEvaluationSummary(candidate); $event.stopPropagation()">Review</button>
+                <button type="button" class="evaluation-review-row-action evaluation-review-row-action--schedule" (click)="scheduleFurtherInterview(candidate); $event.stopPropagation()">Schedule Further Interview</button>
+              </div>
+            </article>
           </div>
         </section>
       </div>
-      <div class="empty-state empty-state--large" *ngIf="reviewGroups.length === 0">
-        No evaluation records are available in the current dashboard scope.
-      </div>
+
+      <ng-template #evaluationReviewsNoMatches>
+        <div class="evaluation-review-empty evaluation-review-empty--compact">
+          <i class="ph ph-magnifying-glass"></i>
+          <strong>No matching evaluation reviews</strong>
+          <p>Try a different candidate, role, or evaluator search.</p>
+        </div>
+      </ng-template>
+
+      <ng-template #evaluationReviewsEmpty>
+        <div class="evaluation-review-empty">
+          <i class="ph ph-clipboard-text"></i>
+          <strong>No evaluation reviews pending</strong>
+          <p>Completed interviews and feedback requiring recruiter review will appear here.</p>
+          <button type="button" class="secondary-btn" (click)="close()">Close</button>
+        </div>
+      </ng-template>
     </div>
   </ng-container>
 

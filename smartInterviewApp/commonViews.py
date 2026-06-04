@@ -183,6 +183,19 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
             return text
         return f"{text[:limit].rstrip()}..."
 
+    def profile_picture_data_url() -> str:
+        profile = getattr(getattr(interview, 'candidate', None), 'profile', None)
+        picture = getattr(profile, 'profile_picture', None)
+        if not picture:
+            return ''
+        try:
+            mime_type, _ = mimetypes.guess_type(picture.name or '')
+            with picture.open('rb') as image_handle:
+                encoded = base64.b64encode(image_handle.read()).decode('ascii')
+            return f"data:{mime_type or 'image/jpeg'};base64,{encoded}"
+        except Exception:
+            return ''
+
     def compact_text_list(values, *, limit: int = 6, item_limit: int = 220) -> list[str]:
         if not isinstance(values, list):
             return []
@@ -233,6 +246,7 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
         'hire_recommendation_reason': '',
         'early_exit': False,
         'early_exit_reason': '',
+        'profile_picture_data_url': '',
         'updated_at': '',
         'created_at': '',
     }
@@ -285,6 +299,9 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
         or evaluation_payload.get('recommendation'),
         120,
     )
+    embedded_profile_picture = profile_picture_data_url()
+    if embedded_profile_picture:
+        safe_evaluation_payload['profile_picture_data_url'] = embedded_profile_picture
 
     return {
         'available': True,
@@ -317,6 +334,7 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
         'hire_recommendation_reason': trim_text(hire_recommendation.get('reason'), 400),
         'early_exit': bool(result.early_exit),
         'early_exit_reason': trim_text(result.early_exit_reason, 160),
+        'profile_picture_data_url': embedded_profile_picture,
         'updated_at': result.updated_at.isoformat() if result.updated_at else '',
         'created_at': result.created_at.isoformat() if result.created_at else '',
     }
@@ -724,6 +742,7 @@ def build_litio_interview_link(request, interview: Interview) -> tuple[str, str]
 
 
 def build_candidate_details(candidate: Interview, request=None) -> dict:
+    candidate_profile = getattr(candidate.candidate, 'profile', None)
     recruiter_name = (
         f"{candidate.recruiter.first_name} {candidate.recruiter.last_name}".strip().title()
         if candidate.recruiter else ''
@@ -733,11 +752,19 @@ def build_candidate_details(candidate: Interview, request=None) -> dict:
         if getattr(candidate, 'interviewer', None) else ''
     )
     interview_token, interview_link = build_litio_interview_link(request, candidate)
+    public_resume = ensure_public_resume(candidate.candidate)
+    public_resume_url = reverse('public-candidate-resume', args=[public_resume.short_code])
+    public_resume_pdf_url = reverse('public-candidate-resume-pdf', args=[public_resume.short_code])
+    if request is not None:
+        public_resume_url = request.build_absolute_uri(public_resume_url)
+        public_resume_pdf_url = request.build_absolute_uri(public_resume_pdf_url)
+    profile_picture_url = build_absolute_file_url(request, getattr(candidate_profile, 'profile_picture', None)) if request is not None else ''
     return {
         'id': candidate.id,
         'name': f"{candidate.candidate.first_name} {candidate.candidate.last_name}".strip().title(),
         'email': candidate.candidate.email,
-        'phone': candidate.candidate.profile.phone if hasattr(candidate.candidate, 'profile') else '',
+        'phone': candidate_profile.phone if candidate_profile else '',
+        'profile_picture_url': profile_picture_url,
         'candidate_id': candidate.candidate_id,
         'recruiter': recruiter_name,
         'recruiter_id': candidate.recruiter_id,
@@ -753,6 +780,9 @@ def build_candidate_details(candidate: Interview, request=None) -> dict:
         'role_id': candidate.role.id if candidate.role else None,
         'interview_token': interview_token,
         'interview_link': interview_link,
+        'public_resume_url': public_resume_url,
+        'public_profile_url': public_resume_url,
+        'public_resume_pdf_url': public_resume_pdf_url,
     }
 
 
@@ -4038,6 +4068,7 @@ def recruiterApplicationFeed(request):
             'applied_at': application.applied_at.isoformat() if application.applied_at else '',
             'source': application.source,
             'public_profile_url': request.build_absolute_uri(reverse('public-candidate-resume', args=[public_resume.short_code])),
+            'public_resume_pdf_url': request.build_absolute_uri(reverse('public-candidate-resume-pdf', args=[public_resume.short_code])),
         })
 
     return JsonResponse({
