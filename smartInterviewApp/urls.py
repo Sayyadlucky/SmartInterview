@@ -30,6 +30,7 @@ urlpatterns = [
     path('add-user/', commonViews.addUser, name='add-user'),
     path('update-recruiter-details/', commonViews.updateRecruiterDetails, name='update-recruiter-details'),
     path('add-role/', commonViews.addRole, name='add-role'),
+    path('api/jobs/generate-description/', commonViews.generateJobDescriptionSuggestion, name='generate-job-description'),
     path('close-vacancy/', commonViews.closeVacancy, name='close-vacancy'),
     path('get-evaluator/', commonViews.getEvaluator, name='get-evaluator'),
     path('workflow-evaluator-options/', commonViews.workflowEvaluatorOptions, name='workflow-evaluator-options'),

@@ -564,8 +564,8 @@ export class TalentPool implements OnInit, OnChanges {
 
   openCandidate(candidate: TalentCandidateView): void {
     this.dialog.open(CandidateProfile, {
-      width: '95vw',
-      maxWidth: '980px',
+      width: 'min(1220px, 95vw)',
+      maxWidth: '95vw',
       maxHeight: '92vh',
       panelClass: 'candidate-profile-dialog',
       autoFocus: false,
@@ -578,7 +578,7 @@ export class TalentPool implements OnInit, OnChanges {
       return;
     }
     this.dialog.open(RoleDetail, {
-      width: 'min(1120px, 96vw)',
+      width: 'min(1280px, 96vw)',
       maxWidth: '96vw',
       maxHeight: '92vh',
       panelClass: 'role-detail-dialog',

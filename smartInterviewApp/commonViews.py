@@ -15,8 +15,11 @@ import shutil
 import string
 import secrets
 import signal
+import socket
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 from urllib.parse import quote
 from collections import Counter, defaultdict
 from datetime import timedelta, datetime, time
@@ -3029,6 +3032,164 @@ def lookupUserByPhone(request):
         return JsonResponse({"Success": False, "Error": str(e), "Data": {"found": False}})
 
 
+def _ai_jd_schema() -> dict:
+    section_array = {
+        'type': 'array',
+        'items': {'type': 'string'},
+        'maxItems': 8,
+    }
+    return {
+        'type': 'object',
+        'additionalProperties': False,
+        'properties': {
+            'overview': {'type': 'string'},
+            'responsibilities': section_array,
+            'required_skills': section_array,
+            'preferred_skills': section_array,
+            'success_criteria': section_array,
+            'interview_focus': section_array,
+        },
+        'required': [
+            'overview',
+            'responsibilities',
+            'required_skills',
+            'preferred_skills',
+            'success_criteria',
+            'interview_focus',
+        ],
+    }
+
+
+def _extract_openai_output_text(payload: dict) -> str:
+    direct = payload.get('output_text')
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+    for item in payload.get('output', []) or []:
+        for content in item.get('content', []) or []:
+            if content.get('type') in {'output_text', 'text'} and isinstance(content.get('text'), str):
+                text = content.get('text', '').strip()
+                if text:
+                    return text
+    return ''
+
+
+def _sanitize_ai_jd_payload(payload: dict) -> dict:
+    def clean_text(value, limit=1400):
+        return re.sub(r'\s+', ' ', str(value or '')).strip()[:limit]
+
+    def clean_list(value):
+        if not isinstance(value, list):
+            return []
+        cleaned = [clean_text(item, 280) for item in value]
+        return [item for item in cleaned if item][:8]
+
+    return {
+        'overview': clean_text(payload.get('overview')),
+        'responsibilities': clean_list(payload.get('responsibilities')),
+        'required_skills': clean_list(payload.get('required_skills')),
+        'preferred_skills': clean_list(payload.get('preferred_skills')),
+        'success_criteria': clean_list(payload.get('success_criteria')),
+        'interview_focus': clean_list(payload.get('interview_focus')),
+    }
+
+
+def _build_ai_jd_prompt(payload: dict) -> str:
+    return (
+        'Generate a candidate-ready job description for Shortlistii.\n'
+        'Return only JSON that matches the provided schema. Do not return HTML or Markdown.\n'
+        'Keep language specific, professional, inclusive, and concise.\n\n'
+        f"Role title: {payload.get('name', '')}\n"
+        f"Employment type: {payload.get('jobType', '')}\n"
+        f"Experience required: {payload.get('experienceRequired', '')}\n"
+        f"Location/work mode: {payload.get('location', '')}\n"
+        f"Salary range: {payload.get('salaryRange', '')}\n"
+        f"Openings: {payload.get('vacancies', '')}\n"
+        f"Current JD context: {payload.get('currentDescriptionPlainText', '')}\n\n"
+        f"Role context / hiring need: {payload.get('roleContext', '')}\n"
+        f"Must-have skills: {payload.get('mustHaveSkills', '')}\n"
+        f"Preferred skills: {payload.get('preferredSkills', '')}\n"
+        f"Key responsibilities: {payload.get('keyResponsibilities', '')}\n"
+        f"Candidate level / experience focus: {payload.get('candidateLevel', '')}\n"
+        f"Work mode / location context: {payload.get('workModeContext', '')}\n"
+        f"Interview focus / screening focus: {payload.get('interviewFocus', '')}\n"
+        f"Tone: {payload.get('tone', 'Professional')}\n"
+    )
+
+
+def _call_openai_ai_jd(payload: dict) -> dict:
+    api_key = getattr(settings, 'OPENAI_API_KEY', '').strip()
+    if not api_key:
+        raise RuntimeError('OpenAI API key is not configured.')
+    model = getattr(settings, 'OPENAI_MODEL', '').strip() or getattr(settings, 'OPENAI_RESUME_MODEL', 'gpt-4.1-mini').strip() or 'gpt-4.1-mini'
+    timeout = max(1, int(getattr(settings, 'OPENAI_JOB_DESCRIPTION_TIMEOUT_SECONDS', 15)))
+    body = json.dumps({
+        'model': model,
+        'input': _build_ai_jd_prompt(payload),
+        'temperature': 0.25,
+        'text': {
+            'format': {
+                'type': 'json_schema',
+                'name': 'job_description_suggestion',
+                'strict': True,
+                'schema': _ai_jd_schema(),
+            },
+        },
+    }).encode('utf-8')
+    request = urllib.request.Request(
+        'https://api.openai.com/v1/responses',
+        data=body,
+        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            response_text = response.read().decode('utf-8')
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode('utf-8', errors='ignore')
+        raise RuntimeError(f'OpenAI job description generation failed HTTP {exc.code}: {detail[:300]}') from exc
+    except (urllib.error.URLError, TimeoutError, socket.timeout) as exc:
+        raise RuntimeError(f'OpenAI job description generation is temporarily unavailable: {exc}') from exc
+    try:
+        response_payload = json.loads(response_text)
+        structured_text = _extract_openai_output_text(response_payload)
+        if not structured_text:
+            raise RuntimeError('OpenAI returned no structured job description.')
+        parsed = json.loads(structured_text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError('OpenAI returned an invalid job description payload.') from exc
+    return _sanitize_ai_jd_payload(parsed)
+
+
+@csrf_exempt
+@login_required
+def generateJobDescriptionSuggestion(request):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+        return JsonResponse({'Success': False, 'Error': 'Recruiter, interviewer, or admin access required.', 'Data': None}, status=403)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'Success': False, 'Error': 'Invalid request payload.', 'Data': None}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({'Success': False, 'Error': 'Invalid request payload.', 'Data': None}, status=400)
+
+    normalized = {key: re.sub(r'\s+', ' ', str(value or '')).strip()[:1800] for key, value in payload.items()}
+    if not normalized.get('name') and not normalized.get('roleContext'):
+        return JsonResponse({'Success': False, 'Error': 'Add a role title or role context before generating a JD.', 'Data': None}, status=400)
+    if not normalized.get('mustHaveSkills') and not normalized.get('keyResponsibilities'):
+        return JsonResponse({'Success': False, 'Error': 'Add must-have skills or key responsibilities so AI can generate a useful JD.', 'Data': None}, status=400)
+
+    try:
+        suggestion = _call_openai_ai_jd(normalized)
+    except Exception as exc:
+        logger.exception('AI JD generation failed user_id=%s', request.user.id)
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=502)
+
+    return JsonResponse({'Success': True, 'Error': None, 'Data': {'suggestion': suggestion}})
+
+
 def candidateSignup(request, token: str = ''):
     token = (token or request.GET.get('token') or request.POST.get('token') or '').strip()
     signup_context = None
@@ -5149,7 +5310,7 @@ def getCandidateProfileData(request, interview_id: int):
         public_resume = CandidatePublicResume.objects.filter(candidate=interview.candidate, is_active=True).first()
         resume_data['file_url'] = (
             request.build_absolute_uri(reverse('candidate-profile-resume', args=[interview.id]))
-            if getattr(profile, 'resume', None) else ''
+            if getattr(profile, 'resume', None) or latest_resume else ''
         )
         candidate_name = get_display_name(interview.candidate)
         return JsonResponse({
@@ -5208,21 +5369,67 @@ def downloadCandidateProfileResume(request, interview_id: int):
         raise Http404('Candidate interview not found.')
 
     profile = getattr(interview.candidate, 'profile', None)
-    if not profile or not profile.resume:
-        raise Http404('Resume not found.')
+    resume_field = getattr(profile, 'resume', None)
 
-    resume_field = profile.resume
-    resume_name = os.path.basename(resume_field.name or '') or f'{interview.candidate.username}-resume'
-    mime_type, _ = mimetypes.guess_type(resume_name)
+    if resume_field:
+        resume_name = os.path.basename(resume_field.name or '') or f'{interview.candidate.username}-resume'
+        mime_type, _ = mimetypes.guess_type(resume_name)
+        try:
+            if resume_field.storage.exists(resume_field.name):
+                response = FileResponse(resume_field.open('rb'), content_type=mime_type or 'application/octet-stream')
+                response['Content-Disposition'] = f'inline; filename="{resume_name}"'
+                response['Cache-Control'] = 'private, no-store'
+                response['X-Content-Type-Options'] = 'nosniff'
+                return response
+            logger.warning(
+                'Candidate profile resume source file is missing; serving generated PDF interview=%s candidate=%s resume=%s',
+                interview.id,
+                interview.candidate_id,
+                resume_field.name,
+            )
+        except Exception:
+            logger.exception(
+                'Unable to open candidate profile resume source file; serving generated PDF interview=%s candidate=%s resume=%s',
+                interview.id,
+                interview.candidate_id,
+                resume_field.name,
+            )
 
-    try:
-        response = FileResponse(resume_field.open('rb'), content_type=mime_type or 'application/octet-stream')
-    except FileNotFoundError as exc:
-        raise Http404('Resume file not found.') from exc
-
-    response['Content-Disposition'] = f'inline; filename="{resume_name}"'
+    context = build_public_resume_context(request, interview.candidate)
+    title = f"{context['candidate']['name']} Resume".strip()
+    chrome_context = {
+        **context,
+        'candidate': {
+            **context['candidate'],
+            'profile_picture_url': '',
+        },
+        'share': {
+            **context['share'],
+            'share_url': '',
+            'pdf_url': '',
+            'word_url': '',
+        },
+    }
+    chrome_html = render_to_string(
+        'smartInterview/public_candidate_resume.html',
+        {
+            **chrome_context,
+            'export_mode': 'pdf',
+            'print_mode': True,
+        },
+    )
+    pdf_bytes, renderer = render_resume_pdf_export(
+        context,
+        title,
+        chrome_html,
+        request.build_absolute_uri('/'),
+    )
+    filename = f"{context['candidate']['name'].replace(' ', '_').lower() or 'candidate'}_resume.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
+    response['X-Resume-PDF-Renderer'] = renderer
     return response
 
 
@@ -5643,7 +5850,12 @@ def getRoleList(request):
 @login_required
 def getRoleData(request, id):
     try:
-        role_data = Vacancies.objects.select_related('company').get(id=id)
+        role_data = (
+            Vacancies.objects
+            .select_related('company', 'admin', 'admin__company_profile')
+            .prefetch_related('recruiter')
+            .get(id=id)
+        )
 
         # Get queryset of interviews
         interviews = Interview.objects.filter(role=role_data)
@@ -5655,7 +5867,7 @@ def getRoleData(request, id):
             .annotate(
                 normalized_status=Case(
                     When(status__in=["shortlisted", "assessment_Pending", "assessment_pending", "assessment pending"], then=Value("shortlisted")),
-                    default="status",  # keep other statuses unchanged
+                    default=F("status"),  # keep other statuses unchanged
                     output_field=CharField()
                 )
             )
@@ -5666,21 +5878,30 @@ def getRoleData(request, id):
         # Convert to dictionary: {status: count}
         counts = {item['normalized_status']: item['count'] for item in interview_counts}
 
+        recruiter_names = vacancy_recruiter_names(role_data)
         role_details = {}
         role_details['id'] = role_data.id
-        role_details['name'] = role_data.role
-        role_details['description'] = role_data.description
-        role_details['position'] = role_data.position
-        role_details['job_type'] = role_data.get_job_type_display() if role_data.job_type else ''
-        role_details['location'] = role_data.location
-        role_details['salary_range'] = role_data.salary_range
-        role_details['experience_required'] = role_data.experience_required
+        role_details['name'] = clean_job_text(role_data.role)
+        role_details['role'] = clean_job_text(role_data.role)
+        role_details['description'] = clean_job_description(role_data.description)
+        role_details['position'] = clean_job_text(role_data.position)
+        role_details['job_type'] = clean_job_text(role_data.get_job_type_display() if role_data.job_type else '')
+        role_details['location'] = clean_job_text(role_data.location)
+        role_details['salary_range'] = clean_job_text(role_data.salary_range)
+        role_details['experience_required'] = clean_job_text(role_data.experience_required)
         role_details['status'] = role_data.status
+        role_details['status_label'] = role_data.status.replace('_', ' ').title()
         role_details['date'] = role_data.date
-        role_details['company'] = serialize_company_summary(role_data.company, request=request)
-        role_details["applications"] = total_interviews,
-        role_details["hired"] = counts.get("hired", 0),
-        role_details["inprogress"] = counts.get("shortlisted", 0),
+        role_details['company'] = serialize_company_summary(role_data.company, include_external_logo=False, request=request)
+        role_details['recruiters'] = recruiter_names[:3]
+        role_details['recruiter_name'] = recruiter_names[0] if recruiter_names else ''
+        role_details['admin_name'] = (
+            f"{role_data.admin.first_name} {role_data.admin.last_name}".strip().title() or role_data.admin.username
+            if role_data.admin else ''
+        )
+        role_details["applications"] = total_interviews
+        role_details["hired"] = counts.get("hired", 0)
+        role_details["inprogress"] = counts.get("shortlisted", 0)
 
         return JsonResponse({"Success":True, "Error":None, "RoleData":role_details})
     except Exception as e:

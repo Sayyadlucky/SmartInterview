@@ -19,110 +19,186 @@
   </div>
 
   <ng-template #roleContent>
-  <div class="role-hero">
-    <div class="role-hero-copy">
-      <div class="eyebrow">
+    <div class="role-hero">
+      <div class="role-mark" aria-hidden="true">
         <i class="ph ph-briefcase"></i>
-        <span>Role Details</span>
+        <span></span>
       </div>
-      <h2>{{ roleTitleWithId }}</h2>
-      <p>Structured hiring overview with pipeline coverage, delivery progress, and requisition context for stakeholders.</p>
-      <div class="meta-row">
-        <span class="meta-chip" *ngIf="roleStatus">
-          <i class="ph ph-seal-check"></i>
-          <span>{{ roleStatusLabel }}</span>
-        </span>
-        <span class="meta-chip" *ngIf="roleDate">
-          <i class="ph ph-calendar-blank"></i>
-          <span>Created {{ roleDate | date:'MMM d, y' }}</span>
-        </span>
-        <span class="meta-chip">
-          <i class="ph ph-target"></i>
-          <span>{{ urgencyLabel }}</span>
-        </span>
+
+      <div class="role-hero-copy">
+        <div class="eyebrow">
+          <i class="ph ph-briefcase"></i>
+          <span>Role Details</span>
+        </div>
+        <div class="title-row">
+          <h2>{{ roleTitleWithId }}</h2>
+          <span class="role-id-pill" *ngIf="roleId">ID: {{ roleId }}</span>
+        </div>
+        <p>Structured hiring overview with pipeline coverage, delivery progress, and requisition context for stakeholders.</p>
+        <div class="meta-row">
+          <span class="meta-chip" *ngIf="roleStatus">
+            <i class="ph ph-seal-check"></i>
+            <span>{{ roleStatusLabel }}</span>
+          </span>
+          <span class="meta-chip" *ngIf="roleDate">
+            <i class="ph ph-calendar-blank"></i>
+            <span>Created {{ roleDate | date:'MMM d, y' }}</span>
+          </span>
+          <span class="meta-chip">
+            <i class="ph ph-target"></i>
+            <span>{{ urgencyLabel }}</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="hero-health-card" aria-label="Fulfillment rate">
+        <span class="hero-health-label">Fulfillment Rate</span>
+        <div class="health-ring" [style.background]="fulfillmentRingBackground">
+          <span>{{ fulfillmentRate }}<small>%</small></span>
+        </div>
+        <small><strong>{{ openPositions }}</strong> open of <strong>{{ totalVacancies || 0 }}</strong> approved</small>
+        <div class="hero-health-track">
+          <div class="hero-health-fill" [style.width.%]="fulfillmentRate"></div>
+        </div>
       </div>
     </div>
-    <div class="hero-health-card">
-      <span class="hero-health-label">Fulfillment</span>
-      <strong>{{ fulfillmentRate }}%</strong>
-      <small>{{ openPositions }} open of {{ totalVacancies || 0 }} approved</small>
-      <div class="hero-health-track">
-        <div class="hero-health-fill" [style.width.%]="fulfillmentRate"></div>
+
+    <div class="state-card" *ngIf="loading">Loading role details...</div>
+    <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+
+    <div class="content" *ngIf="!loading && !errorMessage">
+      <div class="summary-grid">
+        <article class="summary-card" *ngFor="let card of summaryCards" [ngClass]="'summary-card--' + card.tone">
+          <div class="summary-card-icon">
+            <i class="ph" [ngClass]="card.icon"></i>
+          </div>
+          <div class="summary-card-copy">
+            <span>{{ card.label }}</span>
+            <strong>{{ card.value }}</strong>
+            <small>{{ card.helper }}</small>
+          </div>
+        </article>
+      </div>
+
+      <div class="role-main-grid">
+        <div class="role-primary-column">
+          <section class="insight-panel health-panel">
+            <div class="section-head">
+              <div class="section-title-group">
+                <span class="section-icon section-icon--pulse"><i class="ph ph-pulse"></i></span>
+                <div>
+                  <h4>Hiring Health</h4>
+                  <p>Pipeline Performance Overview</p>
+                </div>
+              </div>
+            </div>
+            <div class="metric-stack">
+              <div class="metric-block">
+                <div class="metric-row">
+                  <div>
+                    <span class="metric-label">Candidate Progression</span>
+                    <strong>{{ inProgressRate }}%</strong>
+                  </div>
+                  <span class="metric-caption"><strong>{{ shortlistedCandidates }}</strong> active from {{ appliedCandidates }} applicants</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" [style.width.%]="inProgressRate"></div>
+                </div>
+              </div>
+
+              <div class="metric-block">
+                <div class="metric-row">
+                  <div>
+                    <span class="metric-label">Applicant-to-Hire Conversion</span>
+                    <strong>{{ conversionRate }}%</strong>
+                  </div>
+                  <span class="metric-caption"><strong>{{ hiredCandidates }}</strong> hires delivered</span>
+                </div>
+                <div class="progress-track subtle">
+                  <div class="progress-fill alt" [style.width.%]="conversionRate"></div>
+                </div>
+              </div>
+
+              <div class="insight-note">
+                <i class="ph ph-star"></i>
+                <div>
+                  <strong>Insight</strong>
+                  <p>{{ urgencyLabel }}. Continue monitoring active pipeline coverage against approved headcount.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="insight-panel detail-panel">
+            <div class="section-head">
+              <div class="section-title-group">
+                <span class="section-icon section-icon--building"><i class="ph ph-buildings"></i></span>
+                <div>
+                  <h4>Role Parameters</h4>
+                  <p>Commercial &amp; Delivery Context</p>
+                </div>
+              </div>
+            </div>
+            <div class="detail-grid">
+              <article class="detail-card" *ngFor="let item of detailHighlights" [ngClass]="'detail-card--' + item.tone">
+                <div class="detail-icon">
+                  <i class="ph" [ngClass]="item.icon"></i>
+                </div>
+                <div class="detail-copy">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                  <small>{{ item.helper }}</small>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <aside class="role-side-column">
+          <section class="side-panel">
+            <h3><i class="ph ph-tree-structure"></i> Requisition Summary</h3>
+            <div class="side-detail-row" *ngFor="let row of requisitionRows">
+              <span><i class="ph" [ngClass]="row.icon"></i>{{ row.label }}</span>
+              <strong>{{ row.label === 'Created On' && roleDate ? (roleDate | date:'MMM d, y') : row.value }}</strong>
+            </div>
+          </section>
+
+          <section class="side-panel role-description-panel">
+            <h3><i class="ph ph-file-text"></i> Role Description</h3>
+            <p>{{ roleDescriptionDisplay }}</p>
+          </section>
+
+          <section class="side-panel">
+            <h3><i class="ph ph-users"></i> Team &amp; Ownership</h3>
+            <div class="side-detail-row" *ngFor="let row of ownershipRows">
+              <span><i class="ph" [ngClass]="row.icon"></i>{{ row.label }}</span>
+              <strong>{{ row.value }}</strong>
+            </div>
+            <div class="side-detail-row" *ngIf="companyName">
+              <span><i class="ph ph-buildings"></i>Company</span>
+              <strong>{{ companyName }}</strong>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <div class="role-footer-actions">
+        <button class="footer-btn footer-btn--cancel" type="button" (click)="closeModal()">Cancel</button>
+        <div class="footer-action-group">
+          <button class="footer-btn" type="button" (click)="openRolePage()">
+            <span>View Role</span>
+            <i class="ph ph-arrow-square-out"></i>
+          </button>
+          <button class="footer-btn" type="button" (click)="toggleFullDescription()">
+            <span>{{ descriptionExpanded ? 'Collapse Description' : 'View Full Description' }}</span>
+            <i class="ph" [ngClass]="descriptionExpanded ? 'ph-caret-up' : 'ph-arrow-square-out'"></i>
+          </button>
+          <button class="footer-btn footer-btn--primary" type="button" (click)="done()">
+            <i class="ph ph-check"></i>
+            <span>Done</span>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-
-  <div class="state-card" *ngIf="loading">Loading role details...</div>
-  <div class="state-card error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
-
-  <div class="content" *ngIf="!loading && !errorMessage">
-    <div class="summary-grid">
-      <article class="summary-card" *ngFor="let card of summaryCards">
-        <div class="summary-card-icon">
-          <i class="ph" [ngClass]="card.icon"></i>
-        </div>
-        <div class="summary-card-copy">
-          <span>{{ card.label }}</span>
-          <strong>{{ card.value }}</strong>
-        </div>
-      </article>
-    </div>
-
-    <div class="insight-layout">
-      <section class="insight-panel health-panel">
-        <div class="section-head">
-          <div>
-            <span class="section-kicker">Hiring Health</span>
-            <h4>Pipeline Performance</h4>
-          </div>
-          <i class="ph ph-pulse section-icon"></i>
-        </div>
-        <div class="metric-stack">
-          <div class="metric-row">
-            <div>
-              <span class="metric-label">Candidate progression</span>
-              <strong>{{ inProgressRate }}%</strong>
-            </div>
-            <span class="metric-caption">{{ shortlistedCandidates }} active from {{ appliedCandidates }} applicants</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" [style.width.%]="inProgressRate"></div>
-          </div>
-          <div class="metric-row">
-            <div>
-              <span class="metric-label">Applicant-to-hire conversion</span>
-              <strong>{{ conversionRate }}%</strong>
-            </div>
-            <span class="metric-caption">{{ hiredCandidates }} hires delivered</span>
-          </div>
-          <div class="progress-track subtle">
-            <div class="progress-fill alt" [style.width.%]="conversionRate"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="insight-panel detail-panel">
-        <div class="section-head">
-          <div>
-            <span class="section-kicker">Role Parameters</span>
-            <h4>Commercial and Delivery Context</h4>
-          </div>
-          <i class="ph ph-buildings section-icon"></i>
-        </div>
-        <div class="detail-grid">
-          <article class="detail-card" *ngFor="let item of detailHighlights">
-            <div class="detail-icon">
-              <i class="ph" [ngClass]="item.icon"></i>
-            </div>
-            <div class="detail-copy">
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-              <small>{{ item.helper }}</small>
-            </div>
-          </article>
-        </div>
-      </section>
-    </div>
-  </div>
   </ng-template>
 </div>

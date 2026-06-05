@@ -390,7 +390,7 @@ export class Jobs {
   openRoleDetails(job: JobCard): void {
     this.closeQuickView();
     this.dialog.open(RoleDetail, {
-      width: 'min(1120px, 96vw)',
+      width: 'min(1280px, 96vw)',
       maxWidth: '96vw',
       maxHeight: '92vh',
       panelClass: 'role-detail-dialog',

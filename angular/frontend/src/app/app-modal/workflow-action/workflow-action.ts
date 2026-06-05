@@ -87,6 +87,16 @@ interface ReviewFilterTab {
   count: number;
 }
 
+interface AvailabilityInsight {
+  date: string;
+  time: string;
+  dateLabel: string;
+  timeLabel: string;
+  windowLabel: string;
+  helper: string;
+  conflictCount: number;
+}
+
 @Component({
   selector: 'app-workflow-action',
   standalone: true,
@@ -122,6 +132,7 @@ export class WorkflowAction {
   selectedBulkIds = new Set<number>();
   scheduledDate = '';
   scheduledTime = '';
+  readonly todayDateString = this.toLocalDateString(new Date());
   interviewType: 'manual' | 'auto' = 'manual';
   evaluatorSearch = '';
   evaluatorSearchOpen = false;
@@ -333,13 +344,26 @@ export class WorkflowAction {
   }
 
   get canSubmitSchedule(): boolean {
-    if (!this.selectedInterviewId || !this.scheduledDate || !this.scheduledTime || this.saving) {
+    if (!this.selectedInterviewId || !this.scheduledDate || !this.scheduledTime || this.saving || this.isPastScheduleDate()) {
       return false;
     }
     if (this.interviewType === 'manual') {
       return !!this.selectedEvaluatorId;
     }
     return true;
+  }
+
+  get scheduleDateError(): string {
+    return this.scheduledDate && this.isPastScheduleDate()
+      ? 'Please select today or a future date.'
+      : '';
+  }
+
+  get availabilityInsight(): AvailabilityInsight | null {
+    if (!this.selectedCandidate) {
+      return null;
+    }
+    return this.buildAvailabilityInsight(this.selectedCandidate);
   }
 
   get filteredScheduleEvaluators(): EvaluatorOption[] {
@@ -525,6 +549,29 @@ export class WorkflowAction {
     this.errorMessage = '';
   }
 
+  onScheduleDateChange(value: string): void {
+    this.scheduledDate = value;
+    if (this.scheduleDateError) {
+      this.errorMessage = this.scheduleDateError;
+      return;
+    }
+    if (this.errorMessage === 'Please select today or a future date.') {
+      this.errorMessage = '';
+    }
+  }
+
+  applySuggestedAvailability(): void {
+    const insight = this.availabilityInsight;
+    if (!insight) {
+      return;
+    }
+    this.scheduledDate = insight.date;
+    this.scheduledTime = insight.time;
+    if (this.errorMessage === 'Please select today or a future date.') {
+      this.errorMessage = '';
+    }
+  }
+
   toggleBulkCandidate(candidateId: number): void {
     if (this.selectedBulkIds.has(candidateId)) {
       this.selectedBulkIds.delete(candidateId);
@@ -548,6 +595,10 @@ export class WorkflowAction {
   }
 
   saveSchedule(): void {
+    if (this.isPastScheduleDate()) {
+      this.errorMessage = 'Please select today or a future date.';
+      return;
+    }
     if (!this.canSubmitSchedule) {
       this.errorMessage = this.interviewType === 'manual'
         ? 'Select candidate, interview type, evaluator, and a confirmed interview time.'
@@ -953,6 +1004,116 @@ export class WorkflowAction {
     return `${this.scheduledDate}T${this.scheduledTime}`;
   }
 
+  private buildAvailabilityInsight(candidate: WorkflowCandidate): AvailabilityInsight {
+    const slot = this.findNextAvailableInterviewSlot(candidate);
+    const conflictCount = this.getCandidateBusyWindows(candidate).length;
+    return {
+      date: this.toLocalDateString(slot),
+      time: this.toLocalTimeString(slot),
+      dateLabel: slot.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+      timeLabel: slot.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+      windowLabel: '9:00 AM - 6:00 PM',
+      helper: conflictCount
+        ? `${conflictCount} existing scheduled interview${conflictCount === 1 ? '' : 's'} checked for this candidate.`
+        : 'No existing scheduled interviews found for this candidate.',
+      conflictCount,
+    };
+  }
+
+  private findNextAvailableInterviewSlot(candidate: WorkflowCandidate): Date {
+    const busyWindows = this.getCandidateBusyWindows(candidate);
+    const slotMinutes = 60;
+    const stepMinutes = 30;
+    let cursor = this.roundUpToStep(new Date(), stepMinutes);
+
+    for (let dayOffset = 0; dayOffset < 90; dayOffset += 1) {
+      const day = new Date(cursor);
+      day.setDate(cursor.getDate() + dayOffset);
+      const dayStart = new Date(day);
+      dayStart.setHours(9, 0, 0, 0);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(18, 0, 0, 0);
+
+      let slotStart = dayOffset === 0 && cursor > dayStart ? new Date(cursor) : dayStart;
+      if (slotStart.getHours() < 9) {
+        slotStart = dayStart;
+      }
+      while (slotStart.getTime() + slotMinutes * 60_000 <= dayEnd.getTime()) {
+        const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60_000);
+        const overlaps = busyWindows.some((busy) => slotStart < busy.end && slotEnd > busy.start);
+        if (!overlaps) {
+          return slotStart;
+        }
+        slotStart = new Date(slotStart.getTime() + stepMinutes * 60_000);
+      }
+    }
+
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + 1);
+    fallback.setHours(9, 0, 0, 0);
+    return fallback;
+  }
+
+  private getCandidateBusyWindows(candidate: WorkflowCandidate): Array<{ start: Date; end: Date }> {
+    const candidateKey = this.getCandidateScheduleKey(candidate);
+    if (!candidateKey) {
+      return [];
+    }
+    return this.candidates
+      .filter((item) => item.id !== candidate.id && this.getCandidateScheduleKey(item) === candidateKey)
+      .filter((item) => ['scheduled', 'auto screening scheduled'].includes(this.normalizeStatus(item.status)))
+      .map((item) => {
+        const start = this.parseDate(item.date);
+        if (!start) {
+          return null;
+        }
+        return {
+          start,
+          end: new Date(start.getTime() + 60 * 60_000),
+        };
+      })
+      .filter((item): item is { start: Date; end: Date } => !!item && item.end.getTime() > Date.now());
+  }
+
+  private getCandidateScheduleKey(candidate: WorkflowCandidate): string {
+    if (candidate.candidate_id) {
+      return `candidate:${candidate.candidate_id}`;
+    }
+    if (candidate.email) {
+      return `email:${candidate.email.trim().toLowerCase()}`;
+    }
+    const name = (candidate.name || '').trim().toLowerCase();
+    return name ? `name:${name}` : `interview:${candidate.id}`;
+  }
+
+  private roundUpToStep(value: Date, stepMinutes: number): Date {
+    const rounded = new Date(value);
+    rounded.setSeconds(0, 0);
+    const minutes = rounded.getMinutes();
+    const remainder = minutes % stepMinutes;
+    if (remainder) {
+      rounded.setMinutes(minutes + stepMinutes - remainder);
+    }
+    return rounded;
+  }
+
+  private isPastScheduleDate(): boolean {
+    return !!this.scheduledDate && this.scheduledDate < this.todayDateString;
+  }
+
+  private toLocalDateString(value: Date): string {
+    const year = value.getFullYear();
+    const month = `${value.getMonth() + 1}`.padStart(2, '0');
+    const day = `${value.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private toLocalTimeString(value: Date): string {
+    const hours = `${value.getHours()}`.padStart(2, '0');
+    const minutes = `${value.getMinutes()}`.padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
   private toLocalDateFields(value: string): { date: string; time: string } {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
@@ -971,7 +1132,13 @@ export class WorkflowAction {
 
   private toTime(value?: string): number {
     if (!value) return 0;
+    const parsed = this.parseDate(value);
+    return parsed ? parsed.getTime() : 0;
+  }
+
+  private parseDate(value?: string): Date | null {
+    if (!value) return null;
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 }

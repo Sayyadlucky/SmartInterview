@@ -241,8 +241,8 @@ export class Candidates implements OnInit, OnDestroy {
 
   openCandidateProfile(candidate: CandidateViewModel): void {
     const dialogRef = this.dialog.open(CandidateProfile, {
-      width: '95vw',
-      maxWidth: '980px',
+      width: 'min(1220px, 95vw)',
+      maxWidth: '95vw',
       maxHeight: '92vh',
       panelClass: 'candidate-profile-dialog',
       autoFocus: false,
@@ -272,7 +272,7 @@ export class Candidates implements OnInit, OnDestroy {
   openRoleDetail(roleId?: number | null): void {
     if (!roleId) return;
     this.dialog.open(RoleDetail, {
-      width: 'min(1120px, 96vw)',
+      width: 'min(1280px, 96vw)',
       maxWidth: '96vw',
       maxHeight: '92vh',
       panelClass: 'role-detail-dialog',

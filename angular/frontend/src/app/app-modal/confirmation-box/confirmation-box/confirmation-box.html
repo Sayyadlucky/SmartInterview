@@ -1,28 +1,66 @@
-<div class="confirm-shell" [class.confirm-shell--export]="mode === 'export'">
-  <button class="close-btn" type="button" (click)="closeDialog()">×</button>
+<section
+  class="confirmation-dialog-shell"
+  [class.confirmation-dialog-shell--export]="mode === 'export'"
+  [class.confirmation-dialog-shell--danger]="isDanger"
+  [class.confirmation-dialog-shell--success]="isSuccess"
+>
+  <button
+    class="confirmation-close"
+    type="button"
+    aria-label="Close confirmation dialog"
+    (click)="closeDialog()"
+  >
+    <i class="ph ph-x"></i>
+  </button>
 
-  <div class="head">
-    <div class="icon-wrap" [class.icon-wrap--export]="mode === 'export'">
-      <i [class]="mode === 'export' ? 'ph ph-files' : 'ph ph-warning-circle'"></i>
-    </div>
-    <div class="copy">
-      <h3>{{ title }}</h3>
-      <p>{{ message }}</p>
-    </div>
+  <div class="confirmation-icon-orb" aria-hidden="true">
+    <span>
+      <i [class]="iconClass"></i>
+    </span>
   </div>
+
+  <header class="confirmation-header">
+    <h2>{{ title }}</h2>
+    <p>{{ subtitle }}</p>
+  </header>
+
+  <section class="confirmation-detail-card">
+    <div class="confirmation-detail-icon">
+      <i [class]="detailIconClass"></i>
+    </div>
+    <div class="confirmation-detail-content">
+      <span>Action</span>
+      <strong>{{ actionTitle }}</strong>
+
+      <ng-container *ngIf="entityName || entityId">
+        <hr>
+        <span>{{ entityLabel || 'Record' }}</span>
+        <strong>
+          {{ entityName || 'Selected record' }}
+          <small *ngIf="entityId">ID: {{ entityId }}</small>
+        </strong>
+      </ng-container>
+
+      <ng-container *ngIf="mode === 'export'">
+        <hr>
+        <span>Selected Format</span>
+        <strong>{{ selectedFormatLabel }}</strong>
+      </ng-container>
+    </div>
+  </section>
 
   <div class="export-summary" *ngIf="mode === 'export' && exportSummary">
     <div class="summary-chip">
-      <span class="label">Candidates</span>
-      <strong>{{ exportSummary.count }}</strong>
+      <span class="label"><i class="ph ph-users-three"></i>Candidates</span>
+      <strong>{{ exportSummary.count || 0 }}</strong>
     </div>
     <div class="summary-chip">
-      <span class="label">Status Filter</span>
-      <strong>{{ exportSummary.statusLabel }}</strong>
+      <span class="label"><i class="ph ph-funnel"></i>Status Filter</span>
+      <strong>{{ exportSummary.statusLabel || 'All Candidates' }}</strong>
     </div>
     <div class="summary-chip">
-      <span class="label">Search</span>
-      <strong>{{ exportSummary.searchLabel }}</strong>
+      <span class="label"><i class="ph ph-magnifying-glass"></i>Search</span>
+      <strong>{{ exportSummary.searchLabel || 'No search applied' }}</strong>
     </div>
   </div>
 
@@ -31,7 +69,7 @@
       type="button"
       class="format-card"
       [class.active]="selectedFormat === 'excel'"
-      (click)="selectedFormat = 'excel'"
+      (click)="selectFormat('excel')"
     >
       <i class="ph ph-file-xls"></i>
       <div>
@@ -44,7 +82,7 @@
       type="button"
       class="format-card"
       [class.active]="selectedFormat === 'pdf'"
-      (click)="selectedFormat = 'pdf'"
+      (click)="selectFormat('pdf')"
     >
       <i class="ph ph-file-pdf"></i>
       <div>
@@ -57,7 +95,7 @@
       type="button"
       class="format-card"
       [class.active]="selectedFormat === 'word'"
-      (click)="selectedFormat = 'word'"
+      (click)="selectFormat('word')"
     >
       <i class="ph ph-file-doc"></i>
       <div>
@@ -67,14 +105,27 @@
     </button>
   </div>
 
-  <div class="export-note" *ngIf="mode === 'export' && selectedFormat === 'pdf'">
+  <div class="confirmation-warning" [class.confirmation-warning--danger]="isDanger">
+    <i [class]="isDanger ? 'ph ph-warning' : 'ph ph-info'"></i>
+    <span>{{ warningText }}</span>
+  </div>
+
+  <div class="confirmation-note" *ngIf="mode === 'export' && selectedFormat === 'pdf'">
     PDF export opens a print-ready document so you can save it as PDF with browser print settings.
   </div>
 
-  <div class="actions">
-    <button type="button" class="btn btn-ghost" (click)="confirmNo()">{{ cancelText }}</button>
-    <button type="button" class="btn btn-primary" (click)="confirmYes()">
-      {{ mode === 'export' ? ('Export as ' + (selectedFormat | titlecase)) : confirmText }}
+  <footer class="confirmation-actions">
+    <button type="button" class="confirmation-cancel" (click)="confirmNo()">
+      {{ cancelText }}
     </button>
-  </div>
-</div>
+    <button
+      type="button"
+      class="confirmation-confirm"
+      [class.confirmation-confirm--danger]="isDanger"
+      (click)="confirmYes()"
+    >
+      <i [class]="mode === 'export' ? 'ph ph-download-simple' : 'ph ph-check'"></i>
+      {{ confirmButtonText }}
+    </button>
+  </footer>
+</section>

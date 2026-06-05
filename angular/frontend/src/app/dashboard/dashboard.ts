@@ -1498,8 +1498,8 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
 
   profileUpdate(candidate?: any): void {
     const dialogRef = this.dialog.open(CandidateProfile, {
-      width: '95vw',
-      maxWidth: '980px',
+      width: 'min(1220px, 95vw)',
+      maxWidth: '95vw',
       maxHeight: '92vh',
       panelClass: 'candidate-profile-dialog',
       autoFocus: false,
@@ -3911,10 +3911,11 @@ openConfirmation(message: string = 'Choose an export format for your candidate r
    const searchLabel = this.searchQuery.trim() || 'No search applied';
    const dialogRef = this.dialog.open(ConfirmationBox, {
       disableClose: true,
-      width: '720px',
-      maxWidth: '94vw',
+      width: '840px',
+      maxWidth: 'calc(100vw - 48px)',
       autoFocus: false,
-      panelClass: 'confirm-dialog',
+      panelClass: ['confirm-dialog', 'workflow-export-dialog'],
+      backdropClass: ['workflow-action-backdrop', 'workflow-export-backdrop'],
       data: {
         mode: 'export',
         title: 'Export Candidate Data',
@@ -4228,7 +4229,7 @@ addRRole(): void {
 
   openRoldeModal(role_id: any): void {
     const dialogRef = this.dialog.open(RoleDetail, {
-      width: 'min(1120px, 96vw)',
+      width: 'min(1280px, 96vw)',
       maxWidth: '96vw',
       maxHeight: '92vh',
       panelClass: 'role-detail-dialog',
@@ -4250,10 +4251,10 @@ addRRole(): void {
     const isEvaluationReviews = mode === 'evaluation-reviews';
     const dialogRef = this.dialog.open(WorkflowAction, {
       disableClose: true,
-      width: isEvaluationReviews ? '1060px' : '900px',
-      maxWidth: isEvaluationReviews ? 'calc(100vw - 48px)' : '95vw',
+      width: isEvaluationReviews ? '1060px' : '940px',
+      maxWidth: 'calc(100vw - 48px)',
       panelClass: isEvaluationReviews ? ['workflow-action-dialog', 'evaluation-reviews-dialog'] : 'workflow-action-dialog',
-      backdropClass: isEvaluationReviews ? 'evaluation-reviews-overlay' : undefined,
+      backdropClass: isEvaluationReviews ? ['workflow-action-backdrop', 'evaluation-reviews-overlay'] : 'workflow-action-backdrop',
       autoFocus: false,
       data: {
         mode,

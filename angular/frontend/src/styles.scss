@@ -670,6 +670,14 @@ app-root {
   padding: 0 !important;
 }
 
+.confirm-dialog .mat-mdc-dialog-container .mdc-dialog__surface,
+.confirm-dialog .mat-mdc-dialog-surface {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
 .desktop-header-title,
 .desktop-header-tools,
 .desktop-sidebar {
@@ -2783,13 +2791,6 @@ app-dashboard .candidate-filter-menu-option.is-selected .candidate-filter-option
   }
 }
 
-.confirm-dialog .mat-mdc-dialog-container .mdc-dialog__surface {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  overflow: visible !important;
-}
-
 .workflow-action-dialog .mat-mdc-dialog-container {
   background: transparent !important;
   padding: 0 !important;
@@ -2813,11 +2814,18 @@ app-dashboard .candidate-filter-menu-option.is-selected .candidate-filter-option
   max-height: 92vh !important;
 }
 
+.workflow-action-backdrop {
+  background:
+    radial-gradient(circle at 50% 16%, rgba(36, 151, 255, 0.12), transparent 36%),
+    rgba(2, 8, 18, 0.72) !important;
+  backdrop-filter: blur(10px);
+}
+
 .evaluation-reviews-overlay {
   background:
     radial-gradient(circle at 50% 16%, rgba(36, 151, 255, 0.10), transparent 34%),
     rgba(2, 8, 18, 0.74) !important;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(10px);
 }
 
 .evaluation-reviews-dialog .mat-mdc-dialog-container .mdc-dialog__surface,

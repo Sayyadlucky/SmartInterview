@@ -1,18 +1,28 @@
-<div class="modal-overlay" *ngIf="isAddUser">
-  <div class="modal-card modal-card--candidate">
-    <button class="modal-close" type="button" (click)="closeModal()" [disabled]="isSubmitting">×</button>
+<div class="modal-overlay assign-user-overlay" *ngIf="isAddUser">
+  <div class="modal-card modal-card--candidate assign-user-card">
+    <button class="modal-close assign-user-close" type="button" (click)="closeModal()" [disabled]="isSubmitting" aria-label="Close dialog">
+      <i class="ph ph-x"></i>
+    </button>
 
-    <div class="modal-head">
-      <h2>{{ userType === 'Candidate' ? 'Assign Candidate' : 'Add ' + userType }}</h2>
-      <p>{{ userType === 'Candidate' ? 'Assign candidate details and link the profile to the correct hiring owner.' : 'Add details and link the record to the correct hiring owner.' }}</p>
+    <div class="assign-user-head">
+      <div class="assign-user-title">
+        <div class="assign-user-icon"><i [class]="addUserModalIconClass"></i></div>
+        <div>
+          <h2>{{ addUserModalTitle }}</h2>
+          <p>{{ addUserModalSubtitle }}</p>
+        </div>
+      </div>
     </div>
 
-    <div *ngIf="errorMessage" class="form-alert">{{ errorMessage }}</div>
+    <div *ngIf="errorMessage" class="form-alert assign-user-alert">
+      <i class="ph ph-warning-circle"></i>
+      <span>{{ errorMessage }}</span>
+    </div>
 
-    <form name="addUserForm" class="dialog-form">
-      <section class="form-grid">
+    <form name="addUserForm" class="dialog-form assign-user-form">
+      <section class="form-grid assign-user-grid">
         <div class="field">
-          <label for="phone">Mobile Number</label>
+          <label for="phone"><i class="ph ph-phone-call"></i> Mobile Number</label>
           <div class="input-shell">
             <i class="ph ph-phone"></i>
             <input
@@ -25,17 +35,22 @@
               (ngModelChange)="onPhoneInput($event)"
               [disabled]="isSubmitting"
               required
-              placeholder="Enter mobile number"
+              placeholder="Enter candidate mobile number"
             />
           </div>
           <div class="field-inline-status" *ngIf="isPhoneLookupLoading || phoneLookupMessage">
             <span class="lookup-spinner" *ngIf="isPhoneLookupLoading"></span>
+            <i class="ph ph-check-circle" *ngIf="!isPhoneLookupLoading && phoneLookupMessage"></i>
             <span>{{ isPhoneLookupLoading ? 'Checking existing profile...' : phoneLookupMessage }}</span>
+          </div>
+          <div class="field-helper" *ngIf="userType === 'Candidate'">
+            <i class="ph ph-magnifying-glass"></i>
+            <span>We check existing records and auto-fill known candidate details.</span>
           </div>
         </div>
 
         <div class="field">
-          <label for="email">Email</label>
+          <label for="email"><i class="ph ph-envelope-simple"></i> Email</label>
           <div class="input-shell">
             <i class="ph ph-envelope"></i>
             <input
@@ -45,13 +60,17 @@
               [(ngModel)]="email"
               [disabled]="isSubmitting"
               required
-              placeholder="e.g. user@company.com"
+              placeholder="e.g. candidate@company.com"
             />
+          </div>
+          <div class="field-helper" *ngIf="userType === 'Candidate'">
+            <i class="ph ph-paper-plane-tilt"></i>
+            <span>Used for candidate communication and hiring workflow updates.</span>
           </div>
         </div>
 
         <div class="field">
-          <label for="name">Full Name</label>
+          <label for="name"><i class="ph ph-user-circle"></i> Full Name</label>
           <div class="input-shell">
             <i class="ph ph-user"></i>
             <input
@@ -62,13 +81,17 @@
               [disabled]="isSubmitting"
               required
               pattern=".*\s+.*"
-              placeholder="e.g. Ankush Pawar"
+              placeholder="Enter first and last name"
             />
+          </div>
+          <div class="field-helper" *ngIf="userType === 'Candidate'">
+            <i class="ph ph-identification-card"></i>
+            <span>Use the name shown on resumes and interview records.</span>
           </div>
         </div>
 
         <div class="field" *ngIf="userType === 'Recruiter'">
-          <label for="password">Password</label>
+          <label for="password"><i class="ph ph-lock-key"></i> Password</label>
           <div class="input-shell">
             <i class="ph ph-lock-key"></i>
             <input
@@ -85,7 +108,7 @@
         </div>
 
         <div class="field" *ngIf="userType === 'Candidate'">
-          <label for="role">Role</label>
+          <label for="role"><i class="ph ph-briefcase"></i> Role</label>
           <div class="multi-select-wrap">
             <div class="input-shell">
               <i class="ph ph-briefcase"></i>
@@ -99,7 +122,7 @@
                 (focus)="onCandidateRoleInputFocus()"
                 (blur)="onCandidateRoleInputBlur()"
                 required
-                [placeholder]="isRoleListLoading ? 'Loading roles...' : 'Search role title or id'"
+                [placeholder]="isRoleListLoading ? 'Loading roles...' : 'Search role title or role ID'"
                 autocomplete="off"
               />
             </div>
@@ -111,19 +134,28 @@
                 *ngFor="let r of filteredCandidateRoles"
                 (mousedown)="selectCandidateRole(r.id, r.name)"
               >
-                {{ r.name }} - {{ r.id }}
+                <i class="ph ph-briefcase"></i>
+                <span>{{ r.name }} - {{ r.id }}</span>
               </button>
-              <div class="multi-empty" *ngIf="!filteredCandidateRoles.length">No role found</div>
+              <div class="multi-empty" *ngIf="!filteredCandidateRoles.length">
+                <i class="ph ph-magnifying-glass"></i>
+                <span>No role found</span>
+              </div>
             </div>
           </div>
           <div class="field-inline-status" *ngIf="isRoleListLoading || roleListMessage">
             <span class="lookup-spinner" *ngIf="isRoleListLoading"></span>
+            <i class="ph ph-info" *ngIf="!isRoleListLoading"></i>
             <span>{{ isRoleListLoading ? 'Loading roles...' : roleListMessage }}</span>
+          </div>
+          <div class="field-helper">
+            <i class="ph ph-git-branch"></i>
+            <span>Select the active role this candidate should enter.</span>
           </div>
         </div>
 
         <div class="field" *ngIf="userType === 'Candidate' || userType === 'Interviewer'">
-          <label for="recruiter">{{ userType === 'Interviewer' ? 'Recruiter / HR' : 'Recruiter' }}</label>
+          <label for="recruiter"><i class="ph ph-user-list"></i> {{ userType === 'Interviewer' ? 'Recruiter / HR' : 'Recruiter' }}</label>
           <div class="input-shell">
             <i class="ph ph-user-list"></i>
             <select
@@ -147,16 +179,22 @@
           </div>
           <div class="field-inline-status" *ngIf="userType === 'Candidate' && (isRecruiterListLoading || recruiterListMessage)">
             <span class="lookup-spinner" *ngIf="isRecruiterListLoading"></span>
+            <i class="ph ph-info" *ngIf="!isRecruiterListLoading"></i>
             <span>{{ isRecruiterListLoading ? 'Loading recruiters...' : recruiterListMessage }}</span>
           </div>
           <div class="field-inline-status" *ngIf="userType === 'Interviewer' && (isSharedRecruiterListLoading || sharedRecruiterListMessage)">
             <span class="lookup-spinner" *ngIf="isSharedRecruiterListLoading"></span>
+            <i class="ph ph-info" *ngIf="!isSharedRecruiterListLoading"></i>
             <span>{{ isSharedRecruiterListLoading ? 'Loading recruiter / HR list...' : sharedRecruiterListMessage }}</span>
+          </div>
+          <div class="field-helper" *ngIf="userType === 'Candidate'">
+            <i class="ph ph-handshake"></i>
+            <span>Assign the owner responsible for candidate follow-up.</span>
           </div>
         </div>
 
         <div class="field">
-          <label for="gender">Gender</label>
+          <label for="gender"><i class="ph ph-user-focus"></i> Gender</label>
           <div class="input-shell">
             <i [class]="getGenderIconClass()"></i>
             <select id="gender" name="gender" [(ngModel)]="gender" [disabled]="isSubmitting" required>
@@ -166,12 +204,19 @@
               <option value="other">Other</option>
             </select>
           </div>
+          <div class="field-helper" *ngIf="userType === 'Candidate'">
+            <i class="ph ph-shield-check"></i>
+            <span>Stored with the candidate profile for internal records.</span>
+          </div>
         </div>
 
       </section>
 
-      <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" (click)="closeModal()" [disabled]="isSubmitting">Cancel</button>
+      <div class="modal-actions assign-user-actions">
+        <button type="button" class="btn btn-ghost" (click)="closeModal()" [disabled]="isSubmitting">
+          <i class="ph ph-x"></i>
+          Cancel
+        </button>
         <button
           type="button"
           class="btn btn-primary"
@@ -193,211 +238,475 @@
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="!isAddUser">
-  <div class="modal-card modal-card--role">
-    <button class="modal-close" type="button" (click)="closeModal()" [disabled]="isSubmitting">×</button>
+<div class="modal-overlay post-job-overlay" *ngIf="!isAddUser">
+  <div class="modal-card modal-card--role post-job-modal">
+    <button class="modal-close post-job-close" type="button" (click)="closeModal()" [disabled]="isSubmitting" aria-label="Close post job modal">
+      <i class="ph ph-x"></i>
+    </button>
 
-    <div class="modal-head">
-      <h2>Post Job</h2>
-      <p>Define the job details and assign the owning recruiter.</p>
-    </div>
-
-    <div *ngIf="errorMessage" class="form-alert">{{ errorMessage }}</div>
-
-    <form name="addRoleForm" class="dialog-form">
-        <div class="role-preview">
-        <div class="role-preview-title">{{ rolePreviewTitle }}</div>
-        <div class="role-preview-meta">
-          <span><i class="ph ph-user-list"></i> {{ selectedRecruiterName }}</span>
-          <span><i class="ph ph-hash"></i> {{ vacancies || '0' }} openings</span>
-          <span><i class="ph ph-briefcase"></i> {{ jobType || 'Job type pending' }}</span>
-          <span><i class="ph ph-map-pin"></i> {{ location || 'Location pending' }}</span>
-          <span><i class="ph ph-currency-circle-dollar"></i> {{ salaryRange || 'Salary range pending' }}</span>
-          <span><i class="ph ph-briefcase-metal"></i> {{ experienceRequired || 'Experience pending' }}</span>
-          <span><i class="ph ph-text-t"></i> {{ descriptionPlainTextLength }} chars</span>
+    <div class="post-job-header">
+      <div class="post-job-title-block">
+        <div class="post-job-icon"><i class="ph ph-briefcase"></i></div>
+        <div>
+          <h2>Post Job</h2>
+          <p>Create a new job posting and attract the right talent.</p>
         </div>
       </div>
+    </div>
 
-      <section class="form-grid form-grid--single">
-        <div class="field">
-          <label for="name">Role Title</label>
-          <div class="input-shell">
-            <i class="ph ph-briefcase"></i>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              [(ngModel)]="name"
-              [disabled]="isSubmitting"
-              required
-              placeholder="e.g. Python Fullstack Developer"
-            />
-          </div>
-        </div>
+    <nav class="post-job-stepper" aria-label="Post job progress">
+      <button
+        type="button"
+        class="post-job-step"
+        *ngFor="let step of postJobSteps"
+        [class.is-active]="postJobStep === step.number"
+        [class.is-complete]="postJobStep > step.number"
+        (click)="goToPostJobStep(step.number)"
+        [disabled]="isSubmitting"
+      >
+        <span class="post-job-step-line" aria-hidden="true"></span>
+        <span class="post-job-step-number">{{ step.number }}</span>
+        <span class="post-job-step-copy">
+          <strong>{{ step.title }}</strong>
+          <small>{{ step.subtitle }}</small>
+        </span>
+      </button>
+    </nav>
 
-        <div class="field">
-          <label for="description">Description</label>
-          <div class="field-hint">
-            <span>Keep this focused on responsibilities and must-have skills.</span>
-            <span>{{ descriptionPlainTextLength }}/{{ roleDescriptionLimit }}</span>
-          </div>
-          <div class="editor-wrap">
-            <quill-editor
-              id="description"
-              name="description"
-              class="custom-quill"
-              [formControl]="descriptionControl"
-              [readOnly]="isSubmitting"
-              style="height: 170px;"
-              [modules]="{
-                toolbar: [
-                  ['bold', 'italic', 'underline', 'strike'],
-                  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                  [{ 'color': [] }, { 'background': [] }],
-                  [{ 'font': [] }],
-                  [{ 'align': [] }],
-                  ['clean']
-                ]
-              }"
-            ></quill-editor>
-          </div>
-        </div>
+    <div *ngIf="errorMessage" class="form-alert post-job-alert">{{ errorMessage }}</div>
 
-        <div class="field">
-          <label for="vacancies">No. of Vacancies</label>
-          <div class="vacancy-stepper">
-            <button type="button" class="step-btn" (click)="decrementVacancies()" [disabled]="isSubmitting">−</button>
-            <div class="input-shell">
-            <i class="ph ph-hash"></i>
-            <input
-              id="vacancies"
-              name="vacancies"
-              type="text"
-              inputmode="numeric"
-              appDigitsOnly
-              [(ngModel)]="vacancies"
-              [disabled]="isSubmitting"
-              required
-              placeholder="e.g. 3"
-            />
+    <form name="addRoleForm" class="dialog-form post-job-form">
+      <div class="post-job-content-grid">
+        <section class="post-job-panel post-job-main-card">
+          <div class="post-job-card-head">
+            <span><i [class]="currentPostJobStep.icon"></i></span>
+            <div>
+              <h3>{{ currentPostJobStep.panelTitle }}</h3>
+              <p>{{ currentPostJobStep.panelCopy }}</p>
             </div>
-            <button type="button" class="step-btn" (click)="incrementVacancies()" [disabled]="isSubmitting">+</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="jobType">Job Type</label>
-          <div class="input-shell">
-            <i class="ph ph-briefcase"></i>
-            <select
-              id="jobType"
-              name="jobType"
-              [(ngModel)]="jobType"
-              [disabled]="isSubmitting"
-              required
+            <button
+              type="button"
+              class="ai-jd-open-btn"
+              *ngIf="postJobStep === 2"
+              (click)="openAiJdPanel()"
+              [disabled]="isSubmitting || isAiJdGenerating"
             >
-              <option value="">Select job type</option>
-              <option value="full_time">Full Time</option>
-              <option value="part_time">Part Time</option>
-              <option value="intern">Intern</option>
-            </select>
+              <i class="ph ph-sparkle"></i>
+              Generate AI Job Description
+            </button>
           </div>
-        </div>
 
-        <div class="field">
-          <label for="location">Location</label>
-          <div class="input-shell">
-            <i class="ph ph-map-pin"></i>
-            <input
-              id="location"
-              name="location"
-              type="text"
-              [(ngModel)]="location"
-              [disabled]="isSubmitting"
-              required
-              placeholder="e.g. Noida Sector 62 / Remote"
-            />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="salaryRange">Salary Range</label>
-          <div class="input-shell">
-            <i class="ph ph-currency-circle-dollar"></i>
-            <input
-              id="salaryRange"
-              name="salaryRange"
-              type="text"
-              [(ngModel)]="salaryRange"
-              [disabled]="isSubmitting"
-              required
-              placeholder="e.g. 8 LPA - 12 LPA"
-            />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="experienceRequired">Experience Required</label>
-          <div class="input-shell">
-            <i class="ph ph-briefcase-metal"></i>
-            <input
-              id="experienceRequired"
-              name="experienceRequired"
-              type="text"
-              [(ngModel)]="experienceRequired"
-              [disabled]="isSubmitting"
-              required
-              placeholder="e.g. 2-5 years"
-            />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="recruiter">Recruiter</label>
-          <div class="multi-select-wrap">
-            <div class="input-shell">
-              <i class="ph ph-magnifying-glass"></i>
-              <input
-                id="recruiter"
-                name="recruiterSearch"
-                type="text"
-                [(ngModel)]="recruiterSearchQuery"
-                [disabled]="isSharedRecruiterListLoading || isSubmitting"
-                [placeholder]="isSharedRecruiterListLoading ? 'Loading recruiters...' : 'Type at least 3 characters to search recruiter'"
-                (focus)="openRoleRecruiterMenu()"
-                (blur)="closeRoleRecruiterMenu()"
-              />
+          <div class="post-job-fields" *ngIf="postJobStep === 1">
+            <div class="post-job-field" [class.has-error]="isRoleFieldInvalid('name')">
+              <label for="name">Job Title <span aria-hidden="true">*</span></label>
+              <div class="input-shell">
+                <i class="ph ph-briefcase"></i>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  [(ngModel)]="name"
+                  [disabled]="isSubmitting"
+                  required
+                  placeholder="Use a clear public title, e.g. Backend Engineer or Product Manager"
+                />
+              </div>
+              <div class="field-ai-tip">
+                <i class="ph ph-sparkle"></i>
+                <span>Use a searchable title candidates recognize; avoid internal codes or overly broad labels.</span>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('name')">Job title is required.</small>
             </div>
 
-            <div class="multi-select-menu" *ngIf="showRoleRecruiterMenu && ((recruiterSearchQuery || '').trim().length >= 3)">
-              <button
-                type="button"
-                class="multi-option"
-                [disabled]="isSubmitting"
-                *ngFor="let recruiter of filteredRoleRecruiters"
-                (mousedown)="addRoleRecruiter(recruiter.id)"
-              >
-                {{ recruiter.name }}
+            <div class="post-job-field" [class.has-error]="isRoleFieldInvalid('jobType')">
+              <label for="jobType">Employment Type <span aria-hidden="true">*</span></label>
+              <div class="input-shell">
+                <i class="ph ph-clock"></i>
+                <select
+                  id="jobType"
+                  name="jobType"
+                  [(ngModel)]="jobType"
+                  [disabled]="isSubmitting"
+                  required
+                >
+                  <option value="">Select employment model</option>
+                  <option value="full_time">Full Time</option>
+                  <option value="part_time">Part Time</option>
+                  <option value="intern">Intern</option>
+                </select>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('jobType')">Employment type is required.</small>
+            </div>
+
+            <div class="post-job-field" [class.has-error]="isRoleFieldInvalid('experienceRequired')">
+              <label for="experienceRequired">Experience Level <span aria-hidden="true">*</span></label>
+              <div class="input-shell">
+                <i class="ph ph-briefcase-metal"></i>
+                <input
+                  id="experienceRequired"
+                  name="experienceRequired"
+                  type="text"
+                  [(ngModel)]="experienceRequired"
+                  [disabled]="isSubmitting"
+                  required
+                  placeholder="Enter range or level, e.g. 2-5, 4+, Fresher"
+                  (blur)="formatExperienceRequired()"
+                />
+              </div>
+              <div class="field-ai-tip">
+                <i class="ph ph-sparkle"></i>
+                <span>Keep the experience band realistic so matching can prioritize the right candidate level.</span>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('experienceRequired')">Experience level is required.</small>
+            </div>
+          </div>
+
+          <div class="post-job-fields" *ngIf="postJobStep === 2">
+            <div class="post-job-field post-job-field--full" [class.has-error]="isRoleFieldInvalid('description')">
+              <label for="description">Role Description <span aria-hidden="true">*</span></label>
+              <div class="field-hint">
+                <span>Keep this focused on responsibilities and must-have skills.</span>
+                <span>{{ descriptionPlainTextLength }}/{{ roleDescriptionLimit }}</span>
+              </div>
+              <div class="editor-field-shell">
+                <div class="editor-field-icon" aria-hidden="true"><i class="ph ph-text-align-left"></i></div>
+                <div class="editor-wrap">
+                  <quill-editor
+                    id="description"
+                    name="description"
+                    class="custom-quill"
+                    [formControl]="descriptionControl"
+                    [readOnly]="isSubmitting"
+                    placeholder="Describe the role impact, core responsibilities, must-have skills, and success criteria in a concise candidate-ready format."
+                    style="height: 260px;"
+                    [modules]="{
+                      toolbar: [
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'font': [] }],
+                        [{ 'align': [] }],
+                        ['clean']
+                      ]
+                    }"
+                  ></quill-editor>
+                </div>
+              </div>
+              <div class="field-ai-tip">
+                <i class="ph ph-sparkle"></i>
+                <span>Include measurable responsibilities, required skills, and what success looks like in the first 90 days.</span>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('description')">Role description is required.</small>
+            </div>
+          </div>
+
+          <div class="post-job-fields" *ngIf="postJobStep === 3">
+            <div class="post-job-field" [class.has-error]="isRoleFieldInvalid('vacancies')">
+              <label for="vacancies">Openings <span aria-hidden="true">*</span></label>
+              <div class="vacancy-stepper">
+                <button type="button" class="step-btn" (click)="decrementVacancies()" [disabled]="isSubmitting" aria-label="Decrease openings">−</button>
+                <div class="input-shell">
+                  <i class="ph ph-hash"></i>
+                  <input
+                    id="vacancies"
+                    name="vacancies"
+                    type="text"
+                    inputmode="numeric"
+                    appDigitsOnly
+                    [(ngModel)]="vacancies"
+                    [disabled]="isSubmitting"
+                    required
+                    placeholder="Number of roles to hire, e.g. 3"
+                  />
+                  <span class="input-unit">openings</span>
+                </div>
+                <button type="button" class="step-btn" (click)="incrementVacancies()" [disabled]="isSubmitting" aria-label="Increase openings">+</button>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('vacancies')">Openings must be a positive number.</small>
+            </div>
+
+            <div class="post-job-field" [class.has-error]="isRoleFieldInvalid('location')">
+              <label for="location">Location <span aria-hidden="true">*</span></label>
+              <div class="input-shell">
+                <i class="ph ph-map-pin"></i>
+                <input
+                  id="location"
+                  name="location"
+                  type="text"
+                  [(ngModel)]="location"
+                  [disabled]="isSubmitting"
+                  required
+                  placeholder="City, remote, or hybrid setup, e.g. Bengaluru / Hybrid"
+                />
+              </div>
+              <div class="field-ai-tip">
+                <i class="ph ph-sparkle"></i>
+                <span>Show the work setup clearly; candidates filter heavily on remote, hybrid, and city details.</span>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('location')">Location is required.</small>
+            </div>
+
+            <div class="post-job-field" [class.has-error]="isRoleFieldInvalid('salaryRange')">
+              <label for="salaryRange">Salary Range <span aria-hidden="true">*</span></label>
+              <div class="input-shell">
+                <i class="ph ph-currency-circle-dollar"></i>
+                <input
+                  id="salaryRange"
+                  name="salaryRange"
+                  type="text"
+                  [(ngModel)]="salaryRange"
+                  [disabled]="isSubmitting"
+                  required
+                  placeholder="Annual range in LPA, e.g. 8-12 or 15+"
+                  (blur)="formatSalaryRange()"
+                />
+              </div>
+              <div class="field-ai-tip">
+                <i class="ph ph-sparkle"></i>
+                <span>A clear compensation range improves candidate fit and reduces recruiter follow-up.</span>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('salaryRange')">Salary range is required.</small>
+            </div>
+          </div>
+
+          <div class="post-job-fields" *ngIf="postJobStep === 4">
+            <div class="post-job-field post-job-field--full" [class.has-error]="isRoleFieldInvalid('recruiter')">
+              <label for="recruiter">Recruiter Assignment <span aria-hidden="true">*</span></label>
+              <div class="multi-select-wrap">
+                <div class="input-shell">
+                  <i class="ph ph-magnifying-glass"></i>
+                  <input
+                    id="recruiter"
+                    name="recruiterSearch"
+                    type="text"
+                    [(ngModel)]="recruiterSearchQuery"
+                    [disabled]="isSharedRecruiterListLoading || isSubmitting"
+                    [placeholder]="isSharedRecruiterListLoading ? 'Loading recruiters...' : 'Search recruiter by name to assign ownership'"
+                    (focus)="openRoleRecruiterMenu()"
+                    (blur)="closeRoleRecruiterMenu()"
+                  />
+                </div>
+
+                <div class="multi-select-menu" *ngIf="showRoleRecruiterMenu && ((recruiterSearchQuery || '').trim().length >= 3)">
+                  <button
+                    type="button"
+                    class="multi-option"
+                    [disabled]="isSubmitting"
+                    *ngFor="let recruiter of filteredRoleRecruiters"
+                    (mousedown)="addRoleRecruiter(recruiter.id)"
+                  >
+                    {{ recruiter.name }}
+                  </button>
+                  <div class="multi-empty" *ngIf="!filteredRoleRecruiters.length">No recruiter found</div>
+                </div>
+
+                <div class="selected-chips" *ngIf="selectedRoleRecruiterIds.length">
+                  <span class="chip" *ngFor="let recruiterId of selectedRoleRecruiterIds">
+                    {{ getRoleRecruiterName(recruiterId) }}
+                    <button type="button" (click)="removeRoleRecruiter(recruiterId)" [disabled]="isSubmitting" aria-label="Remove recruiter">×</button>
+                  </span>
+                </div>
+              </div>
+              <div class="field-inline-status" *ngIf="isSharedRecruiterListLoading || sharedRecruiterListMessage">
+                <span class="lookup-spinner" *ngIf="isSharedRecruiterListLoading"></span>
+                <span>{{ isSharedRecruiterListLoading ? 'Loading recruiters...' : sharedRecruiterListMessage }}</span>
+              </div>
+              <div class="field-ai-tip">
+                <i class="ph ph-sparkle"></i>
+                <span>Assign an owner before publishing so candidate activity routes to the right hiring lane.</span>
+              </div>
+              <small *ngIf="isRoleFieldInvalid('recruiter')">Select at least one recruiter.</small>
+            </div>
+          </div>
+
+          <div class="post-job-review" *ngIf="postJobStep === 5">
+            <div class="review-row"><span><i class="ph ph-briefcase"></i> Title</span><strong>{{ rolePreviewTitle }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-clock"></i> Employment</span><strong>{{ jobTypeLabel }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-briefcase-metal"></i> Experience</span><strong>{{ experienceRequired || 'Experience pending' }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-map-pin"></i> Location</span><strong>{{ location || 'Location pending' }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-currency-circle-dollar"></i> Salary</span><strong>{{ salaryRange || 'Salary range pending' }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-hash"></i> Openings</span><strong>{{ vacancies || '0' }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-user-list"></i> Recruiter</span><strong>{{ selectedRecruiterName }}</strong></div>
+            <div class="review-row"><span><i class="ph ph-globe"></i> Posting source</span><strong>Shortlistii Career Portal</strong></div>
+          </div>
+        </section>
+
+        <aside class="post-job-side" aria-label="Job posting preview and quality tips">
+          <section class="post-job-panel ai-jd-panel" *ngIf="postJobStep === 2 && aiJdPanelOpen">
+            <div class="post-job-card-head post-job-card-head--compact">
+              <span><i class="ph ph-sparkle"></i></span>
+              <div>
+                <h3>AI Job Description Assistant</h3>
+                <small>Preview first. Append only after approval.</small>
+              </div>
+              <button type="button" class="ai-jd-icon-btn" (click)="closeAiJdPanel()" aria-label="Close AI JD assistant">
+                <i class="ph ph-x"></i>
               </button>
-              <div class="multi-empty" *ngIf="!filteredRoleRecruiters.length">No recruiter found</div>
             </div>
 
-            <div class="selected-chips" *ngIf="selectedRoleRecruiterIds.length">
-              <span class="chip" *ngFor="let recruiterId of selectedRoleRecruiterIds">
-                {{ getRoleRecruiterName(recruiterId) }}
-                <button type="button" (click)="removeRoleRecruiter(recruiterId)" [disabled]="isSubmitting">×</button>
-              </span>
+            <div class="ai-jd-message ai-jd-message--success" *ngIf="aiJdSuccessMessage">
+              <i class="ph ph-check-circle"></i>
+              <span>{{ aiJdSuccessMessage }}</span>
             </div>
-          </div>
-          <div class="field-inline-status" *ngIf="isSharedRecruiterListLoading || sharedRecruiterListMessage">
-            <span class="lookup-spinner" *ngIf="isSharedRecruiterListLoading"></span>
-            <span>{{ isSharedRecruiterListLoading ? 'Loading recruiters...' : sharedRecruiterListMessage }}</span>
-          </div>
-        </div>
-      </section>
+            <div class="ai-jd-message ai-jd-message--error" *ngIf="aiJdErrorMessage">
+              <i class="ph ph-warning-circle"></i>
+              <span>{{ aiJdErrorMessage }}</span>
+            </div>
 
-      <div class="modal-actions">
+            <div class="ai-jd-loading" *ngIf="isAiJdGenerating">
+              <i class="ph ph-sparkle"></i>
+              <div class="ai-jd-loading-steps" aria-label="AI job description generation progress">
+                <span *ngFor="let message of aiJdLoadingMessages">{{ message }}</span>
+              </div>
+              <small>We are preparing a structured suggestion. Your existing role description will stay unchanged until you approve it.</small>
+              <div class="ai-jd-progress-bar"></div>
+              <button type="button" class="btn btn-ghost ai-jd-cancel-btn" (click)="cancelAiJdGeneration()">
+                Cancel generation
+              </button>
+            </div>
+
+            <div class="ai-jd-form" *ngIf="!isAiJdGenerating && !aiJdSuggestion">
+              <label>
+                <span>Role Context / Hiring Need</span>
+                <textarea name="aiRoleContext" [(ngModel)]="aiJdForm.roleContext" placeholder="Backend developer for scalable APIs and hiring workflow automation."></textarea>
+              </label>
+              <label>
+                <span>Must-have Skills</span>
+                <textarea name="aiMustHaveSkills" [(ngModel)]="aiJdForm.mustHaveSkills" placeholder="Python, Django, REST APIs, PostgreSQL, debugging"></textarea>
+              </label>
+              <label>
+                <span>Preferred Skills</span>
+                <input name="aiPreferredSkills" type="text" [(ngModel)]="aiJdForm.preferredSkills" placeholder="Angular, Redis, Docker, cloud deployment" />
+              </label>
+              <label>
+                <span>Key Responsibilities</span>
+                <textarea name="aiResponsibilities" [(ngModel)]="aiJdForm.keyResponsibilities" placeholder="Build APIs, optimize queries, collaborate with product team"></textarea>
+              </label>
+              <label>
+                <span>Candidate Level / Experience Focus</span>
+                <input name="aiCandidateLevel" type="text" [(ngModel)]="aiJdForm.candidateLevel" [placeholder]="experienceRequired || 'Mid-level, senior, fresher, or 2-5 years'" />
+              </label>
+              <label>
+                <span>Work Mode / Location Context</span>
+                <input name="aiWorkMode" type="text" [(ngModel)]="aiJdForm.workModeContext" [placeholder]="location || 'Remote, hybrid, city, or office context'" />
+              </label>
+              <label>
+                <span>Interview Focus</span>
+                <input name="aiInterviewFocus" type="text" [(ngModel)]="aiJdForm.interviewFocus" placeholder="API design, debugging, ownership, communication" />
+              </label>
+              <label>
+                <span>Tone</span>
+                <select name="aiTone" [(ngModel)]="aiJdForm.tone">
+                  <option value="Professional">Professional</option>
+                  <option value="Startup-friendly">Startup-friendly</option>
+                  <option value="Enterprise">Enterprise</option>
+                  <option value="Concise">Concise</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-primary ai-jd-wide-btn" (click)="generateAiJdSuggestion()" [disabled]="isSubmitting || isAiJdGenerating">
+                <i class="ph ph-magic-wand"></i>
+                Generate Suggestion
+              </button>
+            </div>
+
+            <div class="ai-jd-suggestion" *ngIf="!isAiJdGenerating && aiJdSuggestionSections.length">
+              <section *ngFor="let section of aiJdSuggestionSections; trackBy: trackByAiJdSectionTitle">
+                <h4>{{ section.title }}</h4>
+                <p *ngIf="section.value">{{ section.value }}</p>
+                <ul *ngIf="section.items.length">
+                  <li *ngFor="let item of section.items; trackBy: trackByAiJdItem">{{ item }}</li>
+                </ul>
+              </section>
+              <div class="ai-jd-actions">
+                <button type="button" class="btn btn-primary" (click)="approveAndAppendAiJd()" [disabled]="isSubmitting">
+                  <i class="ph ph-check-circle"></i>
+                  Approve & Append to JD
+                </button>
+                <button type="button" class="btn btn-ghost" (click)="generateAiJdSuggestion()" [disabled]="isSubmitting || isAiJdGenerating">
+                  <i class="ph ph-arrows-clockwise"></i>
+                  Regenerate
+                </button>
+                <button type="button" class="btn btn-ghost" (click)="rejectAiJdSuggestion()" [disabled]="isSubmitting">
+                  <i class="ph ph-x-circle"></i>
+                  Reject
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="post-job-panel post-job-preview-card" *ngIf="postJobStep !== 2 || !aiJdPanelOpen">
+            <div class="post-job-card-head post-job-card-head--compact">
+              <span><i class="ph ph-eye"></i></span>
+              <div>
+                <h3>Quick Preview</h3>
+                <small>Live candidate-facing summary</small>
+              </div>
+            </div>
+
+            <div class="preview-job-card">
+              <div class="preview-hero">
+                <div class="preview-avatar">{{ roleInitial }}</div>
+                <div class="preview-copy">
+                  <div class="preview-eyebrow">
+                    <span>Shortlistii role preview</span>
+                    <b>{{ previewReadinessLabel }}</b>
+                  </div>
+                  <h4>{{ rolePreviewTitle }}</h4>
+                  <p>{{ previewSummaryLine }}</p>
+                </div>
+                <div class="preview-score" [attr.aria-label]="'Job quality readiness ' + previewReadinessScore + '%'">
+                  <strong>{{ previewReadinessScore }}%</strong>
+                  <span>ready</span>
+                </div>
+              </div>
+
+              <div class="preview-detail-grid">
+                <div>
+                  <span><i class="ph ph-clock"></i> Employment</span>
+                  <strong>{{ jobTypeLabel }}</strong>
+                </div>
+                <div>
+                  <span><i class="ph ph-briefcase-metal"></i> Experience</span>
+                  <strong>{{ experienceRequired || 'Experience level' }}</strong>
+                </div>
+                <div>
+                  <span><i class="ph ph-currency-circle-dollar"></i> Compensation</span>
+                  <strong>{{ salaryRange || 'Salary range' }}</strong>
+                </div>
+                <div>
+                  <span><i class="ph ph-map-pin"></i> Location</span>
+                  <strong>{{ location || 'Location' }}</strong>
+                </div>
+                <div>
+                  <span><i class="ph ph-hash"></i> Openings</span>
+                  <strong>{{ vacancies || '0' }}</strong>
+                </div>
+                <div>
+                  <span><i class="ph ph-user-list"></i> Owner</span>
+                  <strong>{{ selectedRecruiterName }}</strong>
+                </div>
+              </div>
+
+              <div class="preview-readiness">
+                <div class="preview-readiness-track"><span [style.width.%]="previewReadinessScore"></span></div>
+                <small>{{ previewReadinessText }}</small>
+              </div>
+            </div>
+          </section>
+
+        </aside>
+      </div>
+
+      <div class="modal-actions post-job-actions">
         <button type="button" class="btn btn-ghost" (click)="closeModal()" [disabled]="isSubmitting">Cancel</button>
+        <button type="button" class="btn btn-ghost" (click)="previousPostJobStep()" [disabled]="isSubmitting" *ngIf="postJobStep > 1">
+          <i class="ph ph-arrow-left"></i>
+          Previous
+        </button>
+        <button type="button" class="btn btn-primary" (click)="nextPostJobStep()" [disabled]="isSubmitting" *ngIf="postJobStep < 5">
+          Next
+          <i class="ph ph-arrow-right"></i>
+        </button>
         <button
           type="button"
           class="btn btn-primary"
@@ -405,10 +714,11 @@
           [disabled]="isSubmitting"
           [attr.aria-busy]="isSubmitting"
           (click)="addRole()"
+          *ngIf="postJobStep === 5"
         >
           <span class="btn-spinner" *ngIf="isSubmitting"></span>
-          <i class="ph ph-plus" *ngIf="!isSubmitting"></i>
-          {{ isSubmitting ? 'Posting...' : 'Post Job' }}
+          <i class="ph ph-paper-plane-tilt" *ngIf="!isSubmitting"></i>
+          {{ isSubmitting ? 'Posting...' : 'Publish Job' }}
         </button>
       </div>
     </form>

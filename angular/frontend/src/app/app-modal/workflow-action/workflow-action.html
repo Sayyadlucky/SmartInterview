@@ -1,8 +1,10 @@
-<div class="workflow-shell" [class.workflow-shell--reviews]="mode === 'evaluation-reviews'">
-  <button type="button" class="close-btn" aria-label="Close dialog" (click)="close()">×</button>
+<div class="workflow-shell workflow-action-modal" [class.workflow-shell--reviews]="mode === 'evaluation-reviews'">
+  <button type="button" class="close-btn workflow-action-close" aria-label="Close dialog" (click)="close()">
+    <i class="ph ph-x"></i>
+  </button>
 
-  <div class="workflow-head">
-    <div class="icon-wrap">
+  <div class="workflow-head workflow-action-head">
+    <div class="icon-wrap workflow-action-icon">
       <i
         class="ph"
         [class.ph-calendar-check]="mode === 'schedule'"
@@ -10,8 +12,8 @@
         [class.ph-clipboard-text]="mode === 'evaluation-reviews'"></i>
     </div>
     <div class="copy">
-      <h3>{{ title }}</h3>
-      <p>{{ subtitle }}</p>
+      <h3 class="workflow-action-title">{{ title }}</h3>
+      <p class="workflow-action-subtitle">{{ subtitle }}</p>
     </div>
   </div>
 
@@ -36,7 +38,7 @@
     <div *ngSwitchCase="'schedule'" class="workflow-body">
       <div class="workflow-column">
         <div class="section-head">
-          <h4>Candidate</h4>
+          <h4><i class="ph ph-user-circle"></i>Candidate</h4>
           <span *ngIf="!selectedCandidate">Search and select</span>
           <button *ngIf="selectedCandidate" type="button" class="text-btn" (click)="resetSelectedCandidate()">Change Candidate</button>
         </div>
@@ -75,34 +77,60 @@
           </div>
           <div class="candidate-summary-grid">
             <div>
-              <span>Interview Type</span>
+              <span><i class="ph ph-clipboard-text"></i>Interview Type</span>
               <strong>{{ interviewType === 'auto' ? 'Auto Interview' : 'Manual Interview' }}</strong>
             </div>
             <div>
-              <span>Assigned Evaluator</span>
+              <span><i class="ph ph-user-check"></i>Assigned Evaluator</span>
               <strong>{{ interviewType === 'auto' ? 'Bot Managed' : (evaluatorSearch || selectedCandidate.interviewer || 'Unassigned') }}</strong>
             </div>
             <div>
-              <span>Current Status</span>
+              <span><i class="ph ph-flag"></i>Current Status</span>
               <strong>{{ formatStatus(selectedCandidate.status) }}</strong>
             </div>
           </div>
+        </div>
+
+        <div class="availability-insight-card" *ngIf="availabilityInsight as insight">
+          <div class="availability-insight-head">
+            <span class="availability-insight-icon"><i class="ph ph-sparkle"></i></span>
+            <div>
+              <span>Availability Insights</span>
+              <strong>Best next available slot</strong>
+            </div>
+          </div>
+          <div class="availability-slot">
+            <div>
+              <span><i class="ph ph-calendar-dots"></i>Date</span>
+              <strong>{{ insight.dateLabel }}</strong>
+            </div>
+            <div>
+              <span><i class="ph ph-clock"></i>Time</span>
+              <strong>{{ insight.timeLabel }}</strong>
+            </div>
+          </div>
+          <p>{{ insight.helper }} Scheduling window: {{ insight.windowLabel }}.</p>
+          <button type="button" class="availability-apply-btn" (click)="applySuggestedAvailability()">
+            <i class="ph ph-calendar-plus"></i>
+            Use suggested slot
+          </button>
         </div>
       </div>
 
       <div class="workflow-column workflow-column--form">
         <div class="section-head">
-          <h4>Interview Plan</h4>
+          <h4><i class="ph ph-calendar-check"></i>Interview Plan</h4>
           <span *ngIf="selectedCandidate">{{ selectedCandidate.recruiter || 'Recruiter not assigned' }}</span>
         </div>
 
-        <label class="field-label">Interview Type</label>
+        <label class="field-label"><i class="ph ph-sliders-horizontal"></i>Interview Type</label>
         <div class="type-toggle">
           <button
             type="button"
             class="type-toggle-btn"
             [class.active]="interviewType === 'auto'"
             (click)="setInterviewType('auto')">
+            <i class="ph ph-robot"></i>
             <span class="type-toggle-label">Auto Interview</span>
             <small>Bot-led interview flow</small>
           </button>
@@ -111,13 +139,14 @@
             class="type-toggle-btn"
             [class.active]="interviewType === 'manual'"
             (click)="setInterviewType('manual')">
+            <i class="ph ph-user-check"></i>
             <span class="type-toggle-label">Manual Interview</span>
             <small>Evaluator-led interview flow</small>
           </button>
         </div>
 
         <div class="evaluator-search-block" *ngIf="interviewType === 'manual'">
-          <label class="field-label">Evaluator</label>
+          <label class="field-label"><i class="ph ph-identification-badge"></i>Evaluator</label>
           <div
             class="field-shell evaluator-search-shell"
             [class.field-shell--active]="evaluatorSearchOpen"
@@ -158,18 +187,26 @@
         <div class="schedule-composer">
           <div class="schedule-composer-head">
             <div>
-              <span class="field-label">Schedule Window</span>
+              <span class="field-label"><i class="ph ph-clock-countdown"></i>Schedule Window</span>
               <h5>Interview Slot</h5>
             </div>
             <i class="ph ph-calendar-blank"></i>
           </div>
           <div class="schedule-grid">
-            <div class="schedule-input-card">
-              <label class="field-label">Interview Date</label>
-              <input type="date" [(ngModel)]="scheduledDate" [disabled]="saving" />
+            <div class="schedule-input-card" [class.schedule-input-card--invalid]="!!scheduleDateError">
+              <label class="field-label"><i class="ph ph-calendar-dots"></i>Interview Date</label>
+              <input
+                type="date"
+                [ngModel]="scheduledDate"
+                (ngModelChange)="onScheduleDateChange($event)"
+                [min]="todayDateString"
+                [disabled]="saving"
+                [attr.aria-invalid]="scheduleDateError ? 'true' : null"
+                [attr.aria-describedby]="scheduleDateError ? 'schedule-date-error' : null" />
+              <small id="schedule-date-error" class="field-error" *ngIf="scheduleDateError">{{ scheduleDateError }}</small>
             </div>
             <div class="schedule-input-card">
-              <label class="field-label">Interview Time</label>
+              <label class="field-label"><i class="ph ph-clock"></i>Interview Time</label>
               <input type="time" [(ngModel)]="scheduledTime" [disabled]="saving" />
             </div>
           </div>
@@ -181,7 +218,7 @@
     <div *ngSwitchCase="'bulk-assign'" class="workflow-body">
       <div class="workflow-column">
         <div class="section-head">
-          <h4>Candidate Selection</h4>
+          <h4><i class="ph ph-users-three"></i>Candidate Selection</h4>
           <button type="button" class="text-btn" (click)="toggleSelectAllBulkCandidates()">
             {{ allVisibleBulkSelected ? 'Clear visible' : 'Select visible' }}
           </button>
@@ -205,11 +242,11 @@
 
       <div class="workflow-column workflow-column--form">
         <div class="section-head">
-          <h4>Assignment Rules</h4>
+          <h4><i class="ph ph-git-branch"></i>Assignment Rules</h4>
           <span>{{ selectedBulkCount }} selected</span>
         </div>
 
-        <label class="field-label">Evaluator</label>
+        <label class="field-label"><i class="ph ph-user-check"></i>Evaluator</label>
         <select [(ngModel)]="selectedEvaluatorId" [disabled]="loadingEvaluators || saving">
           <option [ngValue]="null">Select evaluator</option>
           <option *ngFor="let evaluator of evaluatorOptions; trackBy: trackEvaluator" [ngValue]="evaluator.id">
@@ -222,9 +259,9 @@
         </div>
 
         <div class="summary-panel">
-          <div><span>Workflow</span><strong>Bulk evaluator assignment</strong></div>
-          <div><span>Selected Candidates</span><strong>{{ selectedBulkCount }}</strong></div>
-          <div><span>Result</span><strong>Updates interviewer ownership without changing interview status</strong></div>
+          <div><span><i class="ph ph-git-branch"></i>Workflow</span><strong>Bulk evaluator assignment</strong></div>
+          <div><span><i class="ph ph-check-square"></i>Selected Candidates</span><strong>{{ selectedBulkCount }}</strong></div>
+          <div><span><i class="ph ph-shield-check"></i>Result</span><strong>Updates interviewer ownership without changing interview status</strong></div>
         </div>
       </div>
     </div>
@@ -325,17 +362,24 @@
   </ng-container>
 
   <div class="workflow-actions" *ngIf="mode !== 'evaluation-reviews'">
-    <button type="button" class="secondary-btn" (click)="close()" [disabled]="saving">Cancel</button>
+    <button type="button" class="secondary-btn" (click)="close()" [disabled]="saving">
+      <i class="ph ph-x"></i>
+      Cancel
+    </button>
     <button
       type="button"
       class="primary-btn"
       [disabled]="mode === 'schedule' ? !canSubmitSchedule : !canSubmitBulkAssign"
       (click)="mode === 'schedule' ? saveSchedule() : saveBulkAssign()">
+      <i class="ph" [class.ph-calendar-plus]="mode === 'schedule'" [class.ph-user-plus]="mode !== 'schedule'"></i>
       {{ saving ? 'Saving...' : (mode === 'schedule' ? 'Schedule Interview' : 'Assign Evaluator') }}
     </button>
   </div>
 
   <div class="workflow-actions" *ngIf="mode === 'evaluation-reviews'">
-    <button type="button" class="secondary-btn" (click)="close()">Close</button>
+    <button type="button" class="secondary-btn" (click)="close()">
+      <i class="ph ph-x"></i>
+      Close
+    </button>
   </div>
 </div>

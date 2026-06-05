@@ -15,7 +15,7 @@ interface CandidateData {
   role: string;
   role_id?: number | null;
   status: string;
-  score?: number | null;
+  score?: number | string | null;
   date: string;
   phone?: string;
   candidate_phone_masked?: string;
@@ -130,10 +130,27 @@ interface InsightData {
   loading: boolean;
   available: boolean;
   executive_summary?: string;
+  role_fit_summary?: string;
+  role_fit_confidence?: string;
+  role_fit_evidence?: string[];
+  role_fit_matched_requirements?: string[];
+  role_fit_missing_requirements?: string[];
   resume_score?: number | null;
+  role_fit_score?: number | null;
+  market_demand_score?: number | null;
   current_skills_impact_score?: number | null;
+  market_demand_label?: string;
+  salary_range?: string;
+  salary_trend_summary?: string;
+  market_demand_summary?: string;
   current_skills_impact_summary?: string;
+  top_strengths?: string[];
+  growth_areas?: string[];
+  recommended_skills?: string[];
+  recommended_roles?: string[];
 }
+
+type CandidateProfileTab = 'overview' | 'ai' | 'resume' | 'role' | 'verification';
 
 @Component({
   selector: 'app-candidate-profile',
@@ -147,6 +164,7 @@ export class CandidateProfile implements OnInit {
   candidate: CandidateData;
   loading = false;
   resumeLoading = false;
+  profileDataLoaded = false;
   reprocessingResume = false;
   errorMessage = '';
   statusActions: Array<{ key: string; label: string }> = [];
@@ -164,9 +182,24 @@ export class CandidateProfile implements OnInit {
     loading: false,
     available: false,
     executive_summary: '',
+    role_fit_summary: '',
+    role_fit_confidence: '',
+    role_fit_evidence: [],
+    role_fit_matched_requirements: [],
+    role_fit_missing_requirements: [],
     resume_score: null,
+    role_fit_score: null,
+    market_demand_score: null,
     current_skills_impact_score: null,
+    market_demand_label: '',
+    salary_range: '',
+    salary_trend_summary: '',
+    market_demand_summary: '',
     current_skills_impact_summary: '',
+    top_strengths: [],
+    growth_areas: [],
+    recommended_skills: [],
+    recommended_roles: [],
   };
   resumeData: ResumeData = {
     available: false,
@@ -193,6 +226,14 @@ export class CandidateProfile implements OnInit {
   skillTags: string[] = [];
   verificationViewItems: Array<{ label: string; verified: boolean; date?: string }> = [];
   callingCandidate = false;
+  activeTab: CandidateProfileTab = 'overview';
+  readonly profileTabs: Array<{ key: CandidateProfileTab; label: string; icon: string }> = [
+    { key: 'overview', label: 'Overview', icon: 'ph ph-info' },
+    { key: 'ai', label: 'AI Insights', icon: 'ph ph-sparkle' },
+    { key: 'resume', label: 'Resume', icon: 'ph ph-file-text' },
+    { key: 'role', label: 'Role Fit', icon: 'ph ph-star' },
+    { key: 'verification', label: 'Verification', icon: 'ph ph-shield-check' },
+  ];
 
   constructor(
     private http: HttpClient,
@@ -225,8 +266,36 @@ export class CandidateProfile implements OnInit {
     return `${phone} | ${location}`;
   }
 
+  get contactPhoneDisplay(): string {
+    return this.resumeData.contact?.phone || this.candidate.candidate_phone_masked || this.candidate.phone || 'Phone unavailable';
+  }
+
+  get contactLocationDisplay(): string {
+    return this.resumeData.contact?.location || 'Location unavailable';
+  }
+
   get headline(): string {
-    return this.resumeData.headline || 'Resume profile';
+    return this.resumeData.headline || '';
+  }
+
+  get evaluatorDisplay(): string {
+    return this.candidate.interviewer || 'Not assigned';
+  }
+
+  get resumeTypeDisplay(): string {
+    return this.resumeData.candidate_type || 'Not available';
+  }
+
+  get resumeDownloadsDisplay(): string {
+    return this.candidate.public_resume_downloads === null || this.candidate.public_resume_downloads === undefined
+      ? 'Not available'
+      : `${this.candidate.public_resume_downloads}`;
+  }
+
+  get resumeDownloadsCaption(): string {
+    return this.candidate.public_resume_downloads === null || this.candidate.public_resume_downloads === undefined
+      ? 'Download count unavailable'
+      : `${this.candidate.public_resume_downloads} downloads`;
   }
 
   get canCallCandidate(): boolean {
@@ -253,20 +322,147 @@ export class CandidateProfile implements OnInit {
     return this.resumeData.summary || this.getSectionText('summary') || this.getSectionText('objective');
   }
 
+  get overviewSummaryText(): string {
+    return this.summarySection || 'Structured resume summary is not available yet.';
+  }
+
+  get mappedRoleLabel(): string {
+    return this.formatRoleWithId(this.candidate.role, this.candidate.role_id) || 'Role not mapped';
+  }
+
+  get roleAssignmentSummary(): string {
+    const pieces = [
+      this.mappedRoleLabel,
+      this.roleFitSummary,
+      this.candidate.status ? `current stage: ${this.formattedStatus}` : '',
+      this.candidate.recruiter ? `recruiter: ${this.candidate.recruiter}` : '',
+      `evaluator: ${this.evaluatorDisplay}`,
+    ].filter(Boolean);
+    return pieces.join(' | ');
+  }
+
+  get resumeProcessingSummary(): string {
+    const pieces = [
+      `Status: ${this.resumeStatusLabel}`,
+      `Type: ${this.resumeTypeDisplay}`,
+      this.resumeData.processed_at ? `Processed: ${this.resumeData.processed_at}` : '',
+      `Downloads: ${this.resumeDownloadsDisplay}`,
+    ].filter(Boolean);
+    return pieces.join(' | ');
+  }
+
+  get interviewSummaryText(): string {
+    const pieces = [
+      `Score: ${this.hasInterviewScore ? `${this.interviewScoreDisplay}/10` : 'Not available'}`,
+      this.candidate.date ? `Interviewed: ${this.candidate.date}` : '',
+      `Evaluator: ${this.evaluatorDisplay}`,
+      this.candidate.recruiter ? `Recruiter: ${this.candidate.recruiter}` : '',
+    ].filter(Boolean);
+    return pieces.join(' | ');
+  }
+
   get initialProfileLoading(): boolean {
     return this.resumeLoading && !this.resumeData.available && !this.resumeData.error_message && !this.displaySectionViews.length;
   }
 
+  get interviewScoreValue(): number | null {
+    if (!this.profileDataLoaded) return null;
+    return this.numberOrNull(this.candidate.score);
+  }
+
+  get hasInterviewScore(): boolean {
+    return this.interviewScoreValue !== null;
+  }
+
+  get interviewScoreDisplay(): string {
+    return this.formatNumberOrUnavailable(this.interviewScoreValue, 1);
+  }
+
+  get interviewScoreProgress(): number {
+    const score = this.interviewScoreValue;
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score * 10));
+  }
+
+  get hasResumeScore(): boolean {
+    return this.numberOrNull(this.insights.resume_score) !== null;
+  }
+
+  get resumeScoreProgress(): number {
+    const score = this.numberOrNull(this.insights.resume_score);
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score));
+  }
+
+  get hasRoleFitScore(): boolean {
+    return this.numberOrNull(this.insights.role_fit_score) !== null;
+  }
+
+  get roleFitScore(): string {
+    return this.formatNumberOrUnavailable(this.numberOrNull(this.insights.role_fit_score), 0);
+  }
+
+  get roleFitProgress(): number {
+    const score = this.numberOrNull(this.insights.role_fit_score);
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score));
+  }
+
+  get hasMarketDemandScore(): boolean {
+    return this.numberOrNull(this.insights.market_demand_score) !== null;
+  }
+
+  get marketDemandScore(): string {
+    return this.formatNumberOrUnavailable(this.numberOrNull(this.insights.market_demand_score), 0);
+  }
+
+  get marketDemandProgress(): number {
+    const score = this.numberOrNull(this.insights.market_demand_score);
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score));
+  }
+
+  get hasSkillsImpactScore(): boolean {
+    return this.numberOrNull(this.insights.current_skills_impact_score) !== null;
+  }
+
+  get skillsImpactProgress(): number {
+    const score = this.numberOrNull(this.insights.current_skills_impact_score);
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score));
+  }
+
+  get verificationCompletedCount(): number {
+    return this.verificationItems.filter((item) => item.verified).length;
+  }
+
+  get verificationProgress(): number {
+    const total = this.verificationItems.length || 3;
+    return Math.round((this.verificationCompletedCount / total) * 100);
+  }
+
+  get verificationSummaryLabel(): string {
+    return `${this.verificationCompletedCount}/${this.verificationItems.length || 3} verified`;
+  }
+
   get readinessInsightScore(): string {
-    return this.insights.resume_score != null ? `${this.insights.resume_score}` : '--';
+    return this.formatNumberOrUnavailable(this.numberOrNull(this.insights.resume_score), 0);
   }
 
   get skillsImpactScore(): string {
-    return this.insights.current_skills_impact_score != null ? `${this.insights.current_skills_impact_score}` : '--';
+    return this.formatNumberOrUnavailable(this.numberOrNull(this.insights.current_skills_impact_score), 0);
   }
 
   get readinessInsightSummary(): string {
     return this.insights.executive_summary || 'AI readiness insight will appear here once the candidate snapshot is generated.';
+  }
+
+  get roleFitSummary(): string {
+    return this.insights.role_fit_summary || 'Role-fit insight will appear here once the candidate snapshot is generated.';
+  }
+
+  get marketDemandSummary(): string {
+    return this.insights.market_demand_summary || 'Market demand insight will appear here once the candidate snapshot is generated.';
   }
 
   get skillsImpactSummary(): string {
@@ -277,8 +473,40 @@ export class CandidateProfile implements OnInit {
     return this.skillTags;
   }
 
+  get topStrengthsList(): string[] {
+    return this.safeInsightList(this.insights.top_strengths);
+  }
+
+  get growthAreasList(): string[] {
+    return this.safeInsightList(this.insights.growth_areas);
+  }
+
+  get recommendedSkillsList(): string[] {
+    return this.safeInsightList(this.insights.recommended_skills);
+  }
+
+  get recommendedRolesList(): string[] {
+    return this.safeInsightList(this.insights.recommended_roles);
+  }
+
+  get roleFitEvidenceList(): string[] {
+    return this.safeInsightList(this.insights.role_fit_evidence);
+  }
+
+  get roleFitMatchedList(): string[] {
+    return this.safeInsightList(this.insights.role_fit_matched_requirements);
+  }
+
+  get roleFitMissingList(): string[] {
+    return this.safeInsightList(this.insights.role_fit_missing_requirements);
+  }
+
   get displaySections(): ResumeSection[] {
     return (this.resumeData.sections || []).filter((section) => !['summary', 'objective', 'skills', 'contact'].includes(section.section_key));
+  }
+
+  setActiveTab(tab: CandidateProfileTab): void {
+    this.activeTab = tab;
   }
 
   formatRoleWithId(role: string, roleId?: number | null): string {
@@ -452,6 +680,8 @@ export class CandidateProfile implements OnInit {
 
   trackObjectItem = (index: number, _item: { item: Record<string, unknown>; primary: string; secondary: string[] }): number => index;
 
+  trackProfileTab = (_index: number, item: { key: CandidateProfileTab }): CandidateProfileTab => item.key;
+
   private getObjectPrimary(item: Record<string, unknown>): string {
     const preferred = ['title', 'degree', 'label', 'value'];
     for (const key of preferred) {
@@ -502,8 +732,25 @@ export class CandidateProfile implements OnInit {
     return primary;
   }
 
+  private safeInsightList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value.map((item) => `${item ?? ''}`.trim()).filter(Boolean);
+  }
+
+  private numberOrNull(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private formatNumberOrUnavailable(value: number | null, fractionDigits = 0): string {
+    if (value === null) return 'Not available';
+    return Number.isInteger(value) || fractionDigits <= 0 ? `${Math.round(value)}` : value.toFixed(fractionDigits);
+  }
+
   private loadCandidateProfile(): void {
     this.resumeLoading = true;
+    this.profileDataLoaded = false;
     const apiBaseUrl = this.getApiBaseUrl();
     this.http.get<CandidateProfileResponse>(`${apiBaseUrl}/candidate-profile-data/${this.candidate.id}/`)
       .pipe(
@@ -524,6 +771,7 @@ export class CandidateProfile implements OnInit {
           this.candidate = { ...this.candidate, ...response.Data.candidate };
           this.statusActions = this.getStatusActions(this.candidate.status);
         }
+        this.profileDataLoaded = true;
         if (response.Data?.verification) {
           this.verification = { ...this.verification, ...response.Data.verification };
           this.verificationViewItems = this.buildVerificationItems();

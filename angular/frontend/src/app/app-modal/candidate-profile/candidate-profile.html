@@ -1,5 +1,7 @@
 <div class="profile-dialog-shell">
-  <button class="close-btn" (click)="close()">×</button>
+  <button class="close-btn" (click)="close()" aria-label="Close candidate profile">
+    <i class="ph ph-x"></i>
+  </button>
 
   <div class="profile-skeleton" *ngIf="initialProfileLoading; else profileContent" aria-hidden="true">
     <section class="profile-skeleton-hero skeleton-card">
@@ -98,221 +100,439 @@
   </div>
 
   <ng-template #profileContent>
-  <div class="hero">
-    <div class="hero-main">
-      <div class="avatar" [class.avatar--image]="candidate.profile_picture">
-        <img *ngIf="candidate.profile_picture" [src]="candidate.profile_picture" [alt]="candidate.name">
-        <span *ngIf="!candidate.profile_picture">{{ initials }}</span>
-      </div>
-      <div class="hero-text">
-        <div class="hero-title-row">
-          <h2>{{ candidate.name }}</h2>
+    <div class="profile-loaded-grid">
+      <main class="profile-main-column">
+        <section class="candidate-hero-card">
+          <div class="hero-main">
+            <div class="avatar" [class.avatar--image]="candidate.profile_picture">
+              <img *ngIf="candidate.profile_picture" [src]="candidate.profile_picture" [alt]="candidate.name">
+              <span *ngIf="!candidate.profile_picture">{{ initials }}</span>
+            </div>
+            <div class="hero-text">
+              <div class="hero-title-row">
+                <h2>{{ candidate.name }}</h2>
+                <span class="identity-chip" [class.identity-chip--verified]="verification.identity_verified">
+                  <i [class]="verification.identity_verified ? 'ph ph-shield-check' : 'ph ph-shield-warning'"></i>
+                  {{ verification.identity_verified ? 'Identity verified' : 'Identity pending' }}
+                </span>
+              </div>
+              <p class="role-line">{{ formatRoleWithId(candidate.role, candidate.role_id) || 'Role not mapped' }}</p>
+              <div class="candidate-contact-row">
+                <span><i class="ph ph-envelope-simple"></i>{{ candidate.email || 'Email unavailable' }}</span>
+                <span><i class="ph ph-phone"></i>{{ contactPhoneDisplay }}</span>
+                <span><i class="ph ph-map-pin"></i>{{ contactLocationDisplay }}</span>
+              </div>
+              <p class="headline" *ngIf="headline">{{ headline }}</p>
+              <div class="pill-row">
+                <span class="status-badge"><i class="ph ph-check-circle"></i>{{ formattedStatus }}</span>
+                <span [class]="resumeStatusClass"><i class="ph ph-file-text"></i>{{ resumeStatusLabel }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="profile-metric-grid">
+          <article class="metric-card metric-card--accent">
+            <span><i class="ph ph-star"></i> Interview Score</span>
+            <strong>{{ interviewScoreDisplay }}<small *ngIf="hasInterviewScore">/10</small></strong>
+            <div class="metric-track"><b [style.width.%]="interviewScoreProgress"></b></div>
+          </article>
+          <article class="metric-card">
+            <span><i class="ph ph-gauge"></i> Resume Score</span>
+            <strong>{{ readinessInsightScore }}<small *ngIf="hasResumeScore">/100</small></strong>
+            <div class="metric-track"><b [style.width.%]="resumeScoreProgress"></b></div>
+          </article>
+          <article class="metric-card">
+            <span><i class="ph ph-target"></i> Role Fit</span>
+            <strong>{{ roleFitScore }}<small *ngIf="hasRoleFitScore">/100</small></strong>
+            <div class="metric-track"><b [style.width.%]="roleFitProgress"></b></div>
+          </article>
+          <article class="metric-card">
+            <span><i class="ph ph-trend-up"></i> Market Demand</span>
+            <strong>{{ marketDemandScore }}<small *ngIf="hasMarketDemandScore">/100</small></strong>
+            <small>{{ insights.market_demand_label || 'Demand signal pending' }}</small>
+            <div class="metric-track"><b [style.width.%]="marketDemandProgress"></b></div>
+          </article>
+          <article class="metric-card">
+            <span><i class="ph ph-chart-line-up"></i> Skills Impact</span>
+            <strong>{{ skillsImpactScore }}<small *ngIf="hasSkillsImpactScore">/100</small></strong>
+            <div class="metric-track"><b [style.width.%]="skillsImpactProgress"></b></div>
+          </article>
+          <article class="metric-card">
+            <span><i class="ph ph-download-simple"></i> Resume Downloads</span>
+            <strong>{{ resumeDownloadsDisplay }}</strong>
+            <small>Downloads</small>
+          </article>
+        </section>
+
+        <section class="verification-strip">
+          <div class="verification-strip__head">
+            <h4><i class="ph ph-shield-check"></i> Profile Verification</h4>
+            <span>Candidate identity and contact checks</span>
+          </div>
+          <div class="verification-list">
+            <article class="verification-card" *ngFor="let item of verificationItems">
+              <div>
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.verified ? 'Verified' : 'Pending' }}</span>
+              </div>
+              <span class="verification-state" [class.verification-state--done]="item.verified" [class.verification-state--todo]="!item.verified">
+                <i [class]="item.verified ? 'ph ph-check-circle' : 'ph ph-clock'"></i>
+                {{ item.verified ? 'Done' : 'Pending' }}
+              </span>
+            </article>
+          </div>
+        </section>
+
+        <nav class="profile-tab-row" role="tablist" aria-label="Candidate profile sections">
           <button
             type="button"
-            class="hero-call-btn"
+            class="profile-tab-btn"
+            *ngFor="let tab of profileTabs; trackBy: trackProfileTab"
+            [class.is-active]="activeTab === tab.key"
+            [attr.aria-selected]="activeTab === tab.key"
+            (click)="setActiveTab(tab.key)">
+            <i [class]="tab.icon"></i>
+            {{ tab.label }}
+          </button>
+        </nav>
+
+        <section class="profile-tab-panel" [ngSwitch]="activeTab">
+          <ng-container *ngSwitchCase="'overview'">
+            <div class="overview-card-grid">
+              <article class="overview-card">
+                <h4><i class="ph ph-user"></i> Professional Summary</h4>
+                <p>{{ overviewSummaryText }}</p>
+              </article>
+
+              <article class="overview-card">
+                <h4><i class="ph ph-sparkle"></i> AI Executive Summary</h4>
+                <p>{{ readinessInsightSummary }}</p>
+              </article>
+
+              <article class="overview-card">
+                <h4><i class="ph ph-target"></i> Role Fit Summary</h4>
+                <p>{{ roleFitSummary }}</p>
+              </article>
+
+              <article class="overview-card overview-card--positive">
+                <h4><i class="ph ph-shield-check"></i> Top Strengths</h4>
+                <ul *ngIf="topStrengthsList.length; else noStrengths">
+                  <li *ngFor="let item of topStrengthsList; trackBy: trackString"><i class="ph ph-check"></i>{{ item }}</li>
+                </ul>
+                <ng-template #noStrengths>
+                  <p>Top strengths will appear once the AI insight snapshot is generated.</p>
+                </ng-template>
+              </article>
+
+              <article class="overview-card overview-card--warning">
+                <h4><i class="ph ph-warning"></i> Growth Areas</h4>
+                <ul *ngIf="growthAreasList.length; else noGrowthAreas">
+                  <li *ngFor="let item of growthAreasList; trackBy: trackString"><i class="ph ph-dot-outline"></i>{{ item }}</li>
+                </ul>
+                <ng-template #noGrowthAreas>
+                  <p>Growth areas will appear once the AI insight snapshot is generated.</p>
+                </ng-template>
+              </article>
+
+              <article class="overview-card">
+                <h4><i class="ph ph-graduation-cap"></i> Recommended Skills</h4>
+                <ul *ngIf="recommendedSkillsList.length; else noRecommendedSkills">
+                  <li *ngFor="let item of recommendedSkillsList; trackBy: trackString"><i class="ph ph-check"></i>{{ item }}</li>
+                </ul>
+                <ng-template #noRecommendedSkills>
+                  <p>Recommended skills are not available in the current insight snapshot.</p>
+                </ng-template>
+              </article>
+            </div>
+
+            <div class="overview-bottom-row">
+              <article class="overview-wide-card">
+                <h4><i class="ph ph-code"></i> Skills</h4>
+                <div class="box-list" *ngIf="skillList.length; else noSkills">
+                  <div class="box-item" *ngFor="let skill of skillList; trackBy: trackString">{{ skill }}</div>
+                </div>
+                <ng-template #noSkills>
+                  <p>Skills are not available in the structured resume profile yet.</p>
+                </ng-template>
+              </article>
+
+              <article class="overview-wide-card">
+                <h4><i class="ph ph-briefcase"></i> Recommended Roles</h4>
+                <div class="box-list" *ngIf="recommendedRolesList.length; else noRecommendedRoles">
+                  <div class="box-item" *ngFor="let role of recommendedRolesList; trackBy: trackString">{{ role }}</div>
+                </div>
+                <ng-template #noRecommendedRoles>
+                  <p>Recommended roles are not available in the current insight snapshot.</p>
+                </ng-template>
+              </article>
+            </div>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'ai'">
+            <section class="insight-strip tab-section-card">
+              <div class="insight-strip__head">
+                <h4><i class="ph ph-sparkle"></i> AI Signals</h4>
+                <span>{{ insights.loading ? 'Updating in background' : 'Recruiter-facing insight view' }}</span>
+              </div>
+              <div class="insight-grid">
+                <article class="insight-card">
+                  <div class="insight-card__top">
+                    <strong><i class="ph ph-gauge"></i> Recruiter Readiness Signal</strong>
+                    <span class="insight-score">{{ readinessInsightScore }}</span>
+                  </div>
+                  <p>{{ readinessInsightSummary }}</p>
+                </article>
+                <article class="insight-card">
+                  <div class="insight-card__top">
+                    <strong><i class="ph ph-chart-line-up"></i> Current Skills Impact</strong>
+                    <span class="insight-score">{{ skillsImpactScore }}</span>
+                  </div>
+                  <p>{{ skillsImpactSummary }}</p>
+                </article>
+              </div>
+            </section>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'resume'">
+            <div class="resume-mock tab-resume-mock">
+              <div class="resume-state resume-state--loading" *ngIf="resumeLoading">
+                <span class="inline-loader-dot"></span>
+                <span>{{ resumeData.available ? 'Refreshing structured resume profile...' : 'Processing resume profile...' }}</span>
+              </div>
+
+              <div class="profile-resume-skeleton" *ngIf="resumeLoading" aria-hidden="true">
+                <article class="skeleton-card profile-skeleton-resume-block">
+                  <div class="skeleton-line skeleton-line-section-label"></div>
+                  <div class="profile-skeleton-stack">
+                    <div class="skeleton-line skeleton-line-body"></div>
+                    <div class="skeleton-line skeleton-line-body"></div>
+                    <div class="skeleton-line skeleton-line-body short"></div>
+                  </div>
+                </article>
+
+                <article class="skeleton-card profile-skeleton-resume-block">
+                  <div class="skeleton-line skeleton-line-section-label"></div>
+                  <div class="profile-skeleton-chip-row">
+                    <div class="skeleton-chip skeleton-chip-tag" *ngFor="let _ of [1, 2, 3, 4, 5]"></div>
+                  </div>
+                </article>
+
+                <article class="skeleton-card profile-skeleton-resume-block" *ngFor="let _ of [1, 2]">
+                  <div class="skeleton-line skeleton-line-section-label"></div>
+                  <div class="profile-skeleton-timeline">
+                    <div class="profile-skeleton-timeline-item" *ngFor="let __ of [1, 2]">
+                      <div class="skeleton-line skeleton-line-item-title"></div>
+                      <div class="skeleton-line skeleton-line-item-sub"></div>
+                      <div class="skeleton-line skeleton-line-item-sub short"></div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <div class="resume-state resume-state--error" *ngIf="!resumeLoading && resumeData.error_message">{{ resumeData.error_message }}</div>
+              <div class="resume-state" *ngIf="!resumeLoading && !resumeData.available && !resumeData.error_message">
+                Resume uploaded, but structured profile data is not ready yet.
+              </div>
+
+              <ng-container *ngIf="!resumeLoading && resumeData.available">
+                <section class="resume-section resume-section--summary" *ngIf="summarySection">
+                  <h4><i class="ph ph-user-list"></i> Professional Summary</h4>
+                  <p>{{ summarySection }}</p>
+                </section>
+
+                <section class="resume-section" *ngIf="skillList.length">
+                  <h4><i class="ph ph-code"></i> Skills</h4>
+                  <div class="box-list">
+                    <div class="box-item" *ngFor="let skill of skillList; trackBy: trackString">{{ skill }}</div>
+                  </div>
+                </section>
+
+                <section class="resume-section" *ngFor="let sectionView of displaySectionViews; trackBy: trackSection">
+                  <h4><i class="ph ph-folder-open"></i> {{ sectionView.section.title }}</h4>
+
+                  <div class="box-list" *ngIf="sectionView.section.section_key === 'technical_expertise' && sectionView.objectItems.length; else structuredSection">
+                    <div class="box-item" *ngFor="let item of sectionView.objectItems; trackBy: trackObjectItem">
+                      {{ item.inlineText }}
+                    </div>
+                  </div>
+
+                  <ng-template #structuredSection>
+                    <div class="timeline" *ngIf="sectionView.objectItems.length; else plainSection">
+                      <article class="job" *ngFor="let item of sectionView.objectItems; trackBy: trackObjectItem">
+                        <strong>{{ item.primary }}</strong>
+                        <div class="box-list box-list--dense" *ngIf="item.secondary.length">
+                          <div class="box-item box-item--detail" *ngFor="let detail of item.secondary; trackBy: trackString">{{ detail }}</div>
+                        </div>
+                      </article>
+                    </div>
+                  </ng-template>
+
+                  <ng-template #plainSection>
+                    <div class="box-list" *ngIf="sectionView.textItems.length; else paragraphSection">
+                      <div class="box-item" *ngFor="let item of sectionView.textItems; trackBy: trackString">{{ item }}</div>
+                    </div>
+                  </ng-template>
+
+                  <ng-template #paragraphSection>
+                    <p>{{ sectionView.paragraphText }}</p>
+                  </ng-template>
+                </section>
+              </ng-container>
+            </div>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'role'">
+            <section class="tab-section-card">
+              <div class="tab-section-head">
+                <h4><i class="ph ph-star"></i> Role Fit</h4>
+                <span>{{ insights.role_fit_confidence ? ('Confidence: ' + insights.role_fit_confidence) : 'Mapped interview and hiring workflow details' }}</span>
+              </div>
+              <div class="role-fit-grid">
+                <article class="role-fit-row"><span>Mapped Role</span><strong>{{ mappedRoleLabel }}</strong></article>
+                <article class="role-fit-row"><span>Status</span><strong>{{ formattedStatus }}</strong></article>
+                <article class="role-fit-row"><span>Role Fit Score</span><strong>{{ roleFitScore }}<small *ngIf="hasRoleFitScore">/100</small></strong></article>
+                <article class="role-fit-row"><span>Interview Score</span><strong>{{ interviewScoreDisplay }}<small *ngIf="hasInterviewScore">/10</small></strong></article>
+                <article class="role-fit-row"><span>Recruiter</span><strong>{{ candidate.recruiter || 'Not assigned' }}</strong></article>
+                <article class="role-fit-row"><span>Evaluator</span><strong>{{ evaluatorDisplay }}</strong></article>
+              </div>
+              <div class="role-fit-detail-grid">
+                <article class="overview-card">
+                  <h4><i class="ph ph-list-checks"></i> Matched Requirements</h4>
+                  <ul *ngIf="roleFitMatchedList.length; else noMatchedRequirements">
+                    <li *ngFor="let item of roleFitMatchedList; trackBy: trackString"><i class="ph ph-check"></i>{{ item }}</li>
+                  </ul>
+                  <ng-template #noMatchedRequirements>
+                    <p>Matched requirements are not available in the current insight snapshot.</p>
+                  </ng-template>
+                </article>
+                <article class="overview-card overview-card--warning">
+                  <h4><i class="ph ph-warning"></i> Missing Requirements</h4>
+                  <ul *ngIf="roleFitMissingList.length; else noMissingRequirements">
+                    <li *ngFor="let item of roleFitMissingList; trackBy: trackString"><i class="ph ph-dot-outline"></i>{{ item }}</li>
+                  </ul>
+                  <ng-template #noMissingRequirements>
+                    <p>Missing requirements are not available in the current insight snapshot.</p>
+                  </ng-template>
+                </article>
+              </div>
+            </section>
+          </ng-container>
+
+          <ng-container *ngSwitchCase="'verification'">
+            <section class="tab-section-card">
+              <div class="tab-section-head">
+                <h4><i class="ph ph-shield-check"></i> Verification</h4>
+                <span>{{ verificationSummaryLabel }}</span>
+              </div>
+              <div class="verification-list verification-list--tab">
+                <article class="verification-card" *ngFor="let item of verificationItems">
+                  <div>
+                    <strong>{{ item.label }}</strong>
+                    <span>{{ item.date ? (item.date | date: 'MMM d, y, h:mm a') : (item.verified ? 'Verified' : 'Pending verification') }}</span>
+                  </div>
+                  <span class="verification-state" [class.verification-state--done]="item.verified" [class.verification-state--todo]="!item.verified">
+                    <i [class]="item.verified ? 'ph ph-check-circle' : 'ph ph-clock'"></i>
+                    {{ item.verified ? 'Done' : 'Pending' }}
+                  </span>
+                </article>
+              </div>
+            </section>
+          </ng-container>
+        </section>
+      </main>
+
+      <aside class="profile-side-rail">
+        <section class="side-panel side-score-panel">
+          <span class="side-panel-label"><i class="ph ph-star"></i> Interview Score</span>
+          <strong>{{ interviewScoreDisplay }}<small *ngIf="hasInterviewScore">/10</small></strong>
+          <span class="status-badge">{{ formattedStatus }}</span>
+          <small *ngIf="candidate.date">Interview date: {{ candidate.date | date: 'MMM d, y, h:mm a' }}</small>
+        </section>
+
+        <section class="side-panel side-actions-panel">
+          <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+          <button
+            type="button"
+            class="rail-action rail-action--primary"
             [disabled]="callingCandidate || !canCallCandidate"
             (click)="callCandidate()">
             <span class="hero-call-btn__spinner" *ngIf="callingCandidate"></span>
             <i class="ph ph-phone-call" *ngIf="!callingCandidate"></i>
             <span>{{ callingCandidate ? 'Calling...' : 'Call Candidate' }}</span>
           </button>
-        </div>
-        <p>{{ candidate.email }}</p>
-        <p class="subline">{{ resumeSubline }}</p>
-        <p class="headline" *ngIf="headline">{{ headline }}</p>
-        <div class="pill-row">
-          <span class="status-badge">{{ formattedStatus }}</span>
-          <span [class]="resumeStatusClass">{{ resumeStatusLabel }}</span>
-        </div>
-      </div>
-    </div>
+          <button type="button" class="rail-action" (click)="openOriginalResume()" [disabled]="!resumeData.file_url">
+            <i class="ph ph-eye"></i>
+            View Original Resume
+          </button>
+          <button type="button" class="rail-action" (click)="openRole()">
+            <i class="ph ph-briefcase"></i>
+            View Role
+          </button>
+          <button type="button" class="rail-action" (click)="reprocessResume()" [disabled]="reprocessingResume || resumeLoading">
+            <i class="ph ph-arrows-clockwise"></i>
+            {{ reprocessingResume ? 'Reprocessing...' : 'Reprocess Resume' }}
+          </button>
+          <ng-container *ngIf="statusActions.length">
+            <button type="button" class="rail-action" *ngFor="let item of statusActions" (click)="changeStatus(item.key)" [disabled]="loading">
+              <i class="ph ph-git-branch"></i>
+              {{ item.label }}
+            </button>
+          </ng-container>
+          <div class="no-actions" *ngIf="!statusActions.length && !resumeData.file_url">No status transitions available for current stage.</div>
+        </section>
 
-    <div class="actions-block">
-      <div class="actions-head">
-        <h3>Quick Actions</h3>
-        <span *ngIf="loading">Updating...</span>
-      </div>
+        <section class="side-panel">
+          <h3><i class="ph ph-user-circle"></i> Candidate Profile</h3>
+          <div class="side-detail-row"><span>Role</span><strong>{{ formatRoleWithId(candidate.role, candidate.role_id) || 'Role not mapped' }}</strong></div>
+          <div class="side-detail-row"><span>Recruiter</span><strong>{{ candidate.recruiter || 'Not assigned' }}</strong></div>
+          <div class="side-detail-row"><span>Evaluator</span><strong>{{ evaluatorDisplay }}</strong></div>
+          <div class="side-detail-row"><span>Resume Type</span><strong>{{ resumeTypeDisplay }}</strong></div>
+          <div class="side-detail-row"><span>Downloads</span><strong>{{ resumeDownloadsDisplay }}</strong></div>
+          <div class="side-detail-row" *ngIf="insights.salary_range"><span>Salary Range</span><strong>{{ insights.salary_range }}</strong></div>
+        </section>
 
-      <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
-
-      <div class="action-grid">
-        <button type="button" (click)="openOriginalResume()" [disabled]="!resumeData.file_url">
-          View Original Resume
-        </button>
-        <button type="button" *ngFor="let item of statusActions" (click)="changeStatus(item.key)" [disabled]="loading">
-          {{ item.label }}
-        </button>
-      </div>
-
-      <div class="no-actions" *ngIf="!statusActions.length && !resumeData.file_url">No status transitions available for current stage.</div>
-    </div>
-  </div>
-
-  <div class="stats-row">
-    <article>
-      <span>Role</span>
-      <strong>{{ formatRoleWithId(candidate.role, candidate.role_id) }}</strong>
-    </article>
-    <article>
-      <span>Recruiter</span>
-      <strong>{{ candidate.recruiter }}</strong>
-    </article>
-    <article>
-      <span>Evaluator</span>
-      <strong>{{ candidate.interviewer || 'Bot Managed' }}</strong>
-    </article>
-    <article>
-      <span>Interview Date</span>
-      <strong>{{ candidate.date | date: 'MMM d, y, h:mm a' }}</strong>
-    </article>
-    <article>
-      <span>Score</span>
-      <strong>{{ candidate.score ?? 'N/A' }}</strong>
-    </article>
-    <article>
-      <span>Resume Type</span>
-      <strong>{{ resumeData.candidate_type || 'Unknown' }}</strong>
-    </article>
-    <article>
-      <span>Resume Engagement</span>
-      <strong>{{ candidate.public_resume_downloads ?? 0 }} downloads</strong>
-    </article>
-  </div>
-
-  <section class="verification-strip">
-    <div class="verification-strip__head">
-      <h4>Profile Verification</h4>
-      <span>Candidate identity and contact checks</span>
-    </div>
-    <div class="verification-list">
-      <article class="verification-card" *ngFor="let item of verificationItems">
-        <div>
-          <strong>{{ item.label }}</strong>
-          <span>{{ item.verified ? 'Verified' : 'Pending' }}</span>
-        </div>
-        <span class="verification-state" [class.verification-state--done]="item.verified" [class.verification-state--todo]="!item.verified">
-          {{ item.verified ? 'Done' : 'Pending' }}
-        </span>
-      </article>
-    </div>
-  </section>
-
-  <section class="insight-strip">
-    <div class="insight-strip__head">
-      <h4>AI Signals</h4>
-      <span>{{ insights.loading ? 'Updating in background' : 'Recruiter-facing insight view' }}</span>
-    </div>
-    <div class="insight-grid">
-      <article class="insight-card">
-        <div class="insight-card__top">
-          <strong>Recruiter Readiness Signal</strong>
-          <span class="insight-score">{{ readinessInsightScore }}</span>
-        </div>
-        <p>{{ readinessInsightSummary }}</p>
-      </article>
-      <article class="insight-card">
-        <div class="insight-card__top">
-          <strong>Current Skills Impact</strong>
-          <span class="insight-score">{{ skillsImpactScore }}</span>
-        </div>
-        <p>{{ skillsImpactSummary }}</p>
-      </article>
-    </div>
-  </section>
-
-  <div class="resume-mock">
-    <div class="resume-state resume-state--loading" *ngIf="resumeLoading">
-      <span class="inline-loader-dot"></span>
-      <span>{{ resumeData.available ? 'Refreshing structured resume profile...' : 'Processing resume profile...' }}</span>
-    </div>
-
-    <div class="profile-resume-skeleton" *ngIf="resumeLoading" aria-hidden="true">
-      <article class="skeleton-card profile-skeleton-resume-block">
-        <div class="skeleton-line skeleton-line-section-label"></div>
-        <div class="profile-skeleton-stack">
-          <div class="skeleton-line skeleton-line-body"></div>
-          <div class="skeleton-line skeleton-line-body"></div>
-          <div class="skeleton-line skeleton-line-body short"></div>
-        </div>
-      </article>
-
-      <article class="skeleton-card profile-skeleton-resume-block">
-        <div class="skeleton-line skeleton-line-section-label"></div>
-        <div class="profile-skeleton-chip-row">
-          <div class="skeleton-chip skeleton-chip-tag" *ngFor="let _ of [1, 2, 3, 4, 5]"></div>
-        </div>
-      </article>
-
-      <article class="skeleton-card profile-skeleton-resume-block" *ngFor="let _ of [1, 2]">
-        <div class="skeleton-line skeleton-line-section-label"></div>
-        <div class="profile-skeleton-timeline">
-          <div class="profile-skeleton-timeline-item" *ngFor="let __ of [1, 2]">
-            <div class="skeleton-line skeleton-line-item-title"></div>
-            <div class="skeleton-line skeleton-line-item-sub"></div>
-            <div class="skeleton-line skeleton-line-item-sub short"></div>
+        <section class="side-panel">
+          <h3><i class="ph ph-shield-check"></i> Verification Summary</h3>
+          <div class="rail-verification-row" *ngFor="let item of verificationItems">
+            <span><i [class]="item.verified ? 'ph ph-check-circle' : 'ph ph-clock'"></i>{{ item.label }}</span>
+            <strong [class.is-pending]="!item.verified">{{ item.verified ? 'Verified' : 'Pending' }}</strong>
           </div>
-        </div>
-      </article>
+        </section>
+
+        <section class="side-panel">
+          <h3><i class="ph ph-trend-up"></i> Market Readiness</h3>
+          <p class="side-muted">{{ marketDemandSummary }}</p>
+          <div class="metric-track"><b [style.width.%]="marketDemandProgress"></b></div>
+          <div class="side-detail-row"><span>{{ insights.market_demand_label || 'Market Demand' }}</span><strong>{{ marketDemandScore }}<small *ngIf="hasMarketDemandScore">/100</small></strong></div>
+        </section>
+
+        <section class="side-panel" *ngIf="resumeData.file_url || candidate.public_resume_downloads != null">
+          <h3><i class="ph ph-file-text"></i> Resume</h3>
+          <p class="side-muted">{{ resumeStatusLabel }}</p>
+          <button type="button" class="rail-action" (click)="openOriginalResume()" [disabled]="!resumeData.file_url">
+            <i class="ph ph-eye"></i>
+            View Original Resume
+          </button>
+          <small>{{ resumeDownloadsCaption }}</small>
+        </section>
+      </aside>
     </div>
 
-    <div class="resume-state resume-state--error" *ngIf="!resumeLoading && resumeData.error_message">{{ resumeData.error_message }}</div>
-    <div class="resume-state" *ngIf="!resumeLoading && !resumeData.available && !resumeData.error_message">
-      Resume uploaded, but structured profile data is not ready yet.
+    <div class="footer-actions profile-footer-actions">
+      <button class="ghost footer-cancel" type="button" (click)="close()">Cancel</button>
+      <button class="ghost" type="button" (click)="openRole()">
+        <i class="ph ph-briefcase"></i>
+        View Role
+      </button>
+      <button class="ghost" type="button" (click)="reprocessResume()" [disabled]="reprocessingResume || resumeLoading">
+        <i class="ph ph-arrows-clockwise"></i>
+        {{ reprocessingResume ? 'Reprocessing...' : 'Reprocess Resume' }}
+      </button>
+      <button class="primary" type="button" (click)="saveAndClose()">
+        <i class="ph ph-check-square"></i>
+        Done
+      </button>
     </div>
-
-    <ng-container *ngIf="!resumeLoading && resumeData.available">
-      <section class="resume-section" *ngIf="summarySection">
-        <h4>Professional Summary</h4>
-        <p>{{ summarySection }}</p>
-      </section>
-
-      <section class="resume-section" *ngIf="skillList.length">
-        <h4>Skills</h4>
-        <div class="box-list">
-          <div class="box-item" *ngFor="let skill of skillList">{{ skill }}</div>
-        </div>
-      </section>
-
-      <section class="resume-section" *ngFor="let sectionView of displaySectionViews; trackBy: trackSection">
-        <h4>{{ sectionView.section.title }}</h4>
-
-        <div class="box-list" *ngIf="sectionView.section.section_key === 'technical_expertise' && sectionView.objectItems.length; else structuredSection">
-          <div class="box-item" *ngFor="let item of sectionView.objectItems; trackBy: trackObjectItem">
-            {{ item.inlineText }}
-          </div>
-        </div>
-
-        <ng-template #structuredSection>
-        <div class="timeline" *ngIf="sectionView.objectItems.length; else plainSection">
-          <article class="job" *ngFor="let item of sectionView.objectItems; trackBy: trackObjectItem">
-            <strong>{{ item.primary }}</strong>
-            <div class="box-list box-list--dense" *ngIf="item.secondary.length">
-              <div class="box-item box-item--detail" *ngFor="let detail of item.secondary; trackBy: trackString">{{ detail }}</div>
-            </div>
-          </article>
-        </div>
-        </ng-template>
-
-        <ng-template #plainSection>
-          <div class="box-list" *ngIf="sectionView.textItems.length; else paragraphSection">
-            <div class="box-item" *ngFor="let item of sectionView.textItems; trackBy: trackString">{{ item }}</div>
-          </div>
-        </ng-template>
-
-        <ng-template #paragraphSection>
-          <p>{{ sectionView.paragraphText }}</p>
-        </ng-template>
-      </section>
-    </ng-container>
-  </div>
-
-  <div class="footer-actions">
-    <button class="ghost" type="button" (click)="reprocessResume()" [disabled]="reprocessingResume || resumeLoading">
-      {{ reprocessingResume ? 'Reprocessing...' : 'Reprocess Resume' }}
-    </button>
-    <button class="ghost" type="button" (click)="openRole()">View Role</button>
-    <button class="ghost" type="button" (click)="close()">Cancel</button>
-    <button class="primary" type="button" (click)="saveAndClose()">Done</button>
-  </div>
   </ng-template>
 </div>
