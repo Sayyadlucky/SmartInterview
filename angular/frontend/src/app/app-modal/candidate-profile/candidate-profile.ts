@@ -88,33 +88,6 @@ interface CandidateProfileResponse {
   };
 }
 
-interface CandidateCallResponse {
-  Success: boolean;
-  Error?: string | null;
-  Data?: {
-    call_sid?: string;
-    caller_phone_masked?: string;
-    candidate_phone_masked?: string;
-    session?: {
-      id: number;
-      interview_id: number;
-      call_sid?: string;
-      status: string;
-      caller_phone_masked?: string;
-      candidate_phone_masked?: string;
-      billing_started_at?: string;
-      candidate_connected_at?: string;
-      ended_at?: string;
-      billable_seconds?: number;
-      connected_seconds?: number;
-      disconnect_requested_at?: string;
-      error_message?: string;
-      can_close?: boolean;
-      can_disconnect?: boolean;
-    };
-  };
-}
-
 interface VerificationData {
   phone_verified: boolean;
   email_verified: boolean;
@@ -539,45 +512,18 @@ export class CandidateProfile implements OnInit {
       return;
     }
 
-    this.callingCandidate = true;
-    const apiBaseUrl = this.getApiBaseUrl();
-    this.http.post<CandidateCallResponse>(
-      `${apiBaseUrl}/candidate-profile-data/${this.candidate.id}/call/`,
-      {}
-    )
-      .pipe(
-        catchError((error) => {
-          console.error('Error starting candidate call', error);
-          this.callingCandidate = false;
-          this.toast.showError('Call failed', 'Unable to connect the Exotel call right now.');
-          return of({ Success: false, Error: 'Request failed' } as CandidateCallResponse);
-        })
-      )
-      .subscribe((response) => {
-        this.callingCandidate = false;
-        if (!response?.Success) {
-          this.toast.showError('Call failed', response?.Error || 'Unable to connect the Exotel call right now.');
-          return;
-        }
-        const callerPhone = response.Data?.caller_phone_masked || 'your registered number';
-        const candidatePhone = response.Data?.candidate_phone_masked || this.candidate.candidate_phone_masked || 'the candidate number';
-        const session = response.Data?.session;
-        if (!session) {
-          this.toast.showSuccess('Calling candidate', `Connecting ${callerPhone} with ${candidatePhone} via Exotel.`);
-          return;
-        }
-        this.dialog.open(CandidateCallTracker, {
-          disableClose: true,
-          width: 'min(460px, 92vw)',
-          maxWidth: '92vw',
-          panelClass: 'candidate-call-tracker-dialog',
-          autoFocus: false,
-          data: {
-            interviewId: this.candidate.id,
-            session,
-          },
-        });
-      });
+    this.dialog.open(CandidateCallTracker, {
+      disableClose: true,
+      width: 'min(1280px, 94vw)',
+      maxWidth: '94vw',
+      panelClass: 'candidate-call-tracker-dialog',
+      autoFocus: false,
+      data: {
+        interviewId: this.candidate.id,
+        candidate: this.candidate,
+        verification: this.verification,
+      },
+    });
   }
 
   reprocessResume(): void {

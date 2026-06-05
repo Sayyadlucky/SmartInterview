@@ -206,9 +206,9 @@ class QuestionGenerationJobAdmin(admin.ModelAdmin):
 
 @admin.register(InterviewCallSession)
 class InterviewCallSessionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'interview', 'initiated_by', 'exotel_call_sid', 'status', 'billable_seconds', 'connected_seconds', 'created_at', 'ended_at')
-    list_filter = ('status', 'created_at')
-    search_fields = ('exotel_call_sid', 'interview__id', 'interview__candidate__username', 'interview__candidate__email', 'initiated_by__username')
+    list_display = ('id', 'interview', 'initiated_by', 'exotel_call_sid', 'status', 'outcome', 'billable_seconds', 'connected_seconds', 'created_at', 'ended_at')
+    list_filter = ('status', 'outcome', 'created_at')
+    search_fields = ('exotel_call_sid', 'note', 'interview__id', 'interview__candidate__username', 'interview__candidate__email', 'initiated_by__username')
     readonly_fields = ('created_at', 'updated_at', 'billing_started_at', 'candidate_connected_at', 'ended_at')
 
 

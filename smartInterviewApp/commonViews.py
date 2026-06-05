@@ -5548,6 +5548,85 @@ def getCandidateCallSession(request, interview_id: int, session_id: int):
         return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
 
 
+@login_required
+def listCandidateCallSessions(request, interview_id: int):
+    if request.method != 'GET':
+        return JsonResponse({'Success': False, 'Error': 'Only GET is allowed.', 'Data': None}, status=405)
+
+    try:
+        profile = getattr(request.user, 'profile', None)
+        if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+            return JsonResponse({'Success': False, 'Error': 'Calling is restricted to workspace users.', 'Data': None}, status=403)
+
+        interview = (
+            get_accessible_interviews(request.user)
+            .select_related('candidate', 'candidate__profile', 'role')
+            .filter(id=interview_id)
+            .first()
+        )
+        if not interview:
+            return JsonResponse({'Success': False, 'Error': 'Candidate interview not found.', 'Data': None}, status=404)
+
+        sessions = interview_call_service.list_sessions(user=request.user, interview_id=interview_id)
+        serialized_sessions = [interview_call_service.serialize_session(session) for session in sessions]
+        candidate_profile = getattr(interview.candidate, 'profile', None)
+        return JsonResponse({
+            'Success': True,
+            'Error': None,
+            'Data': {
+                'candidate': {
+                    'id': interview.id,
+                    'name': get_display_name(interview.candidate),
+                    'email': interview.candidate.email,
+                    'phone': getattr(candidate_profile, 'phone', ''),
+                    'candidate_phone_masked': mask_phone_display(getattr(candidate_profile, 'phone', '')),
+                    'role': interview.role.role if interview.role else '',
+                    'role_id': interview.role_id,
+                    'status': interview.status,
+                },
+                'sessions': serialized_sessions,
+            },
+        })
+    except Exception as exc:
+        logger.exception('Unable to list Exotel call sessions')
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
+
+
+@csrf_exempt
+@login_required
+def saveCandidateCallSessionNote(request, interview_id: int, session_id: int):
+    if request.method != 'POST':
+        return JsonResponse({'Success': False, 'Error': 'Only POST is allowed.', 'Data': None}, status=405)
+
+    try:
+        profile = getattr(request.user, 'profile', None)
+        if not profile or profile.role not in {'admin', 'recruiter', 'interviewer'}:
+            return JsonResponse({'Success': False, 'Error': 'Calling is restricted to workspace users.', 'Data': None}, status=403)
+
+        payload = {}
+        if request.body:
+            try:
+                payload = json.loads(request.body.decode('utf-8'))
+            except json.JSONDecodeError:
+                payload = {}
+        note = payload.get('note', request.POST.get('note', ''))
+        outcome = payload.get('outcome', request.POST.get('outcome', ''))
+        session = interview_call_service.save_session_note(
+            user=request.user,
+            interview_id=interview_id,
+            session_id=session_id,
+            note=note,
+            outcome=outcome,
+        )
+        if not session:
+            return JsonResponse({'Success': False, 'Error': 'Call session not found.', 'Data': None}, status=404)
+
+        return JsonResponse({'Success': True, 'Error': None, 'Data': interview_call_service.serialize_session(session)})
+    except Exception as exc:
+        logger.exception('Unable to save Exotel call session note')
+        return JsonResponse({'Success': False, 'Error': str(exc), 'Data': None}, status=500)
+
+
 @csrf_exempt
 @login_required
 def disconnectCandidateCallSession(request, interview_id: int, session_id: int):

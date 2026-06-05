@@ -30,6 +30,7 @@ RINGING_LEG_STATUSES = {'queued', 'ringing', 'initiated', 'dialing'}
 
 UNSUPPORTED_DISCONNECT_MESSAGE = 'Exotel does not allow ending this live call through the current API flow.'
 WEBHOOK_HISTORY_LIMIT = 25
+VALID_OUTCOMES = {'connected', 'no_answer', 'busy', 'wrong_number', 'not_reachable'}
 
 
 def _normalize_status(value: str) -> str:
@@ -76,6 +77,13 @@ def _mask_phone(value: str) -> str:
     if len(digits) <= 4:
         return digits
     return f"{'•' * max(len(digits) - 4, 4)}{digits[-4:]}"
+
+
+def _user_display_name(user: User | None) -> str:
+    if not user:
+        return ''
+    full_name = f"{user.first_name} {user.last_name}".strip()
+    return full_name.title() if full_name else (user.email or user.username or '')
 
 
 def _disconnect_supported(session: InterviewCallSession) -> bool:
@@ -143,6 +151,15 @@ class InterviewCallService:
             .first()
         )
 
+    def list_sessions(self, *, user: User, interview_id: int, limit: int = 20) -> list[InterviewCallSession]:
+        from smartInterviewApp.commonViews import get_accessible_interviews
+
+        return list(
+            InterviewCallSession.objects.select_related('interview', 'interview__candidate', 'initiated_by')
+            .filter(interview_id=interview_id, interview__in=get_accessible_interviews(user))
+            .order_by('-created_at', '-id')[:limit]
+        )
+
     def serialize_session(self, session: InterviewCallSession) -> dict[str, Any]:
         now = timezone.now()
         billable_seconds = session.billable_seconds
@@ -168,14 +185,36 @@ class InterviewCallService:
             'ended_at': session.ended_at.isoformat() if session.ended_at else '',
             'billable_seconds': billable_seconds,
             'connected_seconds': connected_seconds,
+            'created_at': session.created_at.isoformat() if session.created_at else '',
+            'updated_at': session.updated_at.isoformat() if session.updated_at else '',
             'disconnect_requested_at': session.disconnect_requested_at.isoformat() if session.disconnect_requested_at else '',
+            'outcome': session.outcome,
+            'note': session.note,
+            'note_updated_at': session.note_updated_at.isoformat() if session.note_updated_at else '',
             'error_message': session.error_message,
             'can_close': session.status not in ACTIVE_STATUSES,
             'can_disconnect': _disconnect_supported(session),
             'disconnect_unavailable_reason': _disconnect_unavailable_reason(session),
             'webhook_event_count': len(webhook_events),
             'last_webhook_event_type': str((last_webhook_payload or {}).get('EventType') or ''),
+            'initiated_by_name': _user_display_name(session.initiated_by),
         }
+
+    def save_session_note(self, *, user: User, interview_id: int, session_id: int, note: str, outcome: str = '') -> InterviewCallSession | None:
+        session = self.get_session(user=user, interview_id=interview_id, session_id=session_id)
+        if not session:
+            return None
+
+        normalized_note = (note or '').strip()[:500]
+        normalized_outcome = (outcome or '').strip().lower()
+        if normalized_outcome not in VALID_OUTCOMES:
+            normalized_outcome = ''
+
+        session.note = normalized_note
+        session.outcome = normalized_outcome
+        session.note_updated_at = timezone.now()
+        session.save(update_fields=['note', 'outcome', 'note_updated_at', 'updated_at'])
+        return session
 
     def refresh_session(self, session: InterviewCallSession) -> InterviewCallSession:
         if session.status not in ACTIVE_STATUSES or not session.exotel_call_sid:

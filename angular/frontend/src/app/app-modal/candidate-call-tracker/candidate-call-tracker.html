@@ -1,58 +1,272 @@
 <div class="call-tracker-dialog">
-  <div class="call-tracker-hero">
-    <div class="call-tracker-orb" [class.call-tracker-orb--active]="!isTerminal">
-      <i class="ph" [ngClass]="isTerminal ? 'ph-phone-disconnect' : 'ph-phone-call'"></i>
+  <button
+    class="call-tracker-x"
+    type="button"
+    aria-label="Close call tracker"
+    [disabled]="!canCloseTracker"
+    [attr.title]="!canCloseTracker ? 'Close is available after the active call ends.' : null"
+    (click)="close()">
+    <i class="ph ph-x"></i>
+  </button>
+
+  <header class="tracker-header">
+    <div class="tracker-kicker">
+      <span class="tracker-kicker-icon"><i class="ph ph-phone"></i></span>
+      <strong>Candidate Call Tracker</strong>
     </div>
-    <div class="call-tracker-copy">
-      <span class="call-tracker-eyebrow">Exotel Call Tracker</span>
-      <h2>{{ title }}</h2>
-      <p>{{ description }}</p>
+
+    <div class="candidate-strip">
+      <div class="candidate-avatar">
+        <span>{{ candidateInitials }}</span>
+        <i class="candidate-presence" [class.is-live]="!isTerminal"></i>
+      </div>
+      <div class="candidate-copy">
+        <div class="candidate-name-row">
+          <h2>{{ candidate.name || 'Candidate' }}</h2>
+          <span class="verified-pill" *ngIf="verification?.identity_verified">
+            <i class="ph ph-seal-check"></i>
+            Identity Verified
+          </span>
+        </div>
+        <p>{{ roleLabel }}</p>
+        <div class="candidate-meta">
+          <span *ngIf="candidate.email"><i class="ph ph-envelope"></i>{{ candidate.email }}</span>
+          <span><i class="ph ph-phone"></i>{{ candidatePhoneLabel }}</span>
+          <span><i class="ph ph-activity"></i>{{ statusLabel }}</span>
+        </div>
+      </div>
     </div>
+
+    <section class="call-summary-panel" aria-label="Call summary">
+      <h3>Call Summary</h3>
+      <div class="summary-metrics">
+        <article>
+          <span class="summary-icon summary-icon--blue"><i class="ph ph-phone-call"></i></span>
+          <strong>{{ totalCalls }}</strong>
+          <small>Total Calls</small>
+        </article>
+        <article>
+          <span class="summary-icon summary-icon--green"><i class="ph ph-check-circle"></i></span>
+          <strong>{{ connectedCalls }}</strong>
+          <small>Connected</small>
+        </article>
+        <article>
+          <span class="summary-icon summary-icon--purple"><i class="ph ph-clock"></i></span>
+          <strong>{{ totalTalkTimeLabel }}</strong>
+          <small>Total Talk Time</small>
+        </article>
+      </div>
+    </section>
+  </header>
+
+  <div class="tracker-state-line" *ngIf="loading || historyLoading || errorMessage || noteMessage">
+    <span *ngIf="loading || historyLoading"><i class="ph ph-circle-notch"></i> Refreshing call data</span>
+    <span class="state-error" *ngIf="errorMessage">{{ errorMessage }}</span>
+    <span class="state-success" *ngIf="noteMessage && !errorMessage">{{ noteMessage }}</span>
   </div>
 
-  <div class="call-tracker-state">
-    <div class="call-tracker-stage" [class.is-live]="!isTerminal">
-      <span class="call-tracker-pulse"></span>
-      <strong>{{ session.status.replace('_', ' ') | titlecase }}</strong>
-    </div>
-    <div class="call-tracker-stage-copy" *ngIf="!isTerminal">
-      <span class="call-tracker-dot"></span>
-      <span>{{ loading ? 'Refreshing live call state' : 'Tracking live Exotel status' }}</span>
-    </div>
-  </div>
-
-  <div class="call-tracker-metrics">
-    <article class="call-tracker-metric">
-      <span>Billable Duration</span>
-      <strong>{{ billableLabel }}</strong>
-      <small>Starts when the first bridge is connected</small>
+  <section class="snapshot-grid" aria-label="Current call metrics">
+    <article class="snapshot-card">
+      <span class="snapshot-icon snapshot-icon--blue"><i class="ph ph-phone-outgoing"></i></span>
+      <div>
+        <small>Last Call</small>
+        <strong>{{ latestCallDateLabel }}</strong>
+        <em>{{ latestCall?.initiated_by_name || 'Caller not recorded' }}</em>
+      </div>
     </article>
-    <article class="call-tracker-metric">
-      <span>Conversation Duration</span>
-      <strong>{{ connectedLabel }}</strong>
-      <small>Starts after the candidate is connected</small>
+    <article class="snapshot-card">
+      <span class="snapshot-icon snapshot-icon--green"><i class="ph ph-phone-call"></i></span>
+      <div>
+        <small>Last Status</small>
+        <strong>{{ latestStatusLabel }}</strong>
+        <em>{{ latestOutcomeLabel }}</em>
+      </div>
     </article>
-  </div>
+    <article class="snapshot-card">
+      <span class="snapshot-icon snapshot-icon--amber"><i class="ph ph-clock-countdown"></i></span>
+      <div>
+        <small>Avg. Duration</small>
+        <strong>{{ averageDurationLabel }}</strong>
+        <em>Per recorded call</em>
+      </div>
+    </article>
+    <article class="snapshot-card snapshot-card--empty">
+      <span class="snapshot-icon snapshot-icon--purple"><i class="ph ph-calendar-blank"></i></span>
+      <div>
+        <small>Next Follow-up</small>
+        <strong>Not scheduled</strong>
+        <em>No follow-up record found</em>
+      </div>
+    </article>
+    <article class="snapshot-card">
+      <span class="snapshot-icon snapshot-icon--pink"><i class="ph ph-flag"></i></span>
+      <div>
+        <small>Attempts</small>
+        <strong>{{ totalCalls }}</strong>
+        <em>{{ unansweredCalls }} unanswered</em>
+      </div>
+    </article>
+  </section>
 
-  <div class="call-tracker-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <main class="tracker-content-grid">
+    <section class="tracker-main-column">
+      <section class="tracker-panel notes-panel">
+        <h3><i class="ph ph-notepad"></i> Call Notes</h3>
+        <textarea
+          [(ngModel)]="noteText"
+          [maxlength]="maxNoteLength"
+          [disabled]="!session"
+          [placeholder]="session ? 'Add a note about this call...' : 'Start a call to add notes to the current session...'"
+          aria-label="Call note"></textarea>
+        <div class="note-tools">
+          <span>Outcome <i class="ph ph-info"></i></span>
+          <small>{{ noteText.length }}/{{ maxNoteLength }}</small>
+        </div>
+        <div class="outcome-grid">
+          <button
+            *ngFor="let outcome of outcomeOptions"
+            type="button"
+            class="outcome-btn"
+            [ngClass]="'outcome-btn--' + outcome.tone"
+            [class.is-active]="selectedOutcome === outcome.key"
+            [disabled]="!session"
+            (click)="selectOutcome(outcome.key)">
+            <i class="ph" [ngClass]="outcome.icon"></i>
+            <span>{{ outcome.label }}</span>
+          </button>
+        </div>
+        <button type="button" class="save-note-btn" [disabled]="!canSaveNote" (click)="saveNote()">
+          <span class="tracker-spinner" *ngIf="savingNote"></span>
+          <i class="ph ph-plus" *ngIf="!savingNote"></i>
+          <span>{{ savingNote ? 'Saving...' : 'Add Note & Save' }}</span>
+        </button>
+      </section>
 
-  <div class="call-tracker-actions">
+      <section class="tracker-panel history-panel">
+        <div class="panel-title-row">
+          <h3><i class="ph ph-clock-counter-clockwise"></i> Call History</h3>
+          <span *ngIf="historyLoading">Refreshing</span>
+        </div>
+
+        <div class="empty-state" *ngIf="!callHistory.length">
+          <i class="ph ph-phone-slash"></i>
+          <strong>No call history yet</strong>
+          <p>Completed and attempted Exotel sessions will appear here after they are recorded.</p>
+        </div>
+
+        <div class="history-table" *ngIf="callHistory.length">
+          <div class="history-row history-row--head">
+            <span>Date &amp; Time</span>
+            <span>Duration</span>
+            <span>Status</span>
+            <span>Outcome</span>
+            <span>Notes</span>
+            <span>Action</span>
+          </div>
+          <div class="history-row" *ngFor="let item of callHistory; trackBy: trackSession">
+            <span>{{ formatDateTime(item.created_at || '') }}</span>
+            <span>{{ formatDuration(getConnectedSeconds(item)) }}</span>
+            <span [class.is-connected]="wasConnected(item)" [class.is-not-connected]="!wasConnected(item)">{{ labelize(item.status) }}</span>
+            <span>{{ item.outcome ? labelize(item.outcome) : 'Not saved' }}</span>
+            <span>{{ item.note || 'No note saved' }}</span>
+            <span>
+              <button type="button" class="history-action" [disabled]="item.id !== session?.id" (click)="item.id === session?.id && fetchSession()">
+                <i class="ph ph-arrow-clockwise"></i>
+              </button>
+            </span>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="tracker-side-column">
+      <section class="tracker-panel quick-actions-panel">
+        <h3><i class="ph ph-lightning"></i> Quick Actions</h3>
+        <button
+          *ngIf="!hasActiveCall"
+          type="button"
+          class="quick-action quick-action--primary"
+          [disabled]="!canStartCandidateCall"
+          [attr.title]="!canStartCandidateCall ? 'Candidate phone number is not available for calling.' : null"
+          (click)="startCandidateCall()">
+          <span class="tracker-spinner" *ngIf="startingCandidateCall"></span>
+          <i class="ph ph-phone-call" *ngIf="!startingCandidateCall"></i>
+          <span>{{ startingCandidateCall ? 'Calling...' : 'Call Candidate Now' }}</span>
+        </button>
+        <button
+          *ngIf="hasActiveCall"
+          type="button"
+          class="quick-action quick-action--primary"
+          [disabled]="disconnecting || !session?.can_disconnect"
+          [attr.title]="!session?.can_disconnect ? (session?.disconnect_unavailable_reason || 'Disconnect is only available during supported live call states.') : null"
+          (click)="disconnectCall()">
+          <span class="tracker-spinner" *ngIf="disconnecting"></span>
+          <i class="ph ph-phone-disconnect" *ngIf="!disconnecting"></i>
+          <span>{{ disconnecting ? 'Disconnecting...' : 'Disconnect Current Call' }}</span>
+        </button>
+        <button type="button" class="quick-action" disabled>
+          <i class="ph ph-calendar-plus"></i>
+          <span>Schedule Follow-up</span>
+        </button>
+        <button type="button" class="quick-action" disabled>
+          <i class="ph ph-bell"></i>
+          <span>Add Reminder</span>
+        </button>
+        <p class="quick-action-note">No follow-up or reminder record is available for this call.</p>
+      </section>
+
+      <section class="tracker-panel insights-panel">
+        <h3><i class="ph ph-chart-line-up"></i> Call Insights</h3>
+        <div class="insight-list" *ngIf="totalCalls; else noInsights">
+          <div class="insight-item">
+            <span class="insight-dot insight-dot--blue"><i class="ph ph-gauge"></i></span>
+            <div>
+              <strong>Response rate</strong>
+              <p>{{ responseRateLabel }}</p>
+            </div>
+          </div>
+        </div>
+        <ng-template #noInsights>
+          <div class="empty-state empty-state--compact">
+            <i class="ph ph-chart-line"></i>
+            <strong>No call insight data</strong>
+            <p>Best-time and language insights are not shown until real data exists.</p>
+          </div>
+        </ng-template>
+      </section>
+
+      <section class="tracker-panel important-notes-panel">
+        <h3><i class="ph ph-star"></i> Important Notes</h3>
+        <div *ngIf="latestSavedNote; else noImportantNote">
+          <p>{{ latestSavedNote.note }}</p>
+          <small>Last updated: {{ formatDateTime(latestSavedNote.note_updated_at || latestSavedNote.updated_at || '') }}</small>
+        </div>
+        <ng-template #noImportantNote>
+          <div class="empty-state empty-state--compact">
+            <i class="ph ph-note-blank"></i>
+            <strong>No saved call notes</strong>
+            <p>Notes saved from this tracker will appear here.</p>
+          </div>
+        </ng-template>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="tracker-footer">
     <button
       type="button"
-      class="call-tracker-disconnect"
-      [disabled]="disconnecting || !session.can_disconnect"
-      [attr.title]="!session.can_disconnect ? (session.disconnect_unavailable_reason || 'Disconnect is not currently available for this call.') : null"
-      (click)="disconnectCall()">
-      <span class="call-tracker-disconnect__spinner" *ngIf="disconnecting"></span>
-      <span>{{ disconnecting ? 'Disconnecting...' : 'Disconnect Call' }}</span>
+      class="footer-btn"
+      [disabled]="!canCloseTracker"
+      [attr.title]="!canCloseTracker ? 'Close is available after the active call ends.' : null"
+      (click)="close()">Close</button>
+    <button
+      type="button"
+      class="footer-btn footer-btn--primary"
+      [disabled]="!canCloseTracker"
+      [attr.title]="!canCloseTracker ? 'Done is available after the active call ends.' : null"
+      (click)="close()">
+      <i class="ph ph-check"></i>
+      <span>Done</span>
     </button>
-
-    <div class="call-tracker-action-note" *ngIf="!session.can_disconnect && !isTerminal && session.disconnect_unavailable_reason">
-      {{ session.disconnect_unavailable_reason }}
-    </div>
-
-    <button type="button" class="call-tracker-close" [disabled]="!isTerminal" (click)="close()">
-      {{ isTerminal ? 'Close' : 'Close unavailable during active call' }}
-    </button>
-  </div>
+  </footer>
 </div>

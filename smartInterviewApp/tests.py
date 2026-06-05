@@ -1023,6 +1023,65 @@ class CandidateOnboardingTests(TestCase):
         self.assertTrue(response.json()['Success'])
         self.assertEqual(response.json()['Data']['status'], InterviewCallSession.Status.DIALING_AGENT)
 
+    def test_candidate_profile_call_sessions_returns_real_history(self):
+        older_session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-older',
+            status=InterviewCallSession.Status.NO_ANSWER,
+            caller_phone='919999999999',
+            candidate_phone='919111111111',
+            outcome='no_answer',
+            note='No response from candidate.',
+        )
+        newer_session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-newer',
+            status=InterviewCallSession.Status.COMPLETED,
+            caller_phone='919999999999',
+            candidate_phone='919111111111',
+            connected_seconds=62,
+            outcome='connected',
+            note='Discussed availability.',
+        )
+
+        response = self.client.get(reverse('candidate-profile-call-sessions', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['Success'])
+        self.assertEqual([item['id'] for item in payload['Data']['sessions']], [newer_session.id, older_session.id])
+        self.assertEqual(payload['Data']['sessions'][0]['note'], 'Discussed availability.')
+        self.assertEqual(payload['Data']['sessions'][0]['outcome'], 'connected')
+        self.assertEqual(payload['Data']['sessions'][0]['connected_seconds'], 62)
+
+    def test_candidate_profile_call_session_note_persists(self):
+        session = InterviewCallSession.objects.create(
+            interview=self.interview,
+            initiated_by=self.admin,
+            exotel_call_sid='call-123',
+            status=InterviewCallSession.Status.COMPLETED,
+            caller_phone='919999999999',
+            candidate_phone='919111111111',
+        )
+
+        response = self.client.post(
+            reverse('candidate-profile-call-session-note', args=[self.interview.id, session.id]),
+            data=json.dumps({'note': 'Candidate asked for email follow-up.', 'outcome': 'connected'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['Success'])
+        self.assertEqual(payload['Data']['note'], 'Candidate asked for email follow-up.')
+        self.assertEqual(payload['Data']['outcome'], 'connected')
+        session.refresh_from_db()
+        self.assertEqual(session.note, 'Candidate asked for email follow-up.')
+        self.assertEqual(session.outcome, 'connected')
+        self.assertIsNotNone(session.note_updated_at)
+
     def test_interview_call_sync_uses_top_level_call_detail_durations(self):
         session = InterviewCallSession.objects.create(
             interview=self.interview,
