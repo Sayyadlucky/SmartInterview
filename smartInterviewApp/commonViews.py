@@ -62,7 +62,7 @@ from smartInterviewApp.resume_processing import ResumeProcessingService
 from smartInterviewApp.services.ai_talent_pool import AiTalentPoolService
 from smartInterviewApp.services.ai_talent_pool.pgvector_retrieval import RetrievalBackendUnavailable
 from smartInterviewApp.services.interview_calls import InterviewCallService
-from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, CompanyProfile, InterviewCallSession, ResumeAiFeedback, ResumeAiProfessionalReview, ResumeAiSuggestion
+from .models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CandidateInsightSnapshot, CandidatePublicResume, CandidateResume, CandidateResumeBuilderDraft, CandidateSavedVacancy, CandidateVacancyApplication, CompanyProfile, InterviewCallSession, RecruiterNote, ResumeAiFeedback, ResumeAiProfessionalReview, ResumeAiSuggestion
 from .services.resume_ai import generate_resume_ai_suggestions, persist_shown_suggestions, record_professional_review_feedback, record_suggestion_feedback, request_professional_review
 from .templatetags.host_links import build_host_link
 
@@ -6023,6 +6023,103 @@ def getHrList(request):
         return JsonResponse({"Success":True, "Error":None, "RecruiterData":recruiter_list})
     except Exception as e:
         return JsonResponse({"Success":False, "Error":str(e)})
+
+
+def serialize_recruiter_note(note):
+    author_name = get_display_name(note.author) if note.author else ''
+    return {
+        'id': note.id,
+        'note': note.note,
+        'author': author_name,
+        'created_at': note.created_at.isoformat() if note.created_at else '',
+        'updated_at': note.updated_at.isoformat() if note.updated_at else '',
+    }
+
+
+def get_accessible_recruiter_for_notes(current_user, recruiter_id):
+    if not str(recruiter_id or '').isdigit():
+        return None
+
+    lookup_id = int(recruiter_id)
+    current_role = get_user_role(current_user)
+
+    if current_role == 'admin':
+        profile = (
+            UserProfile.objects
+            .select_related('user')
+            .filter(Q(id=lookup_id) | Q(user_id=lookup_id), role='recruiter', hr=current_user)
+            .first()
+        )
+        if profile:
+            return profile.user
+        return User.objects.filter(id=lookup_id, profile__role='recruiter', profile__hr=current_user).first()
+
+    if current_role == 'recruiter' and current_user.id == lookup_id:
+        return current_user
+
+    if current_role == 'recruiter':
+        profile = UserProfile.objects.filter(Q(id=lookup_id) | Q(user_id=lookup_id), user=current_user, role='recruiter').first()
+        return profile.user if profile else None
+
+    return None
+
+
+@csrf_exempt
+@login_required
+def recruiterNotes(request):
+    try:
+        current_user = get_object_or_404(User, username=request.user.username)
+
+        if request.method == 'DELETE':
+            try:
+                payload = json.loads(request.body.decode('utf-8') or '{}')
+            except (TypeError, ValueError):
+                payload = {}
+            recruiter_id = payload.get('recruiter_id') or request.GET.get('recruiter_id') or ''
+            note_id = payload.get('note_id') or request.GET.get('note_id') or ''
+        else:
+            recruiter_id = request.POST.get('recruiter_id') or request.GET.get('recruiter_id') or ''
+            note_id = request.POST.get('note_id') or request.GET.get('note_id') or ''
+
+        recruiter = get_accessible_recruiter_for_notes(current_user, recruiter_id)
+        if not recruiter:
+            return JsonResponse({"Success": False, "Error": "Recruiter not found in your accessible scope.", "Notes": []}, status=403)
+
+        if request.method == 'GET':
+            notes = RecruiterNote.objects.select_related('author').filter(recruiter=recruiter)[:25]
+            return JsonResponse({"Success": True, "Error": None, "Notes": [serialize_recruiter_note(note) for note in notes]})
+
+        if request.method == 'POST':
+            note_text = (request.POST.get('note') or '').strip()
+            if not note_text:
+                return JsonResponse({"Success": False, "Error": "Note text is required.", "Notes": []}, status=400)
+            note = RecruiterNote.objects.create(
+                recruiter=recruiter,
+                author=current_user,
+                note=note_text[:500],
+            )
+            notes = RecruiterNote.objects.select_related('author').filter(recruiter=recruiter)[:25]
+            return JsonResponse({
+                "Success": True,
+                "Error": None,
+                "Note": serialize_recruiter_note(note),
+                "Notes": [serialize_recruiter_note(item) for item in notes],
+            })
+
+        if request.method == 'DELETE':
+            if not str(note_id or '').isdigit():
+                return JsonResponse({"Success": False, "Error": "A valid note identifier is required.", "Notes": []}, status=400)
+            deleted, _ = RecruiterNote.objects.filter(id=int(note_id), recruiter=recruiter).delete()
+            if not deleted:
+                return JsonResponse({"Success": False, "Error": "Note not found.", "Notes": []}, status=404)
+            notes = RecruiterNote.objects.select_related('author').filter(recruiter=recruiter)[:25]
+            return JsonResponse({"Success": True, "Error": None, "Notes": [serialize_recruiter_note(note) for note in notes]})
+
+        return JsonResponse({"Success": False, "Error": "Invalid request method.", "Notes": []}, status=405)
+    except Exception as e:
+        logger.exception('Unable to process recruiter notes request')
+        return JsonResponse({"Success": False, "Error": str(e), "Notes": []}, status=500)
+
 
 @login_required
 def getEvaluator(request):

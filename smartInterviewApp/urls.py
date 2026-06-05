@@ -37,6 +37,7 @@ urlpatterns = [
     path('get-evaluator-profile/', commonViews.getInterviewsForProfile, name='get-evaluator-profile'),
     path('evaluator-search/', commonViews.evaluatorSearch, name='evaluator-search'),
     path('get-hr-list/', commonViews.getHrList, name='get-hr-list'),
+    path('recruiter-notes/', commonViews.recruiterNotes, name='recruiter-notes'),
     path('get-role-list/', commonViews.getRoleList, name='get-role-list'),
     path('api/ai-talent-pool/match', commonViews.ai_talent_pool_match, name='ai-talent-pool-match'),
     path('api/ai-talent-pool/search', commonViews.ai_talent_pool_search, name='ai-talent-pool-search'),

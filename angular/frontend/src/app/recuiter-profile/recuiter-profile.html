@@ -75,45 +75,9 @@
   </div>
   <div *ngIf="!loading && errorMessage" class="state-card error">{{ errorMessage }}</div>
 
-  <div class="profile-canvas" *ngIf="!loading && !errorMessage">
-    <section class="hero-panel">
-      <div class="hero-top-row">
-        <div class="hero-profile">
-          <div class="avatar-wrap">
-            <img
-              *ngIf="evaluator.gender === 'female'; else defaultAvatar"
-              src="static/assets/images/girl.png"
-              alt="Profile"
-            />
-            <ng-template #defaultAvatar>
-              <img src="static/assets/images/boy.png" alt="Profile" />
-            </ng-template>
-          </div>
-          <div class="identity">
-            <h2>{{ evaluator.name }}</h2>
-            <p>{{ evaluator.email }}</p>
-            <div class="identity-meta">
-              <span class="meta-pill">{{ evaluator.role | titlecase }}</span>
-              <span class="meta-pill" *ngIf="mode === 'evaluator' && evaluator.recruiter_name">Recruiter {{ evaluator.recruiter_name }}</span>
-              <span class="meta-pill" *ngIf="evaluator.phone">{{ evaluator.phone }}</span>
-              <span class="meta-pill" *ngIf="lastActiveDate">Last active {{ lastActiveDate | date:'MMM d, y, h:mm a' }}</span>
-              <span class="meta-pill" *ngIf="!lastActiveDate">No activity yet</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="hero-actions" *ngIf="canEditProfile">
-          <button class="edit-profile-btn" type="button" *ngIf="!isEditingProfile" (click)="openEditProfile()"><i class="ph ph-pencil-simple"></i>Edit Details</button>
-          <div class="edit-actions" *ngIf="isEditingProfile">
-            <button class="ghost-btn" type="button" (click)="cancelEditProfile()" [disabled]="savingProfile"><i class="ph ph-x"></i>Cancel</button>
-            <button class="edit-profile-btn" type="button" (click)="saveRecruiterProfile()" [disabled]="savingProfile">
-              <i class="ph" [class.ph-spinner-gap]="savingProfile" [class.ph-floppy-disk]="!savingProfile"></i>{{ savingProfile ? 'Saving...' : 'Save Changes' }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="edit-panel" *ngIf="isEditingProfile">
+  <div class="profile-canvas workspace-canvas" *ngIf="!loading && !errorMessage">
+    <ng-template #profileEditPanel>
+      <div class="dashboard-edit-panel" *ngIf="isEditingProfile">
         <div class="edit-grid">
           <label class="field-block">
             <span>Full Name</span>
@@ -145,192 +109,433 @@
           </label>
         </div>
       </div>
-
       <div class="edit-status error" *ngIf="saveErrorMessage">{{ saveErrorMessage }}</div>
       <div class="edit-status success" *ngIf="saveSuccessMessage">{{ saveSuccessMessage }}</div>
+    </ng-template>
 
-      <div class="hero-trend" [ngClass]="monthOverMonthClass">
-        <span class="trend-label">Interview Momentum</span>
-        <strong>{{ monthOverMonthLabel }}</strong>
-      </div>
-
-      <div class="kpi-row">
-        <article class="kpi-card">
-          <span><i class="ph ph-chats-teardrop"></i>Assigned Interviews</span>
-          <strong>{{ totalInterviews }}</strong>
-        </article>
-        <article class="kpi-card">
-          <span><i class="ph ph-path"></i>Active Pipeline</span>
-          <strong>{{ activePipelineCount }}</strong>
-        </article>
-        <article class="kpi-card">
-          <span><i class="ph ph-handshake"></i>Hires</span>
-          <strong>{{ hiredCount }}</strong>
-        </article>
-        <article class="kpi-card">
-          <span><i class="ph ph-percent"></i>Conversion</span>
-          <strong>{{ completedRate }}%</strong>
-        </article>
-      </div>
-    </section>
-
-    <section class="content-grid">
-      <div class="left-stack">
-        <article class="card timeline-card">
-          <div class="card-header">
-            <h3><i class="ph ph-calendar-check"></i>Upcoming Interviews</h3>
-            <span>{{ upcomingInterviews.length }} total</span>
+    <ng-container *ngIf="mode === 'recruiter'; else evaluatorDashboard">
+      <section class="workspace-hero recruiter-workspace">
+        <div class="workspace-identity">
+          <div class="workspace-avatar recruiter-avatar-token">{{ profileInitials }}</div>
+          <div class="workspace-title">
+            <span class="workspace-kicker">Recruiter Workspace</span>
+            <h2>{{ evaluator.name }}</h2>
+            <p>{{ evaluator.role || 'Recruiter' }}</p>
+            <div class="workspace-contact" *ngIf="hasContactDetails; else recruiterContactEmpty">
+              <span *ngIf="evaluator.email"><i class="ph ph-envelope-simple"></i>{{ evaluator.email }}</span>
+              <span *ngIf="hasPhone"><i class="ph ph-phone"></i>{{ evaluator.phone }}</span>
+            </div>
+            <ng-template #recruiterContactEmpty>
+              <div class="workspace-empty-inline">Contact details have not been added.</div>
+            </ng-template>
           </div>
-          <ul class="timeline-list" *ngIf="upcomingInterviews.length; else noUpcoming">
-            <li *ngFor="let upcoming of upcomingInterviews | slice:0:6; trackBy: trackById">
-              <div class="timeline-date">
-                <strong>{{ upcoming.date | date:'MMM d' }}</strong>
-                <span>{{ upcoming.date | date:'shortTime' }}</span>
+        </div>
+
+        <div class="workspace-meta-panel">
+          <div class="workspace-meta-row" *ngIf="profileIdLabel">
+            <i class="ph ph-identification-card"></i>
+            <span>Profile ID</span>
+            <strong>{{ profileIdLabel }}</strong>
+          </div>
+          <div class="workspace-meta-row" *ngIf="lastActiveDate">
+            <i class="ph ph-calendar-dots"></i>
+            <span>Last Interview Activity</span>
+            <strong>{{ lastActiveDate | date:'MMM d, y' }}</strong>
+          </div>
+          <div class="workspace-meta-row">
+            <i class="ph ph-stack"></i>
+            <span>Data Source</span>
+            <strong>Recruiter and interview APIs</strong>
+          </div>
+          <button class="dashboard-edit-btn" type="button" *ngIf="canEditProfile && !isEditingProfile" (click)="openEditProfile()">
+            <i class="ph ph-pencil-simple"></i>Edit Details
+          </button>
+          <div class="edit-actions" *ngIf="isEditingProfile">
+            <button class="ghost-btn" type="button" (click)="cancelEditProfile()" [disabled]="savingProfile"><i class="ph ph-x"></i>Cancel</button>
+            <button class="dashboard-edit-btn" type="button" (click)="saveRecruiterProfile()" [disabled]="savingProfile">
+              <i class="ph" [class.ph-spinner-gap]="savingProfile" [class.ph-floppy-disk]="!savingProfile"></i>{{ savingProfile ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="workspace-kpi-grid">
+          <article class="workspace-kpi">
+            <span><i class="ph ph-users-three"></i>Evaluator Network</span>
+            <strong>{{ linkedEvaluatorsCount }}</strong>
+            <small>Mapped evaluators</small>
+          </article>
+          <article class="workspace-kpi">
+            <span><i class="ph ph-user-list"></i>Candidate Ownership</span>
+            <strong>{{ managedCandidatesCount }}</strong>
+            <small>Managed candidates</small>
+          </article>
+          <article class="workspace-kpi">
+            <span><i class="ph ph-calendar-check"></i>Interview Records</span>
+            <strong>{{ totalInterviews }}</strong>
+            <small>Returned by profile API</small>
+          </article>
+          <article class="workspace-kpi">
+            <span><i class="ph ph-path"></i>Active Pipeline</span>
+            <strong>{{ activePipelineCount }}</strong>
+            <small>Scheduled or pending stages</small>
+          </article>
+        </div>
+      </section>
+
+      <nav class="workspace-tabs" aria-label="Recruiter profile sections">
+        <button type="button" [class.active]="activeRecruiterTab === 'overview'" (click)="setRecruiterTab('overview')">Overview</button>
+        <button type="button" [class.active]="activeRecruiterTab === 'network'" (click)="setRecruiterTab('network')">Evaluator Network ({{ linkedEvaluatorsCount }})</button>
+        <button type="button" [class.active]="activeRecruiterTab === 'ownership'" (click)="setRecruiterTab('ownership')">Candidate Ownership ({{ managedCandidatesCount }})</button>
+        <button type="button" [class.active]="activeRecruiterTab === 'records'" (click)="setRecruiterTab('records')">Interview Records ({{ totalInterviews }})</button>
+        <button type="button" [class.active]="activeRecruiterTab === 'pipeline'" (click)="setRecruiterTab('pipeline')">Pipeline Mix</button>
+      </nav>
+
+      <ng-container *ngTemplateOutlet="profileEditPanel"></ng-container>
+
+      <section class="workspace-grid recruiter-workspace-grid" [ngSwitch]="activeRecruiterTab">
+        <ng-container *ngSwitchCase="'overview'">
+          <article class="workspace-card workspace-card-wide">
+            <div class="card-header">
+              <h3>Recruiter Ownership</h3>
+            </div>
+            <div class="profile-fact-list" *ngIf="hasRecruiterProfileFacts; else recruiterOverviewEmpty">
+              <div class="profile-fact" *ngIf="evaluator.role">
+                <span><i class="ph ph-briefcase"></i>Recruiting Function</span>
+                <strong>{{ evaluator.role }}</strong>
               </div>
-              <div class="timeline-main">
-                <strong>{{ upcoming.candidate }}</strong>
-                <small>
-                  {{ upcoming.role || 'Unassigned' }} • {{ upcoming.status | titlecase }}
-                  <ng-container *ngIf="mode === 'recruiter' && upcoming.interviewer"> • Evaluator {{ upcoming.interviewer }}</ng-container>
-                  <ng-container *ngIf="mode !== 'recruiter' && upcoming.recruiter"> • Recruiter {{ upcoming.recruiter }}</ng-container>
-                </small>
+              <div class="profile-fact" *ngIf="evaluator.email">
+                <span><i class="ph ph-envelope-simple"></i>Email</span>
+                <strong>{{ evaluator.email }}</strong>
               </div>
-            </li>
-          </ul>
-          <ng-template #noUpcoming>
-            <div class="empty-line">No upcoming interviews</div>
+              <div class="profile-fact" *ngIf="hasPhone">
+                <span><i class="ph ph-phone"></i>Phone</span>
+                <strong>{{ evaluator.phone }}</strong>
+              </div>
+              <div class="profile-fact" *ngIf="lastActiveDate">
+                <span><i class="ph ph-clock-counter-clockwise"></i>Latest Interview Touchpoint</span>
+                <strong>{{ lastActiveDate | date:'MMM d, y, h:mm a' }}</strong>
+              </div>
+            </div>
+            <ng-template #recruiterOverviewEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-user-circle"></i>
+                <strong>No recruiter profile details</strong>
+                <span>Identity details will appear when the API returns them.</span>
+              </div>
+            </ng-template>
+          </article>
+
+          <article class="workspace-card workspace-card-wide">
+            <div class="card-header">
+              <h3>Unsupported Profile Fields</h3>
+            </div>
+            <div class="overview-empty notes-empty">
+              <i class="ph ph-note-pencil"></i>
+              <strong>No notes or quality metrics</strong>
+              <span>Extended notes and score fields are not provided by the current recruiter APIs.</span>
+            </div>
+          </article>
+        </ng-container>
+
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'network'">
+          <div class="card-header">
+            <h3>Evaluator Network</h3>
+            <span>{{ linkedEvaluatorsCount }} mapped</span>
+          </div>
+          <div class="overview-empty">
+            <i class="ph ph-users-three"></i>
+            <strong>{{ linkedEvaluatorsCount }} linked evaluator{{ linkedEvaluatorsCount === 1 ? '' : 's' }}</strong>
+            <span>The current recruiter list API returns the mapped evaluator count. It does not return the evaluator roster for this profile yet.</span>
+          </div>
+        </article>
+
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'ownership'">
+          <div class="card-header">
+            <h3>Candidate Ownership</h3>
+            <span>{{ managedCandidatesCount }} candidates</span>
+          </div>
+          <div class="overview-empty">
+            <i class="ph ph-user-list"></i>
+            <strong>{{ managedCandidatesCount }} managed candidate{{ managedCandidatesCount === 1 ? '' : 's' }}</strong>
+            <span>The current recruiter list API returns the candidate ownership count. It does not return a candidate roster in this profile response.</span>
+          </div>
+        </article>
+
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'records'">
+            <div class="card-header">
+              <h3>Recruiter Activity</h3>
+              <span>{{ interviews.length }} records</span>
+            </div>
+            <div class="activity-list" *ngIf="interviews.length; else recruiterActivityEmpty">
+              <div class="activity-row" *ngFor="let item of interviews | slice:0:5; trackBy: trackById">
+                <span class="activity-icon"><i class="ph ph-calendar-check"></i></span>
+                <div>
+                  <strong>{{ item.candidate || 'Candidate' }}</strong>
+                  <small>
+                    {{ item.role || 'Unassigned role' }} • {{ item.status || 'Status unavailable' }}
+                    <ng-container *ngIf="item.interviewer"> • Evaluator {{ item.interviewer }}</ng-container>
+                  </small>
+                </div>
+                <time *ngIf="item.date">{{ item.date | date:'MMM d, y' }}</time>
+              </div>
+            </div>
+            <ng-template #recruiterActivityEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-calendar-x"></i>
+                <strong>No recruiter activity yet</strong>
+                <span>Interview records will appear when the profile API returns activity.</span>
+              </div>
+            </ng-template>
+          </article>
+
+        <ng-container *ngSwitchCase="'pipeline'">
+          <article class="workspace-card workspace-card-wide">
+            <div class="card-header">
+              <h3>Pipeline Mix</h3>
+              <span>{{ totalInterviews }} records</span>
+            </div>
+            <div class="performance-bars" *ngIf="allStatusBreakdownData.length; else recruiterPerformanceEmpty">
+              <div class="performance-row" *ngFor="let item of allStatusBreakdownData">
+                <div>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.count }}</strong>
+                </div>
+                <div class="performance-track">
+                  <span [style.width.%]="item.percent"></span>
+                </div>
+                <em>{{ item.percent }}%</em>
+              </div>
+            </div>
+            <ng-template #recruiterPerformanceEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-chart-line"></i>
+                <strong>No pipeline mix available</strong>
+                <span>Status breakdowns need interview records from the profile API.</span>
+              </div>
+            </ng-template>
+          </article>
+        </ng-container>
+      </section>
+    </ng-container>
+
+    <ng-template #evaluatorDashboard>
+      <section class="workspace-hero evaluator-workspace">
+        <div class="workspace-identity">
+          <div class="workspace-avatar evaluator-avatar-token">{{ profileInitials }}</div>
+          <div class="workspace-title">
+            <span class="workspace-kicker">Evaluator Workspace</span>
+            <h2>{{ evaluator.name }}</h2>
+            <p>{{ evaluator.role || 'Evaluator' }}</p>
+            <div class="workspace-contact" *ngIf="hasContactDetails; else evaluatorContactEmpty">
+              <span *ngIf="evaluator.email"><i class="ph ph-envelope-simple"></i>{{ evaluator.email }}</span>
+              <span *ngIf="hasPhone"><i class="ph ph-phone"></i>{{ evaluator.phone }}</span>
+              <span *ngIf="evaluator.recruiter_name"><i class="ph ph-user-circle-gear"></i>Recruiter {{ evaluator.recruiter_name }}</span>
+            </div>
+            <ng-template #evaluatorContactEmpty>
+              <div class="workspace-empty-inline">Contact details have not been added.</div>
+            </ng-template>
+          </div>
+        </div>
+
+        <div class="workspace-meta-panel">
+          <div class="workspace-meta-row" *ngIf="profileIdLabel">
+            <i class="ph ph-identification-card"></i>
+            <span>Profile ID</span>
+            <strong>{{ profileIdLabel }}</strong>
+          </div>
+          <div class="workspace-meta-row" *ngIf="evaluator.recruiter_name">
+            <i class="ph ph-user-circle-gear"></i>
+            <span>Recruiter Mapping</span>
+            <strong>{{ evaluator.recruiter_name }}</strong>
+          </div>
+          <div class="workspace-meta-row" *ngIf="lastActiveDate">
+            <i class="ph ph-calendar-dots"></i>
+            <span>Last Interview Activity</span>
+            <strong>{{ lastActiveDate | date:'MMM d, y' }}</strong>
+          </div>
+          <button class="dashboard-edit-btn" type="button" *ngIf="canEditProfile && !isEditingProfile" (click)="openEditProfile()">
+            <i class="ph ph-pencil-simple"></i>Edit Details
+          </button>
+          <div class="edit-actions" *ngIf="isEditingProfile">
+            <button class="ghost-btn" type="button" (click)="cancelEditProfile()" [disabled]="savingProfile"><i class="ph ph-x"></i>Cancel</button>
+            <button class="dashboard-edit-btn" type="button" (click)="saveRecruiterProfile()" [disabled]="savingProfile">
+              <i class="ph" [class.ph-spinner-gap]="savingProfile" [class.ph-floppy-disk]="!savingProfile"></i>{{ savingProfile ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="workspace-kpi-grid">
+          <article class="workspace-kpi">
+            <span><i class="ph ph-chats-teardrop"></i>Assigned Interviews</span>
+            <strong>{{ totalInterviews }}</strong>
+            <small>Evaluator profile records</small>
+          </article>
+          <article class="workspace-kpi">
+            <span><i class="ph ph-calendar-plus"></i>Upcoming Queue</span>
+            <strong>{{ upcomingInterviews.length }}</strong>
+            <small>Scheduled future interviews</small>
+          </article>
+          <article class="workspace-kpi">
+            <span><i class="ph ph-path"></i>Active Workload</span>
+            <strong>{{ activePipelineCount }}</strong>
+            <small>Open interview stages</small>
+          </article>
+          <article class="workspace-kpi">
+            <span><i class="ph ph-calendar"></i>This Month</span>
+            <strong>{{ currentMonthInterviews }}</strong>
+            <small>Interviews in current month</small>
+          </article>
+        </div>
+      </section>
+
+      <nav class="workspace-tabs evaluator-tabs" aria-label="Evaluator profile sections">
+        <button type="button" [class.active]="activeEvaluatorTab === 'overview'" (click)="setEvaluatorTab('overview')">Overview</button>
+        <button type="button" [class.active]="activeEvaluatorTab === 'queue'" (click)="setEvaluatorTab('queue')">Interview Queue ({{ upcomingInterviews.length }})</button>
+        <button type="button" [class.active]="activeEvaluatorTab === 'mapping'" (click)="setEvaluatorTab('mapping')">Recruiter Mapping</button>
+        <button type="button" [class.active]="activeEvaluatorTab === 'roles'" (click)="setEvaluatorTab('roles')">Role Coverage</button>
+        <button type="button" [class.active]="activeEvaluatorTab === 'delivery'" (click)="setEvaluatorTab('delivery')">Delivery Mix</button>
+      </nav>
+
+      <ng-container *ngTemplateOutlet="profileEditPanel"></ng-container>
+
+      <section class="workspace-grid evaluator-workspace-grid" [ngSwitch]="activeEvaluatorTab">
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'overview'">
+            <div class="card-header">
+              <h3>Evaluator Overview</h3>
+            </div>
+            <div class="profile-fact-list" *ngIf="hasEvaluatorProfileFacts; else evaluatorOverviewEmpty">
+              <div class="profile-fact" *ngIf="evaluator.role">
+                <span><i class="ph ph-briefcase"></i>Evaluation Role</span>
+                <strong>{{ evaluator.role }}</strong>
+              </div>
+              <div class="profile-fact" *ngIf="evaluator.recruiter_name">
+                <span><i class="ph ph-user-circle-gear"></i>Linked Recruiter</span>
+                <strong>{{ evaluator.recruiter_name }}</strong>
+              </div>
+              <div class="profile-fact" *ngIf="evaluator.email">
+                <span><i class="ph ph-envelope-simple"></i>Email</span>
+                <strong>{{ evaluator.email }}</strong>
+              </div>
+              <div class="profile-fact" *ngIf="hasPhone">
+                <span><i class="ph ph-phone"></i>Phone</span>
+                <strong>{{ evaluator.phone }}</strong>
+              </div>
+              <div class="profile-fact" *ngIf="lastActiveDate">
+                <span><i class="ph ph-clock-counter-clockwise"></i>Latest Interview</span>
+                <strong>{{ lastActiveDate | date:'MMM d, y, h:mm a' }}</strong>
+              </div>
+            </div>
+            <ng-template #evaluatorOverviewEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-user-focus"></i>
+                <strong>No evaluator profile details</strong>
+                <span>Identity and recruiter mapping will appear when the API returns them.</span>
+              </div>
+            </ng-template>
+          </article>
+
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'queue'">
+            <div class="card-header">
+              <h3>Interview Queue</h3>
+              <span>{{ upcomingInterviews.length }} upcoming</span>
+            </div>
+            <div class="activity-list" *ngIf="upcomingInterviews.length; else evaluatorQueueEmpty">
+              <div class="activity-row" *ngFor="let item of upcomingInterviews | slice:0:5; trackBy: trackById">
+                <span class="activity-icon"><i class="ph ph-calendar-check"></i></span>
+                <div>
+                  <strong>{{ item.candidate || 'Candidate' }}</strong>
+                  <small>
+                    {{ item.role || 'Unassigned role' }} • {{ item.status || 'Status unavailable' }}
+                    <ng-container *ngIf="item.recruiter"> • Recruiter {{ item.recruiter }}</ng-container>
+                  </small>
+                </div>
+                <time *ngIf="item.date">{{ item.date | date:'MMM d, h:mm a' }}</time>
+              </div>
+            </div>
+            <ng-template #evaluatorQueueEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-calendar-x"></i>
+                <strong>No upcoming interviews</strong>
+                <span>Scheduled future interviews will appear here when available.</span>
+              </div>
+            </ng-template>
+          </article>
+
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'mapping'">
+          <div class="card-header">
+            <h3>Recruiter Mapping</h3>
+          </div>
+          <div class="profile-fact-list" *ngIf="evaluator.recruiter_name || evaluator.recruiter_id; else evaluatorMappingEmpty">
+            <div class="profile-fact" *ngIf="evaluator.recruiter_name">
+              <span><i class="ph ph-user-circle-gear"></i>Linked Recruiter</span>
+              <strong>{{ evaluator.recruiter_name }}</strong>
+            </div>
+            <div class="profile-fact" *ngIf="evaluator.recruiter_id">
+              <span><i class="ph ph-identification-card"></i>Recruiter ID</span>
+              <strong>{{ evaluator.recruiter_id }}</strong>
+            </div>
+          </div>
+          <ng-template #evaluatorMappingEmpty>
+            <div class="overview-empty compact">
+              <i class="ph ph-user-circle-gear"></i>
+              <strong>No recruiter mapping</strong>
+              <span>This evaluator is not mapped to a recruiter in the current API response.</span>
+            </div>
           </ng-template>
         </article>
 
-        <article class="card role-workload-card">
-          <div class="card-header">
-            <h3><i class="ph ph-briefcase"></i>Role Workload</h3>
-            <span>{{ insightsMonthName }} {{ insightsYear }}</span>
-          </div>
-          <div class="role-bars" *ngIf="selectedMonthTopRoles.length; else noRoleData">
-            <div class="role-row" *ngFor="let item of selectedMonthTopRoles">
-              <div class="role-row-top">
-                <span>{{ item.role }}</span>
-                <span>{{ item.count }}</span>
-              </div>
-              <div class="role-bar">
-                <span [style.width.%]="roleBarWidth(item.count)"></span>
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'roles'">
+            <div class="card-header">
+              <h3>Role Coverage</h3>
+              <span>{{ totalInterviews }} records</span>
+            </div>
+            <div class="performance-bars" *ngIf="roleCoverageData.length; else evaluatorRoleEmpty">
+              <div class="performance-row" *ngFor="let item of roleCoverageData">
+                <div>
+                  <span>{{ item.role }}</span>
+                  <strong>{{ item.count }}</strong>
+                </div>
+                <div class="performance-track">
+                  <span [style.width.%]="roleCoverageWidth(item.count)"></span>
+                </div>
+                <em>{{ item.count }}</em>
               </div>
             </div>
-          </div>
-          <ng-template #noRoleData>
-            <div class="empty-line">No role activity for this month</div>
-          </ng-template>
-        </article>
-      </div>
+            <ng-template #evaluatorRoleEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-briefcase"></i>
+                <strong>No role coverage yet</strong>
+                <span>Role distribution needs interview records from the profile API.</span>
+              </div>
+            </ng-template>
+          </article>
 
-      <div class="right-stack">
-        <article class="card">
-          <div class="card-header">
-            <h3><i class="ph ph-calendar-blank"></i>{{ calendarSectionTitle }}</h3>
-            <div class="calendar-switcher">
-              <button type="button" (click)="changeCalendarMonth(-1)" [disabled]="!canGoPrevCalendarMonth">‹</button>
-              <span>{{ calendarMonthName }} {{ calendarYear }}</span>
-              <button type="button" (click)="changeCalendarMonth(1)" [disabled]="!canGoNextCalendarMonth">›</button>
+        <article class="workspace-card workspace-card-wide" *ngSwitchCase="'delivery'">
+            <div class="card-header">
+              <h3>Delivery Mix</h3>
+              <span>{{ totalInterviews }} records</span>
             </div>
-          </div>
-          <div class="calendar-days-head">
-            <div *ngFor="let day of weekDays">{{ day }}</div>
-          </div>
-          <div class="calendar-grid">
-            <div
-              *ngFor="let day of calendarDays"
-              class="calendar-cell"
-              [class.active]="isAvailabilityDate(day.dateString)"
-              [class.no-interview]="isNonInterviewDate(day)"
-              [ngClass]="getCalendarDensityClass(day.dateString)"
-              [class.muted]="!day.currentMonth"
-              [attr.title]="day.currentMonth ? getCalendarCellTitle(day.dateString) : ''"
-              [attr.data-tooltip]="day.currentMonth ? getCalendarCellTitle(day.dateString) : ''"
-            >
-              {{ day.date }}
-            </div>
-          </div>
-        </article>
-
-        <article class="card chart-card">
-          <div class="card-header">
-            <h3><i class="ph ph-chart-line-up"></i>Yearly Performance</h3>
-            <div class="year-header-right">
-              <div class="year-switcher">
-                <button type="button" (click)="changePerformanceYear(-1)" [disabled]="!canGoPrevPerformanceYear">‹</button>
-                <span>{{ selectedPerformanceYear }}</span>
-                <button type="button" (click)="changePerformanceYear(1)" [disabled]="!canGoNextPerformanceYear">›</button>
+            <div class="performance-bars" *ngIf="allStatusBreakdownData.length; else evaluatorStatusEmpty">
+              <div class="performance-row" *ngFor="let item of allStatusBreakdownData">
+                <div>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.count }}</strong>
+                </div>
+                <div class="performance-track evaluator-track">
+                  <span [style.width.%]="item.percent"></span>
+                </div>
+                <em>{{ item.percent }}%</em>
               </div>
             </div>
-          </div>
-          <div class="chart-wrap">
-            <canvas #performanceChartCanvas></canvas>
-            <div class="chart-empty" *ngIf="!hasPerformanceData">No interview trend data for this year yet.</div>
-          </div>
-          <div class="performance-metrics">
-            <div class="metric-tile">
-              <span class="metric-label">This Month</span>
-              <span class="metric-value">{{ thisMonthInterviewCount }}</span>
-            </div>
-            <div class="metric-tile">
-              <span class="metric-label">Peak Month</span>
-              <span class="metric-value">{{ peakMonth.label }} ({{ peakMonth.count }})</span>
-            </div>
-            <div class="metric-tile">
-              <span class="metric-label">Avg / Month</span>
-              <span class="metric-value">{{ avgMonthlyInterviews }}</span>
-            </div>
-          </div>
-          <div class="status-breakdown" *ngIf="performanceStatusBreakdownData.length">
-            <div class="status-row" *ngFor="let item of performanceStatusBreakdownData">
-              <div class="status-row-top">
-                <span>{{ item.label }}</span>
-                <span>{{ item.count }} ({{ item.percent }}%)</span>
+            <ng-template #evaluatorStatusEmpty>
+              <div class="overview-empty compact">
+                <i class="ph ph-chart-line"></i>
+                <strong>No delivery mix available</strong>
+                <span>Status distribution will appear when interview records are returned.</span>
               </div>
-              <div class="status-row-bar">
-                <span [style.width.%]="item.percent"></span>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="card">
-          <div class="card-header">
-            <h3><i class="ph ph-lightbulb"></i>Monthly Insights</h3>
-            <div class="calendar-switcher">
-              <button type="button" (click)="changeInsightsMonth(-1)" [disabled]="!canGoPrevInsightsMonth">‹</button>
-              <span>{{ insightsMonthName }} {{ insightsYear }}</span>
-              <button type="button" (click)="changeInsightsMonth(1)" [disabled]="!canGoNextInsightsMonth">›</button>
-            </div>
-          </div>
-          <div class="month-insights-grid">
-            <div class="insight-mini">
-              <span>Total Interviews</span>
-              <strong>{{ selectedMonthInterviews }}</strong>
-            </div>
-            <div class="insight-mini">
-              <span>Active Days</span>
-              <strong>{{ selectedMonthActiveDays }}</strong>
-            </div>
-            <div class="insight-mini">
-              <span>Avg / Active Day</span>
-              <strong>{{ selectedMonthAvgPerActiveDay }}</strong>
-            </div>
-            <div class="insight-mini">
-              <span>Scheduled</span>
-              <strong>{{ selectedMonthScheduledCount }}</strong>
-            </div>
-          </div>
-
-          <div class="busiest-day-card">
-            <span>Busiest Day</span>
-            <strong>{{ selectedMonthBusiestDayLabel }}</strong>
-            <em *ngIf="selectedMonthBusiestCount > 0">{{ selectedMonthBusiestCount }} interviews</em>
-            <em *ngIf="selectedMonthBusiestCount === 0">No interviews this month</em>
-          </div>
-        </article>
-      </div>
-    </section>
+            </ng-template>
+          </article>
+      </section>
+    </ng-template>
   </div>
 </section>

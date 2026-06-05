@@ -53,6 +53,34 @@ class UserProfile(models.Model):
         return f"{self.user.username} ({self.role})"
 
 
+class RecruiterNote(models.Model):
+    recruiter = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='recruiter_workspace_notes',
+        limit_choices_to={'profile__role': 'recruiter'},
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='authored_recruiter_workspace_notes',
+        null=True,
+        blank=True,
+    )
+    note = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recruiter', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"Note for {self.recruiter.username} by {self.author.username if self.author else 'system'}"
+
+
 class CompanyProfile(models.Model):
     class CompanyType(models.TextChoices):
         PRIVATE = 'private', 'Private Limited'

@@ -51,6 +51,46 @@ interface RecruiterAlert {
   message: string;
 }
 
+type RecruiterWorkspaceTab = 'overview' | 'candidates' | 'evaluators' | 'interviews' | 'performance' | 'activity';
+type RecruiterTone = 'blue' | 'green' | 'purple' | 'amber' | 'cyan';
+
+interface RecruiterTab {
+  id: RecruiterWorkspaceTab;
+  label: string;
+  icon: string;
+}
+
+interface RecruiterMetricCard {
+  label: string;
+  value: string | number;
+  helper: string;
+  icon: string;
+  tone: RecruiterTone;
+}
+
+interface RecruiterProgressMetric {
+  label: string;
+  current: number;
+  target: number;
+  percent: number;
+  tone: RecruiterTone;
+}
+
+interface RecruiterNote {
+  id: number;
+  note: string;
+  author?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface RecruiterNotesResponse {
+  Success: boolean;
+  Error?: string | null;
+  Notes?: RecruiterNote[];
+  Note?: RecruiterNote;
+}
+
 @Component({
   selector: 'app-recruiters',
   imports: [CommonModule, FormsModule, MatDialogModule, DigitsOnlyDirective],
@@ -91,6 +131,23 @@ export class Recruiters implements OnInit, OnDestroy {
   savingProfile = false;
   saveErrorMessage = '';
   saveSuccessMessage = '';
+  activeWorkspaceTab: RecruiterWorkspaceTab = 'overview';
+  workspaceTabs: RecruiterTab[] = [
+    { id: 'overview', label: 'Overview', icon: 'ph-squares-four' },
+    { id: 'candidates', label: 'Candidates', icon: 'ph-users-three' },
+    { id: 'evaluators', label: 'Evaluators', icon: 'ph-user-list' },
+    { id: 'interviews', label: 'Interviews', icon: 'ph-calendar-check' },
+    { id: 'performance', label: 'Performance', icon: 'ph-chart-line-up' },
+    { id: 'activity', label: 'Activity', icon: 'ph-activity' },
+  ];
+  recruiterNotes: RecruiterNote[] = [];
+  noteDraft = '';
+  notesLoading = false;
+  savingNote = false;
+  deletingNoteId: number | null = null;
+  notesErrorMessage = '';
+  notesSuccessMessage = '';
+  maxRecruiterNoteLength = 500;
   editableRecruiter = {
     name: '',
     email: '',
@@ -131,6 +188,122 @@ export class Recruiters implements OnInit, OnDestroy {
   get averageCandidateLoad(): number {
     if (!this.totalRecruiters) return 0;
     return Math.round(this.totalManagedCandidates / this.totalRecruiters);
+  }
+
+  get selectedRecruiterRole(): string {
+    return this.formatTitle(this.selectedRecruiter?.role || 'Senior Recruiter');
+  }
+
+  get recruiterRecordId(): string {
+    return this.formatRecordCode('RC', this.selectedRecruiter?.profile_id || this.selectedRecruiter?.id);
+  }
+
+  get recruiterUserId(): string {
+    return this.formatRecordCode('USR', this.selectedRecruiter?.user_id || this.selectedRecruiter?.id);
+  }
+
+  get recruiterProfileId(): string {
+    return this.formatRecordCode('PRF', this.selectedRecruiter?.profile_id || this.selectedRecruiter?.id);
+  }
+
+  get recruiterDirectoryId(): string {
+    return this.formatRecordCode('REC', this.selectedRecruiter?.id);
+  }
+
+  get recruiterKpiCards(): RecruiterMetricCard[] {
+    const candidates = this.selectedRecruiter?.candidates_count || 0;
+    const evaluators = this.selectedRecruiter?.interviewers_count || 0;
+    const interviews = this.recruiterInterviews.length;
+
+    return [
+      { label: 'Linked Evaluators', value: evaluators, helper: 'Interviewers', icon: 'ph-users-three', tone: 'blue' },
+      { label: 'Managed Candidates', value: candidates, helper: 'Candidates', icon: 'ph-user-focus', tone: 'green' },
+      { label: 'Interviews Conducted', value: interviews, helper: 'Total interviews', icon: 'ph-calendar-check', tone: 'purple' },
+      { label: 'Workload Level', value: this.workloadLevel, helper: this.workloadHelper, icon: 'ph-trend-up', tone: 'amber' },
+    ];
+  }
+
+  get performanceSnapshot(): RecruiterProgressMetric[] {
+    const candidates = this.selectedRecruiter?.candidates_count || 0;
+    const evaluators = this.selectedRecruiter?.interviewers_count || 0;
+    const interviews = this.recruiterInterviews.length;
+    const completed = this.recruiterInterviews.filter((item) => this.isCompletedStatus(item.status)).length;
+
+    return [
+      { label: 'Candidate Load', current: candidates, target: Math.max(1, this.averageCandidateLoad * 3 || candidates || 1), percent: this.percentOf(candidates, Math.max(1, this.averageCandidateLoad * 3 || candidates || 1)), tone: 'green' },
+      { label: 'Evaluator Coverage', current: evaluators, target: Math.max(1, Math.ceil(candidates / 8), evaluators), percent: this.percentOf(evaluators, Math.max(1, Math.ceil(candidates / 8), evaluators)), tone: 'blue' },
+      { label: 'Interview Volume', current: interviews, target: Math.max(1, candidates, interviews), percent: this.percentOf(interviews, Math.max(1, candidates, interviews)), tone: 'purple' },
+      { label: 'Completion Ratio', current: completed, target: Math.max(1, interviews), percent: this.percentOf(completed, Math.max(1, interviews)), tone: 'amber' },
+    ];
+  }
+
+  get recentActivities(): Array<{ title: string; role: string; time: string; icon: string; tone: RecruiterTone }> {
+    return this.recruiterInterviews.slice(0, 5).map((item) => ({
+      title: this.activityTitle(item.status),
+      role: item.role || item.candidate || 'Interview activity',
+      time: this.timeAgo(item.date),
+      icon: this.activityIcon(item.status),
+      tone: this.activityTone(item.status),
+    }));
+  }
+
+  get recentInterviewRows(): RecruiterInterviewItem[] {
+    return this.recruiterInterviews.slice(0, 8);
+  }
+
+  get evaluatorNames(): Array<{ name: string; interviews: number }> {
+    const counts = new Map<string, number>();
+    this.recruiterInterviews.forEach((item) => {
+      const name = (item.interviewer || '').trim();
+      if (!name) return;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([name, interviews]) => ({ name, interviews }))
+      .sort((a, b) => b.interviews - a.interviews)
+      .slice(0, 8);
+  }
+
+  get roleDonutGradient(): string {
+    if (!this.selectedMonthTopRoles.length) {
+      return 'conic-gradient(rgba(40, 132, 223, 0.5) 0 100%)';
+    }
+
+    const colors = ['#18a8ff', '#45d27a', '#8e55ff', '#f5b447', '#778ba8'];
+    const total = this.selectedMonthTopRoles.reduce((sum, item) => sum + item.count, 0) || 1;
+    let cursor = 0;
+    const stops = this.selectedMonthTopRoles.map((item, index) => {
+      const start = cursor;
+      cursor += (item.count / total) * 100;
+      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  get selectedMonthRoleTotal(): number {
+    return this.selectedMonthTopRoles.reduce((sum, item) => sum + item.count, 0);
+  }
+
+  get directoryRangeLabel(): string {
+    if (!this.displayedRecruiters) return 'No recruiters visible';
+    return `Showing 1 to ${this.displayedRecruiters} of ${this.totalRecruiters} recruiters`;
+  }
+
+  get workloadLevel(): string {
+    const load = this.selectedRecruiter?.candidates_count || 0;
+    if (load > Math.max(8, this.averageCandidateLoad + 2)) return 'High';
+    if (load < Math.max(2, this.averageCandidateLoad - 2)) return 'Light';
+    return 'Balanced';
+  }
+
+  get workloadHelper(): string {
+    if (this.workloadLevel === 'High') return 'Above average';
+    if (this.workloadLevel === 'Light') return 'Below average';
+    return 'Within range';
+  }
+
+  get canSaveRecruiterNote(): boolean {
+    return !!this.selectedRecruiter && !!this.noteDraft.trim() && !this.savingNote;
   }
 
   get recruiterAlerts(): RecruiterAlert[] {
@@ -246,6 +419,7 @@ export class Recruiters implements OnInit, OnDestroy {
         }
         this.updateSelectedRecruiterState();
         this.loadRecruiterAnalytics();
+        this.loadRecruiterNotes();
         this.loading = false;
       });
   }
@@ -290,6 +464,7 @@ export class Recruiters implements OnInit, OnDestroy {
       this.detailLoading = false;
       this.detailErrorMessage = '';
       this.recruiterInterviews = [];
+      this.clearRecruiterNotes();
       this.updateSelectedRecruiterState();
       this.loadRecruiterAnalytics();
     }
@@ -300,8 +475,15 @@ export class Recruiters implements OnInit, OnDestroy {
     this.isEditingProfile = false;
     this.saveErrorMessage = '';
     this.saveSuccessMessage = '';
+    this.activeWorkspaceTab = 'overview';
+    this.clearRecruiterNotes();
     this.updateSelectedRecruiterState();
     this.loadRecruiterAnalytics();
+    this.loadRecruiterNotes();
+  }
+
+  selectWorkspaceTab(tab: RecruiterWorkspaceTab): void {
+    this.activeWorkspaceTab = tab;
   }
 
   openEditProfile(): void {
@@ -414,6 +596,132 @@ export class Recruiters implements OnInit, OnDestroy {
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
       .join(' ');
+  }
+
+  formatDate(value: string): string {
+    const date = this.parseDate(value);
+    return date ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+  }
+
+  displayStatus(value: string): string {
+    return this.formatTitle(this.normalizeStatus(value));
+  }
+
+  statusClass(value: string): string {
+    const status = this.normalizeStatus(value);
+    if (this.isCompletedStatus(status)) return 'complete';
+    if (status.includes('scheduled')) return 'scheduled';
+    if (status.includes('reject') || status.includes('cancel')) return 'risk';
+    return 'progress';
+  }
+
+  roleLegendPercent(count: number): number {
+    const total = this.selectedMonthRoleTotal || 1;
+    return Math.round((count / total) * 100);
+  }
+
+  trendBarHeight(count: number): number {
+    const max = this.yearlyPerformanceBars.reduce((acc, item) => Math.max(acc, item.count), 0) || 1;
+    return Math.max(count ? 18 : 4, Math.round((count / max) * 100));
+  }
+
+  timeAgo(value: string): string {
+    const date = this.parseDate(value);
+    if (!date) return 'No date';
+    const diff = Date.now() - date.getTime();
+    const future = diff < 0;
+    const abs = Math.abs(diff);
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+    if (abs < hour) return future ? 'Soon' : `${Math.max(1, Math.round(abs / minute))}m ago`;
+    if (abs < day) return future ? `in ${Math.round(abs / hour)}h` : `${Math.round(abs / hour)}h ago`;
+    return future ? `in ${Math.round(abs / day)}d` : `${Math.round(abs / day)}d ago`;
+  }
+
+  formatNoteTimestamp(value?: string): string {
+    if (!value) return 'Just now';
+    const date = this.parseDate(value);
+    return date ? date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Just now';
+  }
+
+  saveRecruiterNote(): void {
+    const recruiterId = this.selectedRecruiter?.user_id || this.selectedRecruiter?.id;
+    const note = this.noteDraft.trim();
+    if (!recruiterId || !note || this.savingNote) {
+      this.notesErrorMessage = 'Enter a note before saving.';
+      this.notesSuccessMessage = '';
+      return;
+    }
+
+    const body = new URLSearchParams();
+    body.set('recruiter_id', String(recruiterId));
+    body.set('note', note.slice(0, this.maxRecruiterNoteLength));
+
+    this.savingNote = true;
+    this.notesErrorMessage = '';
+    this.notesSuccessMessage = '';
+
+    this.http.post<RecruiterNotesResponse>(`${this.getApiBaseUrl()}/recruiter-notes/`, body.toString(), {
+      headers: new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' })
+    })
+      .pipe(
+        catchError((error) => {
+          console.error('Error saving recruiter note', error);
+          this.savingNote = false;
+          this.notesSuccessMessage = '';
+          this.notesErrorMessage = error?.error?.Error || 'Failed to save recruiter note.';
+          return of({ Success: false, Error: this.notesErrorMessage, Notes: this.recruiterNotes } as RecruiterNotesResponse);
+        })
+      )
+      .subscribe((response) => {
+        this.savingNote = false;
+        if (!response?.Success) {
+          this.notesSuccessMessage = '';
+          this.notesErrorMessage = response?.Error || 'Failed to save recruiter note.';
+          return;
+        }
+        this.recruiterNotes = Array.isArray(response.Notes) ? response.Notes : (response.Note ? [response.Note, ...this.recruiterNotes] : this.recruiterNotes);
+        this.noteDraft = '';
+        this.notesErrorMessage = '';
+        this.notesSuccessMessage = 'Note saved.';
+      });
+  }
+
+  deleteRecruiterNote(note: RecruiterNote): void {
+    const recruiterId = this.selectedRecruiter?.user_id || this.selectedRecruiter?.id;
+    if (!recruiterId || !note?.id || this.deletingNoteId) return;
+
+    this.deletingNoteId = note.id;
+    this.notesErrorMessage = '';
+    this.notesSuccessMessage = '';
+
+    this.http.delete<RecruiterNotesResponse>(`${this.getApiBaseUrl()}/recruiter-notes/`, {
+      body: { recruiter_id: recruiterId, note_id: note.id },
+      headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+    })
+      .pipe(
+        catchError((error) => {
+          console.error('Error deleting recruiter note', error);
+          this.deletingNoteId = null;
+          this.notesSuccessMessage = '';
+          this.notesErrorMessage = error?.error?.Error || 'Failed to delete recruiter note.';
+          return of({ Success: false, Error: this.notesErrorMessage, Notes: this.recruiterNotes } as RecruiterNotesResponse);
+        })
+      )
+      .subscribe((response) => {
+        this.deletingNoteId = null;
+        if (!response?.Success) {
+          this.notesSuccessMessage = '';
+          this.notesErrorMessage = response?.Error || 'Failed to delete recruiter note.';
+          return;
+        }
+        this.recruiterNotes = Array.isArray(response.Notes)
+          ? response.Notes
+          : this.recruiterNotes.filter((item) => item.id !== note.id);
+        this.notesErrorMessage = '';
+        this.notesSuccessMessage = 'Note deleted.';
+      });
   }
 
   get canGoPrevPerformanceYear(): boolean {
@@ -568,6 +876,45 @@ export class Recruiters implements OnInit, OnDestroy {
       });
   }
 
+  private loadRecruiterNotes(): void {
+    const recruiterId = this.selectedRecruiter?.user_id || this.selectedRecruiter?.id;
+    if (!recruiterId) {
+      this.clearRecruiterNotes();
+      return;
+    }
+
+    this.notesLoading = true;
+    this.notesErrorMessage = '';
+    this.notesSuccessMessage = '';
+
+    this.http.get<RecruiterNotesResponse>(`${this.getApiBaseUrl()}/recruiter-notes/?recruiter_id=${encodeURIComponent(String(recruiterId))}`)
+      .pipe(
+        catchError((error) => {
+          console.error('Error loading recruiter notes', error);
+          this.notesLoading = false;
+          this.notesErrorMessage = error?.error?.Error || 'Failed to load recruiter notes.';
+          return of({ Success: false, Error: this.notesErrorMessage, Notes: [] } as RecruiterNotesResponse);
+        })
+      )
+      .subscribe((response) => {
+        this.notesLoading = false;
+        this.recruiterNotes = response?.Success && Array.isArray(response.Notes) ? response.Notes : [];
+        if (!response?.Success) {
+          this.notesErrorMessage = response?.Error || 'Failed to load recruiter notes.';
+        }
+      });
+  }
+
+  private clearRecruiterNotes(): void {
+    this.recruiterNotes = [];
+    this.noteDraft = '';
+    this.notesLoading = false;
+    this.savingNote = false;
+    this.deletingNoteId = null;
+    this.notesErrorMessage = '';
+    this.notesSuccessMessage = '';
+  }
+
   private rebuildAnalyticsState(): void {
     const now = new Date();
     const validDates = this.recruiterInterviews
@@ -655,6 +1002,46 @@ export class Recruiters implements OnInit, OnDestroy {
       .replace(/_/g, ' ')
       .replace(/\s+/g, ' ')
       .replace(/assesment/g, 'assessment');
+  }
+
+  private percentOf(current: number, target: number): number {
+    return Math.max(0, Math.min(100, Math.round((current / Math.max(1, target)) * 100)));
+  }
+
+  private formatRecordCode(prefix: string, value?: number): string {
+    return value ? `#${prefix}-${String(value).padStart(4, '0')}` : '--';
+  }
+
+  private isCompletedStatus(value: string): boolean {
+    const status = this.normalizeStatus(value);
+    return status.includes('complete') || status.includes('selected') || status.includes('hired') || status.includes('passed');
+  }
+
+  private activityTitle(status: string): string {
+    const normalized = this.normalizeStatus(status);
+    if (this.isCompletedStatus(normalized)) return 'Interview Completed';
+    if (normalized.includes('scheduled')) return 'Interview Scheduled';
+    if (normalized.includes('reject') || normalized.includes('cancel')) return 'Candidate Closed';
+    if (normalized.includes('advance') || normalized.includes('shortlist')) return 'Candidate Advanced';
+    return this.displayStatus(status) || 'Recruiter Activity';
+  }
+
+  private activityIcon(status: string): string {
+    const normalized = this.normalizeStatus(status);
+    if (this.isCompletedStatus(normalized)) return 'ph-check-circle';
+    if (normalized.includes('scheduled')) return 'ph-calendar-check';
+    if (normalized.includes('reject') || normalized.includes('cancel')) return 'ph-warning-circle';
+    if (normalized.includes('advance') || normalized.includes('shortlist')) return 'ph-arrow-right';
+    return 'ph-pulse';
+  }
+
+  private activityTone(status: string): RecruiterTone {
+    const normalized = this.normalizeStatus(status);
+    if (this.isCompletedStatus(normalized)) return 'green';
+    if (normalized.includes('scheduled')) return 'purple';
+    if (normalized.includes('reject') || normalized.includes('cancel')) return 'amber';
+    if (normalized.includes('advance') || normalized.includes('shortlist')) return 'blue';
+    return 'cyan';
   }
 
   private parseDate(value: string): Date | null {

@@ -21,6 +21,9 @@ interface Evaluator {
   profile_id?: number;
   recruiter_id?: number;
   recruiter_name?: string;
+  interviewers_count?: number;
+  candidates_count?: number;
+  interviews_count?: number;
 }
 
 interface RecruiterOption {
@@ -69,6 +72,8 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
   saveSuccessMessage = '';
   savingProfile = false;
   isEditingProfile = false;
+  activeRecruiterTab: 'overview' | 'network' | 'ownership' | 'records' | 'pipeline' = 'overview';
+  activeEvaluatorTab: 'overview' | 'queue' | 'mapping' | 'roles' | 'delivery' = 'overview';
   interviews: InterviewItem[] = [];
   editableRecruiter = {
     name: '',
@@ -123,6 +128,7 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
       this.isEditingProfile = false;
       this.saveErrorMessage = '';
       this.saveSuccessMessage = '';
+      this.resetWorkspaceTabs();
       this.hydrateEditableRecruiter();
       this.loadRecruiterProfile();
     }
@@ -153,6 +159,14 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
 
   trackById(_index: number, item: InterviewItem): number {
     return item.id;
+  }
+
+  setRecruiterTab(tab: 'overview' | 'network' | 'ownership' | 'records' | 'pipeline'): void {
+    this.activeRecruiterTab = tab;
+  }
+
+  setEvaluatorTab(tab: 'overview' | 'queue' | 'mapping' | 'roles' | 'delivery'): void {
+    this.activeEvaluatorTab = tab;
   }
 
   get totalInterviews(): number {
@@ -222,6 +236,80 @@ export class RecuiterProfile implements OnInit, OnChanges, OnDestroy, AfterViewC
     if (this.monthOverMonthDelta > 0) return 'trend-up';
     if (this.monthOverMonthDelta < 0) return 'trend-down';
     return 'trend-flat';
+  }
+
+  get profileInitials(): string {
+    const parts = (this.evaluator?.name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'NA';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  get profileIdLabel(): string {
+    const id = this.evaluator?.profile_id || this.evaluator?.user_id || this.evaluator?.id;
+    return id ? String(id) : '';
+  }
+
+  get managedCandidatesCount(): number {
+    return this.evaluator?.candidates_count || 0;
+  }
+
+  get linkedEvaluatorsCount(): number {
+    return this.evaluator?.interviewers_count || 0;
+  }
+
+  get hasPhone(): boolean {
+    return !!(this.evaluator?.phone || '').trim();
+  }
+
+  get hasContactDetails(): boolean {
+    return !!((this.evaluator?.email || '').trim() || this.hasPhone);
+  }
+
+  get hasRecruiterProfileFacts(): boolean {
+    return !!((this.evaluator?.role || '').trim() || this.hasContactDetails || this.profileIdLabel || this.lastActiveDate);
+  }
+
+  get hasEvaluatorProfileFacts(): boolean {
+    return !!((this.evaluator?.role || '').trim() || this.hasContactDetails || (this.evaluator?.recruiter_name || '').trim() || this.profileIdLabel || this.lastActiveDate);
+  }
+
+  get scheduledInterviewsCount(): number {
+    return this.interviews.filter((i) => this.normalizeStatus(i.status) === 'scheduled').length;
+  }
+
+  get completedOutcomeCount(): number {
+    return this.interviews.filter((i) => {
+      const status = this.normalizeStatus(i.status);
+      return ['completed', 'hired', 'offer accepted'].includes(status);
+    }).length;
+  }
+
+  get allStatusBreakdownData(): Array<{ label: string; count: number; percent: number }> {
+    return this.buildPerformanceStatusBreakdown(this.interviews);
+  }
+
+  get roleCoverageData(): Array<{ role: string; count: number }> {
+    const roleMap = this.interviews.reduce((acc, item) => {
+      const role = (item.role || 'Unassigned').toString().trim() || 'Unassigned';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(roleMap)
+      .map(([role, count]) => ({ role, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }
+
+  roleCoverageWidth(count: number): number {
+    const max = this.roleCoverageData[0]?.count || 1;
+    return Math.max(10, Math.round((count / max) * 100));
+  }
+
+  private resetWorkspaceTabs(): void {
+    this.activeRecruiterTab = 'overview';
+    this.activeEvaluatorTab = 'overview';
   }
 
   openEditProfile(): void {
