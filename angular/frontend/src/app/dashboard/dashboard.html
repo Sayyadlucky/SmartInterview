@@ -1,4 +1,4 @@
-<header class="navbar-shell">
+<header class="navbar-shell" [class.shell-loading]="shellLoading" [attr.aria-busy]="shellLoading">
 <nav class="navbar" aria-label="Primary navigation">
   <div class="navbar-brand shortlistii-logo shortlistii-navbar" aria-label="shortlistii.com">
     <span class="logo-text">shortlist</span>
@@ -33,21 +33,39 @@
     <a href="/logout/"><i class="ph ph-sign-out"></i> Logout</a>
   </div>
   <div class="desktop-header-title" aria-label="Current workspace">
-    <span>Recruiter Workspace</span>
-    <strong>Hiring Dashboard</strong>
+    <ng-container *ngIf="!shellLoading; else desktopHeaderTitleSkeleton">
+      <span>Recruiter Workspace</span>
+      <strong>Hiring Dashboard</strong>
+    </ng-container>
+    <ng-template #desktopHeaderTitleSkeleton>
+      <span class="skeleton-line shell-skeleton-kicker"></span>
+      <strong class="skeleton-line shell-skeleton-title"></strong>
+    </ng-template>
   </div>
   <div class="desktop-header-tools" aria-label="Global controls">
-    <button type="button" class="desktop-icon-button" data-tour="pending-requests" aria-label="Review pending requests" (click)="openPendingRequestsModal()">
-      <i class="ph ph-bell" aria-hidden="true"></i>
-      <span class="notification-dot">{{ recruiterApplicationsCount || 0 }}</span>
-    </button>
-    <button type="button" class="desktop-profile-pill" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
-      <span class="desktop-profile-avatar">{{ companyInitials }}</span>
-      <span class="desktop-profile-copy">
-        <strong>{{ companyDisplayName }}</strong>
-        <small>{{ loginUserRole || 'Workspace' }}</small>
+    <ng-container *ngIf="!shellLoading; else desktopHeaderToolsSkeleton">
+      <button type="button" class="desktop-icon-button" data-tour="pending-requests" aria-label="Review pending requests" (click)="openPendingRequestsModal()">
+        <i class="ph ph-bell" aria-hidden="true"></i>
+        <span class="notification-dot">{{ recruiterApplicationsCount || 0 }}</span>
+      </button>
+      <button type="button" class="desktop-profile-pill" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
+        <span class="desktop-profile-avatar">{{ companyInitials }}</span>
+        <span class="desktop-profile-copy">
+          <strong>{{ companyDisplayName }}</strong>
+          <small>{{ loginUserRole || 'Workspace' }}</small>
+        </span>
+      </button>
+    </ng-container>
+    <ng-template #desktopHeaderToolsSkeleton>
+      <span class="skeleton-icon shell-skeleton-header-icon" aria-hidden="true"></span>
+      <span class="shell-skeleton-profile skeleton-card" aria-hidden="true">
+        <span class="skeleton-avatar shell-skeleton-profile-avatar"></span>
+        <span class="shell-skeleton-profile-copy">
+          <span class="skeleton-line shell-skeleton-profile-name"></span>
+          <span class="skeleton-line shell-skeleton-profile-role"></span>
+        </span>
       </span>
-    </button>
+    </ng-template>
   </div>
 </nav>
 </header>
@@ -56,14 +74,73 @@
   id="dashboardMobileNavPanel"
   class="mobile-nav-panel"
   [class.is-open]="mobileNavOpen"
-  aria-label="Mobile navigation"
+  aria-label="Recruiter dashboard mobile navigation"
   [attr.aria-hidden]="!mobileNavOpen"
   tabindex="-1">
-  <a href="/dashboard" [class.active]="activeTab === 'overview'" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()"><i class="ph ph-gauge"></i> Dashboard</a>
-  <a href="/dashboard/jobs" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()"><i class="ph ph-briefcase"></i> Job Postings</a>
-  <button type="button" class="nav-link-button" [class.active]="activeTab === 'candidates'" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('candidates'); closeMobileNav()"><i class="ph ph-users"></i> Candidates</button>
-  <button type="button" class="nav-link-button" [class.active]="activeTab === 'ai-talent-pool'" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openAiTalentPool(); closeMobileNav()"><i class="ph ph-sparkle"></i> AI Talent Pool</button>
-  <a href="/logout/" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()"><i class="ph ph-sign-out"></i> Logout</a>
+  <div class="mobile-nav-heading">
+    <strong>Recruiter Workspace</strong>
+    <span>Hiring Dashboard</span>
+  </div>
+
+  <section class="sidebar-nav-group" aria-labelledby="mobileSidebarPrimaryTitle">
+    <h2 id="mobileSidebarPrimaryTitle">Primary</h2>
+    <a class="sidebar-nav-item" href="/dashboard" [class.active]="activeTab === 'overview'" [attr.aria-current]="activeTab === 'overview' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()">
+      <i class="ph ph-gauge" aria-hidden="true"></i>
+      <span>Dashboard</span>
+    </a>
+    <a class="sidebar-nav-item" href="/dashboard/jobs" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()">
+      <i class="ph ph-briefcase" aria-hidden="true"></i>
+      <span>Job Postings</span>
+    </a>
+    <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'candidates'" [attr.aria-current]="activeTab === 'candidates' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('candidates'); closeMobileNav()">
+      <i class="ph ph-users" aria-hidden="true"></i>
+      <span>Candidates</span>
+    </button>
+    <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'ai-talent-pool'" [attr.aria-current]="activeTab === 'ai-talent-pool' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openAiTalentPool(); closeMobileNav()">
+      <i class="ph ph-sparkle" aria-hidden="true"></i>
+      <span>AI Talent Pool</span>
+    </button>
+  </section>
+
+  <section class="sidebar-nav-group" aria-labelledby="mobileSidebarOperationsTitle">
+    <h2 id="mobileSidebarOperationsTitle">Operations</h2>
+    <button type="button" class="sidebar-nav-item" *ngIf="loginUserRole === 'admin'" [class.active]="activeTab === 'recruiters'" [attr.aria-current]="activeTab === 'recruiters' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('recruiters'); closeMobileNav()">
+      <i class="ph ph-identification-card" aria-hidden="true"></i>
+      <span>Recruiters</span>
+    </button>
+    <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'evaluators'" [attr.aria-current]="activeTab === 'evaluators' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('evaluators'); closeMobileNav()">
+      <i class="ph ph-identification-badge" aria-hidden="true"></i>
+      <span>Evaluators</span>
+    </button>
+    <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'activity'" [attr.aria-current]="activeTab === 'activity' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('activity'); closeMobileNav()">
+      <i class="ph ph-activity" aria-hidden="true"></i>
+      <span>Interviews / Activity</span>
+    </button>
+    <button type="button" class="sidebar-nav-item" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openWorkflowAction('evaluation-reviews'); closeMobileNav()">
+      <i class="ph ph-clipboard-text" aria-hidden="true"></i>
+      <span>Evaluation Reviews</span>
+    </button>
+  </section>
+
+  <section class="sidebar-nav-group" aria-labelledby="mobileSidebarInsightsTitle">
+    <h2 id="mobileSidebarInsightsTitle">Insights</h2>
+    <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'analytics'" [attr.aria-current]="activeTab === 'analytics' ? 'page' : null" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="setActiveTab('analytics'); closeMobileNav()">
+      <i class="ph ph-graph" aria-hidden="true"></i>
+      <span>Analytics</span>
+    </button>
+  </section>
+
+  <section class="sidebar-nav-group" aria-labelledby="mobileSidebarManagementTitle">
+    <h2 id="mobileSidebarManagementTitle">Management</h2>
+    <button type="button" class="sidebar-nav-item" [disabled]="!companyProfile" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openCompanyDetailsModal(); closeMobileNav()">
+      <i class="ph ph-buildings" aria-hidden="true"></i>
+      <span>Company Profile</span>
+    </button>
+    <a class="sidebar-nav-item" href="/logout/" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()">
+      <i class="ph ph-sign-out" aria-hidden="true"></i>
+      <span>Logout</span>
+    </a>
+  </section>
 </nav>
 <button
   type="button"
@@ -73,7 +150,30 @@
   aria-label="Close navigation menu"
   (click)="closeMobileNav()"></button>
 
-<aside class="desktop-sidebar" aria-label="Desktop navigation">
+<nav class="mobile-bottom-nav" aria-label="Recruiter mobile shortcuts">
+  <a href="/dashboard" [class.active]="activeTab === 'overview'" [attr.aria-current]="activeTab === 'overview' ? 'page' : null">
+    <i class="ph ph-gauge" aria-hidden="true"></i>
+    <span>Home</span>
+  </a>
+  <button type="button" [class.active]="activeTab === 'candidates'" (click)="setActiveTab('candidates')">
+    <i class="ph ph-users" aria-hidden="true"></i>
+    <span>Candidates</span>
+  </button>
+  <button type="button" [class.active]="activeTab === 'activity'" (click)="setActiveTab('activity')">
+    <i class="ph ph-activity" aria-hidden="true"></i>
+    <span>Activity</span>
+  </button>
+  <button type="button" [class.active]="activeTab === 'analytics'" (click)="setActiveTab('analytics')">
+    <i class="ph ph-chart-line-up" aria-hidden="true"></i>
+    <span>Analytics</span>
+  </button>
+  <button type="button" [class.active]="activeTab === 'ai-talent-pool'" (click)="openAiTalentPool()">
+    <i class="ph ph-sparkle" aria-hidden="true"></i>
+    <span>Talent</span>
+  </button>
+</nav>
+
+<aside class="desktop-sidebar" [class.shell-loading]="shellLoading" [attr.aria-busy]="shellLoading" aria-label="Desktop navigation">
   <div class="desktop-sidebar-brand shortlistii-logo shortlistii-navbar" aria-label="shortlistii.com">
     <span class="logo-text">shortlist</span>
     <span class="logo-ii" aria-hidden="true">
@@ -91,68 +191,79 @@
   </div>
 
   <div class="desktop-sidebar-scroll">
-    <section class="sidebar-nav-group" aria-labelledby="sidebarPrimaryTitle">
-      <h2 id="sidebarPrimaryTitle">Primary</h2>
-      <a class="sidebar-nav-item" href="/dashboard" [class.active]="activeTab === 'overview'" [attr.aria-current]="activeTab === 'overview' ? 'page' : null">
-        <i class="ph ph-gauge" aria-hidden="true"></i>
-        <span>Dashboard</span>
-      </a>
-      <a class="sidebar-nav-item" href="/dashboard/jobs">
-        <i class="ph ph-briefcase" aria-hidden="true"></i>
-        <span>Job Postings</span>
-      </a>
-      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'candidates'" [attr.aria-current]="activeTab === 'candidates' ? 'page' : null" (click)="setActiveTab('candidates')">
-        <i class="ph ph-users" aria-hidden="true"></i>
-        <span>Candidates</span>
-      </button>
-      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'ai-talent-pool'" [attr.aria-current]="activeTab === 'ai-talent-pool' ? 'page' : null" (click)="openAiTalentPool()">
-        <i class="ph ph-sparkle" aria-hidden="true"></i>
-        <span>AI Talent Pool</span>
-      </button>
-    </section>
+    <ng-container *ngIf="!shellLoading; else desktopSidebarSkeleton">
+      <section class="sidebar-nav-group" aria-labelledby="sidebarPrimaryTitle">
+        <h2 id="sidebarPrimaryTitle">Primary</h2>
+        <a class="sidebar-nav-item" href="/dashboard" [class.active]="activeTab === 'overview'" [attr.aria-current]="activeTab === 'overview' ? 'page' : null">
+          <i class="ph ph-gauge" aria-hidden="true"></i>
+          <span>Dashboard</span>
+        </a>
+        <a class="sidebar-nav-item" href="/dashboard/jobs">
+          <i class="ph ph-briefcase" aria-hidden="true"></i>
+          <span>Job Postings</span>
+        </a>
+        <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'candidates'" [attr.aria-current]="activeTab === 'candidates' ? 'page' : null" (click)="setActiveTab('candidates')">
+          <i class="ph ph-users" aria-hidden="true"></i>
+          <span>Candidates</span>
+        </button>
+        <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'ai-talent-pool'" [attr.aria-current]="activeTab === 'ai-talent-pool' ? 'page' : null" (click)="openAiTalentPool()">
+          <i class="ph ph-sparkle" aria-hidden="true"></i>
+          <span>AI Talent Pool</span>
+        </button>
+      </section>
 
-    <section class="sidebar-nav-group" aria-labelledby="sidebarOperationsTitle">
-      <h2 id="sidebarOperationsTitle">Operations</h2>
-      <button type="button" class="sidebar-nav-item" *ngIf="loginUserRole === 'admin'" [class.active]="activeTab === 'recruiters'" [attr.aria-current]="activeTab === 'recruiters' ? 'page' : null" (click)="setActiveTab('recruiters')">
-        <i class="ph ph-identification-card" aria-hidden="true"></i>
-        <span>Recruiters</span>
-      </button>
-      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'evaluators'" [attr.aria-current]="activeTab === 'evaluators' ? 'page' : null" (click)="setActiveTab('evaluators')">
-        <i class="ph ph-identification-badge" aria-hidden="true"></i>
-        <span>Evaluators</span>
-      </button>
-      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'activity'" [attr.aria-current]="activeTab === 'activity' ? 'page' : null" (click)="setActiveTab('activity')">
-        <i class="ph ph-activity" aria-hidden="true"></i>
-        <span>Interviews / Activity</span>
-      </button>
-      <button type="button" class="sidebar-nav-item" (click)="openWorkflowAction('evaluation-reviews')">
-        <i class="ph ph-clipboard-text" aria-hidden="true"></i>
-        <span>Evaluation Reviews</span>
-      </button>
-    </section>
+      <section class="sidebar-nav-group" aria-labelledby="sidebarOperationsTitle">
+        <h2 id="sidebarOperationsTitle">Operations</h2>
+        <button type="button" class="sidebar-nav-item" *ngIf="loginUserRole === 'admin'" [class.active]="activeTab === 'recruiters'" [attr.aria-current]="activeTab === 'recruiters' ? 'page' : null" (click)="setActiveTab('recruiters')">
+          <i class="ph ph-identification-card" aria-hidden="true"></i>
+          <span>Recruiters</span>
+        </button>
+        <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'evaluators'" [attr.aria-current]="activeTab === 'evaluators' ? 'page' : null" (click)="setActiveTab('evaluators')">
+          <i class="ph ph-identification-badge" aria-hidden="true"></i>
+          <span>Evaluators</span>
+        </button>
+        <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'activity'" [attr.aria-current]="activeTab === 'activity' ? 'page' : null" (click)="setActiveTab('activity')">
+          <i class="ph ph-activity" aria-hidden="true"></i>
+          <span>Interviews / Activity</span>
+        </button>
+        <button type="button" class="sidebar-nav-item" (click)="openWorkflowAction('evaluation-reviews')">
+          <i class="ph ph-clipboard-text" aria-hidden="true"></i>
+          <span>Evaluation Reviews</span>
+        </button>
+      </section>
 
-    <section class="sidebar-nav-group" aria-labelledby="sidebarInsightsTitle">
-      <h2 id="sidebarInsightsTitle">Insights</h2>
-      <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'analytics'" [attr.aria-current]="activeTab === 'analytics' ? 'page' : null" (click)="setActiveTab('analytics')">
-        <i class="ph ph-graph" aria-hidden="true"></i>
-        <span>Analytics</span>
-      </button>
-    </section>
+      <section class="sidebar-nav-group" aria-labelledby="sidebarInsightsTitle">
+        <h2 id="sidebarInsightsTitle">Insights</h2>
+        <button type="button" class="sidebar-nav-item" [class.active]="activeTab === 'analytics'" [attr.aria-current]="activeTab === 'analytics' ? 'page' : null" (click)="setActiveTab('analytics')">
+          <i class="ph ph-graph" aria-hidden="true"></i>
+          <span>Analytics</span>
+        </button>
+      </section>
 
-    <section class="sidebar-nav-group" aria-labelledby="sidebarManagementTitle">
-      <h2 id="sidebarManagementTitle">Management</h2>
-      <button type="button" class="sidebar-nav-item" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()">
-        <i class="ph ph-buildings" aria-hidden="true"></i>
-        <span>Company Profile</span>
-      </button>
-      <a class="sidebar-nav-item" href="/logout/">
-        <i class="ph ph-sign-out" aria-hidden="true"></i>
-        <span>Logout</span>
-      </a>
-    </section>
+      <section class="sidebar-nav-group" aria-labelledby="sidebarManagementTitle">
+        <h2 id="sidebarManagementTitle">Management</h2>
+        <button type="button" class="sidebar-nav-item" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()">
+          <i class="ph ph-buildings" aria-hidden="true"></i>
+          <span>Company Profile</span>
+        </button>
+        <a class="sidebar-nav-item" href="/logout/">
+          <i class="ph ph-sign-out" aria-hidden="true"></i>
+          <span>Logout</span>
+        </a>
+      </section>
+    </ng-container>
+    <ng-template #desktopSidebarSkeleton>
+      <section class="sidebar-nav-group shell-sidebar-skeleton-group" *ngFor="let _ of [1, 2, 3, 4]" aria-hidden="true">
+        <span class="skeleton-line shell-skeleton-group-title"></span>
+        <span class="shell-skeleton-nav-row skeleton-card" *ngFor="let __ of [1, 2, 3]">
+          <span class="skeleton-icon shell-skeleton-nav-icon"></span>
+          <span class="skeleton-line shell-skeleton-nav-label"></span>
+        </span>
+      </section>
+    </ng-template>
   </div>
 
-  <button type="button" class="desktop-sidebar-account" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
+  <button *ngIf="!shellLoading; else desktopSidebarAccountSkeleton" type="button" class="desktop-sidebar-account" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
     <span class="sidebar-account-avatar">{{ loginUser ? getCandidateInitials(loginUser) : companyInitials }}</span>
     <span class="sidebar-account-copy">
       <strong>{{ loginUser || companyDisplayName }}</strong>
@@ -160,6 +271,15 @@
     </span>
     <i class="ph ph-dots-three-vertical" aria-hidden="true"></i>
   </button>
+  <ng-template #desktopSidebarAccountSkeleton>
+    <div class="desktop-sidebar-account shell-sidebar-account-skeleton skeleton-card" aria-hidden="true">
+      <span class="skeleton-avatar shell-skeleton-account-avatar"></span>
+      <span class="shell-skeleton-profile-copy">
+        <span class="skeleton-line shell-skeleton-profile-name"></span>
+        <span class="skeleton-line shell-skeleton-profile-role"></span>
+      </span>
+    </div>
+  </ng-template>
 </aside>
 
 <div class="dashboard-wrap">

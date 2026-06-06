@@ -1,41 +1,74 @@
 <section class="talent-pool" [attr.aria-busy]="loading">
   <header class="talent-hero">
     <div class="talent-hero-copy">
-      <span class="talent-kicker">Talent Intelligence</span>
+      <span class="talent-kicker"><i class="ph ph-sparkle" aria-hidden="true"></i> Talent Intelligence</span>
       <h2>AI Talent Pool</h2>
-      <p *ngIf="!isRoleScoped">Search active job postings, surface the strongest internal candidates, and move from open demand to recruiter action in one workspace.</p>
-      <p *ngIf="isRoleScoped">Talent recommendations are focused on the selected job posting so your team can review the best-fit candidates for this role without leaving the dashboard.</p>
+      <p>Find the best internal talent for your open roles with AI-powered matching.</p>
     </div>
 
-    <div class="talent-role-context">
-      <span class="talent-context-label">{{ isRoleScoped ? 'Role Context' : 'Workspace Mode' }}</span>
-      <strong>{{ selectedRole?.name || 'All Active Job Postings' }}</strong>
-      <small *ngIf="selectedRole">{{ selectedRole.company?.display_name || selectedRole.company?.legal_name || 'Hiring workspace' }} • {{ selectedRole.open_positions || 0 }} open position{{ (selectedRole.open_positions || 0) === 1 ? '' : 's' }}</small>
-      <small *ngIf="!selectedRole">Select a posting to narrow candidates to one hiring lane, or browse the full pool to compare where internal talent is strongest.</small>
+    <div class="talent-hero-actions">
+      <button type="button" class="talent-top-button talent-top-button-ghost" (click)="toggleHowItWorks()">
+        <i class="ph ph-info" aria-hidden="true"></i>
+        <span>How It Works</span>
+      </button>
+      <button type="button" class="talent-top-button talent-top-button-primary" (click)="browseRoles()">
+        <i class="ph ph-plus" aria-hidden="true"></i>
+        <span>Browse All Roles</span>
+      </button>
     </div>
   </header>
 
-  <section class="talent-controls dashboard-card" aria-label="Talent pool filters">
+  <section class="talent-how-it-works" *ngIf="showHowItWorks" aria-live="polite">
+    <article>
+      <i class="ph ph-briefcase" aria-hidden="true"></i>
+      <span>Select a role</span>
+      <p>AI matching starts only after a job posting is selected.</p>
+    </article>
+    <article>
+      <i class="ph ph-ranking" aria-hidden="true"></i>
+      <span>Review ranked candidates</span>
+      <p>Matches are scored by skills, experience, semantic role fit, education, and location.</p>
+    </article>
+    <article>
+      <i class="ph ph-user-focus" aria-hidden="true"></i>
+      <span>Open the profile</span>
+      <p>Recruiters can inspect candidate evidence before taking action.</p>
+    </article>
+  </section>
+
+  <section class="talent-kpi-grid" aria-label="Talent pool summary">
+    <article class="talent-kpi-card" *ngFor="let card of kpiCards" [ngClass]="'tone-' + card.tone">
+      <div class="talent-kpi-top">
+        <span class="talent-kpi-icon"><i class="ph" [class]="card.icon" aria-hidden="true"></i></span>
+        <div>
+          <span class="talent-kpi-label">{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.sublabel }}</small>
+        </div>
+      </div>
+      <svg class="talent-sparkline" viewBox="0 0 150 44" preserveAspectRatio="none" aria-hidden="true">
+        <path [attr.d]="card.spark"></path>
+      </svg>
+    </article>
+  </section>
+
+  <section class="talent-controls" aria-label="Talent pool filters">
     <div class="talent-control-grid">
       <label class="talent-field talent-field-search" for="talentSearchInput">
-        <span class="talent-label">Search candidates</span>
-        <div class="talent-input-shell">
-          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
-          <input
-            id="talentSearchInput"
-            type="search"
-            [(ngModel)]="searchTerm"
-            (ngModelChange)="onSearchChange()"
-            placeholder="Search by candidate, recruiter, email, or role">
-        </div>
+        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+        <input
+          id="talentSearchInput"
+          type="search"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Search by name, skills, role, or keyword...">
       </label>
 
       <label class="talent-field talent-role-search-field" for="talentRoleSearchInput">
-        <span class="talent-label">Job posting</span>
         <div class="talent-role-search">
           <div class="talent-input-shell talent-role-search-shell" [class.open]="rolePickerOpen">
-            <i class="ph ph-briefcase" aria-hidden="true"></i>
             <input
+              #talentRoleSearchInput
               id="talentRoleSearchInput"
               type="text"
               [(ngModel)]="roleSearchTerm"
@@ -47,9 +80,9 @@
               aria-autocomplete="list"
               [attr.aria-expanded]="rolePickerOpen"
               aria-controls="talentRoleOptions"
-              placeholder="Search job posting by title or ID">
+              placeholder="All Roles">
             <button
-              *ngIf="roleSearchTerm"
+              *ngIf="roleSearchTerm || isRoleScoped"
               type="button"
               class="talent-role-clear"
               aria-label="Clear job posting search"
@@ -79,38 +112,33 @@
       </label>
 
       <label class="talent-field" for="talentStatusSelect">
-        <span class="talent-label">Stage</span>
-        <div class="talent-select-shell">
-          <select id="talentStatusSelect" [(ngModel)]="statusFilter" (ngModelChange)="onStatusChange()">
-            <option value="all">All stages</option>
-            <option value="shortlisted">Shortlisted</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="assessment completed">Assessment Completed</option>
-            <option value="assessment pending">Assessment Pending</option>
-            <option value="auto screening scheduled">Auto Screening</option>
-            <option value="hired">Hired</option>
-            <option value="rejected">Rejected</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <i class="ph ph-caret-down" aria-hidden="true"></i>
-        </div>
+        <select id="talentStatusSelect" [(ngModel)]="statusFilter" (ngModelChange)="onStatusChange()">
+          <option value="all">All Stages</option>
+          <option value="shortlisted">Shortlisted</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="assessment completed">Assessment Completed</option>
+          <option value="assessment pending">Assessment Pending</option>
+          <option value="auto screening scheduled">Auto Screening</option>
+          <option value="hired">Hired</option>
+          <option value="rejected">Rejected</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <i class="ph ph-caret-down talent-select-caret" aria-hidden="true"></i>
       </label>
 
-      <button type="button" class="talent-reset" (click)="resetFilters()">
-        <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i>
-        <span>Reset</span>
-      </button>
-    </div>
+      <label class="talent-field talent-sort-field" for="talentSortSelect">
+        <select id="talentSortSelect" [(ngModel)]="sortOption" (ngModelChange)="onSortChange()">
+          <option value="best-match">Sort by: Best Match</option>
+          <option value="recent-activity">Sort by: Recent Activity</option>
+          <option value="candidate-name">Sort by: Candidate Name</option>
+        </select>
+        <i class="ph ph-sliders-horizontal talent-select-caret-left" aria-hidden="true"></i>
+        <i class="ph ph-caret-down talent-select-caret" aria-hidden="true"></i>
+      </label>
 
-    <div class="talent-fit-filters" role="group" aria-label="Filter talent pool by fit">
-      <button
-        *ngFor="let filter of fitFilters"
-        type="button"
-        class="talent-fit-chip"
-        [class.active]="fitFilter === filter.key"
-        [attr.aria-pressed]="fitFilter === filter.key"
-        (click)="setFitFilter(filter.key)">
-        {{ filter.label }}
+      <button type="button" class="talent-more-filters" (click)="resetFilters()">
+        <i class="ph ph-faders-horizontal" aria-hidden="true"></i>
+        <span>Reset</span>
       </button>
     </div>
   </section>
@@ -119,8 +147,8 @@
     <div class="talent-skeleton-grid" aria-hidden="true">
       <div class="talent-skeleton-card" *ngFor="let _ of [1, 2, 3, 4]"></div>
     </div>
-    <div class="talent-skeleton-list" aria-hidden="true">
-      <div class="talent-skeleton-row" *ngFor="let _ of [1, 2, 3]"></div>
+    <div class="talent-skeleton-table" aria-hidden="true">
+      <div class="talent-skeleton-row" *ngFor="let _ of [1, 2, 3, 4]"></div>
     </div>
     <p>Loading talent recommendations...</p>
   </section>
@@ -132,267 +160,199 @@
   </section>
 
   <ng-container *ngIf="!loading && !errorMessage">
-    <section class="talent-stat-grid" aria-label="Talent pool summary">
-      <article class="dashboard-card talent-stat-card">
-        <span><i class="ph ph-users" aria-hidden="true"></i> Candidates in View</span>
-        <strong>{{ totalCandidates }}</strong>
-      </article>
-      <article class="dashboard-card talent-stat-card">
-        <span><i class="ph ph-sparkle" aria-hidden="true"></i> Strong Fits</span>
-        <strong>{{ strongFitCount }}</strong>
-      </article>
-      <article class="dashboard-card talent-stat-card">
-        <span><i class="ph ph-lightning" aria-hidden="true"></i> Ready for Review</span>
-        <strong>{{ readyNowCount }}</strong>
-      </article>
-      <article class="dashboard-card talent-stat-card">
-        <span><i class="ph ph-chart-line-up" aria-hidden="true"></i> Avg Match</span>
-        <strong>{{ averageMatchScore }}%</strong>
-      </article>
-    </section>
-
     <section class="talent-layout">
-      <div class="talent-main">
-        <section class="dashboard-card talent-candidate-panel" aria-labelledby="talentCandidateListTitle">
-          <div class="talent-panel-head">
-            <div>
-              <span class="talent-section-kicker">Matched Profiles</span>
-              <h3 id="talentCandidateListTitle">{{ selectedRole?.name || 'Candidate Recommendations' }}</h3>
+      <main class="talent-results-panel" aria-labelledby="talentCandidateListTitle">
+        <div class="talent-segment-toolbar">
+          <div class="talent-fit-filters" role="group" aria-label="Filter talent pool by fit">
+            <button
+              type="button"
+              class="talent-fit-chip all"
+              [class.active]="fitFilter === 'all'"
+              [attr.aria-pressed]="fitFilter === 'all'"
+              (click)="setFitFilter('all')">
+              All <span>({{ (isRoleScoped ? totalCandidates : workspaceCandidateCount) | number }})</span>
+            </button>
+            <button
+              *ngFor="let filter of fitFilters.slice(1)"
+              type="button"
+              class="talent-fit-chip"
+              [class.strong]="filter.key === 'strong'"
+              [class.good]="filter.key === 'good'"
+              [class.watch]="filter.key === 'watch'"
+              [class.active]="fitFilter === filter.key"
+              [attr.aria-pressed]="fitFilter === filter.key"
+              (click)="setFitFilter(filter.key)">
+              <i class="ph" [class.ph-star]="filter.key === 'strong'" [class.ph-seal-check]="filter.key === 'good'" [class.ph-shield-warning]="filter.key === 'watch'" aria-hidden="true"></i>
+              {{ filter.label }}
+              <span *ngIf="filter.key === 'strong'">({{ strongFitCount | number }})</span>
+              <span *ngIf="filter.key === 'good'">({{ goodFitCount | number }})</span>
+              <span *ngIf="filter.key === 'watch'">({{ watchlistCount | number }})</span>
+            </button>
+          </div>
+
+          <div class="talent-selected-context">
+            <span>{{ selectedRole?.name || 'No role selected' }}</span>
+            <small *ngIf="selectedRole">{{ selectedRole.company?.display_name || selectedRole.company?.legal_name || 'Hiring workspace' }}</small>
+          </div>
+        </div>
+
+        <div class="talent-table-shell" *ngIf="isRoleScoped && filteredCandidates.length; else talentEmptyState">
+          <table class="talent-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Current Role</th>
+                <th>Match Score</th>
+                <th>Top Skills</th>
+                <th>Last Activity</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let candidate of paginatedCandidates; trackBy: trackByCandidate">
+                <td>
+                  <div class="talent-candidate-cell">
+                    <span class="talent-avatar">{{ candidate.initials }}</span>
+                    <div>
+                      <strong [title]="candidate.name">{{ candidate.name }}</strong>
+                      <small [title]="candidate.email">{{ candidate.email }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="talent-role-cell">
+                    <strong [title]="candidate.title || candidate.roleDisplay">{{ candidate.title || 'Title pending' }}</strong>
+                    <small [title]="candidate.roleDisplay">{{ candidate.role || selectedRole?.name || 'Role pending' }}</small>
+                  </div>
+                </td>
+                <td>
+                  <div class="talent-score-cell">
+                    <span class="talent-score-ring" [style.background]="scoreRingStyle(candidate)">{{ candidate.matchScore }}%</span>
+                    <span class="talent-score-label" [class.strong]="candidate.matchTone === 'strong'" [class.good]="candidate.matchTone === 'good'" [class.watch]="candidate.matchTone === 'watch'">
+                      {{ candidate.matchLabel }}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <div class="talent-skill-list compact">
+                    <span class="talent-skill-chip" *ngFor="let skill of candidateSkillPreview(candidate)">{{ skill }}</span>
+                    <span class="talent-skill-chip muted" *ngIf="remainingMatchedSkillCount(candidate) > 0">+{{ remainingMatchedSkillCount(candidate) }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="talent-activity-cell">
+                    <span></span>
+                    <div>
+                      <strong>{{ activityDateLabel(candidate) }}</strong>
+                      <small>{{ activityTimeLabel(candidate) }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="talent-row-actions">
+                    <button type="button" class="talent-icon-button" aria-label="View candidate profile" (click)="openCandidate(candidate)">
+                      <i class="ph ph-eye" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="talent-profile-button" (click)="openCandidate(candidate)">View Profile</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <footer class="talent-pagination" *ngIf="totalPages > 1" aria-label="Talent results pagination">
+            <span>Showing {{ pageStart }} to {{ pageEnd }} of {{ totalCandidates | number }} candidates</span>
+            <div class="talent-pagination-controls">
+              <button type="button" class="talent-page-button" (click)="prevPage()" [disabled]="currentPage === 1" aria-label="Previous page">
+                <i class="ph ph-caret-left" aria-hidden="true"></i>
+              </button>
+              <button
+                *ngFor="let page of visiblePageNumbers"
+                type="button"
+                class="talent-page-button"
+                [class.active]="page === currentPage"
+                [attr.aria-current]="page === currentPage ? 'page' : null"
+                (click)="goToPage(page)">
+                {{ page }}
+              </button>
+              <button type="button" class="talent-page-button" (click)="nextPage()" [disabled]="currentPage === totalPages" aria-label="Next page">
+                <i class="ph ph-caret-right" aria-hidden="true"></i>
+              </button>
             </div>
-            <span class="talent-panel-meta">{{ recruiterCoverageCount }} recruiter{{ recruiterCoverageCount === 1 ? '' : 's' }} contributing</span>
-          </div>
+          </footer>
+        </div>
 
-          <div class="talent-empty" *ngIf="!isRoleScoped">
-            <div class="talent-state-icon"><i class="ph ph-briefcase" aria-hidden="true"></i></div>
-            <h4>Select a job posting to open AI matching</h4>
-            <p>Choose a role from the filter above to get ranked, backend-generated talent recommendations for that specific job.</p>
-          </div>
-
-          <div class="talent-empty" *ngIf="isRoleScoped && !filteredCandidates.length">
-            <div class="talent-state-icon"><i class="ph ph-users-three" aria-hidden="true"></i></div>
-            <h4>No candidates matched this view</h4>
-            <p>Try another role, widen the stage filter, or clear search terms to reopen the talent pool.</p>
-          </div>
-
-          <ng-container *ngIf="isRoleScoped && filteredCandidates.length">
-            <div class="talent-results-toolbar" aria-label="Candidate results controls">
-              <div class="talent-results-copy">
-                <span class="talent-section-kicker">Results Workspace</span>
-                <div class="talent-results-summary">
-                  <h4>Candidate matches</h4>
-                  <p>Showing {{ pageStart }}-{{ pageEnd }} of {{ totalCandidates }} candidates</p>
-                </div>
-              </div>
-
-              <div class="talent-results-actions">
-                <div class="talent-results-count" aria-live="polite">
-                  <strong>{{ totalCandidates }}</strong>
-                  <span>results</span>
-                </div>
-
-                <label class="talent-field talent-sort-field" for="talentSortSelect">
-                  <span class="talent-label">Sort by</span>
-                  <div class="talent-select-shell">
-                    <select id="talentSortSelect" [(ngModel)]="sortOption" (ngModelChange)="onSortChange()">
-                      <option value="best-match">Best Match</option>
-                      <option value="recent-activity">Recent Activity</option>
-                      <option value="candidate-name">Candidate Name</option>
-                    </select>
-                    <i class="ph ph-caret-down" aria-hidden="true"></i>
-                  </div>
-                </label>
-              </div>
+        <ng-template #talentEmptyState>
+          <section class="talent-empty">
+            <div class="talent-empty-orbit" aria-hidden="true">
+              <i class="ph ph-sparkle"></i>
             </div>
+            <h3 id="talentCandidateListTitle">{{ isRoleScoped ? 'No candidates matched this view' : 'Select a role to open AI matching' }}</h3>
+            <p *ngIf="!isRoleScoped">
+              Your workspace has <strong>{{ workspaceCandidateCount | number }}</strong> candidates and <strong>{{ workspaceOpenRolesCount | number }}</strong> open roles. Choose a role before AI recommendations appear.
+            </p>
+            <p *ngIf="isRoleScoped">
+              Try another role, widen the stage filter, or clear search terms to reopen the talent pool.
+            </p>
+            <div class="talent-empty-actions">
+              <button type="button" class="talent-top-button talent-top-button-primary" (click)="browseRoles()">
+                <i class="ph ph-briefcase" aria-hidden="true"></i>
+                <span>Browse Roles</span>
+              </button>
+              <button type="button" class="talent-top-button talent-top-button-ghost" *ngIf="isRoleScoped" (click)="resetFilters()">
+                <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i>
+                <span>Reset Filters</span>
+              </button>
+            </div>
+          </section>
+        </ng-template>
+      </main>
 
-            <div class="talent-candidate-list">
-              <article class="talent-candidate-card" *ngFor="let candidate of paginatedCandidates; trackBy: trackByCandidate">
-                <div class="talent-candidate-top">
-                  <div class="talent-avatar" [attr.aria-label]="candidate.name + ' initials'">{{ candidate.initials }}</div>
-
-                  <div class="talent-candidate-copy">
-                    <div class="talent-candidate-title-row">
-                      <div class="talent-candidate-heading">
-                        <h4 [title]="candidate.name">{{ candidate.name }}</h4>
-                        <p [title]="candidate.title || candidate.email">{{ candidate.title || 'Title pending' }}</p>
-                      </div>
-                      <span class="talent-match-chip" [class.strong]="candidate.matchTone === 'strong'" [class.good]="candidate.matchTone === 'good'" [class.watch]="candidate.matchTone === 'watch'">
-                        {{ candidate.matchLabel }} • {{ candidate.matchScore }}%
-                      </span>
-                    </div>
-
-                    <div class="talent-candidate-email">
-                      <i class="ph ph-envelope-simple" aria-hidden="true"></i>
-                      <span [title]="candidate.email">{{ candidate.email }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="talent-metadata" aria-label="Candidate details">
-                  <span [title]="candidate.recruiter || 'Unassigned'"><i class="ph ph-user-circle" aria-hidden="true"></i> {{ candidate.recruiter || 'Unassigned' }}</span>
-                  <span><i class="ph" [class]="stageIcon(candidate.current_stage)" aria-hidden="true"></i> {{ candidate.statusLabel }}</span>
-                  <span><i class="ph ph-map-pin" aria-hidden="true"></i> {{ candidate.location || 'Location pending' }}</span>
-                  <span><i class="ph ph-calendar-blank" aria-hidden="true"></i> {{ candidate.dateLabel }}</span>
-                  <span><i class="ph ph-briefcase" aria-hidden="true"></i> {{ candidate.roleDisplay }}</span>
-                </div>
-
-                <div class="talent-card-body">
-                  <section class="talent-breakdown-panel" *ngIf="hasMatchBreakdown(candidate)" aria-label="AI match breakdown">
-                    <div class="talent-breakdown-head">
-                      <div>
-                        <span class="talent-breakdown-kicker">AI Match Breakdown</span>
-                        <p>How the ranking model weighted this fit</p>
-                      </div>
-                      <strong>{{ candidate.matchScore }}%</strong>
-                    </div>
-
-                    <div class="talent-breakdown-list">
-                      <div class="talent-breakdown-row" *ngFor="let row of getMatchBreakdownRows(candidate)">
-                        <span class="talent-breakdown-label">{{ row.label }}</span>
-                        <div class="talent-breakdown-track">
-                          <span [style.width.%]="breakdownBarWidth(row.value)"></span>
-                        </div>
-                        <strong>{{ row.value }}%</strong>
-                      </div>
-                    </div>
-                  </section>
-
-                  <div class="talent-skill-group" *ngIf="displayMatchedSkills(candidate).length">
-                    <span class="talent-skill-heading"><i class="ph ph-check-circle" aria-hidden="true"></i> Matched Skills</span>
-                    <div class="talent-skill-list">
-                      <span class="talent-skill-chip talent-skill-chip-match" *ngFor="let skill of displayMatchedSkills(candidate)">{{ skill }}</span>
-                    </div>
-                  </div>
-
-                  <div class="talent-skill-group" *ngIf="candidate.missing_skills.length">
-                    <span class="talent-skill-heading"><i class="ph ph-warning-circle" aria-hidden="true"></i> Missing Skills</span>
-                    <div class="talent-skill-list">
-                      <span class="talent-skill-chip talent-skill-chip-gap" *ngFor="let skill of visibleMissingSkills(candidate)">{{ skill }}</span>
-                      <span class="talent-skill-chip talent-skill-chip-muted" *ngIf="remainingMissingSkillCount(candidate) > 0">
-                        +{{ remainingMissingSkillCount(candidate) }} more
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="talent-explanation-panel" *ngIf="candidate.explanations.length">
-                  <span class="talent-explanation-label">Why this candidate surfaced</span>
-                  <ul class="talent-explanation-list">
-                    <li *ngFor="let explanation of candidate.explanations">{{ explanation }}</li>
-                  </ul>
-                </div>
-
-                <div class="talent-card-actions">
-                  <button type="button" class="talent-action talent-action-secondary" (click)="openCandidate(candidate)">
-                    <i class="ph ph-user-focus" aria-hidden="true"></i>
-                    <span>View Candidate</span>
-                  </button>
-                  <button type="button" class="talent-action talent-action-primary" *ngIf="candidate.role_id" (click)="openRole(candidate.role_id)">
-                    <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
-                    <span>Open Role</span>
-                  </button>
-                </div>
+      <aside class="talent-side" aria-label="Talent analytics">
+        <section class="talent-side-card">
+          <div class="talent-side-head">
+            <h3>Match Quality Distribution</h3>
+          </div>
+          <div class="talent-donut-row">
+            <div class="talent-donut" [style.background]="matchQualityGradient" aria-hidden="true"></div>
+            <div class="talent-legend">
+              <article *ngFor="let row of matchQualityRows">
+                <span [style.background]="row.color"></span>
+                <p>{{ row.label }}</p>
+                <strong>{{ row.count | number }} ({{ row.percent }}%)</strong>
               </article>
             </div>
-
-            <footer class="talent-pagination" *ngIf="totalPages > 1" aria-label="Talent results pagination">
-              <div class="talent-pagination-summary">
-                Showing {{ pageStart }}-{{ pageEnd }} of {{ totalCandidates }} candidates
-              </div>
-
-              <div class="talent-pagination-controls">
-                <button
-                  type="button"
-                  class="talent-page-button talent-page-nav"
-                  (click)="prevPage()"
-                  [disabled]="currentPage === 1"
-                  aria-label="Previous page">
-                  <i class="ph ph-caret-left" aria-hidden="true"></i>
-                  <span>Previous</span>
-                </button>
-
-                <div class="talent-page-numbers" role="group" aria-label="Page numbers">
-                  <button
-                    *ngFor="let page of visiblePageNumbers"
-                    type="button"
-                    class="talent-page-button"
-                    [class.active]="page === currentPage"
-                    [attr.aria-current]="page === currentPage ? 'page' : null"
-                    (click)="goToPage(page)">
-                    {{ page }}
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  class="talent-page-button talent-page-nav"
-                  (click)="nextPage()"
-                  [disabled]="currentPage === totalPages"
-                  aria-label="Next page">
-                  <span>Next</span>
-                  <i class="ph ph-caret-right" aria-hidden="true"></i>
-                </button>
-              </div>
-            </footer>
-          </ng-container>
-        </section>
-      </div>
-
-      <aside class="talent-side">
-        <section class="dashboard-card talent-side-card" aria-labelledby="talentRoleSpotlightTitle">
-          <div class="talent-panel-head">
-            <div>
-              <span class="talent-section-kicker">Role Spotlight</span>
-              <h3 id="talentRoleSpotlightTitle">{{ selectedRole?.name || 'Portfolio View' }}</h3>
-            </div>
           </div>
-          <p class="talent-side-copy" *ngIf="selectedRole">{{ selectedRole.company?.display_name || selectedRole.company?.legal_name || 'Hiring workspace' }} • {{ selectedRole.location || 'Location pending' }} • {{ selectedRole.job_type || 'Type pending' }}</p>
-          <p class="talent-side-copy" *ngIf="!selectedRole">Use this mode to compare talent quality across all open roles and decide where recruiter focus should shift next.</p>
-          <div class="talent-spotlight-stats">
-            <article *ngFor="let stat of spotlightStats">
-              <span><i class="ph" [class]="stat.icon" aria-hidden="true"></i> {{ stat.label }}</span>
-              <strong>{{ stat.value }}</strong>
+        </section>
+
+        <section class="talent-side-card">
+          <div class="talent-side-head">
+            <h3>Top Skills in Pool</h3>
+            <button type="button" (click)="setFitFilter('all')">View All</button>
+          </div>
+          <div class="talent-bar-list" *ngIf="topSkillStats.length; else noSkillStats">
+            <article *ngFor="let skill of topSkillStats" [ngClass]="'tone-' + skill.tone">
+              <span>{{ skill.skill }}</span>
+              <div><b [style.width.%]="skill.percent"></b></div>
+              <strong>{{ skill.percent }}%</strong>
             </article>
           </div>
-          <button type="button" class="talent-action talent-action-primary wide" *ngIf="selectedRole" (click)="openRole(selectedRole.id)">
-            <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
-            <span>Open Job Brief</span>
-          </button>
+          <ng-template #noSkillStats>
+            <p class="talent-side-copy">Skill distribution appears after a role has AI-matched candidates.</p>
+          </ng-template>
         </section>
 
-        <section class="dashboard-card talent-side-card" aria-labelledby="talentRoleRequirementsTitle">
-          <div class="talent-panel-head">
-            <div>
-              <span class="talent-section-kicker">Role Signals</span>
-              <h3 id="talentRoleRequirementsTitle">Requirement Snapshot</h3>
-            </div>
+        <section class="talent-side-card">
+          <div class="talent-side-head">
+            <h3>Pipeline Stages</h3>
+            <button type="button" (click)="resetFilters()">View All</button>
           </div>
-          <p class="talent-side-copy" *ngIf="roleSummary?.experience_required"><i class="ph ph-timer" aria-hidden="true"></i> {{ roleSummary?.experience_required }}</p>
-          <div class="talent-skill-group" *ngIf="requiredSkills.length">
-            <span class="talent-skill-heading"><i class="ph ph-check-square-offset" aria-hidden="true"></i> Required Skills</span>
-            <div class="talent-skill-list">
-              <span class="talent-skill-chip talent-skill-chip-match" *ngFor="let skill of requiredSkills">{{ skill }}</span>
-            </div>
-          </div>
-          <div class="talent-skill-group" *ngIf="preferredSkills.length">
-            <span class="talent-skill-heading"><i class="ph ph-star-four" aria-hidden="true"></i> Preferred Skills</span>
-            <div class="talent-skill-list">
-              <span class="talent-skill-chip" *ngFor="let skill of preferredSkills">{{ skill }}</span>
-            </div>
-          </div>
-          <p class="talent-side-copy" *ngIf="!requiredSkills.length && !preferredSkills.length">The job brief does not expose structured skill requirements yet, so ranking is leaning more heavily on semantic alignment and resume relevance.</p>
-        </section>
-
-        <section class="dashboard-card talent-side-card" aria-labelledby="talentStageMixTitle">
-          <div class="talent-panel-head">
-            <div>
-              <span class="talent-section-kicker">Pipeline Mix</span>
-              <h3 id="talentStageMixTitle">Current Stage Breakdown</h3>
-            </div>
-          </div>
-          <div class="talent-side-list" *ngIf="stageSummary.length; else noStageSummary">
-            <article *ngFor="let stage of stageSummary">
-              <span><i class="ph" [class]="stage.icon" aria-hidden="true"></i> {{ stage.label }}</span>
-              <strong>{{ stage.value }}</strong>
+          <div class="talent-stage-list" *ngIf="stageAnalyticsRows.length; else noStageSummary">
+            <article *ngFor="let stage of stageAnalyticsRows" [ngClass]="'tone-' + stage.tone">
+              <i class="ph" [class]="stage.icon" aria-hidden="true"></i>
+              <span>{{ stage.label }}</span>
+              <div><b [style.width.%]="stage.percent"></b></div>
+              <strong>{{ stage.value | number }}</strong>
             </article>
           </div>
           <ng-template #noStageSummary>
@@ -400,25 +360,18 @@
           </ng-template>
         </section>
 
-        <section class="dashboard-card talent-side-card" aria-labelledby="talentRecruiterLoadTitle">
-          <div class="talent-panel-head">
-            <div>
-              <span class="talent-section-kicker">Recruiter Load</span>
-              <h3 id="talentRecruiterLoadTitle">Coverage Snapshot</h3>
-            </div>
+        <section class="talent-side-card talent-quick-actions">
+          <h3>Quick Actions</h3>
+          <div>
+            <button type="button" (click)="openRolesWorkspace()">
+              <i class="ph ph-plus" aria-hidden="true"></i>
+              <span>Create New Role</span>
+            </button>
+            <button type="button" (click)="browseRoles()">
+              <i class="ph ph-briefcase" aria-hidden="true"></i>
+              <span>View All Roles</span>
+            </button>
           </div>
-          <div class="talent-recruiter-list" *ngIf="recruiterLoad.length; else noRecruiterLoad">
-            <article *ngFor="let item of recruiterLoad">
-              <div>
-                <strong [title]="item.recruiter">{{ item.recruiter }}</strong>
-                <span>Candidates in current view</span>
-              </div>
-              <b>{{ item.count }}</b>
-            </article>
-          </div>
-          <ng-template #noRecruiterLoad>
-            <p class="talent-side-copy">Recruiter coverage will populate once candidates are available for this view.</p>
-          </ng-template>
         </section>
       </aside>
     </section>

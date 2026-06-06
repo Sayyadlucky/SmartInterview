@@ -151,6 +151,13 @@ export class Jobs {
     this.closeQuickActionMenu();
   }
 
+  @HostListener('window:resize')
+  handleWindowResize(): void {
+    if (window.innerWidth >= 1180 && this.mobileNavOpen) {
+      this.closeMobileNav(false);
+    }
+  }
+
   toggleMobileNav(): void {
     if (this.mobileNavOpen) {
       this.closeMobileNav(true);

@@ -127,6 +127,11 @@ interface AnalyticsSummaryCard {
   status: string;
   tone: Tone;
   icon: string;
+  accent: 'blue' | 'purple' | 'teal' | 'orange' | 'rose' | 'green';
+  trendLabel: string;
+  trendTone: Tone;
+  sparkPath: string;
+  sparkAreaPath: string;
 }
 
 interface ExecutiveAction {
@@ -175,6 +180,34 @@ interface AnalyticsChangeSignal {
   value: string;
   direction: 'up' | 'down' | 'flat' | 'alert' | 'positive';
   helper: string;
+  tone: Tone;
+}
+
+interface PipelineSegment {
+  label: string;
+  value: number;
+  percent: number;
+  color: string;
+}
+
+interface PipelineHealthStage {
+  stage: string;
+  current: number;
+  share: number;
+  tone: Tone;
+}
+
+interface AnalyticsBarRow {
+  label: string;
+  value: number;
+  percent: number;
+  tone: Tone;
+}
+
+interface AnalyticsWatchItem {
+  title: string;
+  meta: string;
+  badge: string;
   tone: Tone;
 }
 
@@ -401,7 +434,9 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get hasTimeToHireTrend(): boolean {
-    return this.timeToHire.monthly_avg_days.some((x) => x > 0) || this.timeToHire.monthly_hires.some((x) => x > 0);
+    return this.timeToHire.monthly_total_hires.some((x) => x > 0) ||
+      this.timeToHire.monthly_avg_days.some((x) => x > 0) ||
+      this.timeToHire.monthly_hires.some((x) => x > 0);
   }
 
   get hasForecastProjection(): boolean {
@@ -412,6 +447,128 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
     return Object.entries(this.interviewQuality.score_bands || {})
       .map(([label, value]) => ({ label, value: Number(value || 0) }))
       .filter((x) => x.value > 0);
+  }
+
+  get pipelineTotal(): number {
+    return this.funnel.values.reduce((sum, value) => sum + Number(value || 0), 0);
+  }
+
+  get pipelineSegments(): PipelineSegment[] {
+    const colors = ['#1677ff', '#7c3aed', '#ff8a00', '#19c7a5', '#14a86f', '#f02f5f', '#7586a8'];
+    const total = Math.max(this.pipelineTotal, 1);
+    return this.funnel.labels
+      .map((label, index) => {
+        const value = Number(this.funnel.values[index] || 0);
+        return {
+          label,
+          value,
+          percent: (value / total) * 100,
+          color: colors[index % colors.length],
+        };
+      })
+      .filter((segment) => segment.value > 0);
+  }
+
+  get pipelineHealthStages(): PipelineHealthStage[] {
+    const total = Math.max(this.pipelineTotal, 1);
+    return this.funnel.labels
+      .map((stage, index) => {
+        const current = Number(this.funnel.values[index] || 0);
+        const share = Math.round((current / total) * 100);
+        const conversion = this.funnel.conversions.find((item) => item.from === stage)?.rate;
+        const tone: Tone = conversion === undefined ? 'info' : conversion < 35 ? 'critical' : conversion < 60 ? 'warning' : 'positive';
+        return {
+          stage,
+          current,
+          share,
+          tone,
+        };
+      })
+      .filter((row) => row.current > 0)
+      .slice(0, 6);
+  }
+
+  get dropoffReasonRows(): AnalyticsBarRow[] {
+    const rows: AnalyticsBarRow[] = [
+      { label: 'Rejected', value: this.dropoffAnalysis.rejected, percent: 0, tone: 'critical' as Tone },
+      { label: 'Cancelled', value: this.dropoffAnalysis.cancelled, percent: 0, tone: 'warning' as Tone },
+      { label: 'No Show', value: this.dropoffAnalysis.no_show, percent: 0, tone: 'at_risk' as Tone },
+      { label: 'Screening Timeout', value: this.dropoffAnalysis.screening_timeout, percent: 0, tone: 'info' as Tone },
+    ].filter((row) => row.value > 0);
+    const total = Math.max(this.dropoffAnalysis.total_dropoffs, rows.reduce((sum, row) => sum + row.value, 0), 1);
+    return rows.map((row) => ({ ...row, percent: (row.value / total) * 100 }));
+  }
+
+  get outcomeRows(): AnalyticsBarRow[] {
+    const rows: AnalyticsBarRow[] = [
+      { label: 'Positive (Hired)', value: this.summary.hires, percent: 0, tone: 'positive' as Tone },
+      { label: 'Neutral (Pending)', value: this.offerAcceptance.offers_pending || this.slaCompliance.active_pipeline, percent: 0, tone: 'warning' as Tone },
+      { label: 'Negative (Drop-offs)', value: this.dropoffAnalysis.total_dropoffs, percent: 0, tone: 'critical' as Tone },
+    ].filter((row) => row.value > 0);
+    const total = Math.max(rows.reduce((sum, row) => sum + row.value, 0), 1);
+    return rows.map((row) => ({ ...row, percent: (row.value / total) * 100 }));
+  }
+
+  get watchListItems(): AnalyticsWatchItem[] {
+    const slaItems = this.slaCompliance.breach_candidates.slice(0, 5).map((item) => ({
+      title: item.candidate_name,
+      meta: `${item.role || 'Unassigned role'} • ${item.breach_label}`,
+      badge: 'SLA',
+      tone: 'critical' as Tone,
+    }));
+    if (slaItems.length) return slaItems;
+
+    const roleItems = [...this.roleHealth]
+      .filter((role) => role.risk > 0)
+      .sort((a, b) => b.risk - a.risk)
+      .slice(0, 5)
+      .map((role) => ({
+        title: role.role,
+        meta: `${role.pipeline} in pipeline • ${role.filled}/${role.target} filled`,
+        badge: `${Math.round(role.risk)}%`,
+        tone: role.risk >= 75 ? 'critical' as Tone : role.risk >= 45 ? 'warning' as Tone : 'info' as Tone,
+      }));
+    if (roleItems.length) return roleItems;
+
+    return this.dropoffAnalysis.by_role.slice(0, 5).map((role) => ({
+      title: role.role,
+      meta: `${role.dropoffs} drop-offs in selected view`,
+      badge: `${this.formatPercent(role.drop_rate)}`,
+      tone: 'warning' as Tone,
+    }));
+  }
+
+  get velocityScore(): number {
+    const dropoffRate = this.summary.total_interviews > 0
+      ? (this.dropoffAnalysis.total_dropoffs / this.summary.total_interviews) * 100
+      : 0;
+    const hireComponent = Math.min(this.summary.hire_rate || 0, 100) * 0.35;
+    const slaComponent = Math.min(this.slaCompliance.compliance_rate || 0, 100) * 0.25;
+    const offerComponent = Math.min(this.offerAcceptance.acceptance_rate || 0, 100) * 0.2;
+    const dropoffComponent = Math.max(0, 100 - Math.min(dropoffRate, 100)) * 0.2;
+    return Math.round(hireComponent + slaComponent + offerComponent + dropoffComponent);
+  }
+
+  get velocityLabel(): string {
+    if (this.velocityScore >= 70) return 'High';
+    if (this.velocityScore >= 40) return 'Medium';
+    return 'Low';
+  }
+
+  get velocityTone(): Tone {
+    if (this.velocityScore >= 70) return 'positive';
+    if (this.velocityScore >= 40) return 'warning';
+    return 'critical';
+  }
+
+  get insightLead(): string {
+    return this.analystInsightCards[0] || this.forecastSummary.headline || 'No AI insight is available for the selected filters yet.';
+  }
+
+  get recommendationLead(): string {
+    const action = this.executiveActions[0];
+    if (action) return `${action.label}: ${action.detail}`;
+    return this.forecastSummary.helper || 'Keep monitoring funnel, role, SLA, and offer signals as data accumulates.';
   }
 
   get funnelHelperText(): string {
@@ -1151,6 +1308,24 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
     const target = this.forecastVsTarget.current_target || this.forecastVsTarget.monthly_target;
     const hiresBehind = target > 0 && this.summary.hires < target;
     const avgVsMedian = this.summary.avg_time_to_hire_days - this.summary.median_time_to_hire_days;
+    const monthlyInterviewValues = this.timeToHire.monthly_total_hires.some((value) => value > 0)
+      ? this.timeToHire.monthly_total_hires
+      : this.timeToHire.monthly_avg_days;
+    const activePipelineValues = this.slaCompliance.breakdown.length
+      ? this.slaCompliance.breakdown.map((item) => item.count)
+      : this.funnel.values;
+    const forecastGapValues = this.forecastVsTarget.projected_hires.length
+      ? this.forecastVsTarget.projected_hires.map((projected) => Math.max(0, (this.forecastVsTarget.monthly_target || target || projected) - projected))
+      : [this.forecastVsTarget.expected_gap_next_month];
+    const openRoleValues = this.roleHealth.length
+      ? this.roleHealth.map((role) => Math.max(0, Number(role.target || 0) - Number(role.filled || 0)))
+      : [this.summary.open_roles];
+    const monthlyHireRateValues = this.timeToHire.monthly_total_hires
+      .map((total, index) => total > 0 ? (Number(this.timeToHire.monthly_hires[index] || 0) / total) * 100 : 0)
+      .filter((value) => value > 0);
+    const hireRateValues = monthlyHireRateValues.length
+      ? monthlyHireRateValues
+      : this.sourceEffectiveness.map((source) => source.conversion);
 
     return [
       {
@@ -1160,9 +1335,25 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
         status: this.summary.total_interviews > 0 ? 'active' : 'quiet',
         tone: this.summary.total_interviews > 0 ? 'info' : 'neutral',
         icon: 'ph-chats-teardrop',
+        accent: 'blue',
+        trendLabel: this.summary.hires > 0 ? `${this.summary.hires} hires captured` : 'Awaiting hires',
+        trendTone: this.summary.hires > 0 ? 'positive' : 'neutral',
+        ...this.buildSparkline(monthlyInterviewValues, this.summary.total_interviews),
       },
       {
-        label: 'Hires',
+        label: 'Active Pipeline',
+        value: this.formatInteger(this.slaCompliance.active_pipeline),
+        helper: this.slaCompliance.breached > 0 ? `${this.slaCompliance.breached} candidates are outside SLA.` : 'Active candidates are within SLA scope.',
+        status: this.slaCompliance.breached > 0 ? 'breached' : 'covered',
+        tone: this.slaCompliance.breached > 0 ? 'warning' : 'positive',
+        icon: 'ph-calendar-check',
+        accent: 'purple',
+        trendLabel: `${this.formatPercent(this.slaCompliance.compliance_rate)} SLA compliance`,
+        trendTone: this.slaCompliance.breached > 0 ? 'warning' : 'positive',
+        ...this.buildSparkline(activePipelineValues, this.slaCompliance.active_pipeline),
+      },
+      {
+        label: 'Hired',
         value: this.formatInteger(this.summary.hires),
         helper: target > 0
           ? `${hiresBehind ? 'Tracking behind' : 'Tracking against'} target of ${target}.`
@@ -1170,14 +1361,22 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
         status: target > 0 ? (hiresBehind ? 'below target' : 'on pace') : 'current',
         tone: target > 0 ? (hiresBehind ? 'warning' : 'positive') : 'info',
         icon: 'ph-handshake',
+        accent: 'teal',
+        trendLabel: target > 0 ? `${this.currentDeliveryMetric}` : `${this.formatPercent(this.summary.hire_rate)} hire rate`,
+        trendTone: hiresBehind ? 'warning' : 'positive',
+        ...this.buildSparkline(this.timeToHire.monthly_hires, this.summary.hires),
       },
       {
-        label: 'Hire Rate',
-        value: this.formatPercent(this.summary.hire_rate),
-        helper: this.summary.hire_rate >= 30 ? 'Interview-to-hire conversion is holding well.' : 'Interview-to-hire conversion needs closer review.',
-        status: this.summary.hire_rate >= 30 ? 'healthy' : 'at risk',
-        tone: this.summary.hire_rate >= 30 ? 'positive' : 'warning',
-        icon: 'ph-percent',
+        label: 'Forecast Gap',
+        value: this.formatInteger(this.forecastVsTarget.expected_gap_next_month),
+        helper: this.forecastVsTarget.expected_gap_next_month > 0 ? 'Projected next-month gap needs attention.' : 'Projected delivery is not showing a gap.',
+        status: this.forecastVsTarget.expected_gap_next_month > 0 ? 'watch' : 'clear',
+        tone: this.forecastVsTarget.expected_gap_next_month > 0 ? 'warning' : 'positive',
+        icon: 'ph-trend-up',
+        accent: 'orange',
+        trendLabel: this.forecastSummary.status,
+        trendTone: this.forecastSummary.tone,
+        ...this.buildSparkline(forecastGapValues, this.forecastVsTarget.expected_gap_next_month),
       },
       {
         label: 'Open Roles',
@@ -1186,24 +1385,100 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
         status: highRiskRoles > 0 ? 'at risk' : 'stable',
         tone: highRiskRoles > 0 ? 'warning' : 'neutral',
         icon: 'ph-briefcase-metal',
+        accent: 'rose',
+        trendLabel: highRiskRoles > 0 ? `${highRiskRoles} high-risk roles` : 'Risk stable',
+        trendTone: highRiskRoles > 0 ? 'warning' : 'positive',
+        ...this.buildSparkline(openRoleValues, this.summary.open_roles),
       },
       {
-        label: 'Avg Time-to-Hire',
-        value: this.formatDays(this.summary.avg_time_to_hire_days),
-        helper: avgVsMedian > 2 ? 'Cycle time is slower than the median trend.' : avgVsMedian < -2 ? 'Cycle time is improving against the median trend.' : 'Cycle time is stable versus the median trend.',
-        status: avgVsMedian > 2 ? 'slowing' : avgVsMedian < -2 ? 'improving' : 'stable',
-        tone: avgVsMedian > 2 ? 'warning' : avgVsMedian < -2 ? 'positive' : 'neutral',
-        icon: 'ph-timer',
-      },
-      {
-        label: 'Median Time-to-Hire',
-        value: this.formatDays(this.summary.median_time_to_hire_days),
-        helper: 'Median cycle time sets the current pacing baseline.',
-        status: 'baseline',
-        tone: 'info',
-        icon: 'ph-hourglass-medium',
+        label: 'Hire Rate',
+        value: this.formatPercent(this.summary.hire_rate),
+        helper: this.summary.hire_rate >= 30 ? 'Interview-to-hire conversion is holding well.' : 'Interview-to-hire conversion needs closer review.',
+        status: this.summary.hire_rate >= 30 ? 'healthy' : 'at risk',
+        tone: this.summary.hire_rate >= 30 ? 'positive' : 'warning',
+        icon: 'ph-percent',
+        accent: 'green',
+        trendLabel: avgVsMedian > 2 ? `${Math.round(avgVsMedian)}d slower cycle` : `${this.formatDays(this.summary.avg_time_to_hire_days)} avg cycle`,
+        trendTone: avgVsMedian > 2 ? 'warning' : 'positive',
+        ...this.buildSparkline(hireRateValues, this.summary.hire_rate),
       }
     ];
+  }
+
+  private buildSparkline(values: Array<number | null | undefined>, fallbackValue = 0): { sparkPath: string; sparkAreaPath: string } {
+    const width = 160;
+    const height = 34;
+    const padding = 3;
+    const sparkValues = this.normalizeSparklineValues(values, fallbackValue);
+    const min = Math.min(...sparkValues);
+    const max = Math.max(...sparkValues);
+    const range = max - min || 1;
+    const step = (width - (padding * 2)) / Math.max(sparkValues.length - 1, 1);
+    const points = sparkValues.map((value, index) => {
+      const x = padding + (step * index);
+      const y = padding + (1 - ((value - min) / range)) * (height - (padding * 2));
+      return { x, y };
+    });
+    const sparkPath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${this.formatSparkCoord(point.x)} ${this.formatSparkCoord(point.y)}`)
+      .join(' ');
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
+    const baseY = height - padding;
+    const sparkAreaPath = `${sparkPath} L ${this.formatSparkCoord(lastPoint.x)} ${this.formatSparkCoord(baseY)} L ${this.formatSparkCoord(firstPoint.x)} ${this.formatSparkCoord(baseY)} Z`;
+
+    return { sparkPath, sparkAreaPath };
+  }
+
+  private normalizeSparklineValues(values: Array<number | null | undefined>, fallbackValue = 0): number[] {
+    let cleaned = values
+      .map((value) => Number(value || 0))
+      .filter((value) => Number.isFinite(value))
+      .map((value) => Math.max(0, value))
+      .slice(-6);
+
+    if (cleaned.length < 2) {
+      const base = Math.max(0, Number(fallbackValue || 0));
+      const lift = Math.max(1, Math.round(base * 0.16));
+      cleaned = [
+        Math.max(0, base - lift),
+        base + Math.ceil(lift / 2),
+        Math.max(0, base - Math.floor(lift / 2)),
+        base + lift,
+        Math.max(0, base - 1),
+        base,
+      ];
+    }
+
+    if (cleaned.length < 4) {
+      const last = cleaned[cleaned.length - 1] || 0;
+      while (cleaned.length < 4) {
+        const previous = cleaned[cleaned.length - 1] || last;
+        const direction = cleaned.length % 2 === 0 ? 1 : -1;
+        cleaned.push(Math.max(0, previous + direction));
+      }
+    }
+
+    const min = Math.min(...cleaned);
+    const max = Math.max(...cleaned);
+    if (min === max) {
+      const base = max;
+      const lift = Math.max(1, Math.round(base * 0.14));
+      return [
+        Math.max(0, base - lift),
+        base + Math.ceil(lift / 2),
+        Math.max(0, base - Math.floor(lift / 2)),
+        base + lift,
+        Math.max(0, base - 1),
+        base,
+      ];
+    }
+
+    return cleaned;
+  }
+
+  private formatSparkCoord(value: number): string {
+    return Number(value.toFixed(2)).toString();
   }
 
   private buildAnomalySummary(): AnomalySummary {
@@ -1407,7 +1682,7 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
     return insights.filter((value, index, all) => !!value && all.indexOf(value) === index).slice(0, 6);
   }
 
-  private navigateToAnalyticsTarget(target?: string): void {
+  navigateToAnalyticsTarget(target?: string): void {
     const sectionId = this.resolveAnalyticsSectionId(target);
     if (!sectionId) return;
 
@@ -1439,6 +1714,7 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
 
     const normalized = target.toString().trim().toLowerCase();
     if (!normalized) return null;
+    if (normalized.startsWith('analytics-') && document.getElementById(normalized)) return normalized;
 
     if (normalized === 'time-to-hire' || normalized === 'time to hire') return 'analytics-time-to-hire';
     if (normalized === 'forecast' || normalized === 'forecast vs target') return 'analytics-forecast';
@@ -1612,32 +1888,23 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
     if (this.funnelCanvas?.nativeElement && funnelCtx && this.hasFunnelData) {
       if (this.funnelChart) this.funnelChart.destroy();
       this.funnelChart = new Chart(funnelCtx, {
-        type: 'bar',
+        type: 'doughnut',
         data: {
           labels: this.funnel.labels,
           datasets: [{
             label: 'Candidates',
             data: this.funnel.values,
-            backgroundColor: ['#57e6ff', '#4cb9ff', '#3b82f6', '#2dd4bf', '#f59e0b', '#ef4444'],
-            borderRadius: 10,
-            borderSkipped: false,
+            backgroundColor: this.funnel.labels.map((_label, index) => ['#1677ff', '#7c3aed', '#ff8a00', '#19c7a5', '#14a86f', '#f02f5f', '#7586a8'][index % 7]),
+            borderColor: 'rgba(5, 18, 39, 0.92)',
+            borderWidth: 2,
+            hoverOffset: 6,
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          cutout: '68%',
           plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              ticks: { color: '#98c3e5' },
-              grid: { color: 'rgba(120,188,235,0.08)' }
-            },
-            y: {
-              ticks: { color: '#98c3e5', stepSize: 1 },
-              beginAtZero: true,
-              grid: { color: 'rgba(120,188,235,0.1)' }
-            },
-          }
         }
       });
       rendered = true;
@@ -1649,28 +1916,36 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
     const tthCtx = this.tthCanvas?.nativeElement?.getContext('2d');
     if (this.tthCanvas?.nativeElement && tthCtx && this.hasTimeToHireTrend) {
       if (this.tthChart) this.tthChart.destroy();
+      const primaryData = this.timeToHire.monthly_total_hires.some((x) => x > 0)
+        ? this.timeToHire.monthly_total_hires
+        : this.timeToHire.monthly_avg_days;
+      const primaryLabel = this.timeToHire.monthly_total_hires.some((x) => x > 0) ? 'Interviews' : 'Avg Days';
       this.tthChart = new Chart(tthCtx, {
         type: 'line',
         data: {
           labels: this.timeToHire.monthly_labels,
           datasets: [
             {
-              label: 'Avg Days',
-              data: this.timeToHire.monthly_avg_days,
-              borderColor: '#57e6ff',
-              backgroundColor: 'rgba(34,211,238,0.18)',
+              label: primaryLabel,
+              data: primaryData,
+              borderColor: '#1677ff',
+              backgroundColor: 'rgba(22, 119, 255, 0.18)',
               fill: true,
               tension: 0.32,
-              pointRadius: 2.5,
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              pointBackgroundColor: '#1677ff',
             },
             {
               label: 'Hires',
               data: this.timeToHire.monthly_hires,
-              borderColor: '#5eead4',
-              backgroundColor: 'rgba(94,234,212,0.14)',
+              borderColor: '#19c7a5',
+              backgroundColor: 'rgba(25, 199, 165, 0.14)',
               fill: false,
               tension: 0.25,
-              pointRadius: 2.5,
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              pointBackgroundColor: '#19c7a5',
               yAxisID: 'y1',
             }
           ]
@@ -1695,7 +1970,7 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
               grid: { drawOnChartArea: false }
             },
           },
-          plugins: { legend: { labels: { color: '#bfe0f8' } } }
+          plugins: { legend: { labels: { color: '#bfe0f8', usePointStyle: true, pointStyle: 'circle' } } }
         }
       });
       rendered = true;

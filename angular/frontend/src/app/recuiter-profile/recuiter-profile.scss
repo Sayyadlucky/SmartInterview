@@ -1547,7 +1547,32 @@
   }
 
   .workspace-kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .workspace-kpi {
+    padding: 10px;
+    gap: 4px;
+  }
+
+  .workspace-kpi span {
+    gap: 6px;
+    font-size: 0.68rem;
+    line-height: 1.32;
+  }
+
+  .workspace-kpi i {
+    font-size: 1rem;
+  }
+
+  .workspace-kpi strong {
+    font-size: 1.12rem;
+  }
+
+  .workspace-kpi small {
+    font-size: 0.68rem;
+    line-height: 1.32;
   }
 
   .workspace-tabs {
@@ -1580,7 +1605,32 @@
   }
 
   .recruiter-kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .recruiter-kpi {
+    padding: 10px;
+    gap: 4px;
+  }
+
+  .recruiter-kpi span {
+    gap: 6px;
+    font-size: 0.68rem;
+    line-height: 1.32;
+  }
+
+  .recruiter-kpi i {
+    font-size: 1rem;
+  }
+
+  .recruiter-kpi strong {
+    font-size: 1.12rem;
+  }
+
+  .recruiter-kpi small {
+    font-size: 0.68rem;
+    line-height: 1.32;
   }
 
   .recruiter-tabs {
@@ -1624,7 +1674,28 @@
   }
 
   .kpi-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .kpi-card,
+  .metric-tile,
+  .insight-mini {
+    padding: 8px;
+  }
+
+  .kpi-card span,
+  .metric-label,
+  .insight-mini span {
+    font-size: 0.68rem;
+    line-height: 1.32;
+  }
+
+  .kpi-card strong,
+  .metric-value,
+  .insight-mini strong {
+    font-size: 0.96rem;
+    line-height: 1.18;
   }
 
   .timeline-list li {
@@ -1632,11 +1703,12 @@
   }
 
   .performance-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .month-insights-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .edit-grid {
@@ -1644,7 +1716,10 @@
   }
 
   .profile-kpi-skeleton-grid,
-  .profile-pill-skeletons,
+  .profile-pill-skeletons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .skeleton-bar-row {
     grid-template-columns: 1fr;
   }

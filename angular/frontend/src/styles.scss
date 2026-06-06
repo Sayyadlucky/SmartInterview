@@ -1834,6 +1834,8 @@ app-dashboard .interview-link-trigger {
     padding: 16px 18px !important;
     gap: 14px !important;
     align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
   }
 
   app-dashboard .kpi-icon {
@@ -1844,39 +1846,39 @@ app-dashboard .interview-link-trigger {
 
   app-dashboard .kpi-copy {
     grid-template-rows: 18px 34px 18px !important;
-    justify-items: start !important;
-    text-align: left !important;
+    justify-items: center !important;
+    text-align: center !important;
     gap: 3px !important;
   }
 
   app-dashboard .kpi-head {
     display: flex !important;
-    justify-content: flex-start !important;
+    justify-content: center !important;
     align-items: center !important;
     width: 100% !important;
     margin: 0 !important;
     font-size: 0.82rem !important;
     line-height: 1.15 !important;
-    text-align: left !important;
+    text-align: center !important;
   }
 
   app-dashboard .kpi-head span {
-    text-align: left !important;
+    text-align: center !important;
   }
 
   app-dashboard .kpi-value {
     width: 100% !important;
     font-size: 2rem !important;
     line-height: 1 !important;
-    text-align: left !important;
+    text-align: center !important;
   }
 
   app-dashboard .kpi-trend {
-    justify-content: flex-start !important;
+    justify-content: center !important;
     width: 100% !important;
     font-size: 0.74rem !important;
     line-height: 1.15 !important;
-    text-align: left !important;
+    text-align: center !important;
   }
 
   app-dashboard .tab-content.active .overview-main-grid {
@@ -3808,5 +3810,21 @@ app-dashboard .candidate-filter-menu-option.is-selected .candidate-filter-option
 
   .company-workspace-content {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .cdk-overlay-pane {
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  .mat-mdc-dialog-container .mdc-dialog__surface {
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+  }
+
+  .mat-mdc-snack-bar-container {
+    max-width: calc(100vw - 24px);
+    margin: 12px !important;
   }
 }

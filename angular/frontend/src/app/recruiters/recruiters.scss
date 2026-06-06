@@ -13,6 +13,15 @@
   --green: #40d77c;
   --purple: #8d5cff;
   --amber: #f7a72e;
+  --recruiters-skeleton-shimmer:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(64, 231, 255, 0.04) 40%,
+      rgba(131, 184, 255, 0.09) 50%,
+      rgba(64, 231, 255, 0.04) 60%,
+      transparent 100%
+    );
   min-height: 720px;
   display: grid;
   grid-template-columns: minmax(330px, 380px) minmax(0, 1fr);
@@ -1567,14 +1576,36 @@ select {
 }
 
 .skeleton-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   border: 1px solid rgba(84, 148, 232, 0.2);
   border-radius: 8px;
   min-height: 96px;
   background:
-    linear-gradient(90deg, transparent, rgba(60, 141, 255, 0.08), transparent),
-    rgba(8, 25, 52, 0.82);
-  background-size: 220% 100%;
-  animation: skeletonSweep 1.6s ease-in-out infinite;
+    linear-gradient(180deg, rgba(9, 34, 67, 0.7), rgba(7, 28, 56, 0.62)),
+    radial-gradient(circle at top right, rgba(64, 231, 255, 0.05), transparent 34%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(140, 216, 255, 0.03);
+}
+
+.skeleton-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%),
+    var(--recruiters-skeleton-shimmer);
+  animation: skeletonSweep 1.85s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.skeleton-card::after {
+  content: none;
+  display: none;
+  animation: none;
 }
 
 .skeleton-hero { min-height: 70px; }
@@ -1594,8 +1625,7 @@ select {
 }
 
 @keyframes skeletonSweep {
-  from { background-position: 180% 0; }
-  to { background-position: -40% 0; }
+  to { transform: translateX(100%); }
 }
 
 @media (max-width: 1320px) {
@@ -1662,14 +1692,18 @@ select {
     padding: 12px;
   }
 
-  .rail-summary-grid,
-  .kpi-strip,
   .edit-drawer,
   .workspace-panel-grid,
   .workspace-panel-grid--wide,
-  .skeleton-grid,
-  .skeleton-grid--four {
+  .skeleton-grid {
     grid-template-columns: 1fr;
+  }
+
+  .rail-summary-grid,
+  .kpi-strip,
+  .split-metrics,
+  .skeleton-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .directory-card {
@@ -1741,11 +1775,190 @@ select {
 
 @media (prefers-reduced-motion: reduce) {
   .workspace-loading-line span,
-  .skeleton-card {
+  .skeleton-card,
+  .skeleton-card::after {
     animation: none;
   }
 
   .directory-card {
     transition: none;
+  }
+}
+
+@media (max-width: 1179px) {
+  .recruiter-command-center {
+    grid-template-columns: 1fr;
+  }
+
+  .recruiter-rail,
+  .recruiter-workspace,
+  .workspace-panel,
+  .table-panel {
+    min-width: 0;
+  }
+
+  .rail-summary-grid,
+  .kpi-strip,
+  .split-metrics,
+  .skeleton-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-panel-grid,
+  .workspace-panel-grid--wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .activity-panel,
+  .notes-panel,
+  .table-panel {
+    grid-column: 1 / -1;
+  }
+
+  .rail-header,
+  .selected-command-card,
+  .panel-heading--split {
+    align-items: stretch;
+  }
+
+  .recruiter-list {
+    max-height: 420px;
+  }
+
+  .interview-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .table-head,
+  .table-row {
+    min-width: 760px;
+  }
+
+  .add-recruiter-btn,
+  .workspace-tabs button,
+  .edit-drawer button,
+  .directory-search input {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .recruiter-command-center {
+    gap: 12px;
+  }
+
+  .recruiter-rail,
+  .workspace-panel,
+  .selected-command-card {
+    padding: 14px;
+  }
+
+  .rail-header,
+  .selected-command-card,
+  .selected-identity,
+  .name-row,
+  .panel-heading--split {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace-panel-grid,
+  .workspace-panel-grid--wide,
+  .edit-drawer,
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rail-summary-grid,
+  .kpi-strip,
+  .split-metrics,
+  .skeleton-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rail-summary-grid,
+  .kpi-strip,
+  .split-metrics {
+    gap: 8px;
+  }
+
+  .summary-tile,
+  .kpi-card {
+    min-height: 0;
+    padding: 10px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    column-gap: 8px;
+  }
+
+  .summary-icon,
+  .kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  .summary-tile strong,
+  .kpi-card strong {
+    font-size: 1.08rem;
+  }
+
+  .summary-tile span:not(.summary-icon),
+  .summary-tile small,
+  .kpi-card > span:not(.kpi-icon),
+  .kpi-card small,
+  .split-metrics span {
+    font-size: 0.68rem;
+    line-height: 1.32;
+  }
+
+  .split-metrics span {
+    padding: 10px;
+  }
+
+  .split-metrics strong {
+    font-size: 1.02rem;
+  }
+
+  .add-recruiter-btn,
+  .workspace-tabs,
+  .workspace-tabs button {
+    width: 100%;
+  }
+
+  .workspace-tabs {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .directory-card {
+    grid-template-columns: 44px minmax(0, 1fr) 16px;
+  }
+
+  .directory-metrics {
+    grid-column: 2 / -1;
+    justify-content: start;
+  }
+}
+
+@media (max-width: 420px) {
+  .rail-summary-grid,
+  .kpi-strip,
+  .split-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .summary-tile,
+  .kpi-card,
+  .split-metrics span {
+    padding: 9px;
+  }
+
+  .table-head,
+  .table-row {
+    min-width: 700px;
   }
 }

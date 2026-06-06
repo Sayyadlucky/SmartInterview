@@ -303,6 +303,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private readonly apiTimeoutMs = 12000;
   data: any;
   loading = false;
+  shellLoading = true;
   activeTab: 'overview' | 'recruiters' | 'evaluators' | 'candidates' | 'ai-talent-pool' | 'activity' | 'analytics' = 'overview';
   mobileNavOpen = false;
   candidatesData: any;
@@ -605,6 +606,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('window:resize')
   handleWindowResize(): void {
+    if (window.innerWidth >= 1180 && this.mobileNavOpen) {
+      this.closeMobileNav(false);
+    }
+
     if (this.workspaceTourOpen) {
       this.updateWorkspaceTourLayout();
     }
@@ -655,12 +660,14 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
         catchError(error => {
           console.error('Error fetching data', error);
           this.loading = false;
+          this.shellLoading = false;
           return of([]); // Return empty array on error
         })
       )
       .subscribe(response => {
         this.data = response;
         this.loading = false;
+        this.shellLoading = false;
         if(this.data?.Data){
           this.candidatesData = (this.data.Data.candidate_data || []).map((c: any) => ({
             ...c,

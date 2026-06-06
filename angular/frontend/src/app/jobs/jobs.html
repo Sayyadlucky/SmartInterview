@@ -122,10 +122,16 @@
               <p>{{ pageSubtitle }}</p>
             </div>
 
-            <button type="button" class="hero-action hero-action-primary" (click)="postJob()">
-              <i class="ph ph-plus" aria-hidden="true"></i>
-              <span>Post New Role</span>
-            </button>
+            <div class="jobs-hero-actions">
+              <a class="hero-action hero-action-secondary" href="/dashboard">
+                <i class="ph ph-arrow-left" aria-hidden="true"></i>
+                <span>Back to Dashboard</span>
+              </a>
+              <button type="button" class="hero-action hero-action-primary" (click)="postJob()">
+                <i class="ph ph-plus" aria-hidden="true"></i>
+                <span>Post New Role</span>
+              </button>
+            </div>
           </div>
 
           <div class="summary-card-grid" aria-label="Job posting summary">

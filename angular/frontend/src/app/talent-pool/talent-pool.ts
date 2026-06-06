@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { catchError, of } from 'rxjs';
@@ -77,6 +77,24 @@ interface TalentApiResponse {
   };
 }
 
+interface WorkspaceSummaryResponse {
+  Success: boolean;
+  Error?: string | null;
+  Data?: {
+    summary?: {
+      total?: number;
+      scheduled?: number;
+      shortlisted?: number;
+      hired?: number;
+      rejected?: number;
+      assessment_pending?: number;
+      assessment_completed?: number;
+      auto_screening_scheduled?: number;
+      cancelled?: number;
+    };
+  };
+}
+
 interface TalentCandidateView extends TalentResult {
   id: number;
   initials: string;
@@ -103,8 +121,10 @@ type TalentBreakdownKey = 'skills' | 'experience' | 'role_similarity' | 'educati
 export class TalentPool implements OnInit, OnChanges {
   @Input() initialRoleId: string | null = null;
   @Input() roleCatalog: TalentRole[] = [];
+  @ViewChild('talentRoleSearchInput') private roleSearchInput?: ElementRef<HTMLInputElement>;
 
   loading = false;
+  workspaceLoading = false;
   errorMessage = '';
   searchTerm = '';
   roleSearchTerm = '';
@@ -115,6 +135,19 @@ export class TalentPool implements OnInit, OnChanges {
   currentPage = 1;
   readonly pageSize = 15;
   rolePickerOpen = false;
+  showAllRoleOptions = false;
+  showHowItWorks = false;
+  workspaceSummary = {
+    total: 0,
+    scheduled: 0,
+    shortlisted: 0,
+    hired: 0,
+    rejected: 0,
+    assessment_pending: 0,
+    assessment_completed: 0,
+    auto_screening_scheduled: 0,
+    cancelled: 0,
+  };
 
   private allRoles: TalentRole[] = [];
   private candidates: TalentCandidateView[] = [];
@@ -134,6 +167,7 @@ export class TalentPool implements OnInit, OnChanges {
     this.selectedRoleId = this.initialRoleId || 'all';
     this.allRoles = this.mergeRoles([], this.roleCatalog);
     this.syncRoleSearchTerm();
+    this.loadWorkspaceSummary();
     if (this.isRoleScoped) {
       this.loadTalentPool();
     }
@@ -170,6 +204,12 @@ export class TalentPool implements OnInit, OnChanges {
 
   get filteredRoleOptions(): TalentRole[] {
     const query = this.roleSearchTerm.trim().toLowerCase();
+    if (this.showAllRoleOptions && !query) {
+      return [...this.roles]
+        .sort((a, b) => this.roleOptionLabel(a).localeCompare(this.roleOptionLabel(b), undefined, { sensitivity: 'base' }))
+        .slice(0, 10);
+    }
+
     if (query.length < 3) {
       return [];
     }
@@ -180,7 +220,7 @@ export class TalentPool implements OnInit, OnChanges {
   }
 
   get shouldShowRoleOptions(): boolean {
-    return this.rolePickerOpen && this.roleSearchTerm.trim().length >= 3;
+    return this.rolePickerOpen && (this.showAllRoleOptions || this.roleSearchTerm.trim().length >= 3);
   }
 
   get shouldShowRoleEmpty(): boolean {
@@ -277,8 +317,37 @@ export class TalentPool implements OnInit, OnChanges {
     return this.filteredCandidates.length;
   }
 
+  get workspaceCandidateCount(): number {
+    return Number(this.workspaceSummary.total || 0);
+  }
+
+  get workspaceOpenRolesCount(): number {
+    return this.roles.filter((role) => {
+      const status = this.normalizeStatus(role.status || role.status_label || '');
+      return status ? !['closed', 'cancelled', 'inactive', 'archived'].includes(status) : true;
+    }).length;
+  }
+
+  get openPositionsCount(): number {
+    return this.roles.reduce((sum, role) => {
+      const status = this.normalizeStatus(role.status || role.status_label || '');
+      if (status && ['closed', 'cancelled', 'inactive', 'archived'].includes(status)) {
+        return sum;
+      }
+      return sum + Number(role.open_positions || 0);
+    }, 0);
+  }
+
   get strongFitCount(): number {
     return this.filteredCandidates.filter((candidate) => candidate.matchTone === 'strong').length;
+  }
+
+  get goodFitCount(): number {
+    return this.filteredCandidates.filter((candidate) => candidate.matchTone === 'good').length;
+  }
+
+  get watchlistCount(): number {
+    return this.filteredCandidates.filter((candidate) => candidate.matchTone === 'watch').length;
   }
 
   get readyNowCount(): number {
@@ -301,6 +370,110 @@ export class TalentPool implements OnInit, OnChanges {
         .map((candidate) => candidate.recruiter)
         .filter((value) => !!value && value !== 'Unassigned')
     ).size;
+  }
+
+  get kpiCards(): Array<{ label: string; value: string; sublabel: string; icon: string; tone: 'blue' | 'purple' | 'teal' | 'orange' | 'pink'; spark: string }> {
+    return [
+      {
+        label: 'Total Candidates',
+        value: this.formatNumber(this.isRoleScoped ? this.totalCandidates : this.workspaceCandidateCount),
+        sublabel: this.isRoleScoped ? 'For selected role' : 'Across workspace',
+        icon: 'ph-users-three',
+        tone: 'blue',
+        spark: 'M2 34 L18 29 L31 22 L45 28 L59 12 L74 27 L88 19 L104 31 L118 18 L134 25 L148 11',
+      },
+      {
+        label: 'Strong Matches',
+        value: this.formatNumber(this.strongFitCount),
+        sublabel: this.totalCandidates ? `${this.getPercent(this.strongFitCount, this.totalCandidates)}% of view` : 'Select a role',
+        icon: 'ph-shield-star',
+        tone: 'purple',
+        spark: 'M2 33 L18 30 L31 24 L45 31 L58 21 L72 27 L88 17 L103 32 L118 24 L133 29 L148 13',
+      },
+      {
+        label: 'Good Matches',
+        value: this.formatNumber(this.goodFitCount),
+        sublabel: this.totalCandidates ? `${this.getPercent(this.goodFitCount, this.totalCandidates)}% of view` : 'Awaiting role match',
+        icon: 'ph-thumbs-up',
+        tone: 'teal',
+        spark: 'M2 35 L17 32 L31 34 L45 21 L60 16 L75 26 L89 29 L104 22 L119 25 L133 17 L148 20',
+      },
+      {
+        label: 'Watchlist',
+        value: this.formatNumber(this.watchlistCount),
+        sublabel: this.totalCandidates ? `${this.getPercent(this.watchlistCount, this.totalCandidates)}% of view` : 'Awaiting role match',
+        icon: 'ph-eye',
+        tone: 'orange',
+        spark: 'M2 30 L17 22 L31 33 L45 38 L59 29 L74 34 L89 24 L103 27 L118 13 L133 31 L148 20',
+      },
+      {
+        label: 'Open Roles',
+        value: this.formatNumber(this.workspaceOpenRolesCount),
+        sublabel: this.openPositionsCount ? `${this.formatNumber(this.openPositionsCount)} open positions` : 'Active job postings',
+        icon: 'ph-briefcase',
+        tone: 'pink',
+        spark: 'M2 36 L16 31 L31 33 L45 24 L59 30 L74 20 L88 35 L103 28 L118 37 L133 27 L148 21',
+      },
+    ];
+  }
+
+  get matchQualityRows(): Array<{ key: 'strong' | 'good' | 'watch'; label: string; count: number; percent: number; color: string }> {
+    const total = this.totalCandidates;
+    return [
+      { key: 'strong', label: 'Strong Match', count: this.strongFitCount, percent: this.getPercent(this.strongFitCount, total), color: '#16f0a3' },
+      { key: 'good', label: 'Good Match', count: this.goodFitCount, percent: this.getPercent(this.goodFitCount, total), color: '#1686ff' },
+      { key: 'watch', label: 'Watchlist', count: this.watchlistCount, percent: this.getPercent(this.watchlistCount, total), color: '#ff8a00' },
+    ];
+  }
+
+  get matchQualityGradient(): string {
+    const rows = this.matchQualityRows;
+    if (!this.totalCandidates) {
+      return 'conic-gradient(rgba(29, 72, 122, 0.9) 0 100%)';
+    }
+
+    let cursor = 0;
+    const stops = rows.map((row) => {
+      const start = cursor;
+      cursor += row.percent;
+      return `${row.color} ${start}% ${cursor}%`;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
+  }
+
+  get topSkillStats(): Array<{ skill: string; count: number; percent: number; tone: 'teal' | 'blue' | 'purple' | 'orange' }> {
+    const counts = new Map<string, number>();
+    for (const candidate of this.filteredCandidates) {
+      for (const skill of this.displayMatchedSkills(candidate)) {
+        const normalized = (skill || '').trim();
+        if (!normalized) {
+          continue;
+        }
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      }
+    }
+
+    const max = Math.max(1, ...Array.from(counts.values()));
+    const tones: Array<'teal' | 'blue' | 'purple' | 'orange'> = ['teal', 'teal', 'blue', 'purple', 'orange'];
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([skill, count], index) => ({
+        skill,
+        count,
+        percent: Math.max(8, Math.round((count / max) * 100)),
+        tone: tones[index] || 'blue',
+      }));
+  }
+
+  get stageAnalyticsRows(): Array<{ label: string; value: number; percent: number; icon: string; tone: 'teal' | 'blue' | 'purple' | 'pink' | 'orange' }> {
+    const total = Math.max(1, this.filteredCandidates.length);
+    const tones: Array<'teal' | 'blue' | 'purple' | 'pink' | 'orange'> = ['teal', 'blue', 'purple', 'pink', 'orange'];
+    return this.stageSummary.map((stage, index) => ({
+      ...stage,
+      percent: Math.max(8, Math.round((stage.value / total) * 100)),
+      tone: tones[index] || 'blue',
+    }));
   }
 
   get spotlightStats(): Array<{ label: string; value: string; icon: string }> {
@@ -379,6 +552,7 @@ export class TalentPool implements OnInit, OnChanges {
 
   onRoleSearchInput(value: string): void {
     this.roleSearchTerm = value;
+    this.showAllRoleOptions = false;
     this.rolePickerOpen = value.trim().length >= 3;
   }
 
@@ -387,12 +561,13 @@ export class TalentPool implements OnInit, OnChanges {
       clearTimeout(this.roleSearchBlurTimer);
       this.roleSearchBlurTimer = null;
     }
-    this.rolePickerOpen = this.roleSearchTerm.trim().length >= 3;
+    this.rolePickerOpen = this.showAllRoleOptions || this.roleSearchTerm.trim().length >= 3;
   }
 
   onRoleSearchBlur(): void {
     this.roleSearchBlurTimer = setTimeout(() => {
       this.rolePickerOpen = false;
+      this.showAllRoleOptions = false;
 
       const query = this.roleSearchTerm.trim();
       if (!query) {
@@ -419,6 +594,7 @@ export class TalentPool implements OnInit, OnChanges {
     this.selectedRoleId = String(role.id);
     this.roleSearchTerm = this.roleOptionLabel(role);
     this.rolePickerOpen = false;
+    this.showAllRoleOptions = false;
     this.onRoleChange();
   }
 
@@ -426,11 +602,31 @@ export class TalentPool implements OnInit, OnChanges {
     this.selectedRoleId = 'all';
     this.roleSearchTerm = '';
     this.rolePickerOpen = false;
+    this.showAllRoleOptions = false;
     this.onRoleChange();
   }
 
   clearRoleSearch(): void {
     this.selectAllRoles();
+  }
+
+  browseRoles(): void {
+    if (this.roleSearchBlurTimer) {
+      clearTimeout(this.roleSearchBlurTimer);
+      this.roleSearchBlurTimer = null;
+    }
+    this.roleSearchTerm = '';
+    this.showAllRoleOptions = true;
+    this.rolePickerOpen = true;
+    window.setTimeout(() => this.roleSearchInput?.nativeElement.focus(), 0);
+  }
+
+  toggleHowItWorks(): void {
+    this.showHowItWorks = !this.showHowItWorks;
+  }
+
+  openRolesWorkspace(): void {
+    window.location.href = '/dashboard/jobs';
   }
 
   stageIcon(status: string | null | undefined): string {
@@ -531,6 +727,14 @@ export class TalentPool implements OnInit, OnChanges {
     return Array.isArray(candidate.top_skills) ? candidate.top_skills : [];
   }
 
+  candidateSkillPreview(candidate: TalentCandidateView): string[] {
+    return this.displayMatchedSkills(candidate).slice(0, 3);
+  }
+
+  remainingMatchedSkillCount(candidate: TalentCandidateView): number {
+    return Math.max(0, this.displayMatchedSkills(candidate).length - 3);
+  }
+
   hasMatchBreakdown(candidate: TalentCandidateView): boolean {
     return this.getMatchBreakdownRows(candidate).length > 0;
   }
@@ -560,6 +764,43 @@ export class TalentPool implements OnInit, OnChanges {
 
   breakdownBarWidth(value: number): number {
     return Math.max(0, Math.min(100, Math.round(value || 0)));
+  }
+
+  scoreRingStyle(candidate: TalentCandidateView): string {
+    const score = this.breakdownBarWidth(candidate.matchScore);
+    const color = candidate.matchTone === 'strong' ? '#16f0a3' : candidate.matchTone === 'good' ? '#12a8ff' : '#ff8a00';
+    return `radial-gradient(circle at center, #04172f 0 58%, transparent 59%), conic-gradient(${color} 0 ${score}%, rgba(17, 55, 99, 0.92) ${score}% 100%)`;
+  }
+
+  activityDateLabel(candidate: TalentCandidateView): string {
+    const value = candidate.latest_interview_date || '';
+    if (!value) {
+      return 'No activity';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return 'No activity';
+    }
+    const today = new Date();
+    const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    const days = Math.round((startToday - startDate) / (24 * 60 * 60 * 1000));
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days > 1 && days <= 7) return `${days} days ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  activityTimeLabel(candidate: TalentCandidateView): string {
+    const value = candidate.latest_interview_date || '';
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   }
 
   openCandidate(candidate: TalentCandidateView): void {
@@ -627,6 +868,28 @@ export class TalentPool implements OnInit, OnChanges {
           ? response.Data.results.map((candidate) => this.decorateCandidate(candidate))
           : [];
         this.resetPagination();
+      });
+  }
+
+  private loadWorkspaceSummary(): void {
+    this.workspaceLoading = true;
+    this.http.get<WorkspaceSummaryResponse>(`${getApiBaseUrl()}/candidates-tab-data/`)
+      .pipe(
+        catchError(() => of({
+          Success: false,
+          Error: 'Unable to load workspace summary.',
+          Data: {},
+        } as WorkspaceSummaryResponse))
+      )
+      .subscribe((response) => {
+        this.workspaceLoading = false;
+        if (!response?.Success) {
+          return;
+        }
+        this.workspaceSummary = {
+          ...this.workspaceSummary,
+          ...(response.Data?.summary || {}),
+        };
       });
   }
 
@@ -754,5 +1017,16 @@ export class TalentPool implements OnInit, OnChanges {
 
     const normalized = parsed > 0 && parsed <= 1 ? parsed * 100 : parsed;
     return Math.max(0, Math.min(100, Math.round(normalized)));
+  }
+
+  private getPercent(value: number, total: number): number {
+    if (!total) {
+      return 0;
+    }
+    return Math.round((value / total) * 100);
+  }
+
+  private formatNumber(value: number): string {
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(Number(value || 0));
   }
 }

@@ -389,8 +389,46 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((value / this.maxDailyTotal) * 100);
   }
 
+  dropoffPercent(item: { count: number }): number {
+    const max = this.dropoffReasons[0]?.count || 0;
+    if (!max) return 0;
+    return Math.round((item.count / max) * 100);
+  }
+
   weeklyDelta(): number {
     return this.weeklyDeltaValue;
+  }
+
+  selectedDateRangeLabel(): string {
+    if (this.startDate && this.endDate) return `${this.formatDateLabel(this.startDate)} - ${this.formatDateLabel(this.endDate)}`;
+    if (this.startDate) return `From ${this.formatDateLabel(this.startDate)}`;
+    if (this.endDate) return `Until ${this.formatDateLabel(this.endDate)}`;
+    return 'All Dates';
+  }
+
+  outcomePositiveRate(): number {
+    const evaluated = Number(this.outcomeQuality.evaluated || 0);
+    if (!evaluated) return 0;
+    return Math.round(((this.outcomeQuality.hired + this.outcomeQuality.shortlisted) / evaluated) * 1000) / 10;
+  }
+
+  velocityScore(): number {
+    const score = Number(this.targetVsActual.progress_pct || this.summary.hire_rate || 0);
+    if (!Number.isFinite(score)) return 0;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  velocityGaugeBackground(): string {
+    const score = this.velocityScore();
+    return `conic-gradient(from 220deg, #e0445e 0deg 46deg, #ff8a0a 46deg 92deg, #16c779 92deg ${Math.max(92, (score / 100) * 280)}deg, rgba(35, 79, 122, 0.55) ${Math.max(92, (score / 100) * 280)}deg 280deg, transparent 280deg 360deg)`;
+  }
+
+  topRecommendationDescription(): string {
+    return this.recommendedActions[0]?.description || 'Review the activity snapshot to validate pipeline health.';
+  }
+
+  runTopRecommendation(): void {
+    this.runSignalAction(this.recommendedActions[0]?.action);
   }
 
   heatCellClass(count: number): string {
@@ -552,6 +590,12 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
   applyStatus(value: string): void {
     this.selectedStatus = value || 'all';
     this.onFiltersChanged();
+  }
+
+  applyStatusByLabel(label: string): void {
+    const normalizedLabel = (label || '').trim().toLowerCase();
+    const match = this.statusOptions.find((item) => item.label.trim().toLowerCase() === normalizedLabel || item.value.trim().toLowerCase() === normalizedLabel);
+    this.applyStatus(match?.value || label || 'all');
   }
 
   applySingleDay(dateKey: string): void {
@@ -846,32 +890,18 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
         helper: 'Activity tracked in the current scope',
       },
       {
-        label: 'Hires Closed',
-        icon: 'ph ph-check-circle',
-        value: this.formatMetricValue(this.summary.hired),
-        helper: 'Completed or hired outcomes',
-        tone: this.summary.hired > 0 ? 'positive' : 'info',
-      },
-      {
-        label: 'Upcoming',
+        label: 'Upcoming Interviews',
         icon: 'ph ph-calendar-plus',
         value: this.formatMetricValue(this.summary.upcoming),
         helper: this.summary.upcoming ? 'Scheduled interviews still ahead' : 'No interviews are lined up',
         tone: this.summary.upcoming ? 'info' : 'warning',
       },
       {
-        label: 'Hire Rate',
-        icon: 'ph ph-percent',
-        value: `${this.summary.hire_rate}%`,
-        helper: 'Conversion of tracked interviews',
-        tone: this.summary.hire_rate >= 20 ? 'positive' : 'info',
-      },
-      {
-        label: 'Response Time',
-        icon: 'ph ph-timer',
-        value: this.formatDurationHours(this.responseTime.avg_hours),
-        helper: 'Average first-touch speed',
-        tone: this.responseTime.avg_hours <= 24 && this.responseTime.avg_hours > 0 ? 'positive' : 'warning',
+        label: 'Hired',
+        icon: 'ph ph-user-check',
+        value: this.formatMetricValue(this.summary.hired),
+        helper: 'Completed or hired outcomes',
+        tone: this.summary.hired > 0 ? 'positive' : 'info',
       },
       {
         label: 'Active Recruiters',
@@ -884,6 +914,20 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
         icon: 'ph ph-briefcase-metal',
         value: this.formatMetricValue(this.summary.open_roles),
         helper: 'Roles still needing pipeline coverage',
+      },
+      {
+        label: 'Hire Rate',
+        icon: 'ph ph-chart-bar',
+        value: `${this.summary.hire_rate}%`,
+        helper: 'Conversion of tracked interviews',
+        tone: this.summary.hire_rate >= 20 ? 'positive' : 'info',
+      },
+      {
+        label: 'Response Time',
+        icon: 'ph ph-timer',
+        value: this.formatDurationHours(this.responseTime.avg_hours),
+        helper: 'Average first-touch speed',
+        tone: this.responseTime.avg_hours <= 24 && this.responseTime.avg_hours > 0 ? 'positive' : 'warning',
       },
       {
         label: 'Last 30 Days',
@@ -1260,10 +1304,16 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private scrollToSection(sectionId: string): void {
+  scrollToSection(sectionId: string): void {
     const section = document.getElementById(sectionId);
     if (!section) return;
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  private formatDateLabel(value: string): string {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
   }
 
   private downloadBlob(content: string, filename: string, mime: string): void {

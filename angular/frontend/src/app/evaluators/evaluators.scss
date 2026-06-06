@@ -87,6 +87,16 @@
   opacity: 0.78;
 }
 
+.skeleton-line::after,
+.skeleton-chip::after,
+.skeleton-avatar::after,
+.skeleton-icon::after,
+.skeleton-card::after {
+  content: none;
+  display: none;
+  animation: none;
+}
+
 .skeleton-line { height: 12px; }
 .skeleton-line-title { width: min(220px, 72%); height: 18px; }
 .skeleton-line-kicker,
@@ -755,7 +765,7 @@
   .recruiter-insight-grid,
   .stats-row,
   .stats-row.compact-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .list-section-head {
@@ -763,9 +773,12 @@
     flex-direction: column;
   }
 
-  .evaluators-kpi-skeleton-grid,
   .skeleton-bar-row {
     grid-template-columns: 1fr;
+  }
+
+  .evaluators-kpi-skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .evaluators-detail-head-skeleton,
@@ -794,5 +807,127 @@
   .skeleton-card::after {
     animation: none;
     transform: none;
+  }
+}
+
+@media (max-width: 1179px) {
+  .evaluators-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-panel,
+  .profile-panel,
+  .profile-placeholder {
+    min-width: 0;
+  }
+
+  .recruiter-insight-grid,
+  .stats-row.compact-stats,
+  .evaluators-kpi-skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel-title-row,
+  .profile-workspace-head,
+  .evaluators-detail-head-skeleton {
+    align-items: stretch;
+  }
+
+  .list-wrap {
+    max-height: 360px;
+  }
+
+  .primary-btn,
+  .clear-btn,
+  .search-wrap input,
+  .evaluator-item {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .sidebar-panel,
+  .profile-panel,
+  .profile-placeholder {
+    padding: 14px;
+  }
+
+  .panel-title-row,
+  .profile-workspace-head,
+  .list-section-head,
+  .evaluators-detail-head-skeleton,
+  .evaluators-skeleton-panel-head,
+  .workspace-identity {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recruiter-insight-grid,
+  .stats-row,
+  .stats-row.compact-stats,
+  .item-metrics,
+  .evaluators-kpi-skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recruiter-insight-grid,
+  .stats-row,
+  .item-metrics {
+    gap: 8px;
+  }
+
+  .insight-card {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .insight-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    font-size: 0.82rem;
+  }
+
+  .insight-copy strong {
+    font-size: 1rem;
+  }
+
+  .insight-copy span,
+  .insight-copy small,
+  .stat-label,
+  .item-metrics small {
+    font-size: 0.66rem;
+  }
+
+  .stat-chip {
+    padding: 8px;
+  }
+
+  .skeleton-bar-row {
+    grid-template-columns: 1fr;
+  }
+
+  .primary-btn,
+  .search-wrap,
+  .clear-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .evaluator-item,
+  .evaluator-item.recruiter-item {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .item-chevron {
+    display: none;
+  }
+
+  .item-metrics {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
