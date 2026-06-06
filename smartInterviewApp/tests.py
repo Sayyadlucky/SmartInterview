@@ -5357,3 +5357,1299 @@ class InterviewBlueprintFoundationTests(TestCase):
             QuestionGenerationJob,
         ]:
             self.assertIn(model, admin.site._registry)
+
+
+from decimal import Decimal as TestDecimal
+from types import SimpleNamespace
+
+from smartInterviewApp.models import (
+    AptitudeAnswer,
+    AptitudeIntegrityEvent,
+    AptitudeQuestionBank,
+    AptitudeSection,
+    AptitudeTestAssignment,
+    AptitudeTestQuestion,
+    AptitudeTestTemplate,
+    AptitudeTestTemplateSection,
+)
+from smartInterviewApp.services.aptitude_assignments import (
+    AptitudeAssignmentError,
+    create_aptitude_assignment,
+    create_section_config_from_template,
+    get_default_aptitude_template,
+    validate_template_readiness,
+)
+from smartInterviewApp.services.aptitude_scoring import (
+    normalize_text_value,
+    score_assignment,
+    score_question_answer,
+)
+from smartInterviewApp.services.aptitude_question_schemas import (
+    QUESTION_TYPE_FILL_BLANK,
+    QUESTION_TYPE_IMAGE_CHOICE,
+    QUESTION_TYPE_MATCHING,
+    QUESTION_TYPE_MULTIPLE_CHOICE,
+    QUESTION_TYPE_NUMERIC,
+    QUESTION_TYPE_ORDERING,
+    QUESTION_TYPE_SINGLE_CHOICE,
+    QUESTION_TYPE_TEXT_INPUT,
+)
+
+
+class AptitudeScoringTests(TestCase):
+    def _question_stub(self, question_type, answer_schema, marks='2', negative_marks='0'):
+        return SimpleNamespace(
+            question_type=question_type,
+            answer_schema=answer_schema,
+            marks=TestDecimal(marks),
+            negative_marks=TestDecimal(negative_marks),
+        )
+
+    def _section(self, name, code, category='aptitude', order=10):
+        return AptitudeSection.objects.create(
+            name=name,
+            code=code,
+            category=category,
+            default_order=order,
+        )
+
+    def _assignment(self, **kwargs):
+        defaults = {
+            'title': 'Aptitude Test',
+            'status': AptitudeTestAssignment.Status.SUBMITTED,
+            'total_questions': 0,
+            'total_marks': TestDecimal('0'),
+            'passing_score_percent': TestDecimal('70'),
+        }
+        defaults.update(kwargs)
+        return AptitudeTestAssignment.objects.create(**defaults)
+
+    def _test_question(self, assignment, section, question_type, answer_schema, **kwargs):
+        defaults = {
+            'question_text': f'{section.code} {question_type} question {assignment.questions.count() + 1}',
+            'question_type': question_type,
+            'answer_schema': answer_schema,
+            'marks': TestDecimal('2'),
+            'negative_marks': TestDecimal('0'),
+            'section': section,
+            'order_index': assignment.questions.count() + 1,
+        }
+        defaults.update(kwargs)
+        return AptitudeTestQuestion.objects.create(assignment=assignment, **defaults)
+
+    def test_normalize_text_value_handles_case_and_spaces(self):
+        self.assertEqual(normalize_text_value('  Articulate  '), 'articulate')
+        self.assertEqual(normalize_text_value('  Articulate  ', case_sensitive=True), 'Articulate')
+        self.assertEqual(normalize_text_value('  A  ', trim_spaces=False), '  a  ')
+
+    def test_single_choice_correct_wrong_and_skipped(self):
+        question = self._question_stub(QUESTION_TYPE_SINGLE_CHOICE, {'correct_keys': ['B']})
+
+        correct = score_question_answer(question, {'selected_keys': ['B']})
+        wrong = score_question_answer(question, {'selected_keys': ['A']})
+        skipped = score_question_answer(question, {})
+
+        self.assertTrue(correct['is_correct'])
+        self.assertEqual(correct['marks_awarded'], TestDecimal('2'))
+        self.assertFalse(wrong['is_correct'])
+        self.assertEqual(wrong['reason'], 'wrong')
+        self.assertFalse(skipped['is_attempted'])
+        self.assertEqual(skipped['reason'], 'skipped')
+
+    def test_multiple_choice_requires_exact_set(self):
+        question = self._question_stub(QUESTION_TYPE_MULTIPLE_CHOICE, {'correct_keys': ['A', 'C']})
+
+        self.assertTrue(score_question_answer(question, {'selected_keys': ['C', 'A']})['is_correct'])
+        self.assertFalse(score_question_answer(question, {'selected_keys': ['A']})['is_correct'])
+        self.assertFalse(score_question_answer(question, {'selected_keys': ['A', 'B', 'C']})['is_correct'])
+
+    def test_numeric_tolerance(self):
+        question = self._question_stub(QUESTION_TYPE_NUMERIC, {'value': 60, 'tolerance': 0.5})
+
+        self.assertTrue(score_question_answer(question, {'numeric_value': 60.4})['is_correct'])
+        self.assertFalse(score_question_answer(question, {'value': 61})['is_correct'])
+        self.assertEqual(score_question_answer(question, {'value': 'not-a-number'})['reason'], 'invalid_answer')
+
+    def test_text_input_and_fill_blank_normalization(self):
+        question = self._question_stub(
+            QUESTION_TYPE_TEXT_INPUT,
+            {'accepted_values': ['articulate', 'clear communicator'], 'case_sensitive': False, 'trim_spaces': True},
+        )
+        fill_blank = self._question_stub(
+            QUESTION_TYPE_FILL_BLANK,
+            {'accepted_values': ['productive'], 'case_sensitive': False, 'trim_spaces': True},
+        )
+
+        self.assertTrue(score_question_answer(question, {'text': '  Articulate '})['is_correct'])
+        self.assertTrue(score_question_answer(fill_blank, {'value': 'Productive'})['is_correct'])
+        self.assertFalse(score_question_answer(question, {'text': 'unclear'})['is_correct'])
+
+    def test_other_option_with_input(self):
+        question = self._question_stub(
+            QUESTION_TYPE_SINGLE_CHOICE,
+            {
+                'correct_keys': ['OTHER'],
+                'accepted_other_values': ['15', 'fifteen'],
+                'case_sensitive': False,
+                'trim_spaces': True,
+            },
+        )
+
+        self.assertTrue(score_question_answer(question, {'selected_keys': ['OTHER'], 'other_text': ' Fifteen '})['is_correct'])
+        self.assertFalse(score_question_answer(question, {'selected_keys': ['OTHER'], 'other_text': '16'})['is_correct'])
+
+    def test_matching_and_ordering(self):
+        matching = self._question_stub(QUESTION_TYPE_MATCHING, {'pairs': {'1': 'C', '2': 'A'}})
+        ordering = self._question_stub(QUESTION_TYPE_ORDERING, {'correct_order': ['D', 'A', 'C', 'B']})
+
+        self.assertTrue(score_question_answer(matching, {'matched_pairs': {1: 'C', 2: 'A'}})['is_correct'])
+        self.assertFalse(score_question_answer(matching, {'matched_pairs': {'1': 'A', '2': 'C'}})['is_correct'])
+        self.assertTrue(score_question_answer(ordering, {'order': ['D', 'A', 'C', 'B']})['is_correct'])
+        self.assertFalse(score_question_answer(ordering, {'order': ['A', 'D', 'C', 'B']})['is_correct'])
+
+    def test_image_choice_scores_like_single_choice(self):
+        question = self._question_stub(QUESTION_TYPE_IMAGE_CHOICE, {'correct_keys': ['C']})
+
+        self.assertTrue(score_question_answer(question, {'selected_keys': ['C']})['is_correct'])
+        self.assertFalse(score_question_answer(question, {'selected_keys': ['A']})['is_correct'])
+
+    def test_negative_marking_applies_only_to_attempted_wrong_answers(self):
+        question = self._question_stub(
+            QUESTION_TYPE_SINGLE_CHOICE,
+            {'correct_keys': ['B']},
+            marks='2',
+            negative_marks='0.5',
+        )
+
+        wrong = score_question_answer(question, {'selected_keys': ['A']}, negative_marking_enabled=True)
+        skipped = score_question_answer(question, {}, negative_marking_enabled=True)
+
+        self.assertEqual(wrong['marks_awarded'], TestDecimal('-0.5'))
+        self.assertEqual(skipped['marks_awarded'], TestDecimal('0'))
+
+    def test_score_assignment_builds_breakdowns_and_integrity_summary(self):
+        quantitative = self._section('Quantitative Aptitude', 'quantitative_aptitude', order=10)
+        verbal = self._section('Verbal Ability', 'verbal_ability', category='communication', order=40)
+        technical = self._section('Technical MCQ', 'technical_mcq', category='technical', order=70)
+        assignment = self._assignment(total_questions=4, total_marks=TestDecimal('8'))
+
+        q1 = self._test_question(
+            assignment,
+            quantitative,
+            QUESTION_TYPE_SINGLE_CHOICE,
+            {'correct_keys': ['B']},
+            question_text='Quantitative single choice',
+        )
+        q2 = self._test_question(
+            assignment,
+            verbal,
+            QUESTION_TYPE_TEXT_INPUT,
+            {'accepted_values': ['articulate'], 'case_sensitive': False, 'trim_spaces': True},
+            question_text='Verbal text input',
+        )
+        q3 = self._test_question(
+            assignment,
+            technical,
+            QUESTION_TYPE_MULTIPLE_CHOICE,
+            {'correct_keys': ['A', 'B']},
+            question_text='Technical multiple choice',
+            skill_tag='Arrays',
+        )
+        q4 = self._test_question(
+            assignment,
+            technical,
+            QUESTION_TYPE_NUMERIC,
+            {'value': 10, 'tolerance': 0},
+            question_text='Technical skipped numeric',
+            skill_tag='Arrays',
+        )
+
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+        AptitudeAnswer.objects.create(assignment=assignment, question=q2, answer_payload={'text': ' Articulate '})
+        AptitudeAnswer.objects.create(assignment=assignment, question=q3, answer_payload={'selected_keys': ['A']})
+        AptitudeAnswer.objects.create(assignment=assignment, question=q4, answer_payload={})
+        for event_type in [
+            AptitudeIntegrityEvent.EventType.TAB_SWITCH,
+            AptitudeIntegrityEvent.EventType.TAB_SWITCH,
+            AptitudeIntegrityEvent.EventType.FULLSCREEN_EXIT,
+        ]:
+            AptitudeIntegrityEvent.objects.create(assignment=assignment, event_type=event_type)
+
+        result = score_assignment(assignment)
+
+        self.assertEqual(result.total_questions, 4)
+        self.assertEqual(result.attempted_questions, 3)
+        self.assertEqual(result.correct_answers, 2)
+        self.assertEqual(result.wrong_answers, 1)
+        self.assertEqual(result.skipped_questions, 1)
+        self.assertEqual(result.marks_obtained, TestDecimal('4'))
+        self.assertEqual(result.score_percent, TestDecimal('50.00'))
+        self.assertFalse(result.passed)
+
+        self.assertEqual(result.section_breakdown['quantitative_aptitude']['score_percent'], 100.0)
+        self.assertEqual(result.section_breakdown['verbal_ability']['score_percent'], 100.0)
+        self.assertEqual(result.section_breakdown['technical_mcq']['score_percent'], 0.0)
+        self.assertEqual(result.problem_solving_score, TestDecimal('50.00'))
+        self.assertEqual(result.communication_score, TestDecimal('100.00'))
+        self.assertEqual(result.technical_score, TestDecimal('0.00'))
+        self.assertEqual(result.skill_breakdown['Arrays']['total_questions'], 2)
+        self.assertEqual(result.integrity_summary['total_events'], 3)
+        self.assertEqual(result.integrity_summary['events_by_type']['tab_switch'], 2)
+        self.assertEqual(result.integrity_summary['risk_level'], 'medium')
+
+        q3_answer = AptitudeAnswer.objects.get(question=q3)
+        q4_answer = AptitudeAnswer.objects.get(question=q4)
+        self.assertFalse(q3_answer.is_correct)
+        self.assertFalse(q4_answer.is_correct)
+
+
+class AptitudeAssignmentGenerationTests(TestCase):
+    def _section(self, name='Quantitative Aptitude', code='quantitative_aptitude', category='aptitude', order=10):
+        return AptitudeSection.objects.create(
+            name=name,
+            code=code,
+            category=category,
+            default_order=order,
+        )
+
+    def _template(self, title='Small Aptitude Test', role_type='general', role_family='general', total_questions=2):
+        return AptitudeTestTemplate.objects.create(
+            title=title,
+            role_type=role_type,
+            role_family=role_family,
+            duration_minutes=30,
+            total_questions=total_questions,
+            marks_per_question=TestDecimal('2'),
+            total_marks=TestDecimal(total_questions * 2),
+            passing_score_percent=TestDecimal('70'),
+            randomize_questions=False,
+            randomize_options=True,
+            is_active=True,
+        )
+
+    def _template_section(self, template, section, count, order_index=None):
+        return AptitudeTestTemplateSection.objects.create(
+            template=template,
+            section=section,
+            question_count=count,
+            difficulty_mix={'easy': 1.0},
+            marks_per_question=TestDecimal('2'),
+            order_index=order_index if order_index is not None else section.default_order,
+            is_required=count > 0,
+        )
+
+    def _bank_question(self, section, question_text, **kwargs):
+        defaults = {
+            'question_type': QUESTION_TYPE_SINGLE_CHOICE,
+            'difficulty': AptitudeQuestionBank.Difficulty.EASY,
+            'question_text': question_text,
+            'question_media': [{'type': 'image', 'url': 'https://example.com/q.png'}] if kwargs.pop('with_media', False) else [],
+            'options': [{'key': 'A', 'label': 'One'}, {'key': 'B', 'label': 'Two'}],
+            'answer_schema': {'correct_keys': ['B']},
+            'scoring_schema': {'partial_credit': False, 'normalize_text': True},
+            'marks': TestDecimal('2'),
+            'negative_marks': TestDecimal('0'),
+            'quality_status': AptitudeQuestionBank.QualityStatus.APPROVED,
+            'is_active': True,
+        }
+        defaults.update(kwargs)
+        return AptitudeQuestionBank.objects.create(section=section, **defaults)
+
+    def test_get_default_aptitude_template_returns_exact_and_fallbacks(self):
+        general = self._template(title='General Aptitude Test', role_type='general', role_family='general')
+        technical = self._template(title='Technical Aptitude Test', role_type='technical', role_family='technical')
+        java = self._template(title='Java Technical Aptitude Test', role_type='technical', role_family='java')
+
+        self.assertEqual(get_default_aptitude_template('technical', 'java'), java)
+        self.assertEqual(get_default_aptitude_template('technical', 'python'), technical)
+        self.assertEqual(get_default_aptitude_template('mixed', ''), general)
+
+    def test_validate_template_readiness_false_when_not_enough_approved_questions(self):
+        section = self._section()
+        template = self._template(total_questions=2)
+        self._template_section(template, section, 2)
+        self._bank_question(section, 'Only one available question')
+
+        readiness = validate_template_readiness(template)
+
+        self.assertFalse(readiness['ready'])
+        self.assertEqual(readiness['missing_sections'], ['quantitative_aptitude'])
+        self.assertEqual(readiness['coverage']['quantitative_aptitude']['available'], 1)
+
+    def test_validate_template_readiness_ignores_zero_question_sections(self):
+        section = self._section('Technical MCQ', 'technical_mcq', 'technical', 70)
+        template = self._template(total_questions=0)
+        self._template_section(template, section, 0)
+
+        readiness = validate_template_readiness(template)
+
+        self.assertTrue(readiness['ready'])
+        self.assertEqual(readiness['missing_sections'], [])
+        self.assertTrue(readiness['coverage']['technical_mcq']['ready'])
+
+    def test_create_aptitude_assignment_creates_assignment_and_snapshots_questions(self):
+        section = self._section()
+        template = self._template(total_questions=2)
+        self._template_section(template, section, 2)
+        q1 = self._bank_question(section, 'Question one', with_media=True)
+        q2 = self._bank_question(section, 'Question two')
+
+        result = create_aptitude_assignment(template=template)
+        assignment = result['assignment']
+
+        self.assertTrue(result['created'])
+        self.assertEqual(result['questions_created'], 2)
+        self.assertEqual(assignment.status, AptitudeTestAssignment.Status.ASSIGNED)
+        self.assertIsNone(assignment.started_at)
+        self.assertIsNone(assignment.submitted_at)
+        snapshots = list(assignment.questions.order_by('order_index'))
+        self.assertEqual([item.source_question_id for item in snapshots], [q1.id, q2.id])
+        self.assertEqual(snapshots[0].question_media, q1.question_media)
+        self.assertEqual(snapshots[0].options, q1.options)
+        self.assertEqual(snapshots[0].answer_schema, q1.answer_schema)
+
+    def test_snapshot_does_not_depend_on_later_question_bank_edits(self):
+        section = self._section()
+        template = self._template(total_questions=1)
+        self._template_section(template, section, 1)
+        bank_question = self._bank_question(section, 'Stable snapshot question')
+
+        assignment = create_aptitude_assignment(template=template)['assignment']
+        snapshot = assignment.questions.get()
+        bank_question.question_text = 'Edited question text'
+        bank_question.options = [{'key': 'Z', 'label': 'Changed'}]
+        bank_question.answer_schema = {'correct_keys': ['Z']}
+        bank_question.save()
+        snapshot.refresh_from_db()
+
+        self.assertEqual(snapshot.question_text, 'Stable snapshot question')
+        self.assertEqual(snapshot.options, [{'key': 'A', 'label': 'One'}, {'key': 'B', 'label': 'Two'}])
+        self.assertEqual(snapshot.answer_schema, {'correct_keys': ['B']})
+
+    def test_section_config_is_json_friendly(self):
+        section = self._section()
+        template = self._template(total_questions=1)
+        self._template_section(template, section, 1)
+
+        config = create_section_config_from_template(template)
+
+        self.assertEqual(config['quantitative_aptitude']['section_name'], 'Quantitative Aptitude')
+        self.assertEqual(config['quantitative_aptitude']['question_count'], 1)
+        self.assertEqual(config['quantitative_aptitude']['marks_per_question'], 2.0)
+        self.assertEqual(config['quantitative_aptitude']['order_index'], 10)
+
+    def test_create_aptitude_assignment_raises_when_not_ready(self):
+        section = self._section()
+        template = self._template(total_questions=2)
+        self._template_section(template, section, 2)
+        self._bank_question(section, 'Only one available question')
+
+        with self.assertRaises(AptitudeAssignmentError):
+            create_aptitude_assignment(template=template)
+
+    def test_create_aptitude_assignment_allows_partial_preview(self):
+        section = self._section()
+        template = self._template(total_questions=2)
+        self._template_section(template, section, 2)
+        self._bank_question(section, 'Only one available question')
+
+        result = create_aptitude_assignment(template=template, allow_partial=True, title='Partial Preview')
+
+        self.assertFalse(result['readiness']['ready'])
+        self.assertEqual(result['assignment'].title, 'Partial Preview')
+        self.assertEqual(result['questions_created'], 1)
+        self.assertEqual(result['assignment'].questions.count(), 1)
+
+
+class AptitudeApiTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(username='apt-admin', password='pass1234', email='admin@example.com')
+        UserProfile.objects.create(user=self.admin_user, role='admin', gender='other', phone='9000000001')
+        self.recruiter = User.objects.create_user(username='apt-recruiter', password='pass1234', email='recruiter@example.com')
+        UserProfile.objects.create(user=self.recruiter, role='recruiter', gender='other', phone='9000000002', hr=self.admin_user)
+        self.other_recruiter = User.objects.create_user(username='apt-other-recruiter', password='pass1234', email='other@example.com')
+        UserProfile.objects.create(user=self.other_recruiter, role='recruiter', gender='other', phone='9000000003')
+        self.candidate = User.objects.create_user(username='apt-candidate', password='pass1234', email='candidate@example.com')
+        UserProfile.objects.create(user=self.candidate, role='candidate', gender='other', phone='9000000004')
+
+    def _login_admin(self):
+        self.client.login(username='apt-admin', password='pass1234')
+
+    def _section(self, code='quantitative_aptitude', name='Quantitative Aptitude', category='aptitude', order=10):
+        return AptitudeSection.objects.create(name=name, code=code, category=category, default_order=order)
+
+    def _template(self, title='API Aptitude Test', role_type='general', role_family='general', total_questions=1):
+        return AptitudeTestTemplate.objects.create(
+            title=title,
+            role_type=role_type,
+            role_family=role_family,
+            duration_minutes=20,
+            total_questions=total_questions,
+            marks_per_question=TestDecimal('2'),
+            total_marks=TestDecimal(total_questions * 2),
+            passing_score_percent=TestDecimal('70'),
+            randomize_questions=False,
+            randomize_options=True,
+            is_active=True,
+        )
+
+    def _template_section(self, template, section, count):
+        return AptitudeTestTemplateSection.objects.create(
+            template=template,
+            section=section,
+            question_count=count,
+            difficulty_mix={'easy': 1.0},
+            marks_per_question=TestDecimal('2'),
+            order_index=section.default_order,
+            is_required=count > 0,
+        )
+
+    def _question_bank(self, section, text='API sample question', **kwargs):
+        defaults = {
+            'question_type': QUESTION_TYPE_SINGLE_CHOICE,
+            'difficulty': AptitudeQuestionBank.Difficulty.EASY,
+            'question_text': text,
+            'options': [{'key': 'A', 'label': 'Wrong'}, {'key': 'B', 'label': 'Correct'}],
+            'answer_schema': {'correct_keys': ['B']},
+            'scoring_schema': {'partial_credit': False, 'normalize_text': True},
+            'marks': TestDecimal('2'),
+            'negative_marks': TestDecimal('0'),
+            'quality_status': AptitudeQuestionBank.QualityStatus.APPROVED,
+            'is_active': True,
+        }
+        defaults.update(kwargs)
+        return AptitudeQuestionBank.objects.create(section=section, **defaults)
+
+    def _ready_template(self):
+        section = self._section()
+        template = self._template(total_questions=1)
+        self._template_section(template, section, 1)
+        self._question_bank(section)
+        return template
+
+    def test_readiness_api_returns_success(self):
+        self._login_admin()
+        template = self._ready_template()
+
+        response = self.client.get(reverse('api-aptitude-template-readiness', args=[template.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['data']['template']['id'], template.id)
+        self.assertTrue(payload['data']['readiness']['ready'])
+
+    def test_default_readiness_api_returns_success(self):
+        self._login_admin()
+        self._ready_template()
+
+        response = self.client.get(reverse('api-aptitude-default-readiness'), {'role_type': 'general'})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertTrue(payload['data']['readiness']['ready'])
+
+    def test_create_assignment_api_returns_400_when_template_not_ready(self):
+        self._login_admin()
+        section = self._section()
+        template = self._template(total_questions=2)
+        self._template_section(template, section, 2)
+        self._question_bank(section, 'Only one approved question')
+
+        response = self.client.post(
+            reverse('api-aptitude-assignment-create'),
+            data=json.dumps({'template_id': template.id}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertFalse(payload['success'])
+        self.assertFalse(payload['data']['readiness']['ready'])
+
+    def test_create_assignment_api_creates_assignment_when_ready(self):
+        self._login_admin()
+        template = self._ready_template()
+
+        response = self.client.post(
+            reverse('api-aptitude-assignment-create'),
+            data=json.dumps({
+                'candidate_id': self.candidate.id,
+                'template_id': template.id,
+                'title': 'Candidate Aptitude Test',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        assignment_payload = payload['data']['assignment']
+        self.assertEqual(assignment_payload['title'], 'Candidate Aptitude Test')
+        self.assertEqual(assignment_payload['candidate_id'], self.candidate.id)
+        self.assertEqual(assignment_payload['questions_created'], 1)
+        self.assertTrue(assignment_payload['public_token'])
+
+    def test_assignment_detail_api_does_not_expose_answer_schema(self):
+        self._login_admin()
+        template = self._ready_template()
+        assignment = create_aptitude_assignment(template=template, created_by=self.admin_user)['assignment']
+
+        response = self.client.get(reverse('api-aptitude-assignment-detail', args=[assignment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['data']['question_count'], 1)
+        self.assertNotIn('answer_schema', json.dumps(payload))
+
+    def test_result_api_scores_submitted_assignment_if_missing(self):
+        self._login_admin()
+        template = self._ready_template()
+        assignment = create_aptitude_assignment(template=template, created_by=self.admin_user)['assignment']
+        assignment.status = AptitudeTestAssignment.Status.SUBMITTED
+        assignment.save(update_fields=['status'])
+        question = assignment.questions.get()
+        AptitudeAnswer.objects.create(assignment=assignment, question=question, answer_payload={'selected_keys': ['B']})
+
+        response = self.client.get(reverse('api-aptitude-assignment-result', args=[assignment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['data']['result']['score_percent'], 100.0)
+        self.assertTrue(payload['data']['result']['passed'])
+
+    def test_unauthorized_user_cannot_access_another_assignment(self):
+        self._login_admin()
+        template = self._ready_template()
+        assignment = create_aptitude_assignment(template=template, created_by=self.admin_user)['assignment']
+        self.client.logout()
+        self.client.login(username='apt-other-recruiter', password='pass1234')
+
+        response = self.client.get(reverse('api-aptitude-assignment-detail', args=[assignment.id]))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.json()['success'])
+
+
+class AptitudeRuntimeApiTests(TestCase):
+    def _section(self):
+        section, _ = AptitudeSection.objects.get_or_create(
+            code='quantitative_aptitude',
+            defaults={
+                'name': 'Quantitative Aptitude',
+                'category': 'aptitude',
+                'default_order': 10,
+            },
+        )
+        return section
+
+    def _assignment(self, status_value=AptitudeTestAssignment.Status.ASSIGNED, **kwargs):
+        defaults = {
+            'title': 'Runtime Aptitude Test',
+            'status': status_value,
+            'duration_minutes': 30,
+            'total_questions': 2,
+            'marks_per_question': TestDecimal('2'),
+            'total_marks': TestDecimal('4'),
+            'passing_score_percent': TestDecimal('70'),
+            'section_config': {
+                'quantitative_aptitude': {
+                    'section_name': 'Quantitative Aptitude',
+                    'question_count': 2,
+                    'marks_per_question': 2.0,
+                    'difficulty_mix': {'easy': 1.0},
+                    'order_index': 10,
+                },
+            },
+        }
+        defaults.update(kwargs)
+        return AptitudeTestAssignment.objects.create(**defaults)
+
+    def _question(self, assignment, section, text='Runtime question', order=1):
+        return AptitudeTestQuestion.objects.create(
+            assignment=assignment,
+            section=section,
+            question_type=QUESTION_TYPE_SINGLE_CHOICE,
+            question_text=text,
+            question_html='<p>Runtime question</p>',
+            question_media=[{'type': 'image', 'url': 'https://example.com/runtime.png'}],
+            options=[{'key': 'A', 'label': 'Wrong'}, {'key': 'B', 'label': 'Correct'}],
+            answer_schema={'correct_keys': ['B']},
+            scoring_schema={'partial_credit': False},
+            marks=TestDecimal('2'),
+            negative_marks=TestDecimal('0'),
+            order_index=order,
+        )
+
+    def _runtime_assignment(self, status_value=AptitudeTestAssignment.Status.ASSIGNED):
+        section = self._section()
+        assignment = self._assignment(status_value=status_value)
+        q1 = self._question(assignment, section, 'Runtime question one', 1)
+        q2 = self._question(assignment, section, 'Runtime question two', 2)
+        return assignment, q1, q2
+
+    def test_status_returns_can_start_for_assigned_assignment(self):
+        assignment, _, _ = self._runtime_assignment()
+
+        response = self.client.get(reverse('api-aptitude-runtime-status', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertTrue(payload['data']['assignment']['can_start'])
+        self.assertFalse(payload['data']['assignment']['can_resume'])
+        self.assertFalse(payload['data']['assignment']['can_submit'])
+
+    def test_start_sets_in_progress_started_at_and_expires_at(self):
+        assignment, _, _ = self._runtime_assignment()
+
+        response = self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.status, AptitudeTestAssignment.Status.IN_PROGRESS)
+        self.assertIsNotNone(assignment.started_at)
+        self.assertIsNotNone(assignment.expires_at)
+        self.assertTrue(response.json()['data']['assignment']['can_resume'])
+
+    def test_second_start_does_not_reset_timer(self):
+        assignment, _, _ = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+        assignment.refresh_from_db()
+        first_started_at = assignment.started_at
+        first_expires_at = assignment.expires_at
+
+        response = self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.started_at, first_started_at)
+        self.assertEqual(assignment.expires_at, first_expires_at)
+
+    def test_questions_api_does_not_expose_answer_schema_scoring_schema_or_explanation(self):
+        assignment, _, _ = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+
+        response = self.client.get(reverse('api-aptitude-runtime-questions', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        payload_text = json.dumps(response.json())
+        self.assertNotIn('answer_schema', payload_text)
+        self.assertNotIn('scoring_schema', payload_text)
+        self.assertNotIn('explanation', payload_text)
+        self.assertEqual(len(response.json()['data']['questions']), 2)
+
+    def test_save_answer_creates_updates_and_rejects_wrong_assignment_question(self):
+        assignment, question, _ = self._runtime_assignment()
+        other_assignment, other_question, _ = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-answer', args=[assignment.public_token]),
+            data=json.dumps({'question_id': question.id, 'answer_payload': {'selected_keys': ['A']}}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(AptitudeAnswer.objects.get(assignment=assignment, question=question).answer_payload, {'selected_keys': ['A']})
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-answer', args=[assignment.public_token]),
+            data=json.dumps({'question_id': question.id, 'answer_payload': {'selected_keys': ['B']}}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(AptitudeAnswer.objects.get(assignment=assignment, question=question).answer_payload, {'selected_keys': ['B']})
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-answer', args=[assignment.public_token]),
+            data=json.dumps({'question_id': other_question.id, 'answer_payload': {'selected_keys': ['B']}}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(other_assignment.answers.count(), 0)
+
+    def test_submit_scores_result_and_does_not_expose_correct_answers(self):
+        assignment, q1, q2 = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+        AptitudeAnswer.objects.create(assignment=assignment, question=q2, answer_payload={'selected_keys': ['B']})
+
+        response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.status, AptitudeTestAssignment.Status.SUBMITTED)
+        payload = response.json()
+        self.assertEqual(payload['data']['result']['score_percent'], 100.0)
+        self.assertTrue(payload['data']['result']['passed'])
+        self.assertNotIn('correct_keys', json.dumps(payload))
+
+    def test_expired_assignment_blocks_fetch_save_and_submit(self):
+        assignment, question, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.IN_PROGRESS)
+        assignment.started_at = timezone.now() - timedelta(minutes=60)
+        assignment.expires_at = timezone.now() - timedelta(minutes=30)
+        assignment.save(update_fields=['started_at', 'expires_at'])
+
+        response = self.client.get(reverse('api-aptitude-runtime-questions', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 400)
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.status, AptitudeTestAssignment.Status.EXPIRED)
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-answer', args=[assignment.public_token]),
+            data=json.dumps({'question_id': question.id, 'answer_payload': {'selected_keys': ['B']}}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(assignment.answers.count(), 0)
+
+        response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(hasattr(assignment, 'result'))
+
+    def test_integrity_event_is_stored(self):
+        assignment, _, _ = self._runtime_assignment()
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-integrity-event', args=[assignment.public_token]),
+            data=json.dumps({'event_type': 'tab_switch', 'event_payload': {'count': 1}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = AptitudeIntegrityEvent.objects.get(assignment=assignment)
+        self.assertEqual(event.event_type, 'tab_switch')
+        self.assertEqual(event.event_payload, {'count': 1})
+
+    def test_submitted_assignment_cannot_save_more_answers(self):
+        assignment, question, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.SUBMITTED)
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-answer', args=[assignment.public_token]),
+            data=json.dumps({'question_id': question.id, 'answer_payload': {'selected_keys': ['B']}}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(assignment.answers.count(), 0)
+
+    def test_invalid_token_returns_404(self):
+        response = self.client.get(reverse('api-aptitude-runtime-status', args=['missing-token']))
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.json()['success'])
+
+
+class AptitudeGenerationPipelineTests(TestCase):
+    def setUp(self):
+        from smartInterviewApp.models import AptitudeSection
+
+        self.section = AptitudeSection.objects.create(
+            name='Quantitative Aptitude',
+            code='quantitative_aptitude',
+            category=AptitudeSection.Category.APTITUDE,
+            default_order=10,
+            is_active=True,
+        )
+
+    def _valid_item(self, question_text='What is 2 + 3?'):
+        return {
+            'section_code': self.section.code,
+            'question_text': question_text,
+            'question_type': 'single_choice',
+            'difficulty': 'easy',
+            'options': [
+                {'key': 'A', 'label': '5'},
+                {'key': 'B', 'label': '6'},
+                {'key': 'C', 'label': '7'},
+                {'key': 'D', 'label': '8'},
+            ],
+            'answer_schema': {'type': 'single_choice', 'correct_key': 'A'},
+            'scoring_schema': {'partial_credit': False, 'normalize_text': True},
+            'explanation': '2 plus 3 equals 5.',
+            'skill_tag': 'arithmetic',
+            'topic_tag': 'addition',
+            'role_family': '',
+            'question_media': [],
+        }
+
+    def _bank_question(self, question_text='Existing question'):
+        from smartInterviewApp.models import AptitudeQuestionBank
+
+        return AptitudeQuestionBank.objects.create(
+            section=self.section,
+            question_type='single_choice',
+            difficulty='easy',
+            question_text=question_text,
+            options=[
+                {'key': 'A', 'label': '5'},
+                {'key': 'B', 'label': '6'},
+            ],
+            answer_schema={'correct_keys': ['A']},
+            scoring_schema={'partial_credit': False, 'normalize_text': True},
+            explanation='2 plus 3 equals 5.',
+            quality_status=AptitudeQuestionBank.QualityStatus.NEEDS_REVIEW,
+            is_active=True,
+        )
+
+    def test_enqueue_aptitude_generation_job_creates_job(self):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import enqueue_aptitude_generation_job
+
+        job = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=10, batch_size=2)
+
+        self.assertEqual(job.section, self.section)
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.QUEUED)
+        self.assertEqual(job.target_count, 10)
+        self.assertEqual(job.batch_size, 2)
+
+    def test_duplicate_enqueue_reuses_active_job(self):
+        from smartInterviewApp.services.aptitude_generation import enqueue_aptitude_generation_job
+
+        first = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=10, batch_size=2)
+        second = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=10, batch_size=2)
+
+        self.assertEqual(first.id, second.id)
+
+    def test_parse_openai_questions_response_accepts_questions_object(self):
+        from smartInterviewApp.services.aptitude_generation import parse_openai_questions_response
+
+        questions = parse_openai_questions_response(json.dumps({'questions': [self._valid_item()]}))
+
+        self.assertEqual(len(questions), 1)
+        self.assertEqual(questions[0]['question_text'], 'What is 2 + 3?')
+
+    def test_parse_openai_questions_response_accepts_raw_list(self):
+        from smartInterviewApp.services.aptitude_generation import parse_openai_questions_response
+
+        questions = parse_openai_questions_response(json.dumps([self._valid_item()]))
+
+        self.assertEqual(len(questions), 1)
+        self.assertEqual(questions[0]['answer_schema']['correct_key'], 'A')
+
+    def test_parse_openai_questions_response_invalid_json_raises(self):
+        from smartInterviewApp.services.aptitude_generation import parse_openai_questions_response
+
+        with self.assertRaises(ValueError):
+            parse_openai_questions_response('not json')
+
+    def test_create_question_from_generated_item_creates_question(self):
+        from smartInterviewApp.models import AptitudeQuestionBank
+        from smartInterviewApp.services.aptitude_generation import create_question_from_generated_item
+
+        question, created = create_question_from_generated_item(self.section, self._valid_item())
+
+        self.assertTrue(created)
+        self.assertEqual(AptitudeQuestionBank.objects.count(), 1)
+        self.assertEqual(question.marks, 2)
+        self.assertEqual(question.negative_marks, 0)
+        self.assertEqual(question.quality_status, AptitudeQuestionBank.QualityStatus.NEEDS_REVIEW)
+
+    def test_duplicate_generated_question_does_not_create_duplicate(self):
+        from smartInterviewApp.models import AptitudeQuestionBank
+        from smartInterviewApp.services.aptitude_generation import create_question_from_generated_item
+
+        first, first_created = create_question_from_generated_item(self.section, self._valid_item())
+        second, second_created = create_question_from_generated_item(
+            self.section,
+            self._valid_item('  what   is 2 + 3? '),
+        )
+
+        self.assertTrue(first_created)
+        self.assertFalse(second_created)
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(AptitudeQuestionBank.objects.count(), 1)
+
+    def test_normalize_generated_answer_schema_converts_correct_key_to_correct_keys(self):
+        from smartInterviewApp.services.aptitude_generation import normalize_generated_answer_schema
+
+        normalized = normalize_generated_answer_schema('single_choice', {'correct_key': 'A', 'value': None})
+
+        self.assertEqual(normalized, {'correct_keys': ['A']})
+
+    def test_generated_single_choice_with_correction_explanation_is_rejected(self):
+        from smartInterviewApp.services.aptitude_generation import validate_generated_question_payload
+
+        item = self._valid_item('What is 8 + 2?')
+        item['explanation'] = 'Correction: correct answer is option A.'
+
+        with self.assertRaises(ValueError) as context:
+            validate_generated_question_payload(self.section, item)
+
+        self.assertIn('suspicious phrase: correction', str(context.exception))
+
+    def test_generated_single_choice_with_correct_key_not_in_options_is_rejected(self):
+        from smartInterviewApp.services.aptitude_generation import validate_generated_question_payload
+
+        item = self._valid_item('What is 8 + 2?')
+        item['answer_schema'] = {'type': 'single_choice', 'correct_key': 'Z'}
+
+        with self.assertRaises(ValueError) as context:
+            validate_generated_question_payload(self.section, item)
+
+        self.assertIn('Correct key Z is not present in options', str(context.exception))
+
+    def test_generated_question_with_duplicate_option_labels_is_rejected(self):
+        from smartInterviewApp.services.aptitude_generation import validate_generated_question_payload
+
+        item = self._valid_item('What is 8 + 2?')
+        item['options'][1]['label'] = '5'
+
+        with self.assertRaises(ValueError) as context:
+            validate_generated_question_payload(self.section, item)
+
+        self.assertIn('duplicate labels', str(context.exception))
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=False, OPENAI_API_KEY='test-key')
+    def test_process_job_fails_when_aptitude_openai_generation_disabled(self):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import (
+            enqueue_aptitude_generation_job,
+            process_aptitude_generation_job,
+        )
+
+        job = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=1, batch_size=1)
+
+        result = process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertFalse(result['ok'])
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.FAILED)
+        self.assertEqual(job.error_message, 'Aptitude OpenAI generation is disabled.')
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_process_job_saves_valid_mocked_questions_and_requeues_if_target_not_met(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionBank, AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import (
+            enqueue_aptitude_generation_job,
+            process_aptitude_generation_job,
+        )
+
+        mock_call.return_value = json.dumps({'questions': [self._valid_item('What is 4 + 1?')]})
+        job = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=3, batch_size=1)
+
+        result = process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.QUEUED)
+        self.assertEqual(job.generated_count, 1)
+        self.assertEqual(job.accepted_count, 1)
+        self.assertEqual(AptitudeQuestionBank.objects.count(), 1)
+        question = AptitudeQuestionBank.objects.get()
+        self.assertEqual(question.answer_schema, {'correct_keys': ['A']})
+        mock_call.assert_called_once()
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_successful_batch_does_not_increment_attempts(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import process_aptitude_generation_job
+
+        mock_call.return_value = json.dumps({'questions': [self._valid_item('What is 10 - 5?')]})
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.QUEUED,
+            target_count=2,
+            batch_size=1,
+            attempts=0,
+        )
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.attempts, 0)
+        self.assertEqual(job.accepted_count, 1)
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_successful_batch_resets_prior_failure_attempts(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import process_aptitude_generation_job
+
+        mock_call.return_value = json.dumps({'questions': [self._valid_item('What is 11 - 6?')]})
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.QUEUED,
+            target_count=2,
+            batch_size=1,
+            attempts=2,
+            error_message='Previous transient error.',
+        )
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.attempts, 0)
+        self.assertEqual(job.error_message, '')
+        self.assertEqual(job.accepted_count, 1)
+
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_job_completes_when_accepted_count_reaches_target_even_if_failed(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import process_aptitude_generation_job
+
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.FAILED,
+            target_count=2,
+            batch_size=1,
+            accepted_count=2,
+            attempts=3,
+            error_message='Failed after successful batches.',
+        )
+
+        result = process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.COMPLETED)
+        self.assertEqual(job.attempts, 0)
+        self.assertEqual(job.error_message, '')
+        mock_call.assert_not_called()
+
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_job_completes_when_existing_matching_question_count_reaches_target(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import process_aptitude_generation_job
+
+        self._bank_question('Existing matching question')
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.QUEUED,
+            target_count=1,
+            batch_size=20,
+        )
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.COMPLETED)
+        mock_call.assert_not_called()
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_remaining_count_prevents_over_generation(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionBank, AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import process_aptitude_generation_job
+
+        self._bank_question('Existing first question')
+        mock_call.return_value = json.dumps({
+            'questions': [
+                self._valid_item('What is 12 - 7?'),
+                self._valid_item('What is 13 - 8?'),
+                self._valid_item('What is 14 - 9?'),
+            ],
+        })
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.QUEUED,
+            target_count=2,
+            batch_size=20,
+        )
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        prompt = mock_call.call_args.args[0]
+        self.assertIn('Batch size: 1', prompt)
+        self.assertEqual(AptitudeQuestionBank.objects.count(), 2)
+        self.assertEqual(job.accepted_count, 1)
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.COMPLETED)
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_failed_incomplete_job_can_be_reset_to_queued_and_continue(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import process_aptitude_generation_job
+
+        mock_call.return_value = json.dumps({'questions': [self._valid_item('What is 15 - 10?')]})
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.FAILED,
+            target_count=3,
+            batch_size=1,
+            accepted_count=1,
+            attempts=3,
+            error_message='Previous failures.',
+        )
+        job.status = AptitudeQuestionGenerationJob.Status.QUEUED
+        job.save(update_fields=['status', 'updated_at'])
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.accepted_count, 2)
+        self.assertEqual(job.attempts, 0)
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.QUEUED)
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_process_job_marks_completed_when_target_reached(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+        from smartInterviewApp.services.aptitude_generation import (
+            enqueue_aptitude_generation_job,
+            process_aptitude_generation_job,
+        )
+
+        mock_call.return_value = json.dumps({'questions': [self._valid_item('What is 6 - 1?')]})
+        job = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=1, batch_size=1)
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.COMPLETED)
+        self.assertIsNotNone(job.finished_at)
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_invalid_generated_question_increments_rejected_count(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionBank
+        from smartInterviewApp.services.aptitude_generation import (
+            enqueue_aptitude_generation_job,
+            process_aptitude_generation_job,
+        )
+
+        invalid_item = self._valid_item('What is 9 + 1?')
+        invalid_item['answer_schema'] = {'type': 'single_choice', 'correct_key': 'Z'}
+        mock_call.return_value = json.dumps({'questions': [invalid_item]})
+        job = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=1, batch_size=1)
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.accepted_count, 0)
+        self.assertEqual(job.rejected_count, 1)
+        self.assertEqual(AptitudeQuestionBank.objects.count(), 0)
+
+    @override_settings(APTITUDE_QUESTION_BANK_OPENAI_ENABLED=True, OPENAI_API_KEY='test-key')
+    @patch('smartInterviewApp.services.aptitude_generation.call_openai_for_aptitude_questions')
+    def test_process_job_rejects_bad_mocked_question_without_creating_bank_question(self, mock_call):
+        from smartInterviewApp.models import AptitudeQuestionBank
+        from smartInterviewApp.services.aptitude_generation import (
+            enqueue_aptitude_generation_job,
+            process_aptitude_generation_job,
+        )
+
+        bad_item = self._valid_item('A worker completes a task in 6 days. How long for the task?')
+        bad_item['explanation'] = 'The exact is 48/7, so the closest option is 7 days.'
+        mock_call.return_value = json.dumps({'questions': [bad_item]})
+        job = enqueue_aptitude_generation_job(section_code=self.section.code, target_count=1, batch_size=1)
+
+        process_aptitude_generation_job(job.id)
+        job.refresh_from_db()
+
+        self.assertEqual(job.accepted_count, 0)
+        self.assertEqual(job.rejected_count, 1)
+        self.assertEqual(AptitudeQuestionBank.objects.count(), 0)
+
+    def test_normalize_aptitude_answer_schemas_command_updates_noisy_schema(self):
+        from smartInterviewApp.models import AptitudeQuestionBank
+
+        question = AptitudeQuestionBank.objects.create(
+            section=self.section,
+            question_type='single_choice',
+            difficulty='easy',
+            question_text='What is 2 + 3?',
+            options=[
+                {'key': 'A', 'label': '5'},
+                {'key': 'B', 'label': '6'},
+            ],
+            answer_schema={
+                'type': 'single_choice',
+                'pairs': None,
+                'value': None,
+                'tolerance': None,
+                'correct_key': 'A',
+                'correct_keys': None,
+            },
+            scoring_schema={'partial_credit': False, 'normalize_text': True},
+            explanation='2 plus 3 equals 5.',
+        )
+
+        out = StringIO()
+        call_command('normalize_aptitude_answer_schemas', stdout=out)
+        question.refresh_from_db()
+
+        self.assertEqual(question.answer_schema, {'correct_keys': ['A']})
+        self.assertIn('updated_count=1', out.getvalue())
+
+    def test_normalize_aptitude_answer_schemas_command_dry_run_does_not_update(self):
+        from smartInterviewApp.models import AptitudeQuestionBank
+
+        original_schema = {
+            'type': 'single_choice',
+            'pairs': None,
+            'value': None,
+            'tolerance': None,
+            'correct_key': 'A',
+            'correct_keys': None,
+        }
+        question = AptitudeQuestionBank.objects.create(
+            section=self.section,
+            question_type='single_choice',
+            difficulty='easy',
+            question_text='What is 2 + 3?',
+            options=[
+                {'key': 'A', 'label': '5'},
+                {'key': 'B', 'label': '6'},
+            ],
+            answer_schema=original_schema,
+            scoring_schema={'partial_credit': False, 'normalize_text': True},
+            explanation='2 plus 3 equals 5.',
+        )
+
+        out = StringIO()
+        call_command('normalize_aptitude_answer_schemas', '--dry-run', stdout=out)
+        question.refresh_from_db()
+
+        self.assertEqual(question.answer_schema, original_schema)
+        self.assertIn('updated_count=1', out.getvalue())
+        self.assertIn('dry_run=True', out.getvalue())
+
+    def test_process_aptitude_generation_queue_repair_statuses_marks_over_target_failed_completed(self):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob
+
+        job = AptitudeQuestionGenerationJob.objects.create(
+            section=self.section,
+            status=AptitudeQuestionGenerationJob.Status.FAILED,
+            target_count=2,
+            batch_size=1,
+            accepted_count=2,
+            attempts=3,
+            error_message='Failed after successful batches.',
+        )
+
+        out = StringIO()
+        call_command('process_aptitude_generation_queue', '--repair-statuses', '--limit', '1', stdout=out)
+        job.refresh_from_db()
+
+        self.assertEqual(job.status, AptitudeQuestionGenerationJob.Status.COMPLETED)
+        self.assertEqual(job.attempts, 0)
+        self.assertIn('repaired_count=1', out.getvalue())
+
+    def test_management_command_enqueue_defaults_creates_jobs_for_all_default_sections(self):
+        from smartInterviewApp.models import AptitudeQuestionGenerationJob, AptitudeSection
+        from smartInterviewApp.services.aptitude_generation import DEFAULT_APTITUDE_SECTION_CODES
+
+        for index, section_code in enumerate(DEFAULT_APTITUDE_SECTION_CODES, start=1):
+            AptitudeSection.objects.get_or_create(
+                code=section_code,
+                defaults={
+                    'name': section_code.replace('_', ' ').title(),
+                    'category': AptitudeSection.Category.APTITUDE,
+                    'default_order': index * 10,
+                    'is_active': True,
+                },
+            )
+
+        out = StringIO()
+        call_command('process_aptitude_generation_queue', '--enqueue-defaults', '--limit', '1', stdout=out)
+
+        self.assertEqual(AptitudeQuestionGenerationJob.objects.count(), len(DEFAULT_APTITUDE_SECTION_CODES))

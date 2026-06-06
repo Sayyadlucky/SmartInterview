@@ -222,11 +222,15 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-def env_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
     if value is None:
         return default
-    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    return _env_bool(name, default=default)
 
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -331,6 +335,14 @@ INTERVIEW_REMINDER_FIFTEEN_MIN_WHATSAPP_TEMPLATE = os.getenv('INTERVIEW_REMINDER
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', '').strip() or os.getenv('OPENAI_RESUME_MODEL', 'gpt-4.1-mini').strip()
 OPENAI_RESUME_MODEL = os.getenv('OPENAI_RESUME_MODEL', OPENAI_MODEL).strip()
+APTITUDE_QUESTION_BANK_OPENAI_ENABLED = _env_bool(
+    'APTITUDE_QUESTION_BANK_OPENAI_ENABLED',
+    False,
+)
+APTITUDE_QUESTION_GENERATION_MODEL = os.environ.get(
+    'APTITUDE_QUESTION_GENERATION_MODEL',
+    os.environ.get('INTERVIEW_QA_OPENAI_MODEL', 'gpt-4o-mini'),
+)
 RESUME_AI_LOCAL_ENABLED = env_bool('RESUME_AI_LOCAL_ENABLED', default=True)
 RESUME_AI_OPENAI_REVIEW_ENABLED = env_bool('RESUME_AI_OPENAI_REVIEW_ENABLED', default=False)
 RESUME_AI_OPENAI_MODEL = os.getenv('RESUME_AI_OPENAI_MODEL', 'gpt-4.1-mini').strip() or 'gpt-4.1-mini'

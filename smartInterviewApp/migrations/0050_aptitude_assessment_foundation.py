@@ -1,0 +1,270 @@
+# Generated manually for aptitude assessment foundation.
+
+from django.conf import settings
+from django.db import migrations, models
+import django.db.models.deletion
+import smartInterviewApp.models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('smartInterviewApp', '0049_recruiternote'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='AptitudeSection',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=120)),
+                ('code', models.SlugField(max_length=120, unique=True)),
+                ('description', models.TextField(blank=True, default='')),
+                ('category', models.CharField(choices=[('aptitude', 'Aptitude'), ('communication', 'Communication'), ('technical', 'Technical'), ('reasoning', 'Reasoning')], db_index=True, default='aptitude', max_length=30)),
+                ('default_order', models.PositiveIntegerField(default=0)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+            ],
+            options={
+                'ordering': ['default_order', 'name'],
+                'indexes': [
+                    models.Index(fields=['code'], name='apt_sec_code_idx'),
+                    models.Index(fields=['category', 'is_active'], name='apt_sec_cat_active_idx'),
+                    models.Index(fields=['default_order'], name='apt_sec_order_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeTestTemplate',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('title', models.CharField(max_length=180)),
+                ('description', models.TextField(blank=True, default='')),
+                ('role_type', models.CharField(choices=[('general', 'General'), ('technical', 'Technical'), ('mixed', 'Mixed')], db_index=True, default='general', max_length=20)),
+                ('role_family', models.CharField(blank=True, db_index=True, default='', max_length=120)),
+                ('duration_minutes', models.PositiveIntegerField(default=60)),
+                ('total_questions', models.PositiveIntegerField(default=50)),
+                ('marks_per_question', models.DecimalField(decimal_places=2, default=2, max_digits=6)),
+                ('total_marks', models.DecimalField(decimal_places=2, default=100, max_digits=7)),
+                ('passing_score_percent', models.DecimalField(decimal_places=2, default=70, max_digits=5)),
+                ('negative_marking_enabled', models.BooleanField(default=False)),
+                ('randomize_questions', models.BooleanField(default=True)),
+                ('randomize_options', models.BooleanField(default=True)),
+                ('allow_retake', models.BooleanField(default=False)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_aptitude_templates', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'ordering': ['title', 'id'],
+                'indexes': [
+                    models.Index(fields=['role_type', 'is_active'], name='apt_tpl_role_active_idx'),
+                    models.Index(fields=['role_family', 'is_active'], name='apt_tpl_family_active_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeQuestionBank',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('question_type', models.CharField(choices=[('single_choice', 'Single Choice'), ('multiple_choice', 'Multiple Choice'), ('true_false', 'True/False'), ('numeric', 'Numeric Answer'), ('text_input', 'Text Input'), ('fill_blank', 'Fill in the Blank'), ('image_choice', 'Image Choice'), ('matching', 'Matching'), ('ordering', 'Ordering')], default='single_choice', max_length=30)),
+                ('role_family', models.CharField(blank=True, db_index=True, default='', max_length=120)),
+                ('skill_tag', models.CharField(blank=True, db_index=True, default='', max_length=120)),
+                ('topic_tag', models.CharField(blank=True, db_index=True, default='', max_length=120)),
+                ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], db_index=True, default='medium', max_length=20)),
+                ('question_text', models.TextField()),
+                ('question_html', models.TextField(blank=True, default='')),
+                ('question_media', models.JSONField(blank=True, default=list)),
+                ('options', models.JSONField(blank=True, default=list)),
+                ('answer_schema', models.JSONField(blank=True, default=dict)),
+                ('scoring_schema', models.JSONField(blank=True, default=dict)),
+                ('marks', models.DecimalField(decimal_places=2, default=2, max_digits=6)),
+                ('negative_marks', models.DecimalField(decimal_places=2, default=0, max_digits=6)),
+                ('explanation', models.TextField(blank=True, default='')),
+                ('quality_status', models.CharField(choices=[('draft', 'Draft'), ('approved', 'Approved'), ('needs_review', 'Needs Review'), ('archived', 'Archived')], db_index=True, default='draft', max_length=30)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_aptitude_questions', to=settings.AUTH_USER_MODEL)),
+                ('section', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='question_bank', to='smartInterviewApp.aptitudesection')),
+            ],
+            options={
+                'ordering': ['section__default_order', 'difficulty', 'id'],
+                'indexes': [
+                    models.Index(fields=['section', 'difficulty', 'is_active'], name='apt_qb_sec_diff_active_idx'),
+                    models.Index(fields=['section', 'quality_status', 'is_active'], name='apt_qb_sec_quality_idx'),
+                    models.Index(fields=['role_family', 'skill_tag'], name='apt_qb_role_skill_idx'),
+                    models.Index(fields=['skill_tag', 'topic_tag'], name='apt_qb_skill_topic_idx'),
+                    models.Index(fields=['difficulty', 'quality_status'], name='apt_qb_diff_quality_idx'),
+                    models.Index(fields=['question_type'], name='apt_qb_type_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeTestAssignment',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('title', models.CharField(default='Aptitude Test', max_length=180)),
+                ('public_token', models.CharField(db_index=True, default=smartInterviewApp.models.generate_aptitude_public_token, max_length=64, unique=True)),
+                ('status', models.CharField(choices=[('assigned', 'Assigned'), ('in_progress', 'In Progress'), ('submitted', 'Submitted'), ('expired', 'Expired'), ('cancelled', 'Cancelled')], db_index=True, default='assigned', max_length=30)),
+                ('role_type', models.CharField(choices=[('general', 'General'), ('technical', 'Technical'), ('mixed', 'Mixed')], db_index=True, default='general', max_length=20)),
+                ('section_config', models.JSONField(blank=True, default=dict)),
+                ('duration_minutes', models.PositiveIntegerField(default=60)),
+                ('total_questions', models.PositiveIntegerField(default=50)),
+                ('marks_per_question', models.DecimalField(decimal_places=2, default=2, max_digits=6)),
+                ('total_marks', models.DecimalField(decimal_places=2, default=100, max_digits=7)),
+                ('passing_score_percent', models.DecimalField(decimal_places=2, default=70, max_digits=5)),
+                ('negative_marking_enabled', models.BooleanField(default=False)),
+                ('started_at', models.DateTimeField(blank=True, null=True)),
+                ('submitted_at', models.DateTimeField(blank=True, null=True)),
+                ('expires_at', models.DateTimeField(blank=True, null=True)),
+                ('allow_retake', models.BooleanField(default=False)),
+                ('attempt_number', models.PositiveIntegerField(default=1)),
+                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('candidate', models.ForeignKey(blank=True, limit_choices_to={'profile__role': 'candidate'}, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='aptitude_test_assignments', to=settings.AUTH_USER_MODEL)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_aptitude_assignments', to=settings.AUTH_USER_MODEL)),
+                ('interview', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='aptitude_test_assignments', to='smartInterviewApp.interview')),
+                ('template', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assignments', to='smartInterviewApp.aptitudetesttemplate')),
+                ('vacancy', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='aptitude_test_assignments', to='smartInterviewApp.vacancies')),
+            ],
+            options={
+                'ordering': ['-created_at', '-id'],
+                'indexes': [
+                    models.Index(fields=['public_token'], name='apt_assign_token_idx'),
+                    models.Index(fields=['status', 'created_at'], name='apt_assign_status_created_idx'),
+                    models.Index(fields=['candidate', 'created_at'], name='apt_assign_cand_created_idx'),
+                    models.Index(fields=['vacancy', 'status'], name='apt_assign_vac_status_idx'),
+                    models.Index(fields=['interview', 'status'], name='apt_assign_int_status_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeTestTemplateSection',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('question_count', models.PositiveIntegerField(default=0)),
+                ('difficulty_mix', models.JSONField(blank=True, default=dict)),
+                ('marks_per_question', models.DecimalField(decimal_places=2, default=2, max_digits=6)),
+                ('order_index', models.PositiveIntegerField(default=0)),
+                ('is_required', models.BooleanField(default=True)),
+                ('section', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='template_sections', to='smartInterviewApp.aptitudesection')),
+                ('template', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sections', to='smartInterviewApp.aptitudetesttemplate')),
+            ],
+            options={
+                'ordering': ['template', 'order_index', 'id'],
+                'indexes': [
+                    models.Index(fields=['template', 'order_index'], name='apt_tpl_sec_order_idx'),
+                    models.Index(fields=['section', 'is_required'], name='apt_tpl_sec_req_idx'),
+                ],
+                'constraints': [
+                    models.UniqueConstraint(fields=('template', 'section'), name='unique_aptitude_template_section'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeTestQuestion',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('question_type', models.CharField(choices=[('single_choice', 'Single Choice'), ('multiple_choice', 'Multiple Choice'), ('true_false', 'True/False'), ('numeric', 'Numeric Answer'), ('text_input', 'Text Input'), ('fill_blank', 'Fill in the Blank'), ('image_choice', 'Image Choice'), ('matching', 'Matching'), ('ordering', 'Ordering')], default='single_choice', max_length=30)),
+                ('role_family', models.CharField(blank=True, default='', max_length=120)),
+                ('skill_tag', models.CharField(blank=True, default='', max_length=120)),
+                ('topic_tag', models.CharField(blank=True, default='', max_length=120)),
+                ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], default='medium', max_length=20)),
+                ('question_text', models.TextField()),
+                ('question_html', models.TextField(blank=True, default='')),
+                ('question_media', models.JSONField(blank=True, default=list)),
+                ('options', models.JSONField(blank=True, default=list)),
+                ('answer_schema', models.JSONField(blank=True, default=dict)),
+                ('scoring_schema', models.JSONField(blank=True, default=dict)),
+                ('marks', models.DecimalField(decimal_places=2, default=2, max_digits=6)),
+                ('negative_marks', models.DecimalField(decimal_places=2, default=0, max_digits=6)),
+                ('order_index', models.PositiveIntegerField(default=0)),
+                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='questions', to='smartInterviewApp.aptitudetestassignment')),
+                ('section', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assignment_questions', to='smartInterviewApp.aptitudesection')),
+                ('source_question', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assignment_snapshots', to='smartInterviewApp.aptitudequestionbank')),
+            ],
+            options={
+                'ordering': ['assignment', 'order_index', 'id'],
+                'indexes': [
+                    models.Index(fields=['assignment', 'order_index'], name='apt_test_q_assign_order_idx'),
+                    models.Index(fields=['assignment', 'section'], name='apt_test_q_assign_sec_idx'),
+                    models.Index(fields=['section', 'order_index'], name='apt_test_q_sec_order_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeAnswer',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('answer_payload', models.JSONField(blank=True, default=dict)),
+                ('is_correct', models.BooleanField(blank=True, null=True)),
+                ('marks_awarded', models.DecimalField(decimal_places=2, default=0, max_digits=7)),
+                ('answered_at', models.DateTimeField(auto_now=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='answers', to='smartInterviewApp.aptitudetestassignment')),
+                ('question', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='answers', to='smartInterviewApp.aptitudetestquestion')),
+            ],
+            options={
+                'ordering': ['assignment', 'question__order_index', 'id'],
+                'indexes': [
+                    models.Index(fields=['assignment', 'question'], name='apt_answer_assign_q_idx'),
+                    models.Index(fields=['assignment', 'is_correct'], name='apt_answer_assign_correct_idx'),
+                ],
+                'constraints': [
+                    models.UniqueConstraint(fields=('assignment', 'question'), name='unique_aptitude_assignment_answer'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeTestResult',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('total_questions', models.PositiveIntegerField(default=50)),
+                ('attempted_questions', models.PositiveIntegerField(default=0)),
+                ('correct_answers', models.PositiveIntegerField(default=0)),
+                ('wrong_answers', models.PositiveIntegerField(default=0)),
+                ('skipped_questions', models.PositiveIntegerField(default=0)),
+                ('total_marks', models.DecimalField(decimal_places=2, default=100, max_digits=7)),
+                ('marks_obtained', models.DecimalField(decimal_places=2, default=0, max_digits=7)),
+                ('score_percent', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+                ('passed', models.BooleanField(db_index=True, default=False)),
+                ('problem_solving_score', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+                ('communication_score', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+                ('technical_score', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
+                ('section_breakdown', models.JSONField(blank=True, default=dict)),
+                ('skill_breakdown', models.JSONField(blank=True, default=dict)),
+                ('integrity_summary', models.JSONField(blank=True, default=dict)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('assignment', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='result', to='smartInterviewApp.aptitudetestassignment')),
+            ],
+            options={
+                'ordering': ['-updated_at', '-id'],
+                'indexes': [
+                    models.Index(fields=['passed', 'updated_at'], name='apt_result_passed_updated_idx'),
+                    models.Index(fields=['score_percent'], name='apt_result_score_idx'),
+                ],
+            },
+        ),
+        migrations.CreateModel(
+            name='AptitudeIntegrityEvent',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('event_type', models.CharField(choices=[('tab_switch', 'Tab Switch'), ('window_blur', 'Window Blur'), ('fullscreen_exit', 'Fullscreen Exit'), ('copy_attempt', 'Copy Attempt'), ('paste_attempt', 'Paste Attempt'), ('right_click', 'Right Click'), ('refresh', 'Refresh'), ('devtools_suspected', 'Devtools Suspected'), ('network_reconnect', 'Network Reconnect'), ('camera_missing', 'Camera Missing')], db_index=True, max_length=40)),
+                ('event_payload', models.JSONField(blank=True, default=dict)),
+                ('occurred_at', models.DateTimeField(auto_now_add=True, db_index=True)),
+                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='integrity_events', to='smartInterviewApp.aptitudetestassignment')),
+            ],
+            options={
+                'ordering': ['-occurred_at', '-id'],
+                'indexes': [
+                    models.Index(fields=['assignment', 'event_type', 'occurred_at'], name='apt_integrity_assign_type_idx'),
+                    models.Index(fields=['assignment', 'occurred_at'], name='apt_integrity_assign_time_idx'),
+                ],
+            },
+        ),
+    ]

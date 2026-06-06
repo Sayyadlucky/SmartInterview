@@ -1,9 +1,15 @@
+import uuid
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
 from smartInterviewApp.pgvector_compat import HnswIndex, VectorField
+
+
+def generate_aptitude_public_token():
+    return uuid.uuid4().hex
 
 
 # Profile table linked to built-in User
@@ -1256,6 +1262,449 @@ class QuestionGenerationJob(models.Model):
 
     def __str__(self):
         return f'{self.task_type} for job {self.job_id or "-"} ({self.status})'
+
+
+class AptitudeSection(models.Model):
+    class Category(models.TextChoices):
+        APTITUDE = 'aptitude', 'Aptitude'
+        COMMUNICATION = 'communication', 'Communication'
+        TECHNICAL = 'technical', 'Technical'
+        REASONING = 'reasoning', 'Reasoning'
+
+    name = models.CharField(max_length=120)
+    code = models.SlugField(max_length=120, unique=True)
+    description = models.TextField(blank=True, default='')
+    category = models.CharField(max_length=30, choices=Category.choices, default=Category.APTITUDE, db_index=True)
+    default_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['default_order', 'name']
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['default_order']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class AptitudeQuestionBank(models.Model):
+    class QuestionType(models.TextChoices):
+        SINGLE_CHOICE = 'single_choice', 'Single Choice'
+        MULTIPLE_CHOICE = 'multiple_choice', 'Multiple Choice'
+        TRUE_FALSE = 'true_false', 'True/False'
+        NUMERIC = 'numeric', 'Numeric Answer'
+        TEXT_INPUT = 'text_input', 'Text Input'
+        FILL_BLANK = 'fill_blank', 'Fill in the Blank'
+        IMAGE_CHOICE = 'image_choice', 'Image Choice'
+        MATCHING = 'matching', 'Matching'
+        ORDERING = 'ordering', 'Ordering'
+
+    class Difficulty(models.TextChoices):
+        EASY = 'easy', 'Easy'
+        MEDIUM = 'medium', 'Medium'
+        HARD = 'hard', 'Hard'
+
+    class QualityStatus(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        APPROVED = 'approved', 'Approved'
+        NEEDS_REVIEW = 'needs_review', 'Needs Review'
+        ARCHIVED = 'archived', 'Archived'
+
+    section = models.ForeignKey(AptitudeSection, on_delete=models.PROTECT, related_name='question_bank')
+    question_type = models.CharField(max_length=30, choices=QuestionType.choices, default=QuestionType.SINGLE_CHOICE)
+    role_family = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    skill_tag = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    topic_tag = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    difficulty = models.CharField(max_length=20, choices=Difficulty.choices, default=Difficulty.MEDIUM, db_index=True)
+    question_text = models.TextField()
+    question_html = models.TextField(blank=True, default='')
+    question_media = models.JSONField(default=list, blank=True)
+    options = models.JSONField(default=list, blank=True)
+    answer_schema = models.JSONField(default=dict, blank=True)
+    scoring_schema = models.JSONField(default=dict, blank=True)
+    marks = models.DecimalField(max_digits=6, decimal_places=2, default=2)
+    negative_marks = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    explanation = models.TextField(blank=True, default='')
+    quality_status = models.CharField(
+        max_length=30,
+        choices=QualityStatus.choices,
+        default=QualityStatus.DRAFT,
+        db_index=True,
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='created_aptitude_questions',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['section__default_order', 'difficulty', 'id']
+        indexes = [
+            models.Index(fields=['section', 'difficulty', 'is_active']),
+            models.Index(fields=['section', 'quality_status', 'is_active']),
+            models.Index(fields=['role_family', 'skill_tag']),
+            models.Index(fields=['skill_tag', 'topic_tag']),
+            models.Index(fields=['difficulty', 'quality_status']),
+            models.Index(fields=['question_type']),
+        ]
+
+    def __str__(self):
+        preview = ' '.join((self.question_text or '').split())[:80]
+        return f'{self.section.name}: {preview}'
+
+
+class AptitudeQuestionGenerationJob(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = 'queued', 'Queued'
+        RUNNING = 'running', 'Running'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    class CreatedQualityStatus(models.TextChoices):
+        DRAFT = AptitudeQuestionBank.QualityStatus.DRAFT, 'Draft'
+        APPROVED = AptitudeQuestionBank.QualityStatus.APPROVED, 'Approved'
+        NEEDS_REVIEW = AptitudeQuestionBank.QualityStatus.NEEDS_REVIEW, 'Needs Review'
+
+    section = models.ForeignKey(AptitudeSection, on_delete=models.PROTECT, related_name='generation_jobs')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    role_family = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    skill_tag = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    topic_tag = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    target_count = models.PositiveIntegerField(default=500)
+    batch_size = models.PositiveIntegerField(default=20)
+    generated_count = models.PositiveIntegerField(default=0)
+    accepted_count = models.PositiveIntegerField(default=0)
+    rejected_count = models.PositiveIntegerField(default=0)
+    difficulty_mix = models.JSONField(default=dict, blank=True)
+    question_types = models.JSONField(default=list, blank=True)
+    quality_status_for_created = models.CharField(
+        max_length=30,
+        choices=CreatedQualityStatus.choices,
+        default=CreatedQualityStatus.NEEDS_REVIEW,
+    )
+    prompt_version = models.CharField(max_length=40, default='aptitude_v1')
+    provider = models.CharField(max_length=40, default='openai')
+    model_name = models.CharField(max_length=100, blank=True, default='')
+    attempts = models.PositiveIntegerField(default=0)
+    max_attempts = models.PositiveIntegerField(default=3)
+    payload = models.JSONField(default=dict, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True, default='')
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='created_aptitude_generation_jobs',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['status', 'updated_at'], name='apt_gen_status_updated_idx'),
+            models.Index(fields=['section', 'status'], name='apt_gen_section_status_idx'),
+            models.Index(fields=['role_family', 'skill_tag'], name='apt_gen_role_skill_idx'),
+            models.Index(fields=['created_at'], name='apt_gen_created_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.section.code} aptitude generation ({self.status})'
+
+
+class AptitudeTestTemplate(models.Model):
+    class RoleType(models.TextChoices):
+        GENERAL = 'general', 'General'
+        TECHNICAL = 'technical', 'Technical'
+        MIXED = 'mixed', 'Mixed'
+
+    title = models.CharField(max_length=180)
+    description = models.TextField(blank=True, default='')
+    role_type = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.GENERAL, db_index=True)
+    role_family = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    duration_minutes = models.PositiveIntegerField(default=60)
+    total_questions = models.PositiveIntegerField(default=50)
+    marks_per_question = models.DecimalField(max_digits=6, decimal_places=2, default=2)
+    total_marks = models.DecimalField(max_digits=7, decimal_places=2, default=100)
+    passing_score_percent = models.DecimalField(max_digits=5, decimal_places=2, default=70)
+    negative_marking_enabled = models.BooleanField(default=False)
+    randomize_questions = models.BooleanField(default=True)
+    randomize_options = models.BooleanField(default=True)
+    allow_retake = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='created_aptitude_templates',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['title', 'id']
+        indexes = [
+            models.Index(fields=['role_type', 'is_active']),
+            models.Index(fields=['role_family', 'is_active']),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class AptitudeTestTemplateSection(models.Model):
+    template = models.ForeignKey(AptitudeTestTemplate, on_delete=models.CASCADE, related_name='sections')
+    section = models.ForeignKey(AptitudeSection, on_delete=models.PROTECT, related_name='template_sections')
+    question_count = models.PositiveIntegerField(default=0)
+    difficulty_mix = models.JSONField(default=dict, blank=True)
+    marks_per_question = models.DecimalField(max_digits=6, decimal_places=2, default=2)
+    order_index = models.PositiveIntegerField(default=0)
+    is_required = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['template', 'order_index', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['template', 'section'], name='unique_aptitude_template_section'),
+        ]
+        indexes = [
+            models.Index(fields=['template', 'order_index']),
+            models.Index(fields=['section', 'is_required']),
+        ]
+
+    def __str__(self):
+        return f'{self.template.title} - {self.section.name}'
+
+
+class AptitudeTestAssignment(models.Model):
+    class Status(models.TextChoices):
+        ASSIGNED = 'assigned', 'Assigned'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        SUBMITTED = 'submitted', 'Submitted'
+        EXPIRED = 'expired', 'Expired'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    class RoleType(models.TextChoices):
+        GENERAL = 'general', 'General'
+        TECHNICAL = 'technical', 'Technical'
+        MIXED = 'mixed', 'Mixed'
+
+    candidate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='aptitude_test_assignments',
+        limit_choices_to={'profile__role': 'candidate'},
+        null=True,
+        blank=True,
+    )
+    vacancy = models.ForeignKey(
+        Vacancies,
+        on_delete=models.SET_NULL,
+        related_name='aptitude_test_assignments',
+        null=True,
+        blank=True,
+    )
+    interview = models.ForeignKey(
+        Interview,
+        on_delete=models.SET_NULL,
+        related_name='aptitude_test_assignments',
+        null=True,
+        blank=True,
+    )
+    template = models.ForeignKey(
+        AptitudeTestTemplate,
+        on_delete=models.SET_NULL,
+        related_name='assignments',
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=180, default='Aptitude Test')
+    public_token = models.CharField(max_length=64, unique=True, default=generate_aptitude_public_token, db_index=True)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.ASSIGNED, db_index=True)
+    role_type = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.GENERAL, db_index=True)
+    section_config = models.JSONField(default=dict, blank=True)
+    duration_minutes = models.PositiveIntegerField(default=60)
+    total_questions = models.PositiveIntegerField(default=50)
+    marks_per_question = models.DecimalField(max_digits=6, decimal_places=2, default=2)
+    total_marks = models.DecimalField(max_digits=7, decimal_places=2, default=100)
+    passing_score_percent = models.DecimalField(max_digits=5, decimal_places=2, default=70)
+    negative_marking_enabled = models.BooleanField(default=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    allow_retake = models.BooleanField(default=False)
+    attempt_number = models.PositiveIntegerField(default=1)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='created_aptitude_assignments',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['public_token']),
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['candidate', 'created_at']),
+            models.Index(fields=['vacancy', 'status']),
+            models.Index(fields=['interview', 'status']),
+        ]
+
+    def __str__(self):
+        candidate = self.candidate.username if self.candidate else 'unassigned'
+        return f'{self.title} for {candidate} ({self.status})'
+
+
+class AptitudeTestQuestion(models.Model):
+    assignment = models.ForeignKey(AptitudeTestAssignment, on_delete=models.CASCADE, related_name='questions')
+    source_question = models.ForeignKey(
+        AptitudeQuestionBank,
+        on_delete=models.SET_NULL,
+        related_name='assignment_snapshots',
+        null=True,
+        blank=True,
+    )
+    section = models.ForeignKey(
+        AptitudeSection,
+        on_delete=models.SET_NULL,
+        related_name='assignment_questions',
+        null=True,
+        blank=True,
+    )
+    question_type = models.CharField(
+        max_length=30,
+        choices=AptitudeQuestionBank.QuestionType.choices,
+        default=AptitudeQuestionBank.QuestionType.SINGLE_CHOICE,
+    )
+    role_family = models.CharField(max_length=120, blank=True, default='')
+    skill_tag = models.CharField(max_length=120, blank=True, default='')
+    topic_tag = models.CharField(max_length=120, blank=True, default='')
+    difficulty = models.CharField(
+        max_length=20,
+        choices=AptitudeQuestionBank.Difficulty.choices,
+        default=AptitudeQuestionBank.Difficulty.MEDIUM,
+    )
+    question_text = models.TextField()
+    question_html = models.TextField(blank=True, default='')
+    question_media = models.JSONField(default=list, blank=True)
+    options = models.JSONField(default=list, blank=True)
+    answer_schema = models.JSONField(default=dict, blank=True)
+    scoring_schema = models.JSONField(default=dict, blank=True)
+    marks = models.DecimalField(max_digits=6, decimal_places=2, default=2)
+    negative_marks = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    order_index = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['assignment', 'order_index', 'id']
+        indexes = [
+            models.Index(fields=['assignment', 'order_index']),
+            models.Index(fields=['assignment', 'section']),
+            models.Index(fields=['section', 'order_index']),
+        ]
+
+    def __str__(self):
+        return f'Question {self.order_index or self.id} for assignment {self.assignment_id}'
+
+
+class AptitudeAnswer(models.Model):
+    assignment = models.ForeignKey(AptitudeTestAssignment, on_delete=models.CASCADE, related_name='answers')
+    question = models.ForeignKey(AptitudeTestQuestion, on_delete=models.CASCADE, related_name='answers')
+    answer_payload = models.JSONField(default=dict, blank=True)
+    is_correct = models.BooleanField(null=True, blank=True)
+    marks_awarded = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    answered_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['assignment', 'question__order_index', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['assignment', 'question'], name='unique_aptitude_assignment_answer'),
+        ]
+        indexes = [
+            models.Index(fields=['assignment', 'question']),
+            models.Index(fields=['assignment', 'is_correct']),
+        ]
+
+    def __str__(self):
+        return f'Answer for assignment {self.assignment_id}, question {self.question_id}'
+
+
+class AptitudeTestResult(models.Model):
+    assignment = models.OneToOneField(AptitudeTestAssignment, on_delete=models.CASCADE, related_name='result')
+    total_questions = models.PositiveIntegerField(default=50)
+    attempted_questions = models.PositiveIntegerField(default=0)
+    correct_answers = models.PositiveIntegerField(default=0)
+    wrong_answers = models.PositiveIntegerField(default=0)
+    skipped_questions = models.PositiveIntegerField(default=0)
+    total_marks = models.DecimalField(max_digits=7, decimal_places=2, default=100)
+    marks_obtained = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    score_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    passed = models.BooleanField(default=False, db_index=True)
+    problem_solving_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    communication_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    technical_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    section_breakdown = models.JSONField(default=dict, blank=True)
+    skill_breakdown = models.JSONField(default=dict, blank=True)
+    integrity_summary = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['passed', 'updated_at']),
+            models.Index(fields=['score_percent']),
+        ]
+
+    def __str__(self):
+        return f'Result for aptitude assignment {self.assignment_id} ({self.score_percent}%)'
+
+
+class AptitudeIntegrityEvent(models.Model):
+    class EventType(models.TextChoices):
+        TAB_SWITCH = 'tab_switch', 'Tab Switch'
+        WINDOW_BLUR = 'window_blur', 'Window Blur'
+        FULLSCREEN_EXIT = 'fullscreen_exit', 'Fullscreen Exit'
+        COPY_ATTEMPT = 'copy_attempt', 'Copy Attempt'
+        PASTE_ATTEMPT = 'paste_attempt', 'Paste Attempt'
+        RIGHT_CLICK = 'right_click', 'Right Click'
+        REFRESH = 'refresh', 'Refresh'
+        DEVTOOLS_SUSPECTED = 'devtools_suspected', 'Devtools Suspected'
+        NETWORK_RECONNECT = 'network_reconnect', 'Network Reconnect'
+        CAMERA_MISSING = 'camera_missing', 'Camera Missing'
+
+    assignment = models.ForeignKey(AptitudeTestAssignment, on_delete=models.CASCADE, related_name='integrity_events')
+    event_type = models.CharField(max_length=40, choices=EventType.choices, db_index=True)
+    event_payload = models.JSONField(default=dict, blank=True)
+    occurred_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-occurred_at', '-id']
+        indexes = [
+            models.Index(fields=['assignment', 'event_type', 'occurred_at']),
+            models.Index(fields=['assignment', 'occurred_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.event_type} for aptitude assignment {self.assignment_id}'
 
 
 class CandidateVacancyApplication(models.Model):

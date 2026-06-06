@@ -2,6 +2,16 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
+    AptitudeAnswer,
+    AptitudeIntegrityEvent,
+    AptitudeQuestionBank,
+    AptitudeQuestionGenerationJob,
+    AptitudeSection,
+    AptitudeTestAssignment,
+    AptitudeTestQuestion,
+    AptitudeTestResult,
+    AptitudeTestTemplate,
+    AptitudeTestTemplateSection,
     CandidateVacancyApplication,
     CodingQuestion,
     CompanyProfile,
@@ -239,6 +249,186 @@ class QuestionGenerationJobAdmin(admin.ModelAdmin):
     search_fields = ('payload', 'result', 'error_message', 'job__role', 'job__position', 'skill__name', 'skill__key')
     readonly_fields = ('created_at', 'updated_at', 'started_at', 'finished_at')
     autocomplete_fields = ('blueprint', 'skill')
+
+
+@admin.register(AptitudeSection)
+class AptitudeSectionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'category', 'default_order', 'is_active', 'updated_at')
+    list_filter = ('category', 'is_active')
+    search_fields = ('name', 'code', 'description')
+    readonly_fields = ('created_at', 'updated_at')
+    prepopulated_fields = {'code': ('name',)}
+
+
+@admin.register(AptitudeQuestionBank)
+class AptitudeQuestionBankAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'section',
+        'question_type',
+        'difficulty',
+        'role_family',
+        'skill_tag',
+        'quality_status',
+        'marks',
+        'is_active',
+        'updated_at',
+    )
+    list_filter = ('section', 'question_type', 'difficulty', 'quality_status', 'is_active')
+    search_fields = ('question_text', 'question_html', 'role_family', 'skill_tag', 'topic_tag', 'explanation')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ('section', 'created_by')
+
+
+@admin.register(AptitudeQuestionGenerationJob)
+class AptitudeQuestionGenerationJobAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'section',
+        'status',
+        'role_family',
+        'skill_tag',
+        'target_count',
+        'batch_size',
+        'generated_count',
+        'accepted_count',
+        'rejected_count',
+        'attempts',
+        'updated_at',
+    )
+    list_filter = ('status', 'section', 'quality_status_for_created', 'provider', 'created_at')
+    search_fields = ('section__name', 'section__code', 'role_family', 'skill_tag', 'topic_tag', 'error_message')
+    readonly_fields = ('created_at', 'updated_at', 'started_at', 'finished_at')
+    autocomplete_fields = ('section', 'created_by')
+
+
+class AptitudeTestTemplateSectionInline(admin.TabularInline):
+    model = AptitudeTestTemplateSection
+    extra = 0
+    autocomplete_fields = ('section',)
+
+
+@admin.register(AptitudeTestTemplate)
+class AptitudeTestTemplateAdmin(admin.ModelAdmin):
+    list_display = (
+        'title',
+        'role_type',
+        'role_family',
+        'duration_minutes',
+        'total_questions',
+        'total_marks',
+        'passing_score_percent',
+        'is_active',
+        'updated_at',
+    )
+    list_filter = ('role_type', 'negative_marking_enabled', 'randomize_questions', 'allow_retake', 'is_active')
+    search_fields = ('title', 'description', 'role_family')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ('created_by',)
+    inlines = (AptitudeTestTemplateSectionInline,)
+
+
+@admin.register(AptitudeTestTemplateSection)
+class AptitudeTestTemplateSectionAdmin(admin.ModelAdmin):
+    list_display = ('template', 'section', 'question_count', 'marks_per_question', 'order_index', 'is_required')
+    list_filter = ('section', 'is_required')
+    search_fields = ('template__title', 'section__name', 'section__code')
+    autocomplete_fields = ('template', 'section')
+
+
+class AptitudeTestQuestionInline(admin.TabularInline):
+    model = AptitudeTestQuestion
+    extra = 0
+    fields = ('order_index', 'section', 'question_type', 'difficulty', 'marks', 'source_question')
+    readonly_fields = ()
+    autocomplete_fields = ('section', 'source_question')
+
+
+class AptitudeIntegrityEventInline(admin.TabularInline):
+    model = AptitudeIntegrityEvent
+    extra = 0
+    fields = ('event_type', 'occurred_at')
+    readonly_fields = ('occurred_at',)
+    can_delete = False
+
+
+@admin.register(AptitudeTestAssignment)
+class AptitudeTestAssignmentAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'title',
+        'candidate',
+        'vacancy',
+        'interview',
+        'status',
+        'role_type',
+        'attempt_number',
+        'created_at',
+        'submitted_at',
+    )
+    list_filter = ('status', 'role_type', 'negative_marking_enabled', 'allow_retake', 'created_at')
+    search_fields = (
+        'title',
+        'public_token',
+        'candidate__username',
+        'candidate__email',
+        'vacancy__role',
+        'interview__id',
+    )
+    readonly_fields = ('public_token', 'created_at', 'updated_at')
+    autocomplete_fields = ('candidate', 'vacancy', 'template', 'created_by')
+    inlines = (AptitudeTestQuestionInline, AptitudeIntegrityEventInline)
+
+
+@admin.register(AptitudeTestQuestion)
+class AptitudeTestQuestionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'assignment', 'section', 'question_type', 'difficulty', 'marks', 'order_index')
+    list_filter = ('section', 'question_type', 'difficulty')
+    search_fields = (
+        'assignment__title',
+        'assignment__public_token',
+        'question_text',
+        'role_family',
+        'skill_tag',
+        'topic_tag',
+    )
+    autocomplete_fields = ('assignment', 'source_question', 'section')
+
+
+@admin.register(AptitudeAnswer)
+class AptitudeAnswerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'assignment', 'question', 'is_correct', 'marks_awarded', 'answered_at')
+    list_filter = ('is_correct', 'answered_at')
+    search_fields = ('assignment__title', 'assignment__public_token', 'question__question_text')
+    readonly_fields = ('answered_at', 'created_at')
+    autocomplete_fields = ('assignment', 'question')
+
+
+@admin.register(AptitudeTestResult)
+class AptitudeTestResultAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'assignment',
+        'attempted_questions',
+        'correct_answers',
+        'marks_obtained',
+        'score_percent',
+        'passed',
+        'updated_at',
+    )
+    list_filter = ('assignment__status', 'assignment__role_type', 'passed', 'created_at')
+    search_fields = ('assignment__title', 'assignment__public_token', 'assignment__candidate__username', 'assignment__candidate__email')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ('assignment',)
+
+
+@admin.register(AptitudeIntegrityEvent)
+class AptitudeIntegrityEventAdmin(admin.ModelAdmin):
+    list_display = ('id', 'assignment', 'event_type', 'occurred_at')
+    list_filter = ('event_type', 'occurred_at')
+    search_fields = ('assignment__title', 'assignment__public_token', 'event_payload')
+    readonly_fields = ('occurred_at',)
+    autocomplete_fields = ('assignment',)
 
 
 @admin.register(InterviewCallSession)
