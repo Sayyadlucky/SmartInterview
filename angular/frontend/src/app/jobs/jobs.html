@@ -66,7 +66,7 @@
   <main class="dashboard-card jobs-shell" [attr.aria-busy]="loading">
     <section class="jobs-layout">
       <aside class="company-sidebar" aria-label="Company summary">
-        <section class="sidebar-card sidebar-company-card" aria-labelledby="jobsPageTitle">
+        <section class="sidebar-card sidebar-company-card" aria-label="Hiring workspace company profile">
           <span class="page-kicker">Hiring Workspace</span>
           <div class="sidebar-company-header">
             <div class="sidebar-company-logo" *ngIf="dashboardCompanyLogoUrl; else sidebarLogoFallback">
@@ -76,22 +76,17 @@
               <div class="sidebar-company-logo fallback" [attr.aria-label]="companyDisplayName + ' initials'">{{ getRecruiterInitials(companyDisplayName) }}</div>
             </ng-template>
             <div class="sidebar-company-copy">
-              <strong><i class="ph ph-buildings" aria-hidden="true"></i> <span>{{ companyDisplayName }}</span></strong>
-              <h1 id="jobsPageTitle">{{ pageTitle }}</h1>
-              <p>{{ pageSubtitle }}</p>
+              <strong><span>{{ companyDisplayName }}</span></strong>
+              <p>{{ hasCompanyDescription ? companyProfile?.description : 'Workspace hiring activity and posting coverage.' }}</p>
             </div>
           </div>
 
           <div class="sidebar-stat-grid" *ngIf="!loading" aria-label="Hiring summary">
             <article *ngFor="let stat of sidebarSummaryStats">
+              <span class="sidebar-stat-icon"><i class="ph" [class]="stat.icon" aria-hidden="true"></i></span>
               <strong>{{ stat.value }}</strong>
-              <span><i class="ph" [class]="stat.icon" aria-hidden="true"></i> {{ stat.label }}</span>
+              <span>{{ stat.label }}</span>
             </article>
-          </div>
-
-          <div class="sidebar-note" aria-live="polite">
-            <i class="ph ph-lightning" aria-hidden="true"></i>
-            <span>{{ roleCoverageLabel }}</span>
           </div>
         </section>
 
@@ -120,14 +115,30 @@
       </aside>
 
       <section class="jobs-main-panel" aria-labelledby="jobPostingsTitle">
-        <header class="jobs-toolbar" *ngIf="!loading">
-          <div class="jobs-toolbar-copy">
-            <span class="toolbar-kicker">Jobs Overview</span>
-            <h2 id="jobPostingsTitle">{{ jobsPanelTitle }}</h2>
-            <p class="jobs-results-count" aria-live="polite">{{ jobsPanelSubtitle }}</p>
+        <header class="jobs-hero" *ngIf="!loading">
+          <div class="jobs-hero-top">
+            <div class="jobs-toolbar-copy">
+              <h1 id="jobPostingsTitle">Job Postings</h1>
+              <p>{{ pageSubtitle }}</p>
+            </div>
+
+            <button type="button" class="hero-action hero-action-primary" (click)="postJob()">
+              <i class="ph ph-plus" aria-hidden="true"></i>
+              <span>Post New Role</span>
+            </button>
           </div>
 
-          <div class="jobs-toolbar-controls">
+          <div class="summary-card-grid" aria-label="Job posting summary">
+            <article class="summary-card" *ngFor="let stat of dashboardSummaryStats" [ngClass]="'summary-card-' + stat.tone">
+              <span class="summary-icon"><i class="ph" [class]="stat.icon" aria-hidden="true"></i></span>
+              <span>{{ stat.label }}</span>
+              <strong>{{ stat.value }}</strong>
+            </article>
+          </div>
+        </header>
+
+        <section class="jobs-board" *ngIf="!loading">
+          <header class="jobs-toolbar">
             <label class="search-field" for="jobsSearchInput">
               <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
               <span class="sr-only">Search job postings</span>
@@ -158,8 +169,16 @@
                 <span class="status-filter-label">{{ filter.label }}</span>
               </label>
             </fieldset>
+          </header>
+
+          <div class="jobs-board-heading">
+            <div>
+              <h2>{{ jobsPanelTitle }}</h2>
+              <p class="jobs-results-count" aria-live="polite">{{ jobsPanelSubtitle }}</p>
+            </div>
+            <span>{{ roleCoverageLabel }}</span>
           </div>
-        </header>
+        </section>
 
         <section class="loading-state loading-skeleton" *ngIf="loading" aria-live="polite" aria-label="Loading job postings">
           <div class="skeleton-toolbar" aria-hidden="true">
@@ -206,86 +225,94 @@
           <button type="button" class="hero-action hero-action-primary" (click)="loadJobsPage()">Retry</button>
         </section>
 
-        <section class="jobs-stream" *ngIf="!loading && filteredJobsState.length" aria-label="Job posting list">
-          <article class="job-card" *ngFor="let job of filteredJobsState; trackBy: trackByJob">
-            <header class="job-card-top">
-              <div class="job-brand">
-                <div class="job-brand-logo" *ngIf="getJobLogoUrl(job); else textLogo">
-                  <img [src]="getJobLogoUrl(job)" [alt]="(job.company?.display_name || job.name) + ' logo'" (error)="handleJobLogoError(job)">
-                </div>
-                <ng-template #textLogo>
-                  <div class="job-brand-logo fallback" [attr.aria-label]="(job.company?.display_name || job.name || 'Company') + ' initials'">{{ getRecruiterInitials(job.company?.display_name || job.name) }}</div>
-                </ng-template>
-                <div class="job-brand-copy">
-                  <span class="job-company">{{ job.company?.display_name || job.company?.legal_name || 'Company' }}</span>
-                  <h3 [title]="job.name || 'Untitled job posting'">{{ job.name || 'Untitled job posting' }}</h3>
-                </div>
-              </div>
+        <section class="jobs-table-wrap" *ngIf="!loading && filteredJobsState.length" aria-label="Job posting list">
+          <div class="jobs-table-header" aria-hidden="true">
+            <span>Role & Hiring Team</span>
+            <span>Location</span>
+            <span>Type</span>
+            <span>Applications</span>
+            <span>Status</span>
+            <span>Posted On</span>
+            <span>Quick Action</span>
+          </div>
 
-              <div class="job-meta-stack">
-                <span class="job-status" [ngClass]="getStatusClass(job.status)">{{ job.status_label || 'Status pending' }}</span>
-                <span class="job-posted"><i class="ph ph-calendar-blank" aria-hidden="true"></i> Posted: {{ job.date_display || 'Date pending' }}</span>
+          <article class="job-row" *ngFor="let job of filteredJobsState; let index = index; trackBy: trackByJob">
+            <div class="job-role-cell">
+              <div class="job-brand-logo fallback" [ngClass]="getJobVisualClass(index)" aria-hidden="true">
+                <i class="ph ph-code" aria-hidden="true"></i>
               </div>
-            </header>
-
-            <div class="job-metrics" aria-label="Posting metrics">
-              <div>
-                <span><i class="ph ph-users-three" aria-hidden="true"></i> Headcount</span>
-                <strong>{{ job.vacancies || 0 }}</strong>
-              </div>
-              <div>
-                <span><i class="ph ph-briefcase-metal" aria-hidden="true"></i> Open</span>
-                <strong>{{ job.open_positions || 0 }}</strong>
-              </div>
-              <div>
-                <span><i class="ph ph-git-branch" aria-hidden="true"></i> Pipeline</span>
-                <strong>{{ job.applications || 0 }}</strong>
-              </div>
-              <div>
-                <span><i class="ph ph-handshake" aria-hidden="true"></i> Hired</span>
-                <strong>{{ job.hired || 0 }}</strong>
+              <div class="job-brand-copy">
+                <h3 [title]="job.name || 'Untitled job posting'">{{ job.name || 'Untitled job posting' }}</h3>
+                <span class="job-company" [title]="job.recruiter_summary || ''">
+                  {{ job.recruiter_summary || job.company?.display_name || job.company?.legal_name || 'Recruiter assignment pending' }}
+                </span>
               </div>
             </div>
 
-            <div class="job-detail-chips" aria-label="Posting details">
-              <span [title]="job.location || 'Location pending'"><i class="ph ph-map-pin" aria-hidden="true"></i> {{ job.location || 'Location pending' }}</span>
-              <span [title]="job.job_type || 'Type pending'"><i class="ph ph-bag-simple" aria-hidden="true"></i> {{ job.job_type || 'Type pending' }}</span>
-              <span [title]="job.experience_required || 'Experience pending'"><i class="ph ph-chart-line-up" aria-hidden="true"></i> {{ job.experience_required || 'Experience pending' }}</span>
+            <div class="job-location-cell" [title]="job.location || 'Location pending'">
+              <i class="ph ph-map-pin" aria-hidden="true"></i>
+              <span>{{ job.location || 'Location pending' }}</span>
             </div>
 
-            <footer class="job-footer">
-              <div class="recruiter-cluster">
-                <div class="recruiter-badges" aria-hidden="true">
-                  <span class="recruiter-badge" *ngFor="let recruiter of job.recruiters | slice:0:3">{{ getRecruiterInitials(recruiter) }}</span>
-                </div>
-                <div class="recruiter-copy">
-                  <strong><i class="ph ph-users" aria-hidden="true"></i> {{ job.recruiter_count || job.recruiters.length || 0 }} recruiter{{ (job.recruiter_count || job.recruiters.length) === 1 ? '' : 's' }}</strong>
-                  <span [title]="job.recruiter_summary || ''">{{ job.recruiter_summary }}</span>
-                </div>
-              </div>
+            <div>
+              <span class="job-type-pill">{{ job.job_type || 'Type pending' }}</span>
+            </div>
 
-              <div class="job-actions">
-                <button type="button" class="job-action primary" (click)="openRoleDetails(job)">
-                  <i class="ph ph-arrow-square-out" aria-hidden="true"></i> Open Brief
+            <div class="job-applications-cell">
+              <strong>{{ job.applications || 0 }}</strong>
+              <span *ngIf="job.inprogress">{{ job.inprogress }} in progress</span>
+            </div>
+
+            <div>
+              <span class="job-status" [ngClass]="getStatusClass(job.status)">
+                <i class="ph ph-circle-fill" aria-hidden="true"></i>
+                {{ job.status_label || 'Status pending' }}
+              </span>
+            </div>
+
+            <div class="job-posted-cell">{{ job.date_display || 'Date pending' }}</div>
+
+            <div class="job-row-actions" [class.quick-action-open]="isQuickActionMenuOpen(job)" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="quick-action-trigger"
+                aria-label="Open quick actions"
+                aria-haspopup="menu"
+                [attr.aria-expanded]="isQuickActionMenuOpen(job)"
+                [attr.aria-controls]="getQuickActionMenuId(job)"
+                (click)="toggleQuickActionMenu(job, $event)">
+                <i class="ph ph-dots-three-vertical" aria-hidden="true"></i>
+              </button>
+
+              <div
+                *ngIf="isQuickActionMenuOpen(job)"
+                class="quick-action-menu"
+                role="menu"
+                [id]="getQuickActionMenuId(job)">
+                <button type="button" role="menuitem" (click)="openQuickViewFromEvent(job, $event)">
+                  <i class="ph ph-eye" aria-hidden="true"></i>
+                  <span>Quick View</span>
                 </button>
-                <div class="job-actions-secondary">
-                  <button type="button" class="job-action tertiary" (click)="openQuickViewFromEvent(job, $event)">
-                    <i class="ph ph-eye" aria-hidden="true"></i> Quick View
-                  </button>
-                  <a class="job-action tertiary" [href]="getTalentPoolUrl(job)">
-                    <i class="ph ph-sparkle" aria-hidden="true"></i> AI Talent Pool
-                  </a>
-                  <button
-                    *ngIf="job.status !== 'closed'"
-                    type="button"
-                    class="job-action tertiary job-action-close"
-                    [disabled]="isClosingJob(job)"
-                    (click)="closeJob(job)">
-                    <i class="ph ph-lock-simple" aria-hidden="true"></i> {{ isClosingJob(job) ? 'Closing...' : 'Mark as Closed' }}
-                  </button>
-                </div>
+                <button type="button" role="menuitem" (click)="openRoleDetailsFromMenu(job)">
+                  <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
+                  <span>Open Job Brief</span>
+                </button>
+                <a role="menuitem" [href]="getTalentPoolUrl(job)" (click)="closeQuickActionMenu()">
+                  <i class="ph ph-sparkle" aria-hidden="true"></i>
+                  <span>AI Talent Pool</span>
+                </a>
+                <button
+                  *ngIf="job.status !== 'closed'"
+                  type="button"
+                  role="menuitem"
+                  class="quick-action-danger"
+                  [disabled]="isClosingJob(job)"
+                  (click)="closeJobFromMenu(job)">
+                  <i class="ph" [class.ph-spinner-gap]="isClosingJob(job)" [class.ph-lock-simple]="!isClosingJob(job)" aria-hidden="true"></i>
+                  <span>{{ isClosingJob(job) ? 'Closing Role' : 'Mark as Closed' }}</span>
+                </button>
               </div>
-            </footer>
+            </div>
           </article>
         </section>
 

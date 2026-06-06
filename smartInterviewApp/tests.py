@@ -8,6 +8,7 @@ import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import connection
 from django.core import mail
 from django.core.management import call_command
@@ -41,7 +42,7 @@ from smartInterviewApp.services.interview_reminders import (
     build_whatsapp_parameters,
     clean_value,
 )
-from smartInterviewApp.services.interview_blueprints import build_job_interview_blueprint, process_job_interview_blueprint_task
+from smartInterviewApp.services.interview_blueprints import build_job_interview_blueprint, process_job_interview_blueprint_task, _extract_jd_evidence
 from smartInterviewApp.services.blueprint_plan_signature import blueprint_plan_signature, ensure_blueprint_plan_signature
 from smartInterviewApp.services.question_banks import (
     OpenAIQuestionGenerationError,
@@ -2467,6 +2468,7 @@ class ContactViewTests(TestCase):
 )
 class InterviewBlueprintFoundationTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.admin = User.objects.create_user(username='blueprint-admin', password='pass1234', email='bp-admin@example.com')
         UserProfile.objects.create(user=self.admin, role='admin', phone='919999999990', gender='other')
         self.recruiter = User.objects.create_user(username='blueprint-recruiter', password='pass1234', email='bp-recruiter@example.com')
@@ -2585,6 +2587,36 @@ class InterviewBlueprintFoundationTests(TestCase):
             is_active=True,
         )
         return blueprint, skill
+
+    def _mern_jd(self):
+        return (
+            '<p>We are hiring a MERN Stack Developer with 5-6 years of experience.</p>'
+            '<p>Required skills: MERN Stack, React JS / React.js, Node.js / Node JS, '
+            'JavaScript, MongoDB / NoSQL, HTML/CSS, and Debugging.</p>'
+            '<p>Good to have: Git, Agile, Communication, Teamwork.</p>'
+            '<p>The engineer will build APIs, develop frontend components, write code, '
+            'debug production issues, and collaborate with the team.</p>'
+        )
+
+    def _seed_mern_skills(self):
+        specs = [
+            ('MERN Stack Development', 'mern-stack-development', 'Full Stack Development', ['MERN', 'MERN Stack', 'MERN Stack Developer']),
+            ('React JS', 'react-js', 'Frontend Development', ['React', 'React.js']),
+            ('Node.js', 'node-js', 'Backend Development', ['Node JS', 'Node']),
+            ('JavaScript', 'javascript', 'Programming Language', ['JS']),
+            ('MongoDB', 'mongodb', 'Database', ['Mongo DB', 'NoSQL']),
+            ('HTML/CSS', 'html-css', 'Frontend Development', ['HTML', 'CSS']),
+            ('Debugging', 'debugging', 'Testing Debugging', ['Troubleshooting']),
+            ('Git', 'git', 'Version Control', ['GitHub', 'Version Control']),
+            ('Agile', 'agile', 'Process', ['Scrum']),
+            ('Communication', 'communication', 'Soft Skill', ['Communication Skills']),
+            ('Teamwork', 'teamwork', 'Soft Skill', ['Collaboration']),
+        ]
+        for name, key, category, aliases in specs:
+            Skill.objects.get_or_create(
+                key=key,
+                defaults={'name': name, 'category': category, 'aliases': aliases, 'is_active': True},
+            )
 
     def _coding_audit_blueprint(self, *, role='Core Java Developer', coding_required=True, targets=None, primary='Core Java', sub_skills=None, optional_skills=None, quality_warnings=None):
         targets = targets if targets is not None else [primary]
@@ -2785,6 +2817,127 @@ class InterviewBlueprintFoundationTests(TestCase):
         self.assertIn('plan_signature', signed)
         self.assertNotIn('plan_signature', plan)
 
+    def test_extract_jd_evidence_handles_html_rich_text_sections(self):
+        vacancy = Vacancies(
+            role='Python Developer',
+            position='1',
+            experience_required='3-5 years',
+            description=(
+                '<h2>Technical Skills</h2>'
+                '<p><strong>Required Skills:</strong> Python, Django, REST API</p>'
+                '<ul><li>PostgreSQL</li><li>Debugging</li></ul>'
+                '<p>Responsibilities: Build APIs and write code.</p>'
+            ),
+        )
+
+        evidence = _extract_jd_evidence(vacancy)
+
+        self.assertIn('Python', evidence['raw_text'])
+        self.assertIn('Required Skills:', evidence['html_cleaned_text'])
+        self.assertIn('python', evidence['full_text'])
+        self.assertTrue(evidence['role_family_hints']['technical'])
+        self.assertTrue({'Python', 'Django', 'REST API'} & set(evidence['required_skill_phrases']))
+        self.assertIn('PostgreSQL', evidence['bullet_skill_phrases'])
+        self.assertIn('code', evidence['coding_evidence_terms'])
+
+    def test_extract_jd_evidence_handles_plain_empty_and_none_descriptions(self):
+        cases = [
+            Vacancies(role='Recruiter', position='1', description='Required Skills: Sourcing, Screening, Communication'),
+            Vacancies(role='Office Administrator', position='1', description=''),
+            Vacancies(role='Finance Executive', position='1', description=None),
+        ]
+
+        for vacancy in cases:
+            with self.subTest(role=vacancy.role):
+                evidence = _extract_jd_evidence(vacancy)
+                self.assertIn('raw_text', evidence)
+                self.assertIn('html_cleaned_text', evidence)
+                self.assertIn('full_text', evidence)
+                self.assertIsInstance(evidence['required_skill_phrases'], list)
+                self.assertIsInstance(evidence['bullet_skill_phrases'], list)
+                self.assertIsInstance(evidence['explicit_technology_phrases'], list)
+
+        recruiter_evidence = _extract_jd_evidence(cases[0])
+        self.assertTrue(recruiter_evidence['role_family_hints']['hr'])
+        self.assertIn('Sourcing', recruiter_evidence['required_skill_phrases'])
+        self.assertEqual(_extract_jd_evidence(cases[1])['raw_text'], '')
+        self.assertEqual(_extract_jd_evidence(cases[2])['raw_text'], '')
+
+    def test_extract_jd_evidence_detects_representative_role_families(self):
+        cases = [
+            (
+                Vacancies(role='Marketing Manager', position='1', description='Preferred Skills: SEO, campaign planning, social media, lead generation.'),
+                'marketing',
+            ),
+            (
+                Vacancies(role='Data Architect', position='1', description='Required Skills: data modeling, data warehouse, SQL, ETL.'),
+                'data',
+            ),
+            (
+                Vacancies(role='QA Automation Engineer', position='1', description='Technical Skills: Selenium, automation framework, scripting, API automation implementation.'),
+                'qa_automation',
+            ),
+            (
+                Vacancies(role='Cloud DevOps Engineer', position='1', description='Tools/Technologies: AWS, Kubernetes, Docker, CI/CD, Terraform.'),
+                'cloud_devops',
+            ),
+            (
+                Vacancies(role='Sales Executive', position='1', description='Responsibilities: pipeline management, client communication, negotiation.'),
+                'technical',
+            ),
+        ]
+
+        for vacancy, hint in cases:
+            with self.subTest(role=vacancy.role):
+                evidence = _extract_jd_evidence(vacancy)
+                self.assertIn(vacancy.role.split()[0].lower(), evidence['full_text'])
+                if hint == 'technical':
+                    self.assertFalse(evidence['role_family_hints'][hint])
+                else:
+                    self.assertTrue(evidence['role_family_hints'][hint])
+
+    @override_settings(
+        INTERVIEW_BLUEPRINT_ENABLED=True,
+        INTERVIEW_BLUEPRINT_OPENAI_ENABLED=False,
+        INTERVIEW_BLUEPRINT_CREATE_MISSING_SKILLS=False,
+        INTERVIEW_QUESTION_BANK_ENABLED=False,
+        INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT=False,
+    )
+    def test_build_job_interview_blueprint_no_name_error_and_mapping_job_finishes(self):
+        Skill.objects.create(
+            name='Python',
+            key='python',
+            category='Programming Language',
+            aliases=['Django'],
+            is_active=True,
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            vacancy = Vacancies.objects.create(
+                role='Python Developer',
+                description='<p>Required Skills:</p><ul><li>Python</li><li>Django</li></ul><p>Responsibilities: write code.</p>',
+                position='1',
+                status='active',
+                experience_required='3-5 years',
+                admin=self.admin,
+            )
+
+        generation_job = QuestionGenerationJob.objects.get(
+            job_id=vacancy.id,
+            task_type=QuestionGenerationJob.TaskType.JD_SKILL_MAPPING,
+        )
+        result = process_job_interview_blueprint_task(generation_job.id)
+        generation_job.refresh_from_db()
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+
+        self.assertNotIn('html_cleaned', generation_job.error_message)
+        self.assertNotIn('raw_description', generation_job.error_message)
+        self.assertIn(generation_job.status, {QuestionGenerationJob.Status.SUCCESS, QuestionGenerationJob.Status.FAILED})
+        self.assertNotEqual(generation_job.status, QuestionGenerationJob.Status.RUNNING)
+        self.assertEqual(generation_job.job_id, vacancy.id)
+        self.assertEqual(generation_job.blueprint_id, blueprint.id)
+        self.assertTrue(result.get('blueprint_id'))
+        self.assertIn(blueprint.status, {JobInterviewBlueprint.Status.READY, JobInterviewBlueprint.Status.PARTIAL, JobInterviewBlueprint.Status.FAILED})
+
     def test_job_creation_succeeds_and_keeps_response_when_blueprint_enqueue_succeeds(self):
         with patch('smartInterviewApp.services.question_banks.generate_skill_questions_with_openai') as question_openai_mock:
             with patch('smartInterviewApp.services.interview_blueprints.enqueue_job_interview_blueprint') as enqueue_mock:
@@ -2838,6 +2991,108 @@ class InterviewBlueprintFoundationTests(TestCase):
             self.assertEqual(enqueue_mock.call_count, 0)
             callbacks[0]()
             enqueue_mock.assert_called_once_with(vacancy.id)
+
+    @override_settings(
+        INTERVIEW_BLUEPRINT_ENABLED=True,
+        INTERVIEW_BLUEPRINT_OPENAI_ENABLED=False,
+        INTERVIEW_BLUEPRINT_CREATE_MISSING_SKILLS=True,
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=1,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=1,
+        INTERVIEW_QUESTION_BANK_MAX_SKILLS_PER_BLUEPRINT_ENQUEUE=10,
+    )
+    def test_active_vacancy_save_creates_blueprint_placeholder_and_job_queue_with_job_id(self):
+        self._seed_mern_skills()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            vacancy = Vacancies.objects.create(
+                role='MERN Stack Developer',
+                description=self._mern_jd(),
+                position='1',
+                status='active',
+                experience_required='5-6 years',
+                admin=self.admin,
+            )
+
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertEqual(blueprint.job_id, vacancy.id)
+        self.assertEqual(blueprint.status, JobInterviewBlueprint.Status.GENERATING)
+        mapping_job = QuestionGenerationJob.objects.get(
+            job_id=vacancy.id,
+            blueprint=blueprint,
+            task_type=QuestionGenerationJob.TaskType.JD_SKILL_MAPPING,
+        )
+        self.assertNotIn('vacancy_id', mapping_job.payload)
+        self.assertEqual(mapping_job.payload['job_id'], vacancy.id)
+        self.assertEqual(mapping_job.payload['blueprint_id'], blueprint.id)
+
+    @override_settings(
+        INTERVIEW_BLUEPRINT_ENABLED=True,
+        INTERVIEW_BLUEPRINT_OPENAI_ENABLED=False,
+        INTERVIEW_BLUEPRINT_CREATE_MISSING_SKILLS=True,
+        INTERVIEW_QUESTION_BANK_ENABLED=True,
+        INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT=True,
+        INTERVIEW_QUESTION_BANK_RUNNER_MODE='worker_only',
+        INTERVIEW_SKILL_VERBAL_TARGET_COUNT=1,
+        INTERVIEW_SKILL_CODING_TARGET_COUNT=1,
+        INTERVIEW_QUESTION_BANK_MAX_SKILLS_PER_BLUEPRINT_ENQUEUE=10,
+    )
+    def test_mern_stack_developer_blueprint_and_question_jobs_are_created_with_job_id(self):
+        self._seed_mern_skills()
+        with self.captureOnCommitCallbacks(execute=True):
+            vacancy = Vacancies.objects.create(
+                role='MERN Stack Developer',
+                description=self._mern_jd(),
+                position='1',
+                status='active',
+                experience_required='5-6 years',
+                admin=self.admin,
+            )
+
+        mapping_job = QuestionGenerationJob.objects.get(
+            job_id=vacancy.id,
+            task_type=QuestionGenerationJob.TaskType.JD_SKILL_MAPPING,
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            result = process_job_interview_blueprint_task(mapping_job.id)
+
+        self.assertTrue(result['ok'])
+        blueprint = JobInterviewBlueprint.objects.get(job=vacancy)
+        self.assertIn(blueprint.status, {JobInterviewBlueprint.Status.GENERATING, JobInterviewBlueprint.Status.READY})
+        self.assertEqual(blueprint.job_id, vacancy.id)
+        self.assertTrue(blueprint.blueprint_plan['technical_interview'])
+        self.assertTrue(blueprint.blueprint_plan['coding_required'])
+        self.assertEqual(blueprint.blueprint_plan['primary_skill']['name'], 'MERN Stack Development')
+        selected_names = {item['name'] for item in blueprint.selected_skills_snapshot}
+        self.assertTrue({'React JS', 'Node.js', 'JavaScript', 'MongoDB', 'HTML/CSS', 'Debugging'}.issubset(selected_names))
+        coding_targets = set(blueprint.blueprint_plan['coding_skill_targets'])
+        self.assertIn('MERN Stack Development', coding_targets)
+        self.assertFalse({'Git', 'Agile', 'Communication', 'Teamwork'} & coding_targets)
+
+        support_plans = JobInterviewSkill.objects.filter(
+            blueprint=blueprint,
+            skill__key__in=['git', 'agile', 'communication', 'teamwork'],
+        )
+        self.assertEqual(set(support_plans.values_list('skill__key', flat=True)), {'git', 'agile', 'communication', 'teamwork'})
+        for plan in support_plans:
+            self.assertEqual(plan.skill_role, JobInterviewSkill.SkillRole.OPTIONAL)
+            self.assertEqual(plan.coding_questions_to_ask, 0)
+        support_snapshot = {
+            item['skill_key']: item
+            for item in blueprint.selected_skills_snapshot
+            if item.get('skill_key') in {'git', 'agile', 'communication', 'teamwork'}
+        }
+        for item in support_snapshot.values():
+            self.assertEqual(item['interview_weight'], 'low')
+            self.assertFalse(item['eligible_for_random_sub_skill'])
+
+        generated_jobs = QuestionGenerationJob.objects.filter(job_id=vacancy.id).exclude(task_type=QuestionGenerationJob.TaskType.JD_SKILL_MAPPING)
+        self.assertTrue(generated_jobs.exists())
+        self.assertFalse(generated_jobs.filter(blueprint__isnull=True).exists())
+        self.assertFalse(any('vacancy_id' in (job.payload or {}) for job in generated_jobs))
+        self.assertFalse(generated_jobs.filter(skill__key__in=['git', 'agile', 'communication', 'teamwork'], task_type=QuestionGenerationJob.TaskType.CODING_GENERATION).exists())
 
     def test_build_job_interview_blueprint_is_idempotent_and_maps_aliases(self):
         core_java = Skill.objects.create(

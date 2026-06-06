@@ -120,6 +120,7 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'javascript',
     'laravel',
     'linux',
+    'mern-stack-development',
     'lightning-web-components-development',
     'lightning-web-components-lwc',
     'lightning-web-components-lwc-development',
@@ -134,6 +135,7 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'postgresql',
     'python',
     'react',
+    'react-js',
     'react-native',
     'rest-api',
     'salesforce',
@@ -145,6 +147,18 @@ TECHNICAL_CODING_SKILL_KEYS = {
     'spring',
     'spring-boot',
     'sql',
+}
+JAVA_CODING_TARGET_ORDER = {
+    'core-java': 0,
+    'java': 0,
+    'multithreading': 1,
+    'multithreading-and-concurrency': 1,
+    'concurrency': 1,
+    'collection-framework': 2,
+    'collections-framework': 2,
+    'java-concurrency-and-collection': 3,
+    'java-concurrency-and-collections': 3,
+    'sql': 4,
 }
 NON_CODING_TARGET_SKILL_KEYS = {
     'adaptability',
@@ -837,14 +851,45 @@ def _coding_target_names_from_blueprint(blueprint: JobInterviewBlueprint) -> lis
     return names
 
 
+def _coding_target_order_index(name: str, target_names: list[str]) -> int:
+    target_index: dict[str, int] = {}
+    for index, target_name in enumerate(target_names):
+        for key in _coding_target_key_set(target_name):
+            target_index.setdefault(key, index)
+    plan_keys = _coding_target_key_set(name)
+    indexes = [target_index[key] for key in plan_keys if key in target_index]
+    if indexes:
+        return min(indexes)
+    key = _skill_match_key_for_question_pool(name)
+    return JAVA_CODING_TARGET_ORDER.get(key, 999)
+
+
 def _coding_target_name_allowed(name: str, plans: list[JobInterviewSkill]) -> bool:
     key = normalize_skill_key(name)
     if not key or key in NON_CODING_TARGET_SKILL_KEYS or key in GENERIC_TECHNICAL_ROLE_SKIP_SKILL_KEYS:
         return False
     for plan in plans:
-        if key in {plan.skill.key, normalize_skill_key(plan.skill.name)}:
+        if key in _coding_target_key_set(plan.skill.name) or key in _skill_lookup_keys(plan.skill):
             return _is_coding_skill(plan.skill)
     return True
+
+
+def _coding_target_key_set(name: str) -> set[str]:
+    key = normalize_skill_key(name)
+    keys = {
+        key,
+        _skill_match_key_for_question_pool(name),
+        _question_pool_family_key(name),
+    }
+    for item in list(keys):
+        keys.update(_known_question_pool_alias_keys(item))
+        keys.update(_configured_question_pool_equivalent_keys(item))
+    return {item for item in keys if item}
+
+
+def _coding_questions_for_blueprint_target(blueprint: JobInterviewBlueprint) -> int:
+    plan = _blueprint_plan(blueprint)
+    return _clamp_int(plan.get('coding_questions_to_ask'), 3, 1, 3)
 
 
 def _coding_target_plans_for_blueprint(
@@ -860,37 +905,47 @@ def _coding_target_plans_for_blueprint(
         name for name in _coding_target_names_from_blueprint(blueprint)
         if _coding_target_name_allowed(name, plans)
     ]
-    target_keys = {normalize_skill_key(name) for name in target_names if normalize_skill_key(name)}
+    target_keys: set[str] = set()
+    for name in target_names:
+        target_keys.update(_coding_target_key_set(name))
     if not target_keys:
         return []
-    plans_by_key = {plan.skill.key: plan for plan in plans}
+    plans_by_key = {
+        key: plan
+        for plan in plans
+        for key in _skill_lookup_keys(plan.skill)
+    }
+    plan_keys = set(plans_by_key)
+    coding_questions_to_ask = _coding_questions_for_blueprint_target(blueprint)
     selected: list[JobInterviewSkill] = []
     seen_skill_ids: set[int] = set()
 
     for plan in plans:
         if (
-            (plan.skill.key in target_keys or normalize_skill_key(plan.skill.name) in target_keys)
+            bool(target_keys & _skill_lookup_keys(plan.skill))
             and _is_coding_skill(plan.skill)
-            and int(plan.coding_questions_to_ask or 0) > 0
         ):
+            if int(plan.coding_questions_to_ask or 0) <= 0:
+                plan.coding_questions_to_ask = coding_questions_to_ask
+                plan.save(update_fields=['coding_questions_to_ask', 'updated_at'])
             selected.append(plan)
             seen_skill_ids.add(plan.skill_id)
 
     missing_names = [
         name for name in target_names
-        if normalize_skill_key(name) not in plans_by_key
-        and not any(normalize_skill_key(plan.skill.name) == normalize_skill_key(name) for plan in plans)
+        if not (_coding_target_key_set(name) & plan_keys)
     ]
     if create_missing and missing_names and getattr(settings, 'INTERVIEW_BLUEPRINT_CREATE_MISSING_SKILLS', True):
         next_priority = max([plan.priority for plan in plans] or [0]) + 1
         for name in missing_names:
-            key = normalize_skill_key(name)
+            canonical_name = _canonical_skill_name_for_question_pool(name)
+            key = _skill_match_key_for_question_pool(canonical_name)
             if not key:
                 continue
             skill, _ = Skill.objects.get_or_create(
                 key=key,
                 defaults={
-                    'name': name[:120],
+                    'name': canonical_name[:120],
                     'category': 'Coding Target',
                     'description': 'Auto-created from blueprint coding_skill_targets.',
                     'is_active': True,
@@ -904,7 +959,7 @@ def _coding_target_plans_for_blueprint(
                     'skill_role': JobInterviewSkill.SkillRole.SUB_SKILL,
                     'priority': next_priority,
                     'questions_to_ask': 3,
-                    'coding_questions_to_ask': 3,
+                    'coding_questions_to_ask': coding_questions_to_ask,
                     'difficulty_mix': {'basic': 1, 'intermediate': 2, 'advanced': 0},
                     'coding_difficulty_mix': {'easy': 0, 'medium': 1, 'hard': 0},
                     'source': JobInterviewSkill.Source.SYSTEM,
@@ -917,7 +972,14 @@ def _coding_target_plans_for_blueprint(
                 selected.append(plan)
                 seen_skill_ids.add(plan.skill_id)
 
-    return selected
+    return sorted(
+        selected,
+        key=lambda plan: (
+            _coding_target_order_index(plan.skill.name, target_names),
+            plan.priority,
+            plan.skill.name,
+        ),
+    )
 
 
 def _coding_readiness_for_blueprint(

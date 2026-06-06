@@ -25,6 +25,8 @@ from .models import (
     UserNotificationPreference,
     Vacancies,
 )
+from .services.interview_blueprints import enqueue_job_interview_blueprint
+from .services.question_banks import enqueue_question_generation_jobs
 
 
 # Define an inline admin descriptor for UserProfile model
@@ -45,7 +47,30 @@ admin.site.register(User, UserAdmin)
 
 # Register other models
 admin.site.register(Interview)
-admin.site.register(Vacancies)
+
+
+@admin.register(Vacancies)
+class VacanciesAdmin(admin.ModelAdmin):
+    list_display = ('id', 'role', 'status', 'position', 'admin', 'company', 'date')
+    list_filter = ('status', 'job_type', 'company')
+    search_fields = ('role', 'description', 'position', 'admin__username', 'admin__email', 'company__legal_name', 'company__display_name')
+    autocomplete_fields = ('recruiter', 'admin', 'company')
+    actions = ('generate_or_regenerate_interview_blueprint',)
+
+    @admin.action(description='Generate or regenerate interview blueprint')
+    def generate_or_regenerate_interview_blueprint(self, request, queryset):
+        queued = 0
+        skipped = 0
+        for vacancy in queryset:
+            result = enqueue_job_interview_blueprint(vacancy.id)
+            if result.get('queued') or result.get('mode') in {'cloud_tasks', 'db_queue_only', 'already_queued_or_running', 'deduped'}:
+                queued += 1
+            else:
+                skipped += 1
+        self.message_user(
+            request,
+            f'Interview blueprint generation requested for {queued} vacancy row(s); skipped {skipped}.',
+        )
 
 
 class ResumeAiReadOnlyAdmin(admin.ModelAdmin):
@@ -184,6 +209,18 @@ class JobInterviewBlueprintAdmin(admin.ModelAdmin):
         'updated_at',
     )
     inlines = (JobInterviewSkillInline,)
+    actions = ('regenerate_question_generation_jobs',)
+
+    @admin.action(description='Regenerate question generation jobs')
+    def regenerate_question_generation_jobs(self, request, queryset):
+        requested = 0
+        for blueprint in queryset:
+            results = enqueue_question_generation_jobs(blueprint.id)
+            requested += sum(1 for item in results if item.get('queued') or item.get('ok'))
+        self.message_user(
+            request,
+            f'Question generation enqueue requested for {queryset.count()} blueprint row(s); {requested} enqueue result(s) returned.',
+        )
 
 
 @admin.register(JobInterviewSkill)

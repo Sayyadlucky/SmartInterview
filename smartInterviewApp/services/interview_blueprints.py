@@ -73,6 +73,10 @@ ROLE_PRIORITY = {
 }
 
 CANONICAL_SKILL_NAMES = {
+    'mern': 'MERN Stack Development',
+    'mern-stack': 'MERN Stack Development',
+    'mern-stack-developer': 'MERN Stack Development',
+    'mern-stack-development': 'MERN Stack Development',
     'tosca': 'Tosca Automation',
     'tricentis-tosca': 'Tosca Automation',
     'tosca-automation': 'Tosca Automation',
@@ -140,6 +144,10 @@ CANONICAL_SKILL_NAMES = {
     'css': 'HTML/CSS',
     'responsive-ui': 'HTML/CSS',
     'responsive-design': 'HTML/CSS',
+    'debugging': 'Debugging',
+    'git': 'Git',
+    'github': 'Git',
+    'version-control': 'Git',
     'applicant-tracking-system': 'ATS',
     'recruitment': 'Talent Acquisition',
     'recruiting': 'Talent Acquisition',
@@ -172,6 +180,19 @@ CANONICAL_SKILL_NAMES = {
     'collections-framework': 'Collections Framework',
     'java-concurrency-and-collection': 'Java Concurrency and Collections',
     'java-concurrency-and-collections': 'Java Concurrency and Collections',
+}
+
+JAVA_CODING_TARGET_ORDER = {
+    'core-java': 0,
+    'java': 0,
+    'multithreading': 1,
+    'multithreading-and-concurrency': 1,
+    'concurrency': 1,
+    'collection-framework': 2,
+    'collections-framework': 2,
+    'java-concurrency-and-collection': 3,
+    'java-concurrency-and-collections': 3,
+    'sql': 4,
 }
 
 NOISY_SKILL_KEYS = {
@@ -217,6 +238,38 @@ NOISY_SKILL_KEYS = {
     'required',
     'requirements',
     'responsibilities',
+}
+
+NOISY_CATEGORY_KEY_TERMS = {
+    'city',
+    'company',
+    'country',
+    'degree',
+    'education',
+    'employment',
+    'employment-type',
+    'job-location',
+    'location',
+    'qualification',
+    'salary',
+    'state',
+}
+
+LOCATION_VALUE_KEYS = {
+    'ahmedabad',
+    'bangalore',
+    'bengaluru',
+    'chennai',
+    'delhi',
+    'gurgaon',
+    'gurugram',
+    'hyderabad',
+    'india',
+    'kolkata',
+    'mumbai',
+    'ncr',
+    'noida',
+    'pune',
 }
 
 TECHNICAL_ROLE_TERMS = {
@@ -315,6 +368,54 @@ LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES = {
     'version_control',
 }
 
+TECHNICAL_EXECUTION_CATEGORY_TERMS = {
+    'api',
+    'automation',
+    'backend',
+    'cloud',
+    'crm',
+    'data',
+    'database',
+    'devops',
+    'engineering',
+    'framework',
+    'frontend',
+    'full_stack',
+    'fullstack',
+    'language',
+    'mobile',
+    'platform',
+    'programming',
+    'qa',
+    'query',
+    'salesforce',
+    'software',
+    'testing',
+    'web_services',
+}
+
+CODING_EXECUTION_CATEGORY_TERMS = {
+    'api',
+    'backend',
+    'cloud',
+    'database_query',
+    'data_engineering',
+    'devops',
+    'framework',
+    'frontend',
+    'full_stack',
+    'fullstack',
+    'infrastructure',
+    'language',
+    'mobile',
+    'platform',
+    'programming',
+    'query_language',
+    'salesforce_development',
+    'software_development',
+    'web_services',
+}
+
 CENTRAL_SOFT_SKILL_KEYS = {
     'communication-skills',
     'communication',
@@ -331,6 +432,8 @@ PROCESS_SKILL_KEYS = {
     'communication',
     'communication-skill',
     'communication-skills',
+    'git',
+    'github',
     'industry-trends',
     'industry-trends-awareness',
     'leadership',
@@ -339,6 +442,7 @@ PROCESS_SKILL_KEYS = {
     'soft-skills',
     'stakeholder-management',
     'teamwork',
+    'version-control',
 }
 
 SOFT_CODING_TARGET_KEYS = {
@@ -399,16 +503,26 @@ QA_TOOL_ONLY_CATEGORY_TERMS = {
 CODING_EVIDENCE_TERMS = [
     'api automation implementation',
     'automation framework development',
+    'build',
+    'build api',
+    'build apis',
     'code',
     'coding',
     'custom automation framework',
     'custom framework',
+    'develop',
     'develop framework',
     'framework development',
     'java',
     'javascript',
+    'mern',
+    'mern stack',
+    'node.js',
+    'node js',
     'programming',
     'python',
+    'react.js',
+    'react js',
     'scripting',
     'selenium framework',
     'typescript',
@@ -416,7 +530,7 @@ CODING_EVIDENCE_TERMS = [
 ]
 
 JD_SKILL_SECTION_LABEL_RE = re.compile(
-    r'\b(required technical skill set|required skills?|technical skills?|skills?|requirements?|must[- ]?have|good[- ]?to[- ]?have|tools?|technologies?|qualification[s]?|responsibilit(?:y|ies)|role|department)\b',
+    r'\b(required technical skill set|required skills?|preferred skills?|desired skills?|technical skills?|skills?|requirements?|must[- ]?have|good[- ]?to[- ]?have|nice[- ]?to[- ]?have|tools?|technologies?|qualification[s]?|responsibilit(?:y|ies)|interview focus|focus areas?|role|department)\b',
     re.IGNORECASE,
 )
 JD_SECTION_STOP_RE = re.compile(
@@ -544,7 +658,8 @@ class ExtractedSkill:
 
 
 def schedule_job_interview_blueprint_after_commit(job_id: int | None) -> None:
-    if not job_id or not getattr(settings, 'INTERVIEW_BLUEPRINT_ENABLED', True):
+    if not job_id:
+        _log_blueprint_skip(None, 'missing_job_id', job_id=job_id)
         return
 
     def _enqueue() -> None:
@@ -557,22 +672,127 @@ def schedule_job_interview_blueprint_after_commit(job_id: int | None) -> None:
     transaction.on_commit(_enqueue)
 
 
+def _blueprint_feature_flags() -> dict[str, Any]:
+    return {
+        'INTERVIEW_BLUEPRINT_ENABLED': bool(getattr(settings, 'INTERVIEW_BLUEPRINT_ENABLED', True)),
+        'INTERVIEW_QUESTION_BANK_ENABLED': bool(getattr(settings, 'INTERVIEW_QUESTION_BANK_ENABLED', True)),
+        'INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT': bool(getattr(settings, 'INTERVIEW_QUESTION_BANK_AUTO_ENQUEUE_ON_BLUEPRINT', True)),
+        'INTERVIEW_QUESTION_BANK_RUNNER_MODE': str(getattr(settings, 'INTERVIEW_QUESTION_BANK_RUNNER_MODE', 'worker_only') or 'worker_only'),
+        'INTERVIEW_BLUEPRINT_OPENAI_ENABLED': bool(getattr(settings, 'INTERVIEW_BLUEPRINT_OPENAI_ENABLED', True)),
+    }
+
+
+def _log_blueprint_skip(
+    job: Vacancies | None,
+    reason: str,
+    *,
+    job_id: int | None = None,
+    resolved_primary_skill: str = '',
+    selected_sub_skills: list[str] | None = None,
+) -> None:
+    description = _plain_text_job_description(job.description) if job else ''
+    logger.warning(
+        'Interview blueprint creation skipped job_id=%s role=%s status=%s description_length=%s feature_flags=%s skip_reason=%s resolved_primary_skill=%s selected_sub_skills=%s',
+        getattr(job, 'id', None) or job_id,
+        getattr(job, 'role', '') if job else '',
+        getattr(job, 'status', '') if job else '',
+        len(description),
+        _blueprint_feature_flags(),
+        reason,
+        resolved_primary_skill,
+        selected_sub_skills or [],
+    )
+
+
+def ensure_job_interview_blueprint_for_active_job(job_id: int) -> JobInterviewBlueprint | None:
+    if not getattr(settings, 'INTERVIEW_BLUEPRINT_ENABLED', True):
+        _log_blueprint_skip(None, 'feature_disabled', job_id=job_id)
+        return None
+
+    job = Vacancies.objects.filter(id=job_id).first()
+    if not job:
+        _log_blueprint_skip(None, 'job_missing', job_id=job_id)
+        return None
+
+    if (job.status or '').strip().lower() != 'active':
+        _log_blueprint_skip(job, 'job_not_active')
+        return None
+
+    with transaction.atomic():
+        blueprint, created = JobInterviewBlueprint.objects.select_for_update().get_or_create(
+            job=job,
+            defaults={
+                'status': JobInterviewBlueprint.Status.GENERATING,
+                'role_title': job.role,
+                'experience_level': job.experience_required,
+                'generation_source': JobInterviewBlueprint.GenerationSource.SYSTEM,
+            },
+        )
+        update_fields: list[str] = []
+        if blueprint.status in {JobInterviewBlueprint.Status.FAILED, JobInterviewBlueprint.Status.PENDING}:
+            blueprint.status = JobInterviewBlueprint.Status.GENERATING
+            update_fields.append('status')
+        if not blueprint.role_title:
+            blueprint.role_title = job.role
+            update_fields.append('role_title')
+        if not blueprint.experience_level:
+            blueprint.experience_level = job.experience_required
+            update_fields.append('experience_level')
+        if created:
+            logger.info('Interview blueprint placeholder created job_id=%s blueprint_id=%s', job.id, blueprint.id)
+        elif update_fields:
+            blueprint.save(update_fields=[*dict.fromkeys(update_fields), 'updated_at'])
+            logger.info('Interview blueprint placeholder refreshed job_id=%s blueprint_id=%s fields=%s', job.id, blueprint.id, update_fields)
+        return blueprint
+
+
 def enqueue_job_interview_blueprint(job_id: int, scheduler: CloudTasksScheduler | None = None) -> dict[str, Any]:
     if not getattr(settings, 'INTERVIEW_BLUEPRINT_ENABLED', True):
+        _log_blueprint_skip(None, 'feature_disabled', job_id=job_id)
         return {'queued': False, 'mode': 'disabled', 'job_id': job_id}
 
     if not job_id:
+        _log_blueprint_skip(None, 'missing_job_id', job_id=job_id)
         return {'queued': False, 'mode': 'noop'}
 
+    blueprint = ensure_job_interview_blueprint_for_active_job(job_id)
+    if not blueprint:
+        return {'queued': False, 'mode': 'skipped', 'job_id': job_id}
+
     cache_key = f'interview-blueprint:enqueue:{job_id}'
-    if not cache.add(cache_key, '1', timeout=60):
-        return {'queued': False, 'mode': 'deduped', 'job_id': job_id}
+    existing = (
+        QuestionGenerationJob.objects
+        .filter(
+            job_id=job_id,
+            task_type=QuestionGenerationJob.TaskType.JD_SKILL_MAPPING,
+            status__in=[QuestionGenerationJob.Status.QUEUED, QuestionGenerationJob.Status.RUNNING],
+        )
+        .order_by('-created_at', '-id')
+        .first()
+    )
+
+    cache_added = cache.add(cache_key, '1', timeout=60)
+    if existing:
+        if existing.blueprint_id != blueprint.id:
+            existing.blueprint = blueprint
+            payload = existing.payload if isinstance(existing.payload, dict) else {}
+            payload.update({'job_id': int(job_id), 'blueprint_id': blueprint.id})
+            existing.payload = payload
+            existing.save(update_fields=['blueprint', 'payload', 'updated_at'])
+        return {
+            'queued': False,
+            'mode': 'already_queued_or_running' if cache_added else 'deduped',
+            'job_id': job_id,
+            'blueprint_id': blueprint.id,
+            'generation_job_id': existing.id,
+        }
 
     generation_job = QuestionGenerationJob.objects.create(
         job_id=job_id,
+        blueprint=blueprint,
         task_type=QuestionGenerationJob.TaskType.JD_SKILL_MAPPING,
         status=QuestionGenerationJob.Status.QUEUED,
-        payload={'job_id': int(job_id)},
+        payload={'job_id': int(job_id), 'blueprint_id': blueprint.id},
     )
     scheduler = scheduler or cloud_tasks_scheduler
 
@@ -580,7 +800,7 @@ def enqueue_job_interview_blueprint(job_id: int, scheduler: CloudTasksScheduler 
         task_name = scheduler.create_http_task(
             task_id=scheduler.build_task_id('job-interview-blueprint', generation_job.id, job_id),
             relative_path='/internal/tasks/build-job-interview-blueprint/',
-            payload={'generation_job_id': generation_job.id, 'job_id': int(job_id)},
+            payload={'generation_job_id': generation_job.id, 'job_id': int(job_id), 'blueprint_id': blueprint.id},
             schedule_for=timezone.now(),
         )
         generation_job.result = {'task_name': task_name, 'mode': 'cloud_tasks'}
@@ -590,6 +810,7 @@ def enqueue_job_interview_blueprint(job_id: int, scheduler: CloudTasksScheduler 
             'queued': True,
             'mode': 'cloud_tasks',
             'job_id': job_id,
+            'blueprint_id': blueprint.id,
             'generation_job_id': generation_job.id,
             'task_name': task_name,
         }
@@ -605,6 +826,7 @@ def enqueue_job_interview_blueprint(job_id: int, scheduler: CloudTasksScheduler 
             'queued': True,
             'mode': 'db_queue_only',
             'job_id': job_id,
+            'blueprint_id': blueprint.id,
             'generation_job_id': generation_job.id,
             'message': str(exc),
         }
@@ -687,8 +909,11 @@ def build_job_interview_blueprint(job_id: int) -> dict[str, Any]:
     logger.info('Interview blueprint generation started job_id=%s', job_id)
     job = Vacancies.objects.filter(id=job_id).first()
     if not job:
-        logger.info('Interview blueprint skipped missing job_id=%s', job_id)
+        _log_blueprint_skip(None, 'job_missing', job_id=job_id)
         return {'ok': True, 'status': 'skipped', 'job_id': job_id, 'message': 'Job no longer exists.'}
+    if (job.status or '').strip().lower() != 'active':
+        _log_blueprint_skip(job, 'job_not_active')
+        return {'ok': True, 'status': 'skipped', 'job_id': job_id, 'message': 'Job is not active.'}
 
     jd_evidence = _extract_jd_evidence(job)
     extraction_source = JobInterviewBlueprint.GenerationSource.SYSTEM
@@ -696,7 +921,8 @@ def build_job_interview_blueprint(job_id: int) -> dict[str, Any]:
     error_message = ''
 
     try:
-        if getattr(settings, 'INTERVIEW_BLUEPRINT_OPENAI_ENABLED', True) and getattr(settings, 'OPENAI_API_KEY', ''):
+        openai_configured = bool(getattr(settings, 'INTERVIEW_BLUEPRINT_OPENAI_ENABLED', True) and getattr(settings, 'OPENAI_API_KEY', ''))
+        if openai_configured:
             logger.info('OpenAI skill extraction started job_id=%s', job_id)
             extracted_payload = extract_skills_with_openai(job)
             extraction_source = JobInterviewBlueprint.GenerationSource.OPENAI
@@ -706,7 +932,13 @@ def build_job_interview_blueprint(job_id: int) -> dict[str, Any]:
                 _payload_skill_names_preview(extracted_payload),
             )
         else:
-            raise RuntimeError('OpenAI skill extraction is disabled or not configured.')
+            extracted_payload = fallback_extract_skills(job)
+            extraction_source = JobInterviewBlueprint.GenerationSource.SYSTEM
+            logger.info(
+                'System skill mapping used job_id=%s reason=openai_disabled_or_not_configured fallback_skill_names=%s',
+                job_id,
+                _payload_skill_names_preview(extracted_payload),
+            )
     except Exception as exc:
         error_message = str(exc)[:2000]
         extracted_payload = fallback_extract_skills(job)
@@ -718,6 +950,7 @@ def build_job_interview_blueprint(job_id: int) -> dict[str, Any]:
             _payload_skill_names_preview(extracted_payload),
         )
 
+    extracted_payload = _apply_mern_blueprint_support(job, extracted_payload, jd_evidence)
     extracted_payload = validate_and_repair_blueprint_payload(job, extracted_payload, jd_evidence=jd_evidence)
     experience_level = _determine_experience_level(job, extracted_payload)
     raw_skills = _normalize_extracted_skill_groups(extracted_payload, experience_level, job)
@@ -966,6 +1199,7 @@ def _extract_skills_with_openai_prompt(job: Vacancies, *, api_key: str, model: s
 
 def _openai_blueprint_prompt(job: Vacancies, *, compact: bool = False) -> str:
     description_limit = COMPACT_DESCRIPTION_CHARS if compact else MAX_DESCRIPTION_CHARS
+    description = _plain_text_job_description(job.description)
     if compact:
         return (
             'Return JSON only. Extract a safe interview blueprint from the JD. '
@@ -974,7 +1208,7 @@ def _openai_blueprint_prompt(job: Vacancies, *, compact: bool = False) -> str:
             'For QA/testing tools, set coding_required false unless the JD explicitly mentions programming, scripting, code, or custom automation framework development.\n\n'
             f'Title: {job.role}\n'
             f'Experience: {job.experience_required}\n'
-            f'Description:\n{(job.description or "")[:description_limit]}'
+            f'Description:\n{description[:description_limit]}'
         )
     prompt = (
         'Extract an authoritative generic runtime interview blueprint from this job description for any role or domain. '
@@ -999,7 +1233,7 @@ def _openai_blueprint_prompt(job: Vacancies, *, compact: bool = False) -> str:
         f'Experience: {job.experience_required}\n'
         f'Job type: {job.job_type}\n'
         f'Location: {job.location}\n'
-        f'Description:\n{(job.description or "")[:description_limit]}'
+        f'Description:\n{description[:description_limit]}'
     )
     return prompt
 
@@ -1008,21 +1242,50 @@ def _is_retryable_openai_error(exc: Exception) -> bool:
     return bool(getattr(exc, 'retryable', False) or isinstance(exc, (TimeoutError, socket.timeout, urllib.error.URLError)))
 
 
+def _plain_text_job_description(value: Any) -> str:
+    raw = str(value or '')
+    if not raw:
+        return ''
+
+    cleaned = raw.replace('\r\n', '\n').replace('\r', '\n')
+    cleaned = re.sub(r'&nbsp;', ' ', cleaned, flags=re.IGNORECASE)
+    cleaned = unescape(cleaned).replace('\xa0', ' ')
+    cleaned = re.sub(r'<\s*li\b[^>]*>', '\n- ', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'</\s*li\s*>', '\n', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'<\s*br\s*/?\s*>', '\n', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'</\s*(p|div|tr|table|thead|tbody|section|article|h[1-6])\s*>', '\n', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'<\s*(p|div|tr|table|thead|tbody|section|article|h[1-6])\b[^>]*>', '\n', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'<[^>]+>', ' ', cleaned)
+
+    lines = [re.sub(r'[ \t\f\v]+', ' ', line).strip() for line in cleaned.split('\n')]
+    compact_lines: list[str] = []
+    previous_blank = False
+    for line in lines:
+        if not line:
+            if not previous_blank and compact_lines:
+                compact_lines.append('')
+            previous_blank = True
+            continue
+        compact_lines.append(line)
+        previous_blank = False
+    return '\n'.join(compact_lines).strip()
+
+
 def _extract_jd_evidence(job: Vacancies) -> dict[str, Any]:
-    raw_description = unescape(str(job.description or ''))
-    html_cleaned = re.sub(r'<\s*(br|/p|/li|/div|/tr)\s*/?>', '\n', raw_description, flags=re.IGNORECASE)
-    html_cleaned = re.sub(r'<[^>]+>', ' ', html_cleaned)
-    html_cleaned = re.sub(r'&nbsp;', ' ', html_cleaned, flags=re.IGNORECASE)
-    text = _clean_string(html_cleaned)
-    title = _clean_string(' '.join([job.role or '', job.position or '']))
+    raw_description = str(getattr(job, 'description', '') or '')
+    text = _plain_text_job_description(raw_description)
+    title = _clean_string(' '.join([
+        getattr(job, 'role', '') or '',
+        getattr(job, 'position', '') or '',
+    ]))
     full_text = _clean_string(' '.join([
         title,
         text,
-        job.experience_required or '',
-        job.job_type or '',
-        job.location or '',
+        getattr(job, 'experience_required', '') or '',
+        getattr(job, 'job_type', '') or '',
+        getattr(job, 'location', '') or '',
     ]))
-    lines = [_clean_string(line) for line in re.split(r'[\r\n]+', html_cleaned) if _clean_string(line)]
+    lines = [_clean_string(line) for line in re.split(r'[\r\n]+', text) if _clean_string(line)]
     required_phrases: list[str] = []
     bullet_phrases: list[str] = []
     explicit_phrases: list[str] = []
@@ -1080,7 +1343,7 @@ def _extract_jd_evidence(job: Vacancies) -> dict[str, Any]:
         'html_cleaned_text': text,
         'full_text': normalized_full_text,
         'title_text': _normalized_search_text(title),
-        'jd_text': _normalized_search_text(' '.join([text, job.experience_required or ''])),
+        'jd_text': _normalized_search_text(' '.join([text, getattr(job, 'experience_required', '') or ''])),
         'required_skill_phrases': _dedupe_phrases(required_phrases),
         'bullet_skill_phrases': _dedupe_phrases(bullet_phrases),
         'explicit_technology_phrases': _dedupe_phrases(explicit_phrases),
@@ -1119,7 +1382,21 @@ def _split_skill_like_phrases(value: str) -> list[str]:
         if _is_generic_or_noise_phrase(item):
             continue
         phrases.append(item)
+        for alternate in _slash_alternate_skill_phrases(item):
+            if alternate and not _is_generic_or_noise_phrase(alternate):
+                phrases.append(alternate)
     return phrases
+
+
+def _slash_alternate_skill_phrases(value: str) -> list[str]:
+    if '/' not in value:
+        return []
+    parts = [_clean_string(part) for part in value.split('/') if _clean_string(part)]
+    if len(parts) < 2 or len(parts) > 4:
+        return []
+    if all(len(part) <= 2 and part.isupper() for part in parts):
+        return []
+    return parts
 
 
 def _looks_like_skill_list(value: str) -> bool:
@@ -1152,7 +1429,11 @@ def _is_generic_or_noise_phrase(value: str) -> bool:
     key = _phrase_key(phrase)
     if not phrase or key in NOISY_SKILL_KEYS:
         return True
+    if key in LOCATION_VALUE_KEYS:
+        return True
     if re.search(r'\b(corp|corporation|company|inc|llc|ltd|limited|pvt|private limited)\b', phrase, flags=re.IGNORECASE):
+        return True
+    if re.fullmatch(r'(b\.?\s?tech|btech|b\.?\s?e|be|mca|degree)', phrase, flags=re.IGNORECASE):
         return True
     tokens = [token for token in key.split('-') if token]
     if not tokens:
@@ -1248,7 +1529,7 @@ def _skill_jd_evidence_score(
 
     key = _skill_match_key(skill_name or skill_key)
     category_key = normalize_skill_key(category or '')
-    if key in NOISY_SKILL_KEYS or category_key in NOISY_SKILL_KEYS or _is_generic_or_noise_phrase(skill_name):
+    if _is_noisy_skill_value(skill_name, category):
         score -= 100.0
         warnings.append('noisy_or_non_skill_phrase')
     if _is_infrastructure_skill_without_evidence(skill_name, full_text):
@@ -1291,6 +1572,64 @@ def _category_aligns_with_role(category: str, role_hints: dict[str, Any]) -> boo
     if role_hints.get('marketing') and 'marketing' in category_key:
         return True
     return False
+
+
+def _category_has_any(category: str, terms: set[str]) -> bool:
+    category_key = normalize_skill_key(category or '').replace('-', '_')
+    if not category_key:
+        return False
+    category_parts = {part for part in re.split(r'[_\s/|,]+', category_key) if part}
+    return bool(
+        category_key in terms
+        or category_parts & terms
+        or any(term in category_key for term in terms)
+    )
+
+
+def _is_technical_execution_category(category: str) -> bool:
+    category_key = normalize_skill_key(category or '').replace('-', '_')
+    if not category_key or category_key in LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES:
+        return False
+    return _category_has_any(category, TECHNICAL_EXECUTION_CATEGORY_TERMS)
+
+
+def _is_coding_execution_category(category: str) -> bool:
+    category_key = normalize_skill_key(category or '').replace('-', '_')
+    if not category_key or category_key in LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES:
+        return False
+    return _category_has_any(category, CODING_EXECUTION_CATEGORY_TERMS)
+
+
+def _is_concrete_execution_skill_name(name: str, category: str = '') -> bool:
+    if not name or _is_soft_or_generic_skill_name(name):
+        return False
+    category_key = normalize_skill_key(category or '').replace('-', '_')
+    if category_key in LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES:
+        return False
+    return _is_technical_execution_category(category or _category_for_repaired_skill(name))
+
+
+def _is_infrastructure_skill_name(name: str) -> bool:
+    return _skill_match_key(name) in INFRASTRUCTURE_SKILL_EVIDENCE_TERMS
+
+
+def _infrastructure_primary_has_central_evidence(name: str, jd_evidence: dict[str, Any]) -> bool:
+    key = _skill_match_key(name)
+    terms = INFRASTRUCTURE_SKILL_EVIDENCE_TERMS.get(key)
+    if not terms:
+        return True
+    title_text = jd_evidence.get('title_text') or _normalized_search_text('')
+    required_text = jd_evidence.get('required_text') or _normalized_search_text('')
+    explicit_text = jd_evidence.get('explicit_text') or _normalized_search_text('')
+    full_text = jd_evidence.get('full_text') or _normalized_search_text('')
+    role_hints = jd_evidence.get('role_family_hints') or {}
+    if any(_term_matches(title_text, term) for term in terms):
+        return True
+    if role_hints.get('cloud_devops') and any(_term_matches(required_text, term) for term in terms):
+        return True
+    if role_hints.get('cloud_devops') and any(_term_matches(explicit_text, term) for term in terms):
+        return True
+    return bool(role_hints.get('cloud_devops') and any(_term_matches(full_text, term) for term in terms))
 
 
 def fallback_extract_skills(job: Vacancies) -> dict[str, Any]:
@@ -1384,6 +1723,99 @@ def fallback_extract_skills(job: Vacancies) -> dict[str, Any]:
     }
 
 
+def _is_mern_stack_role(job: Vacancies, jd_evidence: dict[str, Any] | None = None) -> bool:
+    jd_evidence = jd_evidence or _extract_jd_evidence(job)
+    text = jd_evidence.get('full_text') or _normalized_search_text('')
+    return any(_term_matches(text, term) for term in ['mern', 'mern stack', 'mern stack developer'])
+
+
+def _apply_mern_blueprint_support(job: Vacancies, payload: dict[str, Any], jd_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
+    jd_evidence = jd_evidence or _extract_jd_evidence(job)
+    if not _is_mern_stack_role(job, jd_evidence):
+        return payload
+
+    repaired = dict(payload or {})
+    primary = _skill_payload(
+        'MERN Stack Development',
+        'Full Stack Development',
+        0.96,
+        'Detected MERN Stack Developer role from title/JD evidence.',
+    )
+    fallback_primary_candidates = [
+        primary,
+        _skill_payload('JavaScript', 'Programming Language', 0.92, 'Core MERN language.'),
+        _skill_payload('Node.js', 'Backend Development', 0.9, 'Core MERN backend runtime.'),
+        _skill_payload('React JS', 'Frontend Development', 0.9, 'Core MERN frontend framework.'),
+    ]
+    mern_sub_skills = [
+        _skill_payload('React JS', 'Frontend Development', 0.92, 'MERN frontend runtime skill.'),
+        _skill_payload('Node.js', 'Backend Development', 0.92, 'MERN backend runtime skill.'),
+        _skill_payload('JavaScript', 'Programming Language', 0.9, 'Core MERN language.'),
+        _skill_payload('MongoDB', 'Database', 0.88, 'MERN database skill.'),
+        _skill_payload('HTML/CSS', 'Frontend Development', 0.84, 'Frontend implementation skill.'),
+        _skill_payload('Debugging', 'Testing Debugging', 0.82, 'Practical troubleshooting skill.'),
+    ]
+    optional_support = [
+        _skill_payload('Git', 'Version Control', 0.72, 'Supporting collaboration/version control skill.'),
+        _skill_payload('Agile', 'Process', 0.68, 'Supporting delivery process skill.'),
+        _skill_payload('Communication', 'Soft Skill', 0.66, 'Supporting collaboration skill.'),
+        _skill_payload('Teamwork', 'Soft Skill', 0.66, 'Supporting collaboration skill.'),
+    ]
+
+    existing_primary = _payload_skill_name(repaired.get('primary_skill'))
+    if not existing_primary or _is_soft_or_generic_skill_name(existing_primary) or _skill_match_key(existing_primary) not in {
+        'mern-stack-development',
+        'javascript',
+        'node-js',
+        'react-js',
+        'react',
+    }:
+        repaired['primary_skill'] = primary
+
+    for item in fallback_primary_candidates:
+        _ensure_skill_payload_in_group(repaired, 'primary_skill_candidates', item)
+    for item in mern_sub_skills:
+        _ensure_skill_payload_in_group(repaired, 'sub_skills', item)
+    for item in optional_support:
+        _ensure_skill_payload_in_group(repaired, 'optional_skills', item)
+
+    runtime_sections = [{
+        **primary,
+        'skill_role': JobInterviewSkill.SkillRole.PRIMARY,
+        'role': JobInterviewSkill.SkillRole.PRIMARY,
+        'target_questions': _default_questions_to_ask(JobInterviewSkill.SkillRole.PRIMARY),
+        'questions_to_ask': _default_questions_to_ask(JobInterviewSkill.SkillRole.PRIMARY),
+        'coding_required': True,
+        'coding_questions_to_ask': 3,
+        'selection_basis': 'mern_stack_role_rule',
+        'reason': 'Primary MERN stack development capability.',
+    }]
+    for item in mern_sub_skills:
+        runtime_sections.append({
+            **item,
+            'skill_role': JobInterviewSkill.SkillRole.SUB_SKILL,
+            'role': JobInterviewSkill.SkillRole.SUB_SKILL,
+            'target_questions': _default_questions_to_ask(JobInterviewSkill.SkillRole.SUB_SKILL),
+            'questions_to_ask': _default_questions_to_ask(JobInterviewSkill.SkillRole.SUB_SKILL),
+            'coding_required': False,
+            'coding_questions_to_ask': 0,
+            'selection_basis': 'mern_stack_role_rule',
+            'reason': item.get('reason', 'MERN stack runtime skill.'),
+        })
+
+    repaired.update({
+        'role_family': 'technical',
+        'technical_interview': True,
+        'coding_required': True,
+        'coding_skill_targets': ['MERN Stack Development'],
+        'coding_primary_skill': 'MERN Stack Development',
+        'coding_questions_to_ask': 3,
+        'runtime_sections': runtime_sections,
+        'interview_sections': runtime_sections,
+    })
+    return repaired
+
+
 def _fallback_skill_evidence_score(skill: Skill, title_text: str, jd_text: str, required_text: str) -> int:
     terms = _skill_evidence_terms_for_record(skill)
     if not terms:
@@ -1445,7 +1877,7 @@ def validate_and_repair_blueprint_payload(job: Vacancies, payload: dict[str, Any
     jd_evidence = jd_evidence or _extract_jd_evidence(job)
     title_text = _normalized_search_text(' '.join([job.role or '', job.position or '']))
     jd_text = _normalized_search_text(' '.join([
-        job.description or '',
+        _plain_text_job_description(job.description),
         job.experience_required or '',
         job.job_type or '',
         job.location or '',
@@ -1531,6 +1963,7 @@ def validate_and_repair_blueprint_payload(job: Vacancies, payload: dict[str, Any
             accepted_targets = _merge_skill_names(accepted_targets, data_targets)
         if not accepted_targets:
             accepted_targets = _best_coding_targets_from_payload(repaired, title_text, jd_text, data_role=data_role, jd_evidence=jd_evidence)
+        accepted_targets = _order_coding_skill_targets(accepted_targets)
         repaired['coding_required'] = bool(accepted_targets)
         repaired['coding_skill_targets'] = accepted_targets
         repaired['coding_primary_skill'] = accepted_targets[0] if accepted_targets else ''
@@ -1577,6 +2010,28 @@ def _raw_coding_skill_target_names(payload: dict[str, Any]) -> list[str]:
     return names
 
 
+def _order_coding_skill_targets(names: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for name in names:
+        cleaned = _clean_string(name)
+        key = _skill_match_key(cleaned)
+        if not cleaned or not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(cleaned)
+    if not any(_skill_match_key(name) in JAVA_CODING_TARGET_ORDER for name in deduped):
+        return deduped
+    original_index = {_skill_match_key(name): index for index, name in enumerate(deduped)}
+    return sorted(
+        deduped,
+        key=lambda name: (
+            JAVA_CODING_TARGET_ORDER.get(_skill_match_key(name), 100),
+            original_index.get(_skill_match_key(name), 999),
+        ),
+    )
+
+
 def _skill_payload(name: str, category: str, confidence: float, reason: str) -> dict[str, Any]:
     return {
         'name': _canonical_skill_name(name),
@@ -1588,6 +2043,36 @@ def _skill_payload(name: str, category: str, confidence: float, reason: str) -> 
 
 def _category_for_repaired_skill(name: str) -> str:
     key = _skill_match_key(name)
+    tokens = {token for token in key.split('-') if token}
+    normalized_name = _normalized_skill_phrase(name)
+    if 'api' in tokens or {'web', 'services'} <= tokens or 'rest' in tokens:
+        return 'API/Web Services'
+    if 'query' in tokens or key.endswith('-sql') or key in {'sql', 'soql'}:
+        return 'Database Query Language'
+    if 'database' in tokens or key in {'mysql', 'postgresql', 'mongodb'}:
+        return 'Database'
+    if 'data' in tokens and {'quality', 'validation'} & tokens:
+        return 'Data Quality'
+    if 'data' in tokens and {'modeling', 'modelling', 'architecture', 'architect'} & tokens:
+        return 'Data Architecture'
+    if 'data' in tokens and {'warehouse', 'warehousing'} & tokens:
+        return 'Data Warehousing'
+    if 'etl' in tokens or 'elt' in tokens or ('pipeline' in tokens and 'data' in tokens):
+        return 'Data Engineering'
+    if {'mobile', 'ios', 'android'} & tokens:
+        return 'Mobile Development'
+    if {'frontend', 'front', 'ui'} & tokens:
+        return 'Frontend Development'
+    if {'backend', 'server'} & tokens:
+        return 'Backend Development'
+    if {'framework', 'library'} & tokens:
+        return 'Framework'
+    if {'cloud', 'devops', 'infrastructure'} & tokens:
+        return 'Cloud/DevOps'
+    if {'automation', 'testing', 'qa'} & tokens:
+        return 'QA Automation'
+    if {'programming', 'language'} & tokens or re.search(r'\b(java|python|javascript|typescript|php|apex|ruby|go|golang|c\+\+|c#)\b', normalized_name):
+        return 'Programming Language'
     categories = {
         'sql': 'Database Query Language',
         'etl-elt': 'Data Engineering',
@@ -1614,6 +2099,23 @@ def _category_for_repaired_skill(name: str) -> str:
         'cucumber-gherkin': 'BDD Testing',
         'hp-almqc': 'Test Management',
         'rally': 'Agile Tool',
+        'mern-stack-development': 'Full Stack Development',
+        'react-js': 'Frontend Development',
+        'node-js': 'Backend Development',
+        'javascript': 'Programming Language',
+        'mongodb': 'Database',
+        'mysql': 'Database',
+        'react-native': 'Mobile Development',
+        'next-js': 'Frontend Development',
+        'php': 'Programming Language',
+        'laravel': 'Backend Development',
+        'rest-api': 'API/Web Services',
+        'html-css': 'Frontend Development',
+        'debugging': 'Testing Debugging',
+        'git': 'Version Control',
+        'agile': 'Process',
+        'communication': 'Soft Skill',
+        'teamwork': 'Soft Skill',
     }
     return categories.get(key, 'Technical Skill')
 
@@ -1756,13 +2258,21 @@ def _data_coding_targets(title_text: str, jd_text: str) -> list[str]:
 
 def _primary_skill_supported(name: str, title_text: str, jd_text: str, *, data_role: bool = False, jd_evidence: dict[str, Any] | None = None) -> bool:
     combined = _normalized_search_text(f'{title_text} {jd_text}')
-    if _is_infrastructure_skill_without_evidence(name, combined):
+    if jd_evidence and not _infrastructure_primary_has_central_evidence(name, jd_evidence):
+        return False
+    if not jd_evidence and _is_infrastructure_skill_without_evidence(name, combined):
         return False
     if data_role and _skill_match_key(name) in {'data-engineering', 'data-architecture', 'data-warehousing'}:
         return True
     if jd_evidence:
         evidence_score = _skill_jd_evidence_score(name, _skill_match_key(name), [], _category_for_repaired_skill(name), jd_evidence)
-        return bool(evidence_score['supported'])
+        return bool(
+            evidence_score['supported']
+            and (
+                _has_strong_runtime_evidence(evidence_score)
+                or _is_concrete_execution_skill_name(name, _category_for_repaired_skill(name))
+            )
+        )
     candidates = _skill_evidence_terms(name)
     title_hit = any(_term_matches(title_text, term) for term in candidates)
     jd_hits = sum(1 for term in candidates if _term_matches(jd_text, term))
@@ -1775,6 +2285,13 @@ def _skill_evidence_terms(name: str) -> list[str]:
     canonical = _canonical_skill_name(name)
     key = _skill_match_key(canonical)
     terms = {canonical, canonical.replace('/', ' '), key.replace('-', ' ')}
+    canonical_key = normalize_skill_key(canonical)
+    for alias_key, canonical_name in CANONICAL_SKILL_NAMES.items():
+        if normalize_skill_key(canonical_name) != canonical_key:
+            continue
+        terms.add(alias_key.replace('-', ' '))
+        terms.add(alias_key)
+        terms.add(canonical_name)
     if key == 'tosca-automation':
         terms.update({'tosca', 'tricentis tosca', 'tosca automation', 'tosca automation testing'})
     if key == 'selenium-webdriver':
@@ -1785,6 +2302,32 @@ def _skill_evidence_terms(name: str) -> list[str]:
         terms.update({'hp alm', 'hp alm qc', 'alm', 'qc', 'alm qc', 'quality center', 'hp quality center'})
     if key == 'rally':
         terms.update({'rally', 'ca rally', 'ca agile central', 'broadcom rally'})
+    if key == 'mern-stack-development':
+        terms.update({'mern', 'mern stack', 'mern stack developer', 'mongo express react node', 'react node mongodb'})
+    if key in {'react', 'react-js'}:
+        terms.update({'react', 'react js', 'react.js'})
+    if key == 'react-native':
+        terms.update({'react native', 'reactnative', 'mobile app development'})
+    if key == 'node-js':
+        terms.update({'node', 'node js', 'node.js', 'express', 'express js'})
+    if key == 'next-js':
+        terms.update({'next', 'next js', 'next.js', 'nextjs'})
+    if key == 'javascript':
+        terms.update({'javascript', 'java script', 'js'})
+    if key == 'mongodb':
+        terms.update({'mongodb', 'mongo db', 'mongo', 'nosql'})
+    if key == 'mysql':
+        terms.update({'mysql', 'my sql'})
+    if key == 'html-css':
+        terms.update({'html', 'css', 'html css', 'html/css'})
+    if key == 'rest-api':
+        terms.update({'rest api', 'restful api', 'restful apis', 'rest apis', 'api', 'apis'})
+    if key == 'php':
+        terms.update({'php'})
+    if key == 'laravel':
+        terms.update({'laravel', 'laravel php'})
+    if key == 'debugging':
+        terms.update({'debugging', 'debug', 'troubleshooting'})
     if key == 'etl-elt':
         terms.update({'etl', 'elt', 'extract transform load'})
     if key == 'sql':
@@ -1837,11 +2380,12 @@ def _is_concrete_coding_target_name(name: str, text: str, *, data_role: bool = F
         evidence_score = _skill_jd_evidence_score(name, key, [], _category_for_repaired_skill(name), jd_evidence)
         if not evidence_score['supported']:
             return False
-    if data_role and key in {'sql', 'etl-elt', 'data-pipeline', 'data-pipelines', 'data-modeling', 'data-quality-validation', 'data-warehousing'}:
+    repaired_category = _category_for_repaired_skill(name)
+    if data_role and _category_has_any(repaired_category, {'data', 'database', 'query', 'warehousing', 'architecture', 'engineering', 'quality'}):
         return True
     if key in JAVA_CODING_TARGET_KEYS and _is_java_role_text(text):
         return True
-    if key in {'apex', 'core-java', 'java', 'javascript', 'lwc', 'python', 'react', 'rest-api', 'salesforce', 'soql', 'sql'}:
+    if _is_coding_execution_category(repaired_category):
         return True
     return _primary_skill_supported(name, _normalized_search_text(''), text, data_role=data_role, jd_evidence=jd_evidence)
 
@@ -1902,37 +2446,9 @@ def _coding_allowed_for_skill(
         return False
     if role_family == 'non_technical' and not explicit_coding:
         return False
-    if key in {
-        'apex',
-        'core-java',
-        'java',
-        'javascript',
-        'typescript',
-        'node-js',
-        'python',
-        'react',
-        'angular',
-        'django',
-        'spring',
-        'spring-boot',
-        'rest-api',
-        'sql',
-        'soql',
-        'lwc',
-        'salesforce-apex-development',
-    }:
+    if _is_coding_execution_category(skill.category or _category_for_repaired_skill(skill.name)):
         return True
-    if any(term in category_key for term in [
-        'programming',
-        'backend',
-        'frontend',
-        'mobile',
-        'database-query',
-        'data-engineering',
-        'salesforce-development',
-        'framework',
-        'api',
-    ]):
+    if key in JAVA_CODING_TARGET_KEYS and _is_java_role_text(full_text):
         return True
     if extracted and extracted.coding_required is True and explicit_coding:
         return True
@@ -2001,6 +2517,60 @@ def _is_hands_on_technical_text(text: str) -> bool:
     return _is_technical_role_text(text) and any(_term_matches(text, term) for term in hands_on_terms)
 
 
+def _explicit_soft_or_process_evidence(skill_name: str, category: str, evidence_score: dict[str, Any]) -> bool:
+    category_key = normalize_skill_key(category or '').replace('-', '_')
+    return bool(
+        (_is_soft_or_generic_skill_name(skill_name) or category_key in LOW_PRIORITY_TECHNICAL_PRIMARY_CATEGORIES)
+        and (evidence_score.get('matched_terms') or [])
+    )
+
+
+def _payload_primary_supported_by_technical_role(
+    extracted: ExtractedSkill,
+    skill_name: str,
+    category: str,
+    job: Vacancies,
+    jd_evidence: dict[str, Any],
+) -> bool:
+    if extracted.skill_role != JobInterviewSkill.SkillRole.PRIMARY:
+        return False
+    if (extracted.confidence or 0) < 0.85:
+        return False
+    if _is_soft_or_generic_skill_name(skill_name):
+        return False
+    if not _is_concrete_execution_skill_name(skill_name, category):
+        return False
+    if not _infrastructure_primary_has_central_evidence(skill_name, jd_evidence):
+        return False
+    role_text = _normalized_search_text(' '.join([
+        job.role or '',
+        _plain_text_job_description(job.description),
+        job.experience_required or '',
+    ]))
+    return _is_technical_role_text(role_text)
+
+
+def _payload_existing_concrete_skill_supported_by_technical_role(
+    extracted: ExtractedSkill,
+    skill: Skill | None,
+    job: Vacancies,
+) -> bool:
+    if not skill:
+        return False
+    if (extracted.confidence or 0) < 0.8:
+        return False
+    if _is_noisy_skill(extracted, job) or _is_noisy_skill_value(skill.name, skill.category):
+        return False
+    if not _is_concrete_execution_skill_name(skill.name, extracted.category or skill.category):
+        return False
+    role_text = _normalized_search_text(' '.join([
+        job.role or '',
+        _plain_text_job_description(job.description),
+        job.experience_required or '',
+    ]))
+    return _is_technical_role_text(role_text)
+
+
 def _jd_explicitly_requires_coding(text: str) -> bool:
     return any(_term_matches(text, term) for term in ['coding test', 'coding exercise', 'programming', 'write code', 'hands on coding'])
 
@@ -2031,7 +2601,21 @@ def _map_extracted_skills(
         aliases_for_score = _json_list(skill.aliases) if skill else ([extracted.original_name] if extracted.original_name else [])
         category_for_score = skill.category if skill else extracted.category
         evidence_score = _skill_jd_evidence_score(skill_name_for_score, skill_key_for_score, aliases_for_score, category_for_score, jd_evidence)
-        if not evidence_score['supported']:
+        is_explicit_process_or_soft_skill = _explicit_soft_or_process_evidence(skill_name_for_score, category_for_score, evidence_score)
+        is_role_supported_primary = _payload_primary_supported_by_technical_role(
+            extracted,
+            skill_name_for_score,
+            category_for_score,
+            job,
+            jd_evidence,
+        )
+        is_payload_supported_existing_skill = _payload_existing_concrete_skill_supported_by_technical_role(extracted, skill, job)
+        if (
+            not evidence_score['supported']
+            and not is_explicit_process_or_soft_skill
+            and not is_role_supported_primary
+            and not is_payload_supported_existing_skill
+        ):
             rejected.append({
                 **_skill_snapshot(extracted),
                 'reason': 'Rejected because skill lacks strong JD/title/list evidence.',
@@ -2080,7 +2664,61 @@ def _map_extracted_skills(
             evidence_score.get('score'),
         )
         mapped.append((extracted, skill))
+    mapped = _append_supported_jd_skill_pool(mapped, active_skills, seen_skill_ids, job, jd_evidence)
     return mapped, unmapped, rejected
+
+
+def _append_supported_jd_skill_pool(
+    mapped: list[tuple[ExtractedSkill, Skill]],
+    active_skills: list[Skill],
+    seen_skill_ids: set[int],
+    job: Vacancies,
+    jd_evidence: dict[str, Any],
+) -> list[tuple[ExtractedSkill, Skill]]:
+    phrases = _dedupe_phrases([
+        *(jd_evidence.get('required_skill_phrases') or []),
+        *(jd_evidence.get('bullet_skill_phrases') or []),
+        *(jd_evidence.get('explicit_technology_phrases') or []),
+    ])
+    if not phrases:
+        return mapped
+
+    phrase_keys = {_skill_match_key(phrase) for phrase in phrases if _skill_match_key(phrase)}
+    phrase_text = _normalized_search_text(' '.join(phrases))
+    additions: list[tuple[ExtractedSkill, Skill, float]] = []
+    for skill in active_skills:
+        if skill.id in seen_skill_ids:
+            continue
+        evidence_score = _skill_jd_evidence_score(skill.name, skill.key, _json_list(skill.aliases), skill.category, jd_evidence)
+        if not evidence_score['supported']:
+            continue
+        skill_keys = {_skill_match_key(skill.name), _skill_match_key(skill.key.replace('-', ' '))}
+        skill_keys.update(_skill_match_key(alias) for alias in _json_list(skill.aliases))
+        terms = _skill_evidence_terms_for_record(skill)
+        direct_phrase_match = bool(phrase_keys & skill_keys) or any(_term_matches(phrase_text, term) for term in terms)
+        if not direct_phrase_match:
+            continue
+        extracted = ExtractedSkill(
+            name=skill.name,
+            category=skill.category,
+            skill_role=JobInterviewSkill.SkillRole.OPTIONAL,
+            priority=60 + len(additions),
+            questions_to_ask=_default_questions_to_ask(JobInterviewSkill.SkillRole.OPTIONAL),
+            coding_required=False,
+            coding_questions_to_ask=0,
+            difficulty_mix=_difficulty_mix_for(job.experience_required, JobInterviewSkill.SkillRole.OPTIONAL),
+            coding_difficulty_mix=DEFAULT_CODING_DIFFICULTY_MIX,
+            confidence=min(0.9, 0.55 + (float(evidence_score.get('score') or 0) / 200.0)),
+            reason=f"Retained as supported non-runtime JD skill: {evidence_score.get('basis')}",
+            original_name=skill.name,
+            interview_weight='low',
+            eligible_for_random_sub_skill=False,
+        )
+        additions.append((extracted, skill, float(evidence_score.get('score') or 0)))
+        seen_skill_ids.add(skill.id)
+
+    additions.sort(key=lambda item: (-item[2], _skill_match_key(item[1].name), item[1].id))
+    return [*mapped, *((extracted, skill) for extracted, skill, _ in additions)]
 
 
 def _resolve_existing_skill_for_extracted(extracted: ExtractedSkill, lookup: dict[str, Skill], active_skills: list[Skill]) -> Skill | None:
@@ -2140,10 +2778,20 @@ def _has_skill_creation_evidence(extracted: ExtractedSkill, job: Vacancies, *, j
         extracted.category,
         jd_evidence,
     )
+    role_allowed = extracted.skill_role in {
+        JobInterviewSkill.SkillRole.PRIMARY,
+        JobInterviewSkill.SkillRole.PRIMARY_CANDIDATE,
+        JobInterviewSkill.SkillRole.SUB_SKILL,
+        JobInterviewSkill.SkillRole.OPTIONAL,
+    }
+    if not role_allowed or (extracted.confidence or 0) < 0.6:
+        return False
+    if _explicit_soft_or_process_evidence(extracted.name, extracted.category, evidence_score):
+        return True
+    if _payload_primary_supported_by_technical_role(extracted, extracted.name, extracted.category, job, jd_evidence):
+        return True
     return bool(
         evidence_score['supported']
-        and (extracted.confidence or 0) >= 0.8
-        and extracted.skill_role in {JobInterviewSkill.SkillRole.PRIMARY, JobInterviewSkill.SkillRole.SUB_SKILL}
     )
 
 
@@ -2222,6 +2870,88 @@ def _runtime_sections_from_payload(payload: dict[str, Any]) -> list[dict[str, An
             'reason': _clean_string(item.get('reason'))[:500],
         })
     return cleaned if primary_seen else []
+
+
+def _preserve_authoritative_runtime_section_selection(
+    selected_skills: list[tuple[ExtractedSkill, Skill]],
+    payload: dict[str, Any],
+    job: Vacancies,
+    experience_level: str,
+    jd_evidence: dict[str, Any],
+) -> list[tuple[ExtractedSkill, Skill]] | None:
+    sections = _runtime_sections_from_payload(payload)
+    if not sections or not any(section['skill_role'] == JobInterviewSkill.SkillRole.PRIMARY for section in sections):
+        return None
+
+    section_by_skill_id = _runtime_section_metadata_by_skill_id(selected_skills, sections)
+    if not section_by_skill_id:
+        return None
+
+    role_family = _role_family_for(job, payload)
+    coding_required = bool(_clean_bool_or_none(payload.get('coding_required')))
+    coding_questions_to_ask = _clamp_int(payload.get('coding_questions_to_ask'), 3 if coding_required else 0, 0, 3)
+    coding_target_keys = {_skill_match_key(name) for name in _coding_skill_target_names_from_payload(payload)}
+    by_skill_id = {skill.id: (extracted, skill) for extracted, skill in selected_skills}
+    used_skill_ids: set[int] = set()
+    rebalanced: list[tuple[ExtractedSkill, Skill]] = []
+    section_items = [
+        (skill_id, section)
+        for skill_id, section in section_by_skill_id.items()
+        if skill_id in by_skill_id
+    ]
+    section_items.sort(
+        key=lambda item: (
+            0 if item[1].get('skill_role') == JobInterviewSkill.SkillRole.PRIMARY else 1,
+            _runtime_candidate_rank(by_skill_id[item[0]][0], by_skill_id[item[0]][1], item[1], jd_evidence),
+        )
+    )
+
+    for runtime_priority, (skill_id, section) in enumerate(section_items, start=1):
+        match = by_skill_id[skill_id]
+        extracted, skill = match
+        used_skill_ids.add(skill.id)
+        is_coding_target = _skill_match_key(skill.name) in coding_target_keys or _skill_match_key(extracted.name) in coding_target_keys
+        coding_allowed = bool(
+            coding_required
+            and is_coding_target
+            and _coding_allowed_for_skill(skill, extracted, jd_evidence, role_family)
+        )
+        rebalanced.append((
+            _with_runtime_section(
+                extracted,
+                {**section, 'priority': runtime_priority},
+                experience_level,
+                coding_required=coding_allowed,
+                coding_questions_to_ask=coding_questions_to_ask if coding_allowed else 0,
+            ),
+            skill,
+        ))
+
+    for extracted, skill in selected_skills:
+        if skill.id in used_skill_ids:
+            continue
+        is_coding_target = _skill_match_key(skill.name) in coding_target_keys or _skill_match_key(extracted.name) in coding_target_keys
+        coding_allowed = bool(
+            coding_required
+            and is_coding_target
+            and _coding_allowed_for_skill(skill, extracted, jd_evidence, role_family)
+        )
+        rebalanced.append((
+            _runtime_skill_with_role(
+                extracted,
+                skill,
+                JobInterviewSkill.SkillRole.OPTIONAL,
+                experience_level,
+                priority=max(50, extracted.priority),
+                target_questions=_default_questions_to_ask(JobInterviewSkill.SkillRole.OPTIONAL),
+                reason=extracted.reason or 'Kept optional because it was not part of authoritative runtime_sections.',
+                coding_allowed=coding_allowed,
+                coding_questions_to_ask=coding_questions_to_ask if coding_allowed else 0,
+            ),
+            skill,
+        ))
+
+    return rebalanced or None
 
 
 def _runtime_evidence_for_skill(
@@ -2319,7 +3049,7 @@ def _runtime_candidate_rank(
     skill: Skill,
     section: dict[str, Any] | None,
     jd_evidence: dict[str, Any],
-) -> tuple[int, int, float, int, int, int, str]:
+) -> tuple[float, int, float, int, int, int, str]:
     evidence_score = _runtime_evidence_for_skill(extracted, skill, jd_evidence)
     basis_parts = _runtime_evidence_basis_parts(evidence_score)
     preferred_basis_count = len(basis_parts & STRONG_RUNTIME_EVIDENCE_BASES)
@@ -2336,13 +3066,13 @@ def _runtime_candidate_rank(
     section_bonus = 1 if section and section.get('skill_role') == JobInterviewSkill.SkillRole.SUB_SKILL else 0
     priority = _clamp_int((section or {}).get('priority') or extracted.priority, extracted.priority, 1, 99)
     return (
-        preferred_basis_count,
-        category_priority,
-        float(evidence_score.get('score') or 0),
-        section_bonus,
-        -process_penalty,
-        -priority,
-        skill.name.lower(),
+        -preferred_basis_count,
+        -category_priority,
+        -float(evidence_score.get('score') or 0),
+        -section_bonus,
+        process_penalty,
+        priority,
+        _runtime_skill_family_key(skill),
     )
 
 
@@ -2389,11 +3119,15 @@ def _fill_runtime_sub_skill_sections(
         return selected_skills
 
     jd_evidence = jd_evidence or _extract_jd_evidence(job)
+    authoritative_selection = _preserve_authoritative_runtime_section_selection(selected_skills, payload, job, experience_level, jd_evidence)
+    if authoritative_selection:
+        return authoritative_selection
+
     sections = _runtime_sections_from_payload(payload)
     section_by_skill_id = _runtime_section_metadata_by_skill_id(selected_skills, sections)
     role_family = _role_family_for(job, payload)
     is_technical_interview = _technical_interview_for(job, payload, role_family)
-    max_sub_skills = 3
+    max_sub_skills = 6 if _is_mern_stack_role(job, jd_evidence) else 3
 
     primary_pair = next(((extracted, skill) for extracted, skill in selected_skills if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
     if not primary_pair:
@@ -2409,15 +3143,21 @@ def _fill_runtime_sub_skill_sections(
     primary_evidence = _runtime_evidence_for_skill(primary_pair[0], primary_pair[1], jd_evidence)
 
     candidates: list[tuple[ExtractedSkill, Skill, dict[str, Any] | None]] = []
+    coding_required = bool(_clean_bool_or_none(payload.get('coding_required')))
+    coding_questions_to_ask = _clamp_int(payload.get('coding_questions_to_ask'), 3 if coding_required else 0, 0, 3)
+    coding_target_keys = {_skill_match_key(name) for name in _coding_skill_target_names_from_payload(payload)}
     for extracted, skill in selected_skills:
         if skill.id == primary_skill_id:
+            continue
+        is_coding_target = _skill_match_key(skill.name) in coding_target_keys or _skill_match_key(extracted.name) in coding_target_keys
+        if extracted.skill_role == JobInterviewSkill.SkillRole.OPTIONAL and not is_coding_target:
             continue
         section = section_by_skill_id.get(skill.id)
         if not _runtime_candidate_allowed(extracted, skill, job, jd_evidence, is_technical_interview=is_technical_interview):
             continue
         candidates.append((extracted, skill, section))
 
-    candidates.sort(key=lambda item: _runtime_candidate_rank(item[0], item[1], item[2], jd_evidence), reverse=True)
+    candidates.sort(key=lambda item: _runtime_candidate_rank(item[0], item[1], item[2], jd_evidence))
     selected_sub_skill_ids: list[int] = []
     seen_families = {_runtime_skill_family_key(primary_pair[1])}
     for extracted, skill, _section in candidates:
@@ -2428,10 +3168,6 @@ def _fill_runtime_sub_skill_sections(
             continue
         selected_sub_skill_ids.append(skill.id)
         seen_families.add(family_key)
-
-    coding_required = bool(_clean_bool_or_none(payload.get('coding_required')))
-    coding_questions_to_ask = _clamp_int(payload.get('coding_questions_to_ask'), 3 if coding_required else 0, 0, 3)
-    coding_target_keys = {_skill_match_key(name) for name in _coding_skill_target_names_from_payload(payload)}
 
     rebalanced: list[tuple[ExtractedSkill, Skill]] = []
     for extracted, skill in selected_skills:
@@ -2487,7 +3223,8 @@ def _fill_runtime_sub_skill_sections(
                 priority=max(50, extracted.priority),
                 target_questions=_default_questions_to_ask(JobInterviewSkill.SkillRole.OPTIONAL),
                 reason=extracted.reason or f"Kept optional after runtime slots were filled or evidence was weaker: {evidence_basis}",
-                coding_allowed=False,
+                coding_allowed=coding_allowed,
+                coding_questions_to_ask=coding_count,
             ),
             skill,
         ))
@@ -2543,7 +3280,7 @@ def _apply_runtime_section_selection(
         None,
     )
     primary_match = next(((extracted, skill) for extracted, skill in selected_skills if skill.id == primary_skill_id), None)
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    role_text = _normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description), job.experience_required or '']))
     if primary_match and (
         (_is_technical_role_text(role_text) and _is_low_priority_technical_primary(primary_match[0], primary_match[1]))
         or not _skill_jd_evidence_score(primary_match[1].name, primary_match[1].key, _json_list(primary_match[1].aliases), primary_match[1].category, jd_evidence)['supported']
@@ -2660,13 +3397,22 @@ def _skill_lookup() -> dict[str, Skill]:
 
 def _apply_blueprint_skill_quality_rules(skill: ExtractedSkill, job: Vacancies) -> ExtractedSkill:
     key = _skill_match_key(skill.name)
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '']))
+    role_text = _normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description)]))
     is_technical_role = _is_technical_role_text(role_text)
     skill_role = skill.skill_role
     interview_weight = skill.interview_weight or 'normal'
     eligible_for_random_sub_skill = skill.eligible_for_random_sub_skill
 
-    if is_technical_role and key in {'php', 'laravel'} and _appears_as_low_confidence_or_alternative(key, role_text):
+    if (
+        is_technical_role
+        and skill.skill_role != JobInterviewSkill.SkillRole.PRIMARY
+        and _is_concrete_execution_skill_name(skill.name, skill.category)
+        and (
+            _appears_as_low_confidence_or_alternative(key, role_text)
+            or _appears_as_optional_supporting_skill(key, role_text)
+        )
+        and (skill.confidence or 0) < 0.8
+    ):
         skill_role = JobInterviewSkill.SkillRole.OPTIONAL
     if is_technical_role and key in PROCESS_SKILL_KEYS:
         skill_role = JobInterviewSkill.SkillRole.OPTIONAL
@@ -2696,7 +3442,20 @@ def _appears_as_low_confidence_or_alternative(key: str, role_text: str) -> bool:
     mentions = role_text.count(f' {token} ')
     if mentions >= 2:
         return False
-    return bool(re.search(r'\b(node\.?js|javascript|python|php|laravel)\s+or\s+(node\.?js|javascript|python|php|laravel)\b', role_text))
+    alternatives = re.findall(r'\b([a-z0-9+#.][a-z0-9+#.\s-]{1,40}?)\s+or\s+([a-z0-9+#.][a-z0-9+#.\s-]{1,40}?)\b', role_text)
+    for left, right in alternatives:
+        if _skill_match_key(left) == key or _skill_match_key(right) == key:
+            return True
+    return False
+
+
+def _appears_as_optional_supporting_skill(key: str, role_text: str) -> bool:
+    token = re.escape(key.replace('-', ' '))
+    optional_markers = r'(optional|nice to have|good to have|preferred|plus|bonus|supporting)'
+    return bool(
+        re.search(rf'\b{optional_markers}\b[^.:\n]{{0,60}}\b{token}\b', role_text)
+        or re.search(rf'\b{token}\b[^.:\n]{{0,60}}\b{optional_markers}\b', role_text)
+    )
 
 
 def _normalize_extracted_skill_groups(payload: dict[str, Any], experience_level: str, job: Vacancies) -> list[ExtractedSkill]:
@@ -2782,17 +3541,19 @@ def _ensure_primary_skill_selection(
         return selected_skills
 
     jd_evidence = jd_evidence or _extract_jd_evidence(job)
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
-    is_technical_role = _is_technical_role_text(role_text)
+    role_text = _normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description), job.experience_required or '']))
+    role_family = _role_family_for(job, {})
+    is_technical_role = role_family in {'technical', 'hybrid'} or _is_technical_role_text(role_text)
     chosen_skill_id: int | None = None
 
-    scored_candidates = [
-        (_technical_primary_score(extracted, skill, job, jd_evidence=jd_evidence), extracted.priority, skill.id)
-        for extracted, skill in selected_skills
-        if _is_concrete_technical_primary_candidate(extracted, skill, job, jd_evidence=jd_evidence)
-    ]
-    if scored_candidates:
-        chosen_skill_id = max(scored_candidates, key=lambda item: (item[0], -item[1]))[2]
+    if is_technical_role:
+        scored_candidates = [
+            (_technical_primary_score(extracted, skill, job, jd_evidence=jd_evidence), extracted.priority, skill.id)
+            for extracted, skill in selected_skills
+            if _is_concrete_technical_primary_candidate(extracted, skill, job, jd_evidence=jd_evidence)
+        ]
+        if scored_candidates:
+            chosen_skill_id = max(scored_candidates, key=lambda item: (item[0], -item[1]))[2]
 
     if chosen_skill_id is None:
         current_primary = next((
@@ -2822,7 +3583,7 @@ def _primary_selection_needs_repair(selected_skills: list[tuple[ExtractedSkill, 
     primary = next(((extracted, skill) for extracted, skill in selected_skills if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
     if not primary:
         return True
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    role_text = _normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description), job.experience_required or '']))
     return _is_technical_role_text(role_text) and _is_low_priority_technical_primary(primary[0], primary[1])
 
 
@@ -2867,12 +3628,14 @@ def _technical_primary_score(extracted: ExtractedSkill, skill: Skill, job: Vacan
         return 0
 
     jd_evidence = jd_evidence or _extract_jd_evidence(job)
+    if not _infrastructure_primary_has_central_evidence(skill.name, jd_evidence):
+        return 0
     evidence_score = _skill_jd_evidence_score(skill.name, skill.key, _json_list(skill.aliases), skill.category, jd_evidence)
     if not evidence_score['supported']:
         return 0
     categories = _category_keys(extracted.category, skill.category)
     key = _skill_match_key(skill.name)
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    role_text = _normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description), job.experience_required or '']))
     score = 0
 
     if _is_cloud_or_devops_role(role_text) and categories & CLOUD_PRIMARY_CATEGORIES:
@@ -2885,6 +3648,10 @@ def _technical_primary_score(extracted: ExtractedSkill, skill: Skill, job: Vacan
         score = max(score, 900)
     if _is_technical_skill(skill):
         score = max(score, 800)
+    if _is_concrete_execution_skill_name(skill.name, extracted.category or skill.category):
+        score = max(score, 700)
+    if _has_strong_runtime_evidence(evidence_score):
+        score = max(score, 600)
     if categories & MEDIUM_PRIORITY_TECHNICAL_CATEGORIES:
         score = max(score, 500)
 
@@ -2940,7 +3707,21 @@ def _is_soft_or_process_skill(extracted: ExtractedSkill, skill: Skill) -> bool:
 
 
 def _is_cloud_or_devops_role(role_text: str) -> bool:
-    return any(_term_matches(role_text, term) for term in ['cloud', 'cloud engineer', 'devops', 'devops engineer', 'site reliability engineer', 'sre'])
+    return any(_term_matches(role_text, term) for term in [
+        'cloud',
+        'cloud engineer',
+        'container orchestration',
+        'devops',
+        'devops engineer',
+        'infrastructure',
+        'infrastructure engineer',
+        'kubernetes',
+        'orchestration platform',
+        'platform engineer',
+        'platform engineering',
+        'site reliability engineer',
+        'sre',
+    ])
 
 
 def _is_qa_automation_role(role_text: str) -> bool:
@@ -3049,7 +3830,7 @@ def _openai_response_schema() -> dict[str, Any]:
 def _determine_experience_level(job: Vacancies, payload: dict[str, Any]) -> str:
     explicit_text = ' '.join([
         job.experience_required or '',
-        job.description or '',
+        _plain_text_job_description(job.description),
         job.role or '',
     ]).lower()
     explicit_text = explicit_text.replace('+', ' plus ')
@@ -3105,7 +3886,7 @@ def _role_family_for(job: Vacancies, extracted_payload: dict[str, Any]) -> str:
     raw = _clean_string(extracted_payload.get('role_family')).lower()
     if raw in {'technical', 'non_technical', 'hybrid'}:
         return raw
-    role_text = _normalized_search_text(' '.join([job.role or '', job.description or '', job.experience_required or '']))
+    role_text = _normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description), job.experience_required or '']))
     return 'technical' if _is_technical_role_text(role_text) else 'non_technical'
 
 
@@ -3113,7 +3894,7 @@ def _technical_interview_for(job: Vacancies, extracted_payload: dict[str, Any], 
     explicit = _clean_bool_or_none(extracted_payload.get('technical_interview'))
     if explicit is not None:
         return explicit
-    return role_family in {'technical', 'hybrid'} or _is_technical_role_text(_normalized_search_text(' '.join([job.role or '', job.description or ''])))
+    return role_family in {'technical', 'hybrid'} or _is_technical_role_text(_normalized_search_text(' '.join([job.role or '', _plain_text_job_description(job.description)])))
 
 
 def _coding_skill_target_payloads(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -3154,7 +3935,7 @@ def _coding_skill_target_names_from_payload(payload: dict[str, Any]) -> list[str
         name = _clean_string(item.get('name'))
         if name and name not in names:
             names.append(name)
-    return names
+    return _order_coding_skill_targets(names)
 
 
 def _coding_skill_target_details(
@@ -3184,6 +3965,9 @@ def _coding_skill_target_details(
         details.append(item)
     if not details and all_skills:
         details.append(all_skills[0])
+    target_order = {_skill_match_key(name): index for index, name in enumerate(target_names)}
+    if target_order:
+        details.sort(key=lambda item: target_order.get(_skill_match_key(item.get('name') or item.get('skill_key') or ''), 999))
     return details
 
 
@@ -3325,6 +4109,37 @@ def _excluded_skills_from_payload(extracted_payload: dict[str, Any]) -> list[dic
     return cleaned[:20]
 
 
+def _selected_primary_supported_for_quality(
+    extracted: ExtractedSkill,
+    skill: Skill,
+    job: Vacancies,
+    jd_evidence: dict[str, Any],
+) -> bool:
+    if _is_noisy_skill(extracted, job):
+        return False
+    if not _infrastructure_primary_has_central_evidence(skill.name, jd_evidence):
+        return False
+
+    evidence_score = _skill_jd_evidence_score(skill.name, skill.key, _json_list(skill.aliases), skill.category, jd_evidence)
+    if not evidence_score['supported']:
+        return _payload_primary_supported_by_technical_role(extracted, skill.name, skill.category or extracted.category, job, jd_evidence)
+
+    role_hints = jd_evidence.get('role_family_hints') or {}
+    technical_context = any(role_hints.get(key) for key in ['technical', 'data', 'qa_automation', 'cloud_devops', 'salesforce'])
+    business_context = any(role_hints.get(key) for key in ['hr', 'marketing'])
+    if _is_soft_or_generic_skill_name(skill.name) and technical_context and not business_context:
+        return False
+    if technical_context and not business_context:
+        return bool(
+            _has_strong_runtime_evidence(evidence_score)
+            or _is_concrete_execution_skill_name(skill.name, extracted.category or skill.category)
+            or _category_aligns_with_role(skill.category or extracted.category, role_hints)
+            or _technical_primary_score(extracted, skill, job, jd_evidence=jd_evidence) > 0
+        )
+
+    return bool(_has_strong_runtime_evidence(evidence_score) or evidence_score.get('matched_terms'))
+
+
 def _fatal_quality_issues(
     extracted_payload: dict[str, Any],
     blueprint_plan: dict[str, Any],
@@ -3338,29 +4153,36 @@ def _fatal_quality_issues(
     jd_evidence = jd_evidence or _extract_jd_evidence(job)
     plan = blueprint_plan if isinstance(blueprint_plan, dict) else {}
     quality_issue = _clean_string(plan.get('quality_issue') or extracted_payload.get('_blueprint_quality_issue'))
+    primary = next(((extracted, skill) for extracted, skill in selected_skills if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
+    primary_supported = bool(primary and _selected_primary_supported_for_quality(primary[0], primary[1], job, jd_evidence))
     for issue in re.split(r'[, ]+', quality_issue):
+        if primary_supported and issue in {'unsupported_primary_skill', 'unsupported_selected_primary_skill', 'primary_skill_missing'}:
+            continue
         if issue in FATAL_BLUEPRINT_QUALITY_ISSUES:
             issues.append(issue)
 
-    primary = next(((extracted, skill) for extracted, skill in selected_skills if extracted.skill_role == JobInterviewSkill.SkillRole.PRIMARY), None)
-    title_text = _normalized_search_text(' '.join([job.role or '', job.position or '']))
-    jd_text = _normalized_search_text(' '.join([job.description or '', job.experience_required or '']))
-    full_text = _normalized_search_text(f'{title_text} {jd_text}')
     if not primary:
         issues.append('primary_skill_missing')
     else:
         extracted, skill = primary
-        primary_evidence = _skill_jd_evidence_score(skill.name, skill.key, _json_list(skill.aliases), skill.category, jd_evidence)
-        if not primary_evidence['supported'] or not _primary_skill_supported(skill.name, title_text, jd_text, data_role=_is_data_role_text(full_text), jd_evidence=jd_evidence):
+        if not _selected_primary_supported_for_quality(extracted, skill, job, jd_evidence):
             issues.append('unsupported_selected_primary_skill')
-        if _is_infrastructure_skill_without_evidence(skill.name, full_text):
+        if not _infrastructure_primary_has_central_evidence(skill.name, jd_evidence):
             issues.append('infrastructure_without_jd_evidence')
     runtime_sections = plan.get('runtime_sections')
     if not isinstance(runtime_sections, list) or not runtime_sections:
         issues.append('no_active_runtime_sections')
-    if selected_skills and all(
-        _is_noisy_skill(extracted, job) or _is_soft_or_generic_skill_name(skill.name)
-        for extracted, skill in selected_skills
+    role_hints = jd_evidence.get('role_family_hints') or {}
+    technical_context = any(role_hints.get(key) for key in ['technical', 'data', 'qa_automation', 'cloud_devops', 'salesforce'])
+    business_context = any(role_hints.get(key) for key in ['hr', 'marketing'])
+    if (
+        technical_context
+        and not business_context
+        and selected_skills
+        and all(
+            _is_noisy_skill(extracted, job) or _is_soft_or_generic_skill_name(skill.name)
+            for extracted, skill in selected_skills
+        )
     ):
         issues.append('all_selected_skills_noisy_or_generic')
     if (
@@ -3494,7 +4316,7 @@ def _canonical_skill_name(value: str) -> str:
         if wrapped and normalize_skill_key(wrapped) != key:
             return wrapped
     suffix_stripped = re.sub(
-        r'\s+(tool|tools|framework|platform|testing|automation testing|skill|skills)$',
+        r'\s+(tool|tools|framework|platform|testing|automation testing)$',
         '',
         cleaned,
         flags=re.IGNORECASE,
@@ -3533,13 +4355,39 @@ def _singularize_skill_key(key: str) -> str:
     return key
 
 
+def _is_noisy_category(category: str) -> bool:
+    key = normalize_skill_key(category or '')
+    if not key:
+        return False
+    if key in NOISY_SKILL_KEYS or key in NOISY_CATEGORY_KEY_TERMS:
+        return True
+    return any(term in key for term in {
+        'company',
+        'degree',
+        'education',
+        'employment',
+        'location',
+        'qualification',
+        'salary',
+    })
+
+
+def _is_noisy_skill_value(name: str, category: str = '') -> bool:
+    key = _skill_match_key(name)
+    category_key = _skill_match_key(category)
+    return bool(
+        key in NOISY_SKILL_KEYS
+        or key in LOCATION_VALUE_KEYS
+        or category_key in NOISY_SKILL_KEYS
+        or _is_noisy_category(category)
+        or _is_generic_or_noise_phrase(name)
+    )
+
+
 def _is_noisy_skill(extracted: ExtractedSkill, job: Vacancies) -> bool:
+    if _is_noisy_skill_value(extracted.name, extracted.category):
+        return True
     key = _skill_match_key(extracted.name)
-    if key in NOISY_SKILL_KEYS:
-        return True
-    category_key = _skill_match_key(extracted.category)
-    if category_key in NOISY_SKILL_KEYS:
-        return True
     if len(key) <= 1:
         return True
     if re.fullmatch(r'\d+[-+]?\d*\s*(years?|yrs?)?', extracted.name.lower()):
@@ -3555,43 +4403,9 @@ def _is_technical_role_text(normalized_role_text: str) -> bool:
 
 
 def _is_technical_skill(skill: Skill) -> bool:
-    key = _skill_match_key(skill.name)
-    category = (skill.category or '').lower()
-    return key in {
-        'angular',
-        'apex',
-        'core-java',
-        'data-architecture',
-        'data-engineering',
-        'data-modeling',
-        'data-pipeline',
-        'data-quality-validation',
-        'data-warehousing',
-        'django',
-        'etl-elt',
-        'django-rest-framework',
-        'flutter',
-        'html-css',
-        'javascript',
-        'java',
-        'laravel',
-        'lwc',
-        'mongodb',
-        'mysql',
-        'next-js',
-        'node-js',
-        'php',
-        'postgresql',
-        'python',
-        'react',
-        'react-native',
-        'rest-api',
-        'salesforce',
-        'soql',
-        'spring',
-        'spring-boot',
-        'sql',
-    } or any(term in category for term in ['backend', 'frontend', 'programming', 'framework', 'database', 'data engineering', 'data architecture', 'data warehousing', 'mobile', 'web services', 'salesforce', 'cloud', 'devops', 'automation'])
+    if _is_soft_or_generic_skill_name(skill.name):
+        return False
+    return _is_technical_execution_category(skill.category or _category_for_repaired_skill(skill.name))
 
 
 def _coding_questions_to_ask_for(job: Vacancies, extracted: ExtractedSkill, skill: Skill) -> int:
@@ -3669,7 +4483,7 @@ def _json_list(value: Any) -> list[str]:
 
 
 def _normalized_search_text(value: str) -> str:
-    cleaned = re.sub(r'[^a-z0-9+#.]+', ' ', (value or '').lower())
+    cleaned = re.sub(r'[^a-z0-9+#]+', ' ', (value or '').lower())
     normalized = re.sub(r'\s+', ' ', cleaned).strip()
     return f' {normalized} '
 

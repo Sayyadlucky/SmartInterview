@@ -86,6 +86,7 @@ export class Jobs {
   activeStatus: JobStatusFilter = 'all';
   selectedJob: JobCard | null = null;
   loadError = '';
+  activeQuickActionJobId: number | null = null;
   private readonly imageErrorJobIds = new Set<number>();
   private readonly closingJobIds = new Set<number>();
   private previousFocusedElement: HTMLElement | null = null;
@@ -114,6 +115,11 @@ export class Jobs {
   @HostListener('document:keydown', ['$event'])
   handleDocumentKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
+      if (this.activeQuickActionJobId !== null) {
+        event.preventDefault();
+        this.closeQuickActionMenu();
+        return;
+      }
       if (this.selectedJob) {
         event.preventDefault();
         this.closeQuickView();
@@ -138,6 +144,11 @@ export class Jobs {
     if (this.mobileNavOpen) {
       this.trapFocus(event, this.mobileNavPanelRef?.nativeElement);
     }
+  }
+
+  @HostListener('document:click')
+  handleDocumentClick(): void {
+    this.closeQuickActionMenu();
   }
 
   toggleMobileNav(): void {
@@ -300,19 +311,23 @@ export class Jobs {
   }
 
   get totalVacancies(): number {
-    return this.filteredJobsState.reduce((sum, job) => sum + Number(job.vacancies || 0), 0);
+    return this.jobs.reduce((sum, job) => sum + Number(job.vacancies || 0), 0);
   }
 
   get totalOpenPositions(): number {
-    return this.filteredJobsState.reduce((sum, job) => sum + Number(job.open_positions || 0), 0);
+    return this.jobs.reduce((sum, job) => sum + Number(job.open_positions || 0), 0);
   }
 
   get totalApplications(): number {
-    return this.filteredJobsState.reduce((sum, job) => sum + Number(job.applications || 0), 0);
+    return this.jobs.reduce((sum, job) => sum + Number(job.applications || 0), 0);
+  }
+
+  get totalHired(): number {
+    return this.jobs.reduce((sum, job) => sum + Number(job.hired || 0), 0);
   }
 
   get activeRoleCount(): number {
-    return this.filteredJobsState.filter((job) => job.status === 'active').length;
+    return this.jobs.filter((job) => job.status === 'active').length;
   }
 
   get roleCoverageLabel(): string {
@@ -338,9 +353,19 @@ export class Jobs {
 
   get sidebarSummaryStats(): Array<{ label: string; value: string; icon: string }> {
     return [
-      { label: 'Roles', value: String(this.filteredJobsState.length), icon: 'ph-briefcase' },
-      { label: 'Open', value: String(this.totalOpenPositions), icon: 'ph-briefcase-metal' },
-      { label: 'Pipeline', value: String(this.totalApplications), icon: 'ph-git-branch' },
+      { label: 'Total Roles', value: String(this.jobs.length), icon: 'ph-briefcase' },
+      { label: 'Open Positions', value: String(this.totalOpenPositions), icon: 'ph-briefcase-metal' },
+      { label: 'Applications', value: String(this.totalApplications), icon: 'ph-users-three' },
+      { label: 'Hired', value: String(this.totalHired), icon: 'ph-handshake' },
+    ];
+  }
+
+  get dashboardSummaryStats(): Array<{ label: string; value: string; icon: string; tone: string }> {
+    return [
+      { label: 'Active Roles', value: String(this.activeRoleCount), icon: 'ph-briefcase', tone: 'blue' },
+      { label: 'Total Applications', value: String(this.totalApplications), icon: 'ph-users-three', tone: 'purple' },
+      { label: 'Open Positions', value: String(this.totalOpenPositions), icon: 'ph-briefcase-metal', tone: 'teal' },
+      { label: 'Hired', value: String(this.totalHired), icon: 'ph-handshake', tone: 'orange' },
     ];
   }
 
@@ -366,7 +391,25 @@ export class Jobs {
     this.refreshFilteredJobs();
   }
 
+  getQuickActionMenuId(job: JobCard): string {
+    return `job-quick-action-menu-${job?.id || 'unknown'}`;
+  }
+
+  isQuickActionMenuOpen(job: JobCard): boolean {
+    return !!job?.id && this.activeQuickActionJobId === job.id;
+  }
+
+  toggleQuickActionMenu(job: JobCard, event: Event): void {
+    event.stopPropagation();
+    this.activeQuickActionJobId = this.isQuickActionMenuOpen(job) ? null : job.id;
+  }
+
+  closeQuickActionMenu(): void {
+    this.activeQuickActionJobId = null;
+  }
+
   openQuickView(job: JobCard, trigger?: HTMLElement): void {
+    this.closeQuickActionMenu();
     this.previousFocusedElement = trigger || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     this.selectedJob = job;
     this.updateBodyScrollLock();
@@ -388,6 +431,7 @@ export class Jobs {
   }
 
   openRoleDetails(job: JobCard): void {
+    this.closeQuickActionMenu();
     this.closeQuickView();
     this.dialog.open(RoleDetail, {
       width: 'min(1280px, 96vw)',
@@ -397,6 +441,10 @@ export class Jobs {
       autoFocus: false,
       data: { role_id: job.id },
     });
+  }
+
+  openRoleDetailsFromMenu(job: JobCard): void {
+    this.openRoleDetails(job);
   }
 
   getTalentPoolUrl(job?: JobCard | null): string {
@@ -424,6 +472,11 @@ export class Jobs {
 
   getStatusClass(status: string): string {
     return `status-${(status || 'active').toLowerCase()}`;
+  }
+
+  getJobVisualClass(index: number): string {
+    const tones = ['blue', 'teal', 'purple', 'orange', 'rose', 'indigo'];
+    return `job-visual-${tones[index % tones.length]}`;
   }
 
   getRecruiterInitials(name: string): string {
@@ -511,6 +564,11 @@ export class Jobs {
       });
   }
 
+  closeJobFromMenu(job: JobCard): void {
+    this.closeQuickActionMenu();
+    this.closeJob(job);
+  }
+
   private decorateJob(job: JobCard): JobCard {
     const resolvedLogoUrl = job.company?.logo_url || this.dashboardCompanyLogoUrl || '';
     const recruiterSummary = this.buildRecruiterSummary(job.recruiters || []);
@@ -525,33 +583,49 @@ export class Jobs {
 
   private refreshFilteredJobs(): void {
     const term = this.searchQuery.trim().toLowerCase();
-    this.filteredJobsState = this.jobs.filter((job) => {
-      const matchesStatus = this.matchesStatusFilter(job.status, this.activeStatus);
-      if (!matchesStatus) {
-        return false;
-      }
-      if (!term) {
-        return true;
-      }
-      return [
-        job.name,
-        job.location,
-        job.job_type,
-        job.salary_range,
-        job.experience_required,
-        job.company?.display_name,
-        job.company?.legal_name,
-        job.recruiter_summary,
-        ...(job.recruiters || []),
-      ]
-        .map((value) => (value || '').toString().toLowerCase())
-        .some((value) => value.includes(term));
-    });
+    this.filteredJobsState = this.jobs
+      .filter((job) => {
+        const matchesStatus = this.matchesStatusFilter(job.status, this.activeStatus);
+        if (!matchesStatus) {
+          return false;
+        }
+        if (!term) {
+          return true;
+        }
+        return [
+          job.name,
+          job.location,
+          job.job_type,
+          job.salary_range,
+          job.experience_required,
+          job.company?.display_name,
+          job.company?.legal_name,
+          job.recruiter_summary,
+          ...(job.recruiters || []),
+        ]
+          .map((value) => (value || '').toString().toLowerCase())
+          .some((value) => value.includes(term));
+      })
+      .sort((first, second) => this.compareJobsLatestFirst(first, second));
 
     if (this.selectedJob?.id) {
       const refreshedSelectedJob = this.jobs.find((job) => job.id === this.selectedJob?.id) || null;
       this.selectedJob = refreshedSelectedJob ? { ...refreshedSelectedJob } : null;
     }
+  }
+
+  private compareJobsLatestFirst(first: JobCard, second: JobCard): number {
+    const firstTime = this.toJobTimestamp(first);
+    const secondTime = this.toJobTimestamp(second);
+    if (firstTime !== secondTime) {
+      return secondTime - firstTime;
+    }
+    return (second.id || 0) - (first.id || 0);
+  }
+
+  private toJobTimestamp(job: JobCard): number {
+    const parsed = job?.date_iso ? Date.parse(job.date_iso) : NaN;
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   private buildRecruiterSummary(recruiters: string[]): string {
