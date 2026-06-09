@@ -2,8 +2,9 @@ from collections import Counter, defaultdict
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.utils import timezone
 
-from smartInterviewApp.models import AptitudeAnswer, AptitudeTestResult
+from smartInterviewApp.models import AptitudeAnswer, AptitudeTestAssignment, AptitudeTestResult
 from smartInterviewApp.services.aptitude_question_schemas import (
     QUESTION_TYPE_FILL_BLANK,
     QUESTION_TYPE_IMAGE_CHOICE,
@@ -131,6 +132,28 @@ def score_assignment(assignment):
         },
     )
     return result
+
+
+@transaction.atomic
+def mark_aptitude_assignment_expired_if_needed(assignment, *, submit_and_score=True):
+    if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS or not assignment.expires_at:
+        return False
+
+    now = timezone.now()
+    if now < assignment.expires_at:
+        return False
+
+    assignment.status = AptitudeTestAssignment.Status.EXPIRED
+    update_fields = ['status', 'updated_at']
+    if not assignment.submitted_at:
+        assignment.submitted_at = now
+        update_fields.append('submitted_at')
+    assignment.save(update_fields=update_fields)
+
+    if submit_and_score and not AptitudeTestResult.objects.filter(assignment=assignment).exists():
+        score_assignment(assignment)
+
+    return True
 
 
 def _is_attempted(question_type, answer_payload):

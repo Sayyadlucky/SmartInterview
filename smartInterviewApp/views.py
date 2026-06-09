@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -23,8 +24,9 @@ from .forms import ContactForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .emailing import send_contact_notification_email
-from .models import CompanyProfile, Interview
+from .models import AptitudeTestAssignment, AptitudeTestTemplate, CompanyProfile, Interview
 from .commonViews import (
+    build_litio_aptitude_link,
     build_litio_interview_link,
     build_candidate_details,
     candidateDashboard,
@@ -36,6 +38,7 @@ from .commonViews import (
     send_candidate_interview_email_only,
     send_existing_candidate_sms,
 )
+from .services.aptitude_assignments import AptitudeAssignmentError, create_aptitude_assignment, validate_template_readiness
 from .services.company_enrichment import ensure_company_profile_for_user
 from .services.ai_talent_pool.async_indexer import process_candidate_reindex
 from .services.interview_blueprints import process_job_interview_blueprint_task
@@ -87,6 +90,65 @@ def normalize_interview_status(value: str) -> str:
         'auto screening scheduled': 'auto_screening_scheduled',
     }
     return status_map.get(raw, raw.replace(' ', '_'))
+
+
+def parse_request_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+    return bool(value)
+
+
+def build_aptitude_assignment_title(interview: Interview) -> str:
+    role_name = (interview.role.role or '').strip() if getattr(interview, 'role', None) else ''
+    return f"Aptitude Assessment - {role_name}" if role_name else 'Aptitude Assessment'
+
+
+def ensure_interview_aptitude_assignment(
+    *,
+    interview: Interview,
+    template: AptitudeTestTemplate,
+    scheduled_at,
+    created_by,
+) -> AptitudeTestAssignment:
+    reusable_statuses = {
+        AptitudeTestAssignment.Status.ASSIGNED,
+        AptitudeTestAssignment.Status.IN_PROGRESS,
+    }
+    existing = (
+        interview.aptitude_test_assignments
+        .filter(status__in=reusable_statuses)
+        .order_by('-created_at', '-id')
+        .first()
+    )
+    if existing:
+        update_fields = []
+        if (
+            existing.status == AptitudeTestAssignment.Status.ASSIGNED
+            and existing.started_at is None
+            and existing.scheduled_at != scheduled_at
+        ):
+            existing.scheduled_at = scheduled_at
+            update_fields.append('scheduled_at')
+        if update_fields:
+            update_fields.append('updated_at')
+            existing.save(update_fields=update_fields)
+        return existing
+
+    result = create_aptitude_assignment(
+        candidate=interview.candidate,
+        vacancy=interview.role,
+        interview=interview,
+        template=template,
+        role_type=template.role_type,
+        role_family=getattr(template, 'role_family', '') or '',
+        title=build_aptitude_assignment_title(interview),
+        scheduled_at=scheduled_at,
+        allow_partial=False,
+        created_by=created_by,
+    )
+    return result['assignment']
 
 
 def resolve_login_identifier(identifier: str) -> str:
@@ -816,7 +878,7 @@ def updateInterviewWorkflow(request):
         return JsonResponse({"Success": False, "Error": "Select at least one candidate."}, status=400)
 
     accessible_qs = get_accessible_interviews(request.user).filter(id__in=cleaned_ids)
-    interviews = list(accessible_qs.select_related('interviewer'))
+    interviews = list(accessible_qs.select_related('candidate', 'role', 'interviewer'))
     if len(interviews) != len(set(cleaned_ids)):
         return JsonResponse({"Success": False, "Error": "One or more selected candidates are not accessible."}, status=403)
 
@@ -858,6 +920,41 @@ def updateInterviewWorkflow(request):
         return JsonResponse({"Success": False, "Error": "Please select an evaluator."}, status=400)
     if mode == 'schedule' and interview_type == 'manual' and not interviewer_user:
         return JsonResponse({"Success": False, "Error": "Please select an evaluator for a manual interview."}, status=400)
+
+    include_aptitude_assessment = parse_request_bool(
+        payload.get('include_aptitude_assessment', payload.get('aptitude_required', False))
+    )
+    aptitude_scheduled_at = None
+    aptitude_template = None
+    if mode == 'schedule' and include_aptitude_assessment:
+        aptitude_scheduled_at_raw = str(payload.get('aptitude_scheduled_at') or '').strip()
+        if not aptitude_scheduled_at_raw:
+            return JsonResponse({"Success": False, "Error": "Aptitude assessment time is required."}, status=400)
+        aptitude_scheduled_at = parse_datetime(aptitude_scheduled_at_raw)
+        if not aptitude_scheduled_at:
+            return JsonResponse({"Success": False, "Error": "Please provide a valid aptitude assessment time."}, status=400)
+        if timezone.is_naive(aptitude_scheduled_at):
+            aptitude_scheduled_at = timezone.make_aware(aptitude_scheduled_at, timezone.get_current_timezone())
+        if aptitude_scheduled_at < timezone.now():
+            return JsonResponse({"Success": False, "Error": "Aptitude assessment time must not be in the past."}, status=400)
+        minimum_interview_at = aptitude_scheduled_at + timedelta(hours=2)
+        if scheduled_at and scheduled_at < minimum_interview_at:
+            return JsonResponse({"Success": False, "Error": "Interview time must be at least 2 hours after aptitude assessment time."}, status=400)
+
+        try:
+            aptitude_template_id = int(payload.get('aptitude_template_id') or 0)
+        except (TypeError, ValueError):
+            aptitude_template_id = 0
+        aptitude_template = AptitudeTestTemplate.objects.filter(id=aptitude_template_id, is_active=True).first()
+        if not aptitude_template:
+            return JsonResponse({"Success": False, "Error": "Please select a valid assessment template."}, status=400)
+        readiness = validate_template_readiness(aptitude_template)
+        if not readiness['ready']:
+            return JsonResponse({
+                "Success": False,
+                "Error": "Aptitude question bank is not ready for the selected assessment template.",
+                "Data": {"readiness": readiness},
+            }, status=400)
 
     updated_items = []
     notifications = []
@@ -909,6 +1006,29 @@ def updateInterviewWorkflow(request):
                 interview_token, interview_link = build_litio_interview_link(None, interview)
                 updated_items[-1]["interview_token"] = interview_token
                 updated_items[-1]["interview_link"] = interview_link
+                aptitude_context = None
+                if include_aptitude_assessment and aptitude_template and aptitude_scheduled_at:
+                    aptitude_assignment = ensure_interview_aptitude_assignment(
+                        interview=interview,
+                        template=aptitude_template,
+                        scheduled_at=aptitude_scheduled_at,
+                        created_by=request.user,
+                    )
+                    aptitude_public_token, aptitude_link = build_litio_aptitude_link(request, aptitude_assignment)
+                    aptitude_context = {
+                        'aptitude_assignment_id': aptitude_assignment.id,
+                        'aptitude_public_token': aptitude_public_token,
+                        'aptitude_link': aptitude_link,
+                        'aptitude_scheduled_at': aptitude_assignment.scheduled_at,
+                        'aptitude_status': aptitude_assignment.status,
+                    }
+                    updated_items[-1].update({
+                        'aptitude_assignment_id': aptitude_assignment.id,
+                        'aptitude_public_token': aptitude_public_token,
+                        'aptitude_link': aptitude_link,
+                        'aptitude_scheduled_at': aptitude_assignment.scheduled_at.isoformat() if aptitude_assignment.scheduled_at else None,
+                        'aptitude_status': aptitude_assignment.status,
+                    })
                 is_rescheduled = bool(
                     previous_status == 'scheduled'
                     and previous_scheduled_at
@@ -921,6 +1041,7 @@ def updateInterviewWorkflow(request):
                     request=request,
                     notification_kind='rescheduled' if is_rescheduled else 'scheduled',
                     previous_scheduled_at=previous_scheduled_at if is_rescheduled else None,
+                    aptitude_context=aptitude_context,
                 )
                 scheduled_jobs.append({
                     'interview_id': interview.id,

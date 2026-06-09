@@ -12,6 +12,14 @@
   Please review the details below and keep this message nearby so you can join with confidence when it is time.
 </p>
 {% include "smartInterview/emails/partials/details_card.html" with details_title=details_title details=details %}
+{% if aptitude_required %}
+<p style="margin:0 0 18px 0;font-size:16px;line-height:1.75;color:#475569;">
+  Please complete the aptitude assessment before your scheduled interview.
+</p>
+{% if aptitude_link %}
+{% include "smartInterview/emails/partials/button.html" with button_url=aptitude_link button_label="Open Aptitude Assessment" %}
+{% endif %}
+{% endif %}
 {% include "smartInterview/emails/partials/button.html" with button_url=button_url button_label=button_label %}
 <p style="margin:0;font-size:14px;line-height:1.75;color:#475569;">
   Join a few minutes early and make sure your device, internet connection, and audio setup are ready before the interview begins.

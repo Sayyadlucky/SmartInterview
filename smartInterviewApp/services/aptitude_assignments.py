@@ -102,6 +102,7 @@ def create_aptitude_assignment(
     role_family='',
     created_by=None,
     title=None,
+    scheduled_at=None,
     allow_partial=False,
 ):
     template = template or get_default_aptitude_template(role_type=role_type, role_family=role_family)
@@ -127,6 +128,7 @@ def create_aptitude_assignment(
         total_marks=template.total_marks,
         passing_score_percent=template.passing_score_percent,
         negative_marking_enabled=template.negative_marking_enabled,
+        scheduled_at=scheduled_at,
         allow_retake=template.allow_retake,
         created_by=created_by,
     )

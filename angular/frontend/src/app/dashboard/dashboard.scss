@@ -4213,7 +4213,7 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1179px) {
   .evaluation-summary-dialog,
   .detailed-report-overlay {
     width: 100%;
@@ -4688,7 +4688,7 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1179px) {
   .navbar {
     min-height: 64px;
     padding: 10px 12px;
@@ -5061,7 +5061,7 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1179px) {
   .dashboard-hero-main {
     padding: 14px;
     border: 1px solid rgba(137, 206, 246, 0.16);
@@ -5221,7 +5221,7 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1179px) {
   #overview .overview-main-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;

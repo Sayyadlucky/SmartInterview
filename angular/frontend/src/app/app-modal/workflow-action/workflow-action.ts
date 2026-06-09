@@ -40,6 +40,19 @@ interface EvaluatorOption {
   recruiter_name?: string;
 }
 
+interface AptitudeTemplateOption {
+  id: number;
+  title: string;
+  role_type: string;
+  role_family: string;
+  duration_minutes: number;
+  total_questions: number;
+  readiness?: {
+    ready: boolean;
+    message?: string;
+  };
+}
+
 interface ReviewGroup {
   key: 'needs-decision' | 'shortlisted' | 'closed';
   title: string;
@@ -118,6 +131,7 @@ export class WorkflowAction {
   activeReviewGroupKey: ReviewGroup['key'] | null = null;
   saving = false;
   loadingEvaluators = false;
+  loadingAptitudeTemplates = false;
   errorMessage = '';
   successMessage = '';
 
@@ -132,12 +146,17 @@ export class WorkflowAction {
   selectedBulkIds = new Set<number>();
   scheduledDate = '';
   scheduledTime = '';
+  includeAptitudeAssessment = false;
+  aptitudeDate = '';
+  aptitudeTime = '';
+  selectedAptitudeTemplateId: number | null = null;
   readonly todayDateString = this.toLocalDateString(new Date());
   interviewType: 'manual' | 'auto' = 'manual';
   evaluatorSearch = '';
   evaluatorSearchOpen = false;
 
   evaluatorOptions: EvaluatorOption[] = [];
+  aptitudeTemplates: AptitudeTemplateOption[] = [];
 
   constructor(
     private http: HttpClient,
@@ -151,6 +170,9 @@ export class WorkflowAction {
   ngOnInit(): void {
     if (this.mode !== 'evaluation-reviews') {
       this.loadEvaluatorOptions();
+    }
+    if (this.mode === 'schedule') {
+      this.loadAptitudeTemplates();
     }
     if (this.mode === 'evaluation-reviews') {
       this.refreshReviewData();
@@ -175,7 +197,7 @@ export class WorkflowAction {
 
   get subtitle(): string {
     if (this.mode === 'schedule') {
-      return 'Configure the interview mode, assign ownership where required, and confirm a scheduled slot for the selected candidate.';
+      return 'Configure the interview mode, optional aptitude assessment, and confirmed interview slot for the selected candidate.';
     }
     if (this.mode === 'bulk-assign') {
       return 'Assign an evaluator across multiple candidates in one controlled workflow update.';
@@ -344,13 +366,35 @@ export class WorkflowAction {
   }
 
   get canSubmitSchedule(): boolean {
-    if (!this.selectedInterviewId || !this.scheduledDate || !this.scheduledTime || this.saving || this.isPastScheduleDate()) {
-      return false;
+    return !this.saving && !this.scheduleSubmitBlocker;
+  }
+
+  get scheduleSubmitBlocker(): string {
+    if (!this.selectedInterviewId) {
+      return 'Select a candidate before configuring the interview plan.';
     }
-    if (this.interviewType === 'manual') {
-      return !!this.selectedEvaluatorId;
+    if (!this.scheduledDate || !this.scheduledTime) {
+      return 'Select interview date and time.';
     }
-    return true;
+    if (this.isPastScheduleDate()) {
+      return 'Please select today or a future date.';
+    }
+    if (this.interviewType === 'manual' && !this.selectedEvaluatorId) {
+      return 'Select an evaluator for a manual interview.';
+    }
+    if (!this.includeAptitudeAssessment) {
+      return '';
+    }
+    if (!this.aptitudeDate || !this.aptitudeTime) {
+      return 'Aptitude assessment time is required.';
+    }
+    if (this.aptitudeScheduleError) {
+      return this.aptitudeScheduleError;
+    }
+    if (!this.selectedAptitudeTemplateId) {
+      return 'Select assessment template.';
+    }
+    return '';
   }
 
   get scheduleDateError(): string {
@@ -364,6 +408,50 @@ export class WorkflowAction {
       return null;
     }
     return this.buildAvailabilityInsight(this.selectedCandidate);
+  }
+
+  get selectedAptitudeTemplate(): AptitudeTemplateOption | null {
+    return this.aptitudeTemplates.find((template) => template.id === this.selectedAptitudeTemplateId) || null;
+  }
+
+  get aptitudeScheduledAt(): string {
+    return this.combineAptitudeDateTime();
+  }
+
+  get minimumAptitudeDateString(): string {
+    return this.todayDateString;
+  }
+
+  get interviewGapError(): string {
+    if (!this.includeAptitudeAssessment || !this.aptitudeDate || !this.aptitudeTime || !this.scheduledDate || !this.scheduledTime) {
+      return '';
+    }
+    const aptitudeTime = this.parseDate(this.aptitudeScheduledAt);
+    const interviewTime = this.parseDate(this.combineDateTime());
+    if (!aptitudeTime || !interviewTime) {
+      return '';
+    }
+    const minimumInterviewTime = new Date(aptitudeTime.getTime() + 2 * 60 * 60_000);
+    return interviewTime < minimumInterviewTime
+      ? 'Interview time must be at least 2 hours after aptitude assessment time.'
+      : '';
+  }
+
+  get aptitudeScheduleError(): string {
+    if (!this.includeAptitudeAssessment || !this.aptitudeDate || !this.aptitudeTime) {
+      return '';
+    }
+    const aptitudeTime = this.parseDate(this.aptitudeScheduledAt);
+    if (!aptitudeTime) {
+      return 'Please provide a valid aptitude assessment time.';
+    }
+    if (aptitudeTime.getTime() < Date.now()) {
+      return 'Aptitude assessment time must not be in the past.';
+    }
+    if (this.interviewGapError) {
+      return this.interviewGapError;
+    }
+    return '';
   }
 
   get filteredScheduleEvaluators(): EvaluatorOption[] {
@@ -436,6 +524,26 @@ export class WorkflowAction {
       });
   }
 
+  loadAptitudeTemplates(): void {
+    this.loadingAptitudeTemplates = true;
+    this.http.get<any>(`${this.getApiBaseUrl()}/api/aptitude/templates/`)
+      .pipe(
+        catchError((error) => {
+          console.error('Error loading aptitude templates', error);
+          this.loadingAptitudeTemplates = false;
+          return of(null);
+        })
+      )
+      .subscribe((response) => {
+        this.loadingAptitudeTemplates = false;
+        if (!response?.success) {
+          return;
+        }
+        this.aptitudeTemplates = response?.data?.templates || [];
+        this.ensureDefaultAptitudeTemplate();
+      });
+  }
+
   selectCandidate(candidate: WorkflowCandidate): void {
     this.selectedInterviewId = candidate.id;
     this.errorMessage = '';
@@ -453,6 +561,8 @@ export class WorkflowAction {
     }
     this.scheduledDate = '';
     this.scheduledTime = '';
+    this.aptitudeDate = '';
+    this.aptitudeTime = '';
   }
 
   resetSelectedCandidate(): void {
@@ -465,6 +575,9 @@ export class WorkflowAction {
     this.evaluatorSearchOpen = false;
     this.scheduledDate = '';
     this.scheduledTime = '';
+    this.includeAptitudeAssessment = false;
+    this.aptitudeDate = '';
+    this.aptitudeTime = '';
     this.errorMessage = '';
   }
 
@@ -555,7 +668,66 @@ export class WorkflowAction {
       this.errorMessage = this.scheduleDateError;
       return;
     }
-    if (this.errorMessage === 'Please select today or a future date.') {
+    if (this.interviewGapError) {
+      this.errorMessage = this.interviewGapError;
+      return;
+    }
+    if (
+      this.errorMessage === 'Please select today or a future date.'
+      || this.errorMessage === 'Interview time must be at least 2 hours after aptitude assessment time.'
+    ) {
+      this.errorMessage = '';
+    }
+  }
+
+  onScheduleTimeChange(value: string): void {
+    this.scheduledTime = value;
+    if (this.interviewGapError) {
+      this.errorMessage = this.interviewGapError;
+      return;
+    }
+    if (this.errorMessage === 'Interview time must be at least 2 hours after aptitude assessment time.') {
+      this.errorMessage = '';
+    }
+  }
+
+  toggleAptitudeAssessment(value: boolean): void {
+    this.includeAptitudeAssessment = value;
+    this.errorMessage = '';
+    if (value) {
+      this.ensureDefaultAptitudeTemplate();
+      if (!this.aptitudeDate || !this.aptitudeTime) {
+        const suggested = this.buildSuggestedAptitudeDateTime();
+        this.aptitudeDate = suggested.date;
+        this.aptitudeTime = suggested.time;
+      }
+      return;
+    }
+    this.aptitudeDate = '';
+    this.aptitudeTime = '';
+  }
+
+  onAptitudeDateChange(value: string): void {
+    this.aptitudeDate = value;
+    if (this.aptitudeScheduleError) {
+      this.errorMessage = this.aptitudeScheduleError;
+      return;
+    }
+    if (
+      this.errorMessage.startsWith('Aptitude assessment time')
+      || this.errorMessage === 'Interview time must be at least 2 hours after aptitude assessment time.'
+    ) {
+      this.errorMessage = '';
+    }
+  }
+
+  onAptitudeTimeChange(value: string): void {
+    this.aptitudeTime = value;
+    if (this.aptitudeScheduleError) {
+      this.errorMessage = this.aptitudeScheduleError;
+      return;
+    }
+    if (this.errorMessage.startsWith('Aptitude assessment time') || this.errorMessage === 'Interview time must be at least 2 hours after aptitude assessment time.') {
       this.errorMessage = '';
     }
   }
@@ -595,23 +767,23 @@ export class WorkflowAction {
   }
 
   saveSchedule(): void {
-    if (this.isPastScheduleDate()) {
-      this.errorMessage = 'Please select today or a future date.';
-      return;
-    }
     if (!this.canSubmitSchedule) {
-      this.errorMessage = this.interviewType === 'manual'
-        ? 'Select candidate, interview type, evaluator, and a confirmed interview time.'
-        : 'Select candidate, interview type, and a confirmed interview time.';
+      this.errorMessage = this.scheduleSubmitBlocker || 'Complete the required schedule fields.';
       return;
     }
-    this.submitWorkflowUpdate({
+    const payload: Record<string, unknown> = {
       mode: 'schedule',
       interview_ids: [this.selectedInterviewId],
       interviewer_id: this.selectedEvaluatorId,
       interview_type: this.interviewType,
       scheduled_at: this.combineDateTime(),
-    });
+    };
+    if (this.includeAptitudeAssessment) {
+      payload['include_aptitude_assessment'] = true;
+      payload['aptitude_scheduled_at'] = this.aptitudeScheduledAt;
+      payload['aptitude_template_id'] = this.selectedAptitudeTemplateId;
+    }
+    this.submitWorkflowUpdate(payload);
   }
 
   saveBulkAssign(): void {
@@ -971,10 +1143,11 @@ export class WorkflowAction {
         }
         const updatedCount = response?.Data?.updated_count || 0;
         const notificationResults = response?.Data?.notifications || [];
+        const aptitudeScheduled = (response?.Data?.items || []).some((item: any) => !!item?.aptitude_assignment_id);
         const notificationQueued = notificationResults.some((item: any) => !!item?.result?.queued);
         const notificationSent = notificationResults.some((item: any) => !!item?.result?.sent);
         const successMessage = this.mode === 'schedule'
-          ? `Interview scheduled${notificationQueued ? ' and follow-up notifications queued' : (notificationSent ? ' and candidate notification sent' : '')}.`
+          ? `Interview scheduled${aptitudeScheduled ? ' with aptitude assessment' : ''}${notificationQueued ? ' and follow-up notifications queued' : (notificationSent ? ' and candidate notification sent' : '')}.`
           : `${updatedCount} candidate record${updatedCount === 1 ? '' : 's'} updated successfully.`;
         this.successMessage = successMessage;
         this.toast.showSuccess(this.mode === 'schedule' ? 'Interview scheduled' : 'Workflow updated', successMessage);
@@ -1002,6 +1175,31 @@ export class WorkflowAction {
 
   private combineDateTime(): string {
     return `${this.scheduledDate}T${this.scheduledTime}`;
+  }
+
+  private combineAptitudeDateTime(): string {
+    return this.aptitudeDate && this.aptitudeTime ? `${this.aptitudeDate}T${this.aptitudeTime}` : '';
+  }
+
+  private ensureDefaultAptitudeTemplate(): void {
+    if (this.selectedAptitudeTemplateId || !this.aptitudeTemplates.length) {
+      return;
+    }
+    const preferred = this.aptitudeTemplates.find((template) => template.title === 'General Aptitude Test')
+      || this.aptitudeTemplates[0];
+    this.selectedAptitudeTemplateId = preferred.id;
+  }
+
+  private buildSuggestedAptitudeDateTime(): { date: string; time: string } {
+    const interviewTime = this.parseDate(this.combineDateTime());
+    const now = new Date();
+    const base = interviewTime
+      ? new Date(interviewTime.getTime() - 2 * 60 * 60_000)
+      : new Date(now.getTime() + 60 * 60_000);
+    const adjusted = base.getTime() < now.getTime()
+      ? this.roundUpToStep(new Date(now.getTime() + 5 * 60_000), 5)
+      : base;
+    return { date: this.toLocalDateString(adjusted), time: this.toLocalTimeString(adjusted) };
   }
 
   private buildAvailabilityInsight(candidate: WorkflowCandidate): AvailabilityInsight {

@@ -40,7 +40,7 @@ from smartInterviewApp.services.aptitude_assignments import (
     get_default_aptitude_template,
     validate_template_readiness,
 )
-from smartInterviewApp.services.aptitude_scoring import score_assignment
+from smartInterviewApp.services.aptitude_scoring import mark_aptitude_assignment_expired_if_needed, score_assignment
 from smartInterviewApp.services.interview_calls import InterviewCallService
 from smartInterviewApp.webhooks.services import WebhookService
 
@@ -128,6 +128,9 @@ def serialize_aptitude_assignment(assignment, questions_created=None):
         'total_questions': assignment.total_questions,
         'total_marks': float(assignment.total_marks),
         'passing_score_percent': float(assignment.passing_score_percent),
+        'scheduled_at': assignment.scheduled_at.isoformat() if assignment.scheduled_at else None,
+        'started_at': assignment.started_at.isoformat() if assignment.started_at else None,
+        'expires_at': assignment.expires_at.isoformat() if assignment.expires_at else None,
     }
     if questions_created is not None:
         payload['questions_created'] = questions_created
@@ -210,17 +213,52 @@ def get_assignment_by_token(public_token):
     )
 
 
-def mark_expired_if_needed(assignment, *, now=None):
-    now = now or timezone.now()
-    if (
-        assignment.status == AptitudeTestAssignment.Status.IN_PROGRESS
-        and assignment.expires_at
-        and now > assignment.expires_at
-    ):
-        assignment.status = AptitudeTestAssignment.Status.EXPIRED
-        assignment.save(update_fields=['status', 'updated_at'])
-        return True
-    return assignment.status == AptitudeTestAssignment.Status.EXPIRED
+class AptitudeRuntimeAccessError(Exception):
+    def __init__(self, code, message, status_code):
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+
+def aptitude_runtime_error_response(exc):
+    return api_response(
+        False,
+        data={'code': exc.code},
+        error={'code': exc.code, 'message': exc.message},
+        status_code=exc.status_code,
+    )
+
+
+def resolve_aptitude_runtime_assignment(request, public_token):
+    assignment = get_assignment_by_token(public_token)
+    if not assignment:
+        raise AptitudeRuntimeAccessError(
+            'assignment_not_found',
+            'Aptitude assignment not found.',
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        raise AptitudeRuntimeAccessError(
+            'authentication_required',
+            'Authentication is required to access this aptitude assignment.',
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+    assigned_candidate_id = assignment.candidate_id
+    if not assigned_candidate_id and assignment.interview_id:
+        assigned_candidate_id = getattr(assignment.interview, 'candidate_id', None)
+
+    if not assigned_candidate_id or user.id != assigned_candidate_id:
+        raise AptitudeRuntimeAccessError(
+            'candidate_not_assigned',
+            'This aptitude assignment is not assigned to the authenticated candidate.',
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    return assignment
 
 
 def runtime_time_remaining_seconds(assignment, *, now=None):
@@ -230,25 +268,84 @@ def runtime_time_remaining_seconds(assignment, *, now=None):
     return max(0, int((assignment.expires_at - now).total_seconds()))
 
 
+def runtime_answered_count(assignment):
+    return assignment.answers.count()
+
+
+def runtime_question_count(assignment):
+    return assignment.questions.count()
+
+
+def runtime_question_totals(assignment):
+    questions = list(assignment.questions.select_related('section'))
+    total_marks = sum((question.marks for question in questions), 0)
+    return {
+        'question_count': len(questions),
+        'total_marks': total_marks,
+    }
+
+
+def candidate_display_name(candidate):
+    if not candidate:
+        return None
+    full_name = candidate.get_full_name().strip()
+    return full_name or candidate.username or None
+
+
+def serialize_runtime_section_config(assignment):
+    config = {
+        code: dict(value)
+        for code, value in (assignment.section_config or {}).items()
+        if isinstance(value, dict)
+    }
+    actual_counts = {}
+    for question in assignment.questions.select_related('section'):
+        section = question.section
+        code = section.code if section else 'unassigned'
+        actual_counts[code] = actual_counts.get(code, 0) + 1
+        if code not in config:
+            config[code] = {
+                'section_name': section.name if section else 'Unassigned',
+                'order_index': section.default_order if section else 0,
+                'difficulty_mix': {},
+                'marks_per_question': float(question.marks),
+            }
+
+    for code, item in config.items():
+        item['configured_question_count'] = item.get('question_count', 0)
+        item['question_count'] = actual_counts.get(code, 0)
+    return config
+
+
 def serialize_runtime_status(assignment):
     now = timezone.now()
     time_remaining = runtime_time_remaining_seconds(assignment, now=now)
     status_value = assignment.status
+    totals = runtime_question_totals(assignment)
+    question_count = totals['question_count']
+    answered_count = runtime_answered_count(assignment)
+    candidate = assignment.candidate
     return {
         'id': assignment.id,
         'title': assignment.title,
         'status': status_value,
         'duration_minutes': assignment.duration_minutes,
-        'total_questions': assignment.total_questions,
-        'total_marks': float(assignment.total_marks),
+        'configured_total_questions': assignment.total_questions,
+        'total_questions': question_count,
+        'configured_total_marks': float(assignment.total_marks),
+        'total_marks': float(totals['total_marks']),
         'passing_score_percent': float(assignment.passing_score_percent),
         'started_at': assignment.started_at.isoformat() if assignment.started_at else None,
         'submitted_at': assignment.submitted_at.isoformat() if assignment.submitted_at else None,
         'expires_at': assignment.expires_at.isoformat() if assignment.expires_at else None,
         'time_remaining_seconds': time_remaining,
+        'answered_count': answered_count,
+        'question_count': question_count,
         'can_start': status_value == AptitudeTestAssignment.Status.ASSIGNED,
         'can_resume': status_value == AptitudeTestAssignment.Status.IN_PROGRESS and (time_remaining is None or time_remaining > 0),
-        'can_submit': status_value == AptitudeTestAssignment.Status.IN_PROGRESS,
+        'can_submit': status_value == AptitudeTestAssignment.Status.IN_PROGRESS and (time_remaining is None or time_remaining > 0),
+        'candidate_name': candidate_display_name(candidate),
+        'candidate_email': (candidate.email or None) if candidate else None,
     }
 
 
@@ -272,6 +369,8 @@ def serialize_runtime_question(question, answer=None):
 
 
 def serialize_runtime_result(result, assignment):
+    if not result:
+        return None
     return {
         'score_percent': float(result.score_percent),
         'passed': result.passed,
@@ -400,6 +499,25 @@ class AptitudeTemplateReadinessApi(APIView):
         return api_response(True, data={
             'template': serialize_aptitude_template(template),
             'readiness': validate_template_readiness(template),
+        })
+
+
+class AptitudeTemplateListApi(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not is_aptitude_workspace_user(request.user):
+            return api_response(False, error='Aptitude workspace access is required.', status_code=status.HTTP_403_FORBIDDEN)
+
+        templates = AptitudeTestTemplate.objects.filter(is_active=True).order_by('title', 'id')
+        return api_response(True, data={
+            'templates': [
+                {
+                    **serialize_aptitude_template(template),
+                    'readiness': validate_template_readiness(template),
+                }
+                for template in templates
+            ],
         })
 
 
@@ -537,28 +655,28 @@ class AptitudeAssignmentResultApi(APIView):
 
 class AptitudeRuntimeStatusApi(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
 
     def get(self, request, public_token: str):
-        assignment = get_assignment_by_token(public_token)
-        if not assignment:
-            return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
-        mark_expired_if_needed(assignment)
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
+        mark_aptitude_assignment_expired_if_needed(assignment)
         assignment.refresh_from_db()
         return api_response(True, data={'assignment': serialize_runtime_status(assignment)})
 
 
 class AptitudeRuntimeStartApi(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
 
     @transaction.atomic
     def post(self, request, public_token: str):
-        assignment = get_assignment_by_token(public_token)
-        if not assignment:
-            return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
 
-        if mark_expired_if_needed(assignment):
+        if mark_aptitude_assignment_expired_if_needed(assignment):
             assignment.refresh_from_db()
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -576,14 +694,15 @@ class AptitudeRuntimeStartApi(APIView):
 
 class AptitudeRuntimeQuestionsApi(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
 
     def get(self, request, public_token: str):
-        assignment = get_assignment_by_token(public_token)
-        if not assignment:
-            return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
-        if mark_expired_if_needed(assignment):
-            assignment.refresh_from_db()
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
+        mark_aptitude_assignment_expired_if_needed(assignment)
+        assignment.refresh_from_db()
+        if assignment.status == AptitudeTestAssignment.Status.EXPIRED:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
         if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment is not in progress.', status_code=status.HTTP_400_BAD_REQUEST)
@@ -598,25 +717,28 @@ class AptitudeRuntimeQuestionsApi(APIView):
         ]
         return api_response(True, data={
             'assignment': serialize_runtime_status(assignment),
-            'section_config': assignment.section_config,
+            'section_config': serialize_runtime_section_config(assignment),
             'questions': questions,
+            'answered_count': runtime_answered_count(assignment),
+            'time_remaining_seconds': runtime_time_remaining_seconds(assignment),
         })
 
 
 class AptitudeRuntimeAnswerApi(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
 
     @transaction.atomic
     def post(self, request, public_token: str):
-        assignment = get_assignment_by_token(public_token)
-        if not assignment:
-            return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
-        if mark_expired_if_needed(assignment):
-            assignment.refresh_from_db()
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
+        mark_aptitude_assignment_expired_if_needed(assignment)
+        assignment.refresh_from_db()
+        if assignment.status == AptitudeTestAssignment.Status.EXPIRED:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
         if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS:
-            return api_response(False, error='Answers can only be saved while the aptitude assignment is in progress.', status_code=status.HTTP_400_BAD_REQUEST)
+            return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Answers can only be saved while the aptitude assignment is in progress.', status_code=status.HTTP_400_BAD_REQUEST)
 
         payload = request.data if isinstance(request.data, dict) else {}
         try:
@@ -636,6 +758,9 @@ class AptitudeRuntimeAnswerApi(APIView):
             defaults={'answer_payload': answer_payload},
         )
         return api_response(True, data={
+            'saved': True,
+            'answered_count': runtime_answered_count(assignment),
+            'time_remaining_seconds': runtime_time_remaining_seconds(assignment),
             'answer': {
                 'id': answer.id,
                 'question_id': question.id,
@@ -648,16 +773,24 @@ class AptitudeRuntimeAnswerApi(APIView):
 
 class AptitudeRuntimeSubmitApi(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
 
     @transaction.atomic
     def post(self, request, public_token: str):
-        assignment = get_assignment_by_token(public_token)
-        if not assignment:
-            return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
-        if mark_expired_if_needed(assignment):
-            assignment.refresh_from_db()
-            return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
+
+        mark_aptitude_assignment_expired_if_needed(assignment)
+        assignment.refresh_from_db()
+        if assignment.status in {AptitudeTestAssignment.Status.SUBMITTED, AptitudeTestAssignment.Status.EXPIRED}:
+            result = get_assignment_result(assignment)
+            if not result:
+                result = score_assignment(assignment)
+            return api_response(True, data={
+                'assignment': serialize_runtime_status(assignment),
+                'result': serialize_runtime_result(result, assignment),
+            })
         if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Only in-progress aptitude assignments can be submitted.', status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -666,17 +799,22 @@ class AptitudeRuntimeSubmitApi(APIView):
         assignment.submitted_at = now
         assignment.save(update_fields=['status', 'submitted_at', 'updated_at'])
         result = score_assignment(assignment)
-        return api_response(True, data={'result': serialize_runtime_result(result, assignment)})
+        return api_response(True, data={
+            'assignment': serialize_runtime_status(assignment),
+            'result': serialize_runtime_result(result, assignment),
+        })
 
 
 class AptitudeRuntimeIntegrityEventApi(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []
 
     def post(self, request, public_token: str):
-        assignment = get_assignment_by_token(public_token)
-        if not assignment:
-            return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
+        mark_aptitude_assignment_expired_if_needed(assignment)
+        assignment.refresh_from_db()
         if assignment.status in {
             AptitudeTestAssignment.Status.SUBMITTED,
             AptitudeTestAssignment.Status.EXPIRED,

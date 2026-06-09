@@ -479,6 +479,46 @@ option {
   gap: 12px;
 }
 
+.plan-guidance {
+  border: 1px solid rgba(83, 212, 255, 0.22);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(13, 48, 84, 0.76), rgba(8, 26, 50, 0.84)),
+    radial-gradient(circle at top right, rgba(51, 223, 247, 0.16), transparent 34%);
+  padding: 14px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.plan-guidance-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-grid;
+  place-items: center;
+  color: #061323;
+  background: linear-gradient(135deg, #33dff7, #58a7ff);
+}
+
+.plan-guidance strong {
+  display: block;
+  color: #f0fbff;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.plan-guidance small {
+  display: block;
+  margin-top: 4px;
+  color: #a7c8dd;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
 .type-toggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -522,6 +562,14 @@ option {
   box-shadow: inset 0 0 0 1px rgba(148, 235, 255, 0.1);
 }
 
+.type-toggle-btn:disabled,
+.aptitude-checkbox input:disabled,
+.schedule-input-card input:disabled,
+.schedule-input-card select:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .type-toggle-label {
   display: inline-flex;
   align-items: center;
@@ -537,6 +585,56 @@ option {
   color: #96bdd8;
   font-size: 0.76rem;
   line-height: 1.4;
+}
+
+.aptitude-option {
+  border: 1px solid rgba(128, 208, 240, 0.16);
+  border-radius: 16px;
+  background: rgba(8, 27, 52, 0.54);
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.aptitude-checkbox {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  cursor: pointer;
+}
+
+.aptitude-checkbox input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #33dff7;
+}
+
+.aptitude-checkbox strong {
+  display: block;
+  color: #f0fbff;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.aptitude-checkbox small,
+.aptitude-fields small {
+  display: block;
+  margin-top: 5px;
+  color: #96bdd8;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.aptitude-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.aptitude-fields select {
+  margin-bottom: 0;
 }
 
 .evaluator-search-block {
@@ -670,7 +768,8 @@ option {
     linear-gradient(180deg, rgba(88, 22, 31, 0.28), rgba(8, 27, 52, 0.76));
 }
 
-.schedule-input-card--invalid input[type="date"] {
+.schedule-input-card--invalid input,
+.schedule-input-card--invalid select {
   border-color: rgba(255, 93, 121, 0.52);
   box-shadow: 0 0 0 3px rgba(255, 93, 121, 0.10);
 }
@@ -1578,6 +1677,22 @@ option {
   gap: 12px;
   padding-top: 18px;
   border-top: 1px solid rgba(137, 206, 246, 0.12);
+}
+
+.workflow-action-helper {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  color: #a8cde3;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.workflow-action-helper i {
+  color: #7de2ff;
+  font-size: 0.95rem;
 }
 
 .secondary-btn,

@@ -211,6 +211,7 @@ def build_candidate_interview_email_context(
     *,
     notification_kind: str = 'scheduled',
     previous_scheduled_at=None,
+    aptitude_context: dict[str, object] | None = None,
 ) -> dict[str, object]:
     role_name = (interview.role.role or '').strip() if interview.role else 'your interview'
     recruiter_name = f"{interview.recruiter.first_name} {interview.recruiter.last_name}".strip().title() if interview.recruiter else 'Hiring Team'
@@ -230,10 +231,25 @@ def build_candidate_interview_email_context(
     if is_rescheduled and previous_date and previous_time:
         details.append({'label': 'Previous schedule', 'value': f'{previous_date} at {previous_time}'})
 
+    aptitude_required = bool(aptitude_context)
+    aptitude_scheduled_at = aptitude_context.get('aptitude_scheduled_at') if aptitude_context else None
+    aptitude_date, aptitude_time, aptitude_timezone = _format_interview_datetime(aptitude_scheduled_at)
+    aptitude_link = str(aptitude_context.get('aptitude_link') or '') if aptitude_context else ''
+    if aptitude_required:
+        details.extend([
+            {'label': 'Aptitude assessment time', 'value': f"{aptitude_date} at {aptitude_time} ({aptitude_timezone})" if aptitude_time else 'To be confirmed'},
+            {'label': 'Aptitude link', 'value': aptitude_link or 'To be shared'},
+        ])
+
     return build_email_base_context(
         request,
         recipient_name=_welcome_recipient_name(candidate),
         is_rescheduled=is_rescheduled,
+        aptitude_required=aptitude_required,
+        aptitude_assessment_date=aptitude_date,
+        aptitude_assessment_time=aptitude_time,
+        aptitude_timezone_label=aptitude_timezone,
+        aptitude_link=aptitude_link,
         role_name=role_name,
         recruiter_name=recruiter_name,
         interviewer_name=interviewer_name,
@@ -259,6 +275,7 @@ def send_candidate_interview_email(
     *,
     notification_kind: str = 'scheduled',
     previous_scheduled_at=None,
+    aptitude_context: dict[str, object] | None = None,
 ) -> dict[str, str | bool]:
     recipient = (candidate.email or '').strip().lower()
     if not recipient:
@@ -271,6 +288,7 @@ def send_candidate_interview_email(
         interview_link,
         notification_kind=notification_kind,
         previous_scheduled_at=previous_scheduled_at,
+        aptitude_context=aptitude_context,
     )
     subject_prefix = 'Interview Rescheduled' if notification_kind == 'rescheduled' else 'Interview Scheduled'
     subject = f"{subject_prefix}: {context['role_name']} | Shortlistii"

@@ -13,6 +13,13 @@ Recruiter: {{ recruiter_name }}
 Interviewer: {{ interviewer_name }}
 {% if is_rescheduled and previous_interview_date and previous_interview_time %}Previous Schedule: {{ previous_interview_date }} at {{ previous_interview_time }}
 {% endif %}
+{% if aptitude_required %}
+
+Please complete the aptitude assessment before your scheduled interview.
+Aptitude assessment time: {{ aptitude_assessment_date }} at {{ aptitude_assessment_time }}{% if aptitude_timezone_label %} ({{ aptitude_timezone_label }}){% endif %}
+Aptitude link:
+{{ aptitude_link }}
+{% endif %}
 
 Open Interview Link:
 {{ interview_link }}

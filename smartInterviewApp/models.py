@@ -1543,6 +1543,7 @@ class AptitudeTestAssignment(models.Model):
     total_marks = models.DecimalField(max_digits=7, decimal_places=2, default=100)
     passing_score_percent = models.DecimalField(max_digits=5, decimal_places=2, default=70)
     negative_marking_enabled = models.BooleanField(default=False)
+    scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True)
     started_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -1690,6 +1691,13 @@ class AptitudeIntegrityEvent(models.Model):
         DEVTOOLS_SUSPECTED = 'devtools_suspected', 'Devtools Suspected'
         NETWORK_RECONNECT = 'network_reconnect', 'Network Reconnect'
         CAMERA_MISSING = 'camera_missing', 'Camera Missing'
+        CAMERA_DISABLED = 'camera_disabled', 'Camera Disabled'
+        MICROPHONE_DISABLED = 'microphone_disabled', 'Microphone Disabled'
+        FACE_MISSING = 'face_missing', 'Face Missing'
+        GAZE_LOST = 'gaze_lost', 'Gaze Lost'
+        MULTIPLE_VOICE_SUSPECTED = 'multiple_voice_suspected', 'Multiple Voice Suspected'
+        VOICE_ACTIVITY_SUSPICIOUS = 'voice_activity_suspicious', 'Voice Activity Suspicious'
+        EXTERNAL_DEVICE_SUSPECTED = 'external_device_suspected', 'External Device Suspected'
 
     assignment = models.ForeignKey(AptitudeTestAssignment, on_delete=models.CASCADE, related_name='integrity_events')
     event_type = models.CharField(max_length=40, choices=EventType.choices, db_index=True)

@@ -117,10 +117,18 @@
         </div>
       </div>
 
-      <div class="workflow-column workflow-column--form">
+      <div class="workflow-column workflow-column--form" [class.workflow-column--locked]="!selectedCandidate">
         <div class="section-head">
           <h4><i class="ph ph-calendar-check"></i>Interview Plan</h4>
           <span *ngIf="selectedCandidate">{{ selectedCandidate.recruiter || 'Recruiter not assigned' }}</span>
+        </div>
+
+        <div class="plan-guidance" *ngIf="!selectedCandidate">
+          <span class="plan-guidance-icon"><i class="ph ph-user-focus"></i></span>
+          <div>
+            <strong>Select a candidate to continue</strong>
+            <small>Choose a candidate first so the interview type, evaluator, aptitude assessment, and schedule window are configured against the right profile.</small>
+          </div>
         </div>
 
         <label class="field-label"><i class="ph ph-sliders-horizontal"></i>Interview Type</label>
@@ -129,6 +137,7 @@
             type="button"
             class="type-toggle-btn"
             [class.active]="interviewType === 'auto'"
+            [disabled]="!selectedCandidate || saving"
             (click)="setInterviewType('auto')">
             <i class="ph ph-robot"></i>
             <span class="type-toggle-label">Auto Interview</span>
@@ -138,6 +147,7 @@
             type="button"
             class="type-toggle-btn"
             [class.active]="interviewType === 'manual'"
+            [disabled]="!selectedCandidate || saving"
             (click)="setInterviewType('manual')">
             <i class="ph ph-user-check"></i>
             <span class="type-toggle-label">Manual Interview</span>
@@ -145,19 +155,65 @@
           </button>
         </div>
 
+        <div class="aptitude-option">
+          <label class="aptitude-checkbox">
+            <input
+              type="checkbox"
+              [ngModel]="includeAptitudeAssessment"
+              (ngModelChange)="toggleAptitudeAssessment($event)"
+              [disabled]="!selectedCandidate || saving" />
+            <span>
+              <strong>Include an aptitude assessment before the interview</strong>
+              <small>The candidate will complete a timed aptitude assessment before joining the interview. The result will be included in the evaluation report.</small>
+            </span>
+          </label>
+          <div class="aptitude-fields schedule-grid" *ngIf="includeAptitudeAssessment">
+            <div class="schedule-input-card" [class.schedule-input-card--invalid]="!!aptitudeScheduleError">
+              <label class="field-label"><i class="ph ph-calendar-dots"></i>Aptitude assessment date</label>
+              <input
+                type="date"
+                [ngModel]="aptitudeDate"
+                (ngModelChange)="onAptitudeDateChange($event)"
+                [min]="minimumAptitudeDateString"
+                [disabled]="!selectedCandidate || saving" />
+              <small class="field-error" *ngIf="aptitudeScheduleError">{{ aptitudeScheduleError }}</small>
+            </div>
+            <div class="schedule-input-card" [class.schedule-input-card--invalid]="!!aptitudeScheduleError">
+              <label class="field-label"><i class="ph ph-timer"></i>Aptitude assessment time</label>
+              <input
+                type="time"
+                [ngModel]="aptitudeTime"
+                (ngModelChange)="onAptitudeTimeChange($event)"
+                [disabled]="!selectedCandidate || saving" />
+            </div>
+            <div class="schedule-input-card">
+              <label class="field-label"><i class="ph ph-clipboard-text"></i>Assessment template</label>
+              <select [(ngModel)]="selectedAptitudeTemplateId" [disabled]="!selectedCandidate || saving || loadingAptitudeTemplates">
+                <option [ngValue]="null">{{ loadingAptitudeTemplates ? 'Loading templates...' : 'Select assessment template' }}</option>
+                <option *ngFor="let template of aptitudeTemplates" [ngValue]="template.id">
+                  {{ template.title }}
+                </option>
+              </select>
+              <small *ngIf="selectedAptitudeTemplate as template">
+                {{ template.duration_minutes }} min · {{ template.total_questions }} questions
+              </small>
+            </div>
+          </div>
+        </div>
+
         <div class="evaluator-search-block" *ngIf="interviewType === 'manual'">
           <label class="field-label"><i class="ph ph-identification-badge"></i>Evaluator</label>
           <div
             class="field-shell evaluator-search-shell"
             [class.field-shell--active]="evaluatorSearchOpen"
-            [class.field-shell--disabled]="loadingEvaluators || saving"
+            [class.field-shell--disabled]="!selectedCandidate || loadingEvaluators || saving"
           >
             <i class="ph ph-magnifying-glass"></i>
             <input
               type="text"
               [(ngModel)]="evaluatorSearch"
               placeholder="Search evaluator by name, email, or recruiter"
-              [disabled]="loadingEvaluators || saving"
+              [disabled]="!selectedCandidate || loadingEvaluators || saving"
               (focus)="openEvaluatorSearch()"
               (blur)="closeEvaluatorSearch()"
               (ngModelChange)="onEvaluatorSearchChange()" />
@@ -187,27 +243,28 @@
         <div class="schedule-composer">
           <div class="schedule-composer-head">
             <div>
-              <span class="field-label"><i class="ph ph-clock-countdown"></i>Schedule Window</span>
+              <span class="field-label"><i class="ph ph-clock-countdown"></i>Schedule interview window</span>
               <h5>Interview Slot</h5>
             </div>
             <i class="ph ph-calendar-blank"></i>
           </div>
           <div class="schedule-grid">
             <div class="schedule-input-card" [class.schedule-input-card--invalid]="!!scheduleDateError">
-              <label class="field-label"><i class="ph ph-calendar-dots"></i>Interview Date</label>
+              <label class="field-label"><i class="ph ph-calendar-dots"></i>Interview date</label>
               <input
                 type="date"
                 [ngModel]="scheduledDate"
                 (ngModelChange)="onScheduleDateChange($event)"
                 [min]="todayDateString"
-                [disabled]="saving"
+                [disabled]="!selectedCandidate || saving"
                 [attr.aria-invalid]="scheduleDateError ? 'true' : null"
                 [attr.aria-describedby]="scheduleDateError ? 'schedule-date-error' : null" />
               <small id="schedule-date-error" class="field-error" *ngIf="scheduleDateError">{{ scheduleDateError }}</small>
             </div>
             <div class="schedule-input-card">
-              <label class="field-label"><i class="ph ph-clock"></i>Interview Time</label>
-              <input type="time" [(ngModel)]="scheduledTime" [disabled]="saving" />
+              <label class="field-label"><i class="ph ph-clock"></i>Interview time</label>
+              <input type="time" [ngModel]="scheduledTime" (ngModelChange)="onScheduleTimeChange($event)" [disabled]="!selectedCandidate || saving" />
+              <small class="field-error" *ngIf="interviewGapError">{{ interviewGapError }}</small>
             </div>
           </div>
         </div>
@@ -374,6 +431,10 @@
       <i class="ph" [class.ph-calendar-plus]="mode === 'schedule'" [class.ph-user-plus]="mode !== 'schedule'"></i>
       {{ saving ? 'Saving...' : (mode === 'schedule' ? 'Schedule Interview' : 'Assign Evaluator') }}
     </button>
+  </div>
+  <div class="workflow-action-helper" *ngIf="mode === 'schedule' && scheduleSubmitBlocker && !saving">
+    <i class="ph ph-info"></i>
+    <span>{{ scheduleSubmitBlocker }}</span>
   </div>
 
   <div class="workflow-actions" *ngIf="mode === 'evaluation-reviews'">

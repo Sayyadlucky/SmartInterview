@@ -45,7 +45,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from .models import Interview
+from .models import AptitudeTestAssignment, Interview
 from .models import UserNotificationPreference, UserProfile, Vacancies
 from django.db import DatabaseError, transaction
 from django.db.models import Count, Case, When, CharField, Value, Q, F, Max, Min, DateTimeField
@@ -742,6 +742,12 @@ def build_litio_interview_link(request, interview: Interview) -> tuple[str, str]
     token = ensure_litio_interview_token(interview)
     base_url = getattr(settings, 'LITIO_PUBLIC_BASE_URL', 'https://litio.shortlistii.com').rstrip('/')
     return token, f'{base_url}/i/{token}'
+
+
+def build_litio_aptitude_link(request, assignment: AptitudeTestAssignment) -> tuple[str, str]:
+    token = (assignment.public_token or '').strip()
+    base_url = getattr(settings, 'LITIO_PUBLIC_BASE_URL', 'https://litio.shortlistii.com').rstrip('/')
+    return token, f'{base_url}/aptitude/{token}/'
 
 
 def build_candidate_details(candidate: Interview, request=None) -> dict:
@@ -2410,6 +2416,7 @@ def send_existing_candidate_sms(
     *,
     notification_kind: str = 'scheduled',
     previous_scheduled_at=None,
+    aptitude_context: dict | None = None,
 ) -> dict:
     profile = getattr(candidate, 'profile', None)
     phone = normalize_phone(profile.phone if profile else '')
@@ -2424,6 +2431,19 @@ def send_existing_candidate_sms(
         'interview_date': interview_date,
         'interview_time': interview_time,
     })
+    if aptitude_context:
+        aptitude_dt = aptitude_context.get('aptitude_scheduled_at')
+        aptitude_date, aptitude_time = format_interview_schedule(aptitude_dt) if aptitude_dt else ('', '')
+        aptitude_link = aptitude_context.get('aptitude_link') or ''
+        message = (
+            f"{message}\n\n"
+            f"Please complete the aptitude assessment before your scheduled interview.\n"
+            f"Aptitude assessment time: {' '.join(part for part in [aptitude_date, aptitude_time] if part) or 'To be confirmed'}\n"
+            f"Aptitude link: {aptitude_link}\n"
+            f"Interview link: {interview_link}"
+        ).strip()
+    aptitude_sms_result = None
+    aptitude_whatsapp_result = None
     if phone:
         sms_result = send_sms(phone, message, metadata={
             'event_type': 'candidate_interview_created',
@@ -2445,6 +2465,48 @@ def send_existing_candidate_sms(
             ],
             metadata={'event_type': 'candidate_interview_created', 'interview_id': interview.id},
         )
+        if aptitude_context:
+            aptitude_dt = aptitude_context.get('aptitude_scheduled_at')
+            aptitude_date, aptitude_time = format_interview_schedule(aptitude_dt) if aptitude_dt else ('', '')
+            aptitude_time_label = ' '.join(part for part in [aptitude_date, aptitude_time] if part) or 'To be confirmed'
+            aptitude_link = aptitude_context.get('aptitude_link') or ''
+            aptitude_message = (
+                f"Hello {(candidate.first_name or 'Candidate').strip().title()},\n\n"
+                f"Please complete the aptitude assessment for {role_name} before your scheduled interview.\n\n"
+                f"Aptitude assessment time: {aptitude_time_label}\n"
+                f"Aptitude link: {aptitude_link}\n"
+                f"Interview link: {interview_link}\n\n"
+                f"Regards,\nTeam Shortlistii.com"
+            )
+            aptitude_sms_result = send_sms(phone, aptitude_message, metadata={
+                'event_type': 'candidate_aptitude_assessment_created',
+                'interview_id': interview.id,
+                'aptitude_assignment_id': aptitude_context.get('aptitude_assignment_id'),
+                'msg91_template_id': getattr(settings, 'MSG91_APTITUDE_TEMPLATE_ID', ''),
+                'msg91_flow_variables': {
+                    'name': (candidate.first_name or 'Candidate').strip().title(),
+                    'role': role_name,
+                    'aptitude_time': aptitude_time_label,
+                    'aptitude_link': aptitude_link,
+                    'interview_link': interview_link,
+                },
+            })
+            aptitude_whatsapp_result = send_candidate_whatsapp_notification(
+                phone=phone,
+                template_name=getattr(settings, 'CANDIDATE_APTITUDE_WHATSAPP_TEMPLATE', 'candidate_aptitude_assessment_created'),
+                parameters=[
+                    (candidate.first_name or 'Candidate').strip().title(),
+                    role_name,
+                    aptitude_time_label,
+                    aptitude_link,
+                    interview_link,
+                ],
+                metadata={
+                    'event_type': 'candidate_aptitude_assessment_created',
+                    'interview_id': interview.id,
+                    'aptitude_assignment_id': aptitude_context.get('aptitude_assignment_id'),
+                },
+            )
     else:
         sms_result = type('SmsResult', (), {
             'success': False,
@@ -2457,6 +2519,14 @@ def send_existing_candidate_sms(
             'provider_message_id': '',
             'template_name': getattr(settings, 'CANDIDATE_EXISTING_WHATSAPP_TEMPLATE', 'candidate_interview_created'),
         }
+        if aptitude_context:
+            aptitude_sms_result = sms_result
+            aptitude_whatsapp_result = {
+                'sent': False,
+                'reason': 'Candidate phone number is missing.',
+                'provider_message_id': '',
+                'template_name': getattr(settings, 'CANDIDATE_APTITUDE_WHATSAPP_TEMPLATE', 'candidate_aptitude_assessment_created'),
+            }
     email_result = send_candidate_interview_email(
         request,
         candidate,
@@ -2464,27 +2534,47 @@ def send_existing_candidate_sms(
         interview_link,
         notification_kind=notification_kind,
         previous_scheduled_at=previous_scheduled_at,
+        aptitude_context=aptitude_context,
     )
     failures: list[str] = []
     if not sms_result.success:
         failures.append(sms_result.error_message or 'SMS delivery failed.')
     if not whatsapp_result['sent']:
         failures.append(whatsapp_result['reason'] or 'WhatsApp delivery failed.')
+    if aptitude_sms_result is not None and not aptitude_sms_result.success:
+        failures.append(aptitude_sms_result.error_message or 'Aptitude SMS delivery failed.')
+    if aptitude_whatsapp_result is not None and not aptitude_whatsapp_result['sent']:
+        failures.append(aptitude_whatsapp_result['reason'] or 'Aptitude WhatsApp delivery failed.')
     if not email_result['sent']:
         failures.append(str(email_result.get('reason') or 'Email delivery failed.'))
+    channels = {
+        'sms': {
+            'sent': sms_result.success,
+            'reason': '' if sms_result.success else (sms_result.error_message or 'SMS delivery failed.'),
+            'provider_message_id': sms_result.provider_message_id,
+        },
+        'whatsapp': whatsapp_result,
+        'email': email_result,
+    }
+    if aptitude_sms_result is not None:
+        channels['aptitude_sms'] = {
+            'sent': aptitude_sms_result.success,
+            'reason': '' if aptitude_sms_result.success else (aptitude_sms_result.error_message or 'Aptitude SMS delivery failed.'),
+            'provider_message_id': aptitude_sms_result.provider_message_id,
+        }
+    if aptitude_whatsapp_result is not None:
+        channels['aptitude_whatsapp'] = aptitude_whatsapp_result
     return {
-        'sent': sms_result.success or whatsapp_result['sent'] or bool(email_result['sent']),
+        'sent': (
+            sms_result.success
+            or whatsapp_result['sent']
+            or bool(email_result['sent'])
+            or bool(aptitude_sms_result and aptitude_sms_result.success)
+            or bool(aptitude_whatsapp_result and aptitude_whatsapp_result['sent'])
+        ),
         'reason': ' '.join(part for part in failures if part).strip(),
         'provider_message_id': sms_result.provider_message_id,
-        'channels': {
-            'sms': {
-                'sent': sms_result.success,
-                'reason': '' if sms_result.success else (sms_result.error_message or 'SMS delivery failed.'),
-                'provider_message_id': sms_result.provider_message_id,
-            },
-            'whatsapp': whatsapp_result,
-            'email': email_result,
-        },
+        'channels': channels,
         'message': message,
         'interview_token': interview_token,
         'interview_link': interview_link,
