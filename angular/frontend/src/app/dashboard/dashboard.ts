@@ -2344,10 +2344,49 @@ isInterviewLinkMenuOpen(candidate: any): boolean {
   return this.activeInterviewLinkMenuId === Number(candidate?.id || 0);
 }
 
+getCandidateActionLink(candidate: any): string {
+  return (candidate?.candidate_action_link || candidate?.interview_link || '').toString().trim();
+}
+
+getCandidateActionLinkType(candidate: any): 'aptitude' | 'interview' {
+  return candidate?.candidate_action_link_type === 'aptitude' ? 'aptitude' : 'interview';
+}
+
+getCandidateActionLinkLabel(candidate: any): string {
+  const label = (candidate?.candidate_action_link_label || '').toString().trim();
+  if (label) {
+    return label;
+  }
+  return this.getCandidateActionLinkType(candidate) === 'aptitude' ? 'Aptitude Test Link' : 'Interview Link';
+}
+
+getCandidateActionLinkIcon(candidate: any): string {
+  return this.getCandidateActionLinkType(candidate) === 'aptitude' ? 'ph-clipboard-text' : 'ph-video-camera';
+}
+
+getCandidateActionCopySuccessTitle(candidate: any): string {
+  return this.getCandidateActionLinkType(candidate) === 'aptitude' ? 'Aptitude link copied' : 'Interview link copied';
+}
+
+getCandidateActionCopyLabel(candidate: any): string {
+  return this.getCandidateActionLinkType(candidate) === 'aptitude' ? 'Copy Aptitude Link' : 'Copy Interview Link';
+}
+
+getCandidateActionVisitLabel(candidate: any): string {
+  return this.getCandidateActionLinkType(candidate) === 'aptitude' ? 'Open Aptitude Test' : 'Visit Interview Link';
+}
+
+getCandidateActionEmailLabel(candidate: any): string {
+  if (this.resendingInterviewEmailId === Number(candidate?.id || 0)) {
+    return 'Sending...';
+  }
+  return this.getCandidateActionLinkType(candidate) === 'aptitude' ? 'Send Schedule Email' : 'Send Email';
+}
+
 toggleInterviewLinkMenu(candidate: any, event?: Event): void {
   event?.preventDefault();
   event?.stopPropagation();
-  if (!candidate?.interview_link) {
+  if (!this.getCandidateActionLink(candidate)) {
     return;
   }
   const candidateId = Number(candidate?.id || 0);
@@ -2364,17 +2403,17 @@ closeInterviewLinkMenu(): void {
 copyInterviewLink(candidate: any, event?: Event): void {
   event?.preventDefault();
   event?.stopPropagation();
-  const link = (candidate?.interview_link || '').toString().trim();
+  const link = this.getCandidateActionLink(candidate);
   if (!link) {
     return;
   }
 
   const handleSuccess = () => {
-    this.toast.showSuccess('Interview link copied', `${candidate?.name || 'Candidate'} link copied to clipboard.`);
+    this.toast.showSuccess(this.getCandidateActionCopySuccessTitle(candidate), `${candidate?.name || 'Candidate'} link copied to clipboard.`);
     this.closeInterviewLinkMenu();
   };
   const handleFailure = () => {
-    this.toast.showError('Copy failed', 'Unable to copy the interview link right now.');
+    this.toast.showError('Copy failed', `Unable to copy the ${this.getCandidateActionLinkType(candidate)} link right now.`);
   };
 
   if (navigator?.clipboard?.writeText) {
@@ -2398,7 +2437,7 @@ copyInterviewLink(candidate: any, event?: Event): void {
 visitInterviewLink(candidate: any, event?: Event): void {
   event?.preventDefault();
   event?.stopPropagation();
-  const link = (candidate?.interview_link || '').toString().trim();
+  const link = this.getCandidateActionLink(candidate);
   if (!link) {
     return;
   }

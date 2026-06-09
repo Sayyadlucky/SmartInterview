@@ -48,7 +48,7 @@ from django.urls import reverse
 from .models import AptitudeTestAssignment, Interview
 from .models import UserNotificationPreference, UserProfile, Vacancies
 from django.db import DatabaseError, transaction
-from django.db.models import Count, Case, When, CharField, Value, Q, F, Max, Min, DateTimeField
+from django.db.models import Count, Case, When, CharField, Value, Q, F, Max, Min, DateTimeField, Prefetch
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
 from smartInterviewApp.integrations.providers.exotel import ExotelVoiceProvider
@@ -750,6 +750,77 @@ def build_litio_aptitude_link(request, assignment: AptitudeTestAssignment) -> tu
     return token, f'{base_url}/aptitude/{token}/'
 
 
+def _dashboard_status_label(value: str) -> str:
+    return (value or '').replace('_', ' ').replace('-', ' ').title()
+
+
+def _latest_interview_aptitude_assignment(interview: Interview) -> AptitudeTestAssignment | None:
+    cache = getattr(interview, '_prefetched_objects_cache', {})
+    if 'aptitude_test_assignments' in cache:
+        assignments = list(interview.aptitude_test_assignments.all())
+        return assignments[0] if assignments else None
+    return interview.aptitude_test_assignments.order_by('-created_at', '-id').first()
+
+
+def _candidate_interview_action_context(request, interview: Interview, status_label: str = '') -> dict:
+    interview_token, interview_link = build_litio_interview_link(request, interview)
+    aptitude_assignment = _latest_interview_aptitude_assignment(interview)
+    action_context = {
+        'interview_token': interview_token,
+        'interview_link': interview_link,
+        'aptitude_assignment_id': None,
+        'aptitude_status': '',
+        'aptitude_status_label': '',
+        'aptitude_scheduled_at': None,
+        'aptitude_public_token': '',
+        'aptitude_link': '',
+        'aptitude_pending': False,
+        'action_link': interview_link,
+        'action_link_type': 'interview',
+        'action_link_label': 'Join Interview',
+        'action_link_icon': 'ph-video-camera',
+        'action_link_status_label': status_label or _dashboard_status_label(interview.status),
+    }
+
+    if not aptitude_assignment:
+        return action_context
+
+    aptitude_public_token, aptitude_link = build_litio_aptitude_link(request, aptitude_assignment)
+    aptitude_status = aptitude_assignment.status
+    aptitude_pending = aptitude_status in {
+        AptitudeTestAssignment.Status.ASSIGNED,
+        AptitudeTestAssignment.Status.IN_PROGRESS,
+    }
+    action_context.update({
+        'aptitude_assignment_id': aptitude_assignment.id,
+        'aptitude_status': aptitude_status,
+        'aptitude_status_label': aptitude_assignment.get_status_display(),
+        'aptitude_scheduled_at': aptitude_assignment.scheduled_at,
+        'aptitude_public_token': aptitude_public_token,
+        'aptitude_link': aptitude_link,
+        'aptitude_pending': aptitude_pending,
+    })
+
+    if aptitude_status == AptitudeTestAssignment.Status.ASSIGNED:
+        action_context.update({
+            'action_link': aptitude_link,
+            'action_link_type': 'aptitude',
+            'action_link_label': 'Start Aptitude Test',
+            'action_link_icon': 'ph-clipboard-text',
+            'action_link_status_label': 'Assessment Pending',
+        })
+    elif aptitude_status == AptitudeTestAssignment.Status.IN_PROGRESS:
+        action_context.update({
+            'action_link': aptitude_link,
+            'action_link_type': 'aptitude',
+            'action_link_label': 'Resume Aptitude Test',
+            'action_link_icon': 'ph-clipboard-text',
+            'action_link_status_label': 'Assessment In Progress',
+        })
+
+    return action_context
+
+
 def build_candidate_details(candidate: Interview, request=None) -> dict:
     candidate_profile = getattr(candidate.candidate, 'profile', None)
     recruiter_name = (
@@ -768,6 +839,39 @@ def build_candidate_details(candidate: Interview, request=None) -> dict:
         public_resume_url = request.build_absolute_uri(public_resume_url)
         public_resume_pdf_url = request.build_absolute_uri(public_resume_pdf_url)
     profile_picture_url = build_absolute_file_url(request, getattr(candidate_profile, 'profile_picture', None)) if request is not None else ''
+    aptitude_assignment = _latest_interview_aptitude_assignment(candidate)
+    aptitude_public_token = ''
+    aptitude_link = ''
+    aptitude_status = ''
+    aptitude_status_label = ''
+    aptitude_scheduled_at = None
+    aptitude_assignment_id = None
+    aptitude_pending = False
+    candidate_action_link = interview_link
+    candidate_action_link_type = 'interview'
+    candidate_action_link_label = 'Interview Link'
+    candidate_action_link_status_label = _dashboard_status_label(candidate.status)
+
+    if aptitude_assignment:
+        aptitude_assignment_id = aptitude_assignment.id
+        aptitude_status = aptitude_assignment.status
+        aptitude_status_label = aptitude_assignment.get_status_display()
+        aptitude_scheduled_at = aptitude_assignment.scheduled_at
+        aptitude_public_token, aptitude_link = build_litio_aptitude_link(request, aptitude_assignment)
+        aptitude_pending = aptitude_status in {
+            AptitudeTestAssignment.Status.ASSIGNED,
+            AptitudeTestAssignment.Status.IN_PROGRESS,
+        }
+        if aptitude_pending:
+            candidate_action_link = aptitude_link
+            candidate_action_link_type = 'aptitude'
+            candidate_action_link_label = 'Aptitude Test Link'
+            candidate_action_link_status_label = (
+                'Assessment In Progress'
+                if aptitude_status == AptitudeTestAssignment.Status.IN_PROGRESS
+                else 'Assessment Pending'
+            )
+
     return {
         'id': candidate.id,
         'name': f"{candidate.candidate.first_name} {candidate.candidate.last_name}".strip().title(),
@@ -789,6 +893,17 @@ def build_candidate_details(candidate: Interview, request=None) -> dict:
         'role_id': candidate.role.id if candidate.role else None,
         'interview_token': interview_token,
         'interview_link': interview_link,
+        'aptitude_assignment_id': aptitude_assignment_id,
+        'aptitude_status': aptitude_status,
+        'aptitude_status_label': aptitude_status_label,
+        'aptitude_scheduled_at': aptitude_scheduled_at,
+        'aptitude_public_token': aptitude_public_token,
+        'aptitude_link': aptitude_link,
+        'aptitude_pending': aptitude_pending,
+        'candidate_action_link': candidate_action_link,
+        'candidate_action_link_type': candidate_action_link_type,
+        'candidate_action_link_label': candidate_action_link_label,
+        'candidate_action_link_status_label': candidate_action_link_status_label,
         'public_resume_url': public_resume_url,
         'public_profile_url': public_resume_url,
         'public_resume_pdf_url': public_resume_pdf_url,
@@ -829,7 +944,7 @@ def get_admin_for_user(user: User) -> User | None:
 
 def get_accessible_interviews(request_user: User):
     role = get_user_role(request_user)
-    base_qs = Interview.objects.select_related('candidate', 'recruiter', 'interviewer', 'role')
+    base_qs = Interview.objects.select_related('candidate', 'recruiter', 'interviewer', 'role').prefetch_related('aptitude_test_assignments')
     if role == 'admin':
         return base_qs.filter(hr=request_user)
     if role == 'recruiter':
@@ -4596,6 +4711,10 @@ def build_candidate_dashboard_context(
     interviews = list(
         Interview.objects
         .select_related('role', 'recruiter', 'hr')
+        .prefetch_related(Prefetch(
+            'aptitude_test_assignments',
+            queryset=AptitudeTestAssignment.objects.order_by('-created_at', '-id'),
+        ))
         .filter(candidate=user)
         .order_by('-date', '-id')
     )
@@ -4626,8 +4745,20 @@ def build_candidate_dashboard_context(
     next_interview = next((item for item in sorted(interviews, key=lambda x: x.date or timezone.now()) if item.date and item.date >= timezone.now()), None)
     next_interview_token = ''
     next_interview_link = ''
+    next_action_link = ''
+    next_action_type = 'interview'
+    next_action_label = 'Join Interview'
+    next_action_icon = 'ph-video-camera'
+    next_action_status_label = ''
     if next_interview:
-        next_interview_token, next_interview_link = build_litio_interview_link(request, next_interview)
+        next_action_context = _candidate_interview_action_context(request, next_interview)
+        next_interview_token = next_action_context['interview_token']
+        next_interview_link = next_action_context['interview_link']
+        next_action_link = next_action_context['action_link']
+        next_action_type = next_action_context['action_link_type']
+        next_action_label = next_action_context['action_link_label']
+        next_action_icon = next_action_context['action_link_icon']
+        next_action_status_label = next_action_context['action_link_status_label']
 
     profile_checks = [
         bool(prefs.phone_verified_at),
@@ -4665,15 +4796,28 @@ def build_candidate_dashboard_context(
 
     timeline = []
     for item in interviews:
-        interview_token, interview_link = build_litio_interview_link(request, item)
         status = normalize_interview_status(item.status)
+        status_label = status.replace('_', ' ').title()
+        action_context = _candidate_interview_action_context(request, item, status_label=status_label)
         timeline.append({
             'role': item.role.role if item.role else 'Role pending',
             'status': status,
-            'status_label': status.replace('_', ' ').title(),
+            'status_label': status_label,
             'interview_date': item.date,
-            'interview_token': interview_token,
-            'interview_link': interview_link,
+            'interview_token': action_context['interview_token'],
+            'interview_link': action_context['interview_link'],
+            'aptitude_assignment_id': action_context['aptitude_assignment_id'],
+            'aptitude_status': action_context['aptitude_status'],
+            'aptitude_status_label': action_context['aptitude_status_label'],
+            'aptitude_scheduled_at': action_context['aptitude_scheduled_at'],
+            'aptitude_public_token': action_context['aptitude_public_token'],
+            'aptitude_link': action_context['aptitude_link'],
+            'aptitude_pending': action_context['aptitude_pending'],
+            'action_link': action_context['action_link'],
+            'action_link_type': action_context['action_link_type'],
+            'action_link_label': action_context['action_link_label'],
+            'action_link_icon': action_context['action_link_icon'],
+            'action_link_status_label': action_context['action_link_status_label'],
             'recruiter': f"{item.recruiter.first_name} {item.recruiter.last_name}".strip().title() if item.recruiter else 'Not assigned',
             'score': item.score,
         })
@@ -4850,6 +4994,11 @@ def build_candidate_dashboard_context(
             'next_interview': next_interview.date if next_interview else None,
             'next_interview_token': next_interview_token,
             'next_interview_link': next_interview_link,
+            'next_action_link': next_action_link,
+            'next_action_type': next_action_type,
+            'next_action_label': next_action_label,
+            'next_action_icon': next_action_icon,
+            'next_action_status_label': next_action_status_label,
             'readiness_label': readiness_label,
             'current_recruiter': current_recruiter,
             'missing_profile_uploads': missing_profile_uploads,

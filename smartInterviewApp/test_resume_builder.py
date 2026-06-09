@@ -11,6 +11,7 @@ from django.utils import timezone
 from smartInterviewApp.commonViews import sanitize_resume_builder_payload
 from smartInterviewApp.services.resume_ai import rank_top_skills, score_resume
 from smartInterviewApp.models import (
+    AptitudeTestAssignment,
     CandidatePublicResume,
     CandidateResume,
     CandidateResumeBuilderDraft,
@@ -310,6 +311,138 @@ class ResumeBuilderViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Join Interview')
         self.assertContains(response, f'https://litio.shortlistii.com/i/{interview.litio_interview_token}')
+
+    def create_dashboard_interview(self, *, status='scheduled', date=None):
+        role = Vacancies.objects.create(
+            role='Python Developer',
+            description='Backend role',
+            position='1',
+            status='active',
+            admin=self.admin,
+        )
+        return Interview.objects.create(
+            candidate=self.candidate,
+            hr=self.admin,
+            role=role,
+            status=status,
+            date=date if date is not None else timezone.now() + timedelta(days=1),
+        )
+
+    def assign_aptitude(self, interview, status):
+        return AptitudeTestAssignment.objects.create(
+            candidate=self.candidate,
+            interview=interview,
+            vacancy=interview.role,
+            title='Aptitude Assessment',
+            status=status,
+            scheduled_at=timezone.now() + timedelta(hours=2),
+        )
+
+    def get_candidate_dashboard_context(self):
+        response = self.client.get(reverse('candidate-dashboard'))
+        self.assertEqual(response.status_code, 200)
+        return response, response.context
+
+    def test_candidate_dashboard_timeline_without_aptitude_uses_interview_action(self):
+        interview = self.create_dashboard_interview()
+
+        response, context = self.get_candidate_dashboard_context()
+        item = context['timeline'][0]
+
+        interview.refresh_from_db()
+        self.assertEqual(item['action_link_type'], 'interview')
+        self.assertEqual(item['action_link_label'], 'Join Interview')
+        self.assertEqual(item['action_link_icon'], 'ph-video-camera')
+        self.assertEqual(item['action_link'], item['interview_link'])
+        self.assertContains(response, f'https://litio.shortlistii.com/i/{interview.litio_interview_token}')
+
+    def test_candidate_dashboard_timeline_assigned_aptitude_uses_start_action(self):
+        interview = self.create_dashboard_interview()
+        assignment = self.assign_aptitude(interview, AptitudeTestAssignment.Status.ASSIGNED)
+
+        response, context = self.get_candidate_dashboard_context()
+        item = context['timeline'][0]
+
+        self.assertEqual(item['aptitude_assignment_id'], assignment.id)
+        self.assertEqual(item['aptitude_status'], AptitudeTestAssignment.Status.ASSIGNED)
+        self.assertTrue(item['aptitude_pending'])
+        self.assertEqual(item['action_link_type'], 'aptitude')
+        self.assertEqual(item['action_link_label'], 'Start Aptitude Test')
+        self.assertEqual(item['action_link_icon'], 'ph-clipboard-text')
+        self.assertEqual(item['action_link_status_label'], 'Assessment Pending')
+        self.assertIn(f'/aptitude/{assignment.public_token}/', item['action_link'])
+        self.assertContains(response, 'Start Aptitude Test')
+
+    def test_candidate_dashboard_timeline_in_progress_aptitude_uses_resume_action(self):
+        interview = self.create_dashboard_interview()
+        self.assign_aptitude(interview, AptitudeTestAssignment.Status.IN_PROGRESS)
+
+        response, context = self.get_candidate_dashboard_context()
+        item = context['timeline'][0]
+
+        self.assertEqual(item['action_link_type'], 'aptitude')
+        self.assertEqual(item['action_link_label'], 'Resume Aptitude Test')
+        self.assertEqual(item['action_link_status_label'], 'Assessment In Progress')
+        self.assertContains(response, 'Resume Aptitude Test')
+
+    def test_candidate_dashboard_timeline_submitted_aptitude_uses_interview_action(self):
+        interview = self.create_dashboard_interview()
+        self.assign_aptitude(interview, AptitudeTestAssignment.Status.SUBMITTED)
+
+        _response, context = self.get_candidate_dashboard_context()
+        item = context['timeline'][0]
+
+        self.assertFalse(item['aptitude_pending'])
+        self.assertEqual(item['aptitude_status'], AptitudeTestAssignment.Status.SUBMITTED)
+        self.assertEqual(item['action_link_type'], 'interview')
+        self.assertEqual(item['action_link_label'], 'Join Interview')
+        self.assertEqual(item['action_link'], item['interview_link'])
+
+    def test_candidate_dashboard_timeline_expired_aptitude_uses_interview_action(self):
+        interview = self.create_dashboard_interview()
+        self.assign_aptitude(interview, AptitudeTestAssignment.Status.EXPIRED)
+
+        _response, context = self.get_candidate_dashboard_context()
+        item = context['timeline'][0]
+
+        self.assertFalse(item['aptitude_pending'])
+        self.assertEqual(item['aptitude_status'], AptitudeTestAssignment.Status.EXPIRED)
+        self.assertEqual(item['action_link_type'], 'interview')
+        self.assertEqual(item['action_link_label'], 'Join Interview')
+        self.assertEqual(item['action_link'], item['interview_link'])
+
+    def test_candidate_dashboard_timeline_preview_and_full_timeline_include_action_fields(self):
+        now = timezone.now()
+        for index in range(6):
+            self.create_dashboard_interview(date=now + timedelta(days=index + 1))
+
+        _response, context = self.get_candidate_dashboard_context()
+
+        self.assertEqual(len(context['timeline']), 6)
+        self.assertEqual(len(context['timeline_preview']), 5)
+        for item in [*context['timeline'], *context['timeline_preview']]:
+            self.assertIn('action_link', item)
+            self.assertIn('action_link_type', item)
+            self.assertIn('action_link_label', item)
+            self.assertIn('action_link_icon', item)
+            self.assertIn('action_link_status_label', item)
+
+    def test_candidate_dashboard_next_action_uses_pending_aptitude_but_keeps_interview_link(self):
+        interview = self.create_dashboard_interview(date=timezone.now() + timedelta(days=1))
+        assignment = self.assign_aptitude(interview, AptitudeTestAssignment.Status.ASSIGNED)
+
+        _response, context = self.get_candidate_dashboard_context()
+        analytics = context['analytics']
+
+        interview.refresh_from_db()
+        self.assertEqual(analytics['next_action_type'], 'aptitude')
+        self.assertEqual(analytics['next_action_label'], 'Start Aptitude Test')
+        self.assertEqual(analytics['next_action_icon'], 'ph-clipboard-text')
+        self.assertIn(f'/aptitude/{assignment.public_token}/', analytics['next_action_link'])
+        self.assertEqual(
+            analytics['next_interview_link'],
+            f'https://litio.shortlistii.com/i/{interview.litio_interview_token}',
+        )
 
     def test_public_resume_builder_renders_signup_prompt(self):
         self.client.logout()

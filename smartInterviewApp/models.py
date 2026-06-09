@@ -1547,6 +1547,8 @@ class AptitudeTestAssignment(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    early_exit = models.BooleanField(default=False)
+    early_exit_reason = models.CharField(max_length=80, blank=True, default='')
     allow_retake = models.BooleanField(default=False)
     attempt_number = models.PositiveIntegerField(default=1)
     created_by = models.ForeignKey(
@@ -1694,6 +1696,7 @@ class AptitudeIntegrityEvent(models.Model):
         CAMERA_DISABLED = 'camera_disabled', 'Camera Disabled'
         MICROPHONE_DISABLED = 'microphone_disabled', 'Microphone Disabled'
         FACE_MISSING = 'face_missing', 'Face Missing'
+        MULTIPLE_FACE_SUSPECTED = 'multiple_face_suspected', 'Multiple Face Suspected'
         GAZE_LOST = 'gaze_lost', 'Gaze Lost'
         MULTIPLE_VOICE_SUSPECTED = 'multiple_voice_suspected', 'Multiple Voice Suspected'
         VOICE_ACTIVITY_SUSPICIOUS = 'voice_activity_suspicious', 'Voice Activity Suspicious'

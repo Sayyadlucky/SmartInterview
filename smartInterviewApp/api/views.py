@@ -168,6 +168,18 @@ def get_assignment_result(assignment):
         return None
 
 
+def get_or_score_completed_aptitude_result(assignment):
+    result = get_assignment_result(assignment)
+    if result:
+        return result
+    if assignment.status in {
+        AptitudeTestAssignment.Status.SUBMITTED,
+        AptitudeTestAssignment.Status.EXPIRED,
+    }:
+        return score_assignment(assignment)
+    return None
+
+
 def summarize_integrity_events(assignment):
     events_by_type = {}
     for event in assignment.integrity_events.all():
@@ -338,6 +350,8 @@ def serialize_runtime_status(assignment):
         'started_at': assignment.started_at.isoformat() if assignment.started_at else None,
         'submitted_at': assignment.submitted_at.isoformat() if assignment.submitted_at else None,
         'expires_at': assignment.expires_at.isoformat() if assignment.expires_at else None,
+        'early_exit': bool(getattr(assignment, 'early_exit', False)),
+        'early_exit_reason': getattr(assignment, 'early_exit_reason', '') or '',
         'time_remaining_seconds': time_remaining,
         'answered_count': answered_count,
         'question_count': question_count,
@@ -376,6 +390,120 @@ def serialize_runtime_result(result, assignment):
         'passed': result.passed,
         'submitted_at': assignment.submitted_at.isoformat() if assignment.submitted_at else None,
         'status': assignment.status,
+    }
+
+
+MEANINGFUL_INTEGRITY_EVENTS = {
+    'tab_switch',
+    'window_blur',
+    'fullscreen_exit',
+    'face_missing',
+    'multiple_face_suspected',
+    'multiple_voice_suspected',
+    'external_device_suspected',
+    'microphone_disabled',
+    'camera_disabled',
+    'gaze_lost',
+}
+
+
+INTEGRITY_EVENT_LABELS = {
+    'tab_switch': 'Tab switch',
+    'window_blur': 'Window blur',
+    'fullscreen_exit': 'Fullscreen exit',
+    'face_missing': 'Face missing',
+    'multiple_face_suspected': 'Multiple faces suspected',
+    'multiple_voice_suspected': 'Multiple voices suspected',
+    'external_device_suspected': 'External device suspected',
+    'microphone_disabled': 'Microphone disabled',
+    'camera_disabled': 'Camera disabled',
+    'gaze_lost': 'Gaze lost',
+}
+
+
+def number_payload(value):
+    numeric = float(value or 0)
+    return int(numeric) if numeric.is_integer() else numeric
+
+
+def serialize_candidate_section_result(section_code, payload):
+    max_score = payload.get('max_score', payload.get('total_marks', 0))
+    score = payload.get('score', payload.get('marks_obtained', 0))
+    return {
+        'section_code': payload.get('section_code') or section_code,
+        'section_name': payload.get('section_name') or section_code.replace('_', ' ').title(),
+        'score': number_payload(score),
+        'max_score': number_payload(max_score),
+        'score_percent': number_payload(payload.get('score_percent', 0)),
+        'correct_count': int(payload.get('correct_count', payload.get('correct_answers', 0)) or 0),
+        'incorrect_count': int(payload.get('incorrect_count', payload.get('wrong_answers', 0)) or 0),
+        'unanswered_count': int(payload.get('unanswered_count', payload.get('skipped_questions', 0)) or 0),
+        'total_questions': int(payload.get('total_questions', 0) or 0),
+    }
+
+
+def build_candidate_integrity_summary(assignment):
+    events = assignment.integrity_events.filter(event_type__in=MEANINGFUL_INTEGRITY_EVENTS).values_list('event_type', flat=True)
+    event_types = list(events)
+    flags = [
+        INTEGRITY_EVENT_LABELS[event_type]
+        for event_type in sorted(set(event_types), key=event_types.index)
+        if event_type in INTEGRITY_EVENT_LABELS
+    ]
+    return {
+        'review_required': bool(event_types),
+        'event_count': len(event_types),
+        'flags': flags,
+    }
+
+
+def build_aptitude_candidate_result_payload(assignment):
+    result = get_or_score_completed_aptitude_result(assignment)
+    totals = runtime_question_totals(assignment)
+    question_count = totals['question_count']
+    answered_count = int(result.attempted_questions) if result else runtime_answered_count(assignment)
+    unanswered_count = int(result.skipped_questions) if result else max(0, question_count - answered_count)
+    candidate = assignment.candidate
+    if not candidate and assignment.interview_id:
+        candidate = getattr(assignment.interview, 'candidate', None)
+
+    result_payload = None
+    if result:
+        section_results = [
+            serialize_candidate_section_result(section_code, section_payload)
+            for section_code, section_payload in (result.section_breakdown or {}).items()
+            if isinstance(section_payload, dict)
+        ]
+        result_payload = {
+            'score': number_payload(result.marks_obtained),
+            'score_percent': number_payload(result.score_percent),
+            'max_score': number_payload(result.total_marks),
+            'passed': bool(result.passed),
+            'result_label': 'Passed' if result.passed else 'Not Passed',
+            'section_results': section_results,
+            'integrity_summary': build_candidate_integrity_summary(assignment),
+        }
+
+    return {
+        'assignment': {
+            'id': assignment.id,
+            'title': assignment.title,
+            'status': assignment.status,
+            'candidate_name': candidate_display_name(candidate),
+            'candidate_email': (candidate.email or None) if candidate else None,
+            'duration_minutes': assignment.duration_minutes,
+            'total_questions': question_count,
+            'answered_count': answered_count,
+            'unanswered_count': unanswered_count,
+            'total_marks': number_payload(totals['total_marks']),
+            'passing_score_percent': number_payload(assignment.passing_score_percent),
+            'started_at': assignment.started_at.isoformat() if assignment.started_at else None,
+            'submitted_at': assignment.submitted_at.isoformat() if assignment.submitted_at else None,
+            'expires_at': assignment.expires_at.isoformat() if assignment.expires_at else None,
+            'early_exit': bool(getattr(assignment, 'early_exit', False)),
+            'early_exit_reason': getattr(assignment, 'early_exit_reason', '') or '',
+        },
+        'result': result_payload,
     }
 
 
@@ -641,12 +769,18 @@ class AptitudeAssignmentResultApi(APIView):
         )
         if not assignment:
             return api_response(False, error='Aptitude assignment not found.', status_code=status.HTTP_404_NOT_FOUND)
+        assigned_candidate_id = assignment.candidate_id
+        if not assigned_candidate_id and assignment.interview_id:
+            assigned_candidate_id = getattr(assignment.interview, 'candidate_id', None)
+        if assigned_candidate_id and request.user.id == assigned_candidate_id:
+            result = get_or_score_completed_aptitude_result(assignment)
+            if not result:
+                return api_response(False, error='Aptitude result is not available yet.', status_code=status.HTTP_404_NOT_FOUND)
+            return api_response(True, data=build_aptitude_candidate_result_payload(assignment))
         if not user_can_access_assignment(request.user, assignment):
             return api_response(False, error='Aptitude assignment is not accessible.', status_code=status.HTTP_403_FORBIDDEN)
 
-        result = get_assignment_result(assignment)
-        if not result and assignment.status == AptitudeTestAssignment.Status.SUBMITTED:
-            result = score_assignment(assignment)
+        result = get_or_score_completed_aptitude_result(assignment)
         if not result:
             return api_response(False, error='Aptitude result is not available yet.', status_code=status.HTTP_404_NOT_FOUND)
 
@@ -663,7 +797,29 @@ class AptitudeRuntimeStatusApi(APIView):
             return aptitude_runtime_error_response(exc)
         mark_aptitude_assignment_expired_if_needed(assignment)
         assignment.refresh_from_db()
-        return api_response(True, data={'assignment': serialize_runtime_status(assignment)})
+        data = {'assignment': serialize_runtime_status(assignment)}
+        if assignment.status in {
+            AptitudeTestAssignment.Status.SUBMITTED,
+            AptitudeTestAssignment.Status.EXPIRED,
+        }:
+            data['result'] = build_aptitude_candidate_result_payload(assignment)['result']
+        return api_response(True, data=data)
+
+
+class AptitudeRuntimeResultApi(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, public_token: str):
+        try:
+            assignment = resolve_aptitude_runtime_assignment(request, public_token)
+        except AptitudeRuntimeAccessError as exc:
+            return aptitude_runtime_error_response(exc)
+        mark_aptitude_assignment_expired_if_needed(assignment)
+        assignment.refresh_from_db()
+        result = get_or_score_completed_aptitude_result(assignment)
+        if not result:
+            return api_response(False, error='Aptitude result is not available yet.', status_code=status.HTTP_404_NOT_FOUND)
+        return api_response(True, data=build_aptitude_candidate_result_payload(assignment))
 
 
 class AptitudeRuntimeStartApi(APIView):
@@ -678,7 +834,10 @@ class AptitudeRuntimeStartApi(APIView):
 
         if mark_aptitude_assignment_expired_if_needed(assignment):
             assignment.refresh_from_db()
-            return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
+            return api_response(False, data={
+                'assignment': serialize_runtime_status(assignment),
+                'result': build_aptitude_candidate_result_payload(assignment)['result'],
+            }, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
 
         if assignment.status == AptitudeTestAssignment.Status.ASSIGNED:
             now = timezone.now()
@@ -702,8 +861,15 @@ class AptitudeRuntimeQuestionsApi(APIView):
             return aptitude_runtime_error_response(exc)
         mark_aptitude_assignment_expired_if_needed(assignment)
         assignment.refresh_from_db()
-        if assignment.status == AptitudeTestAssignment.Status.EXPIRED:
-            return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
+        if assignment.status in {
+            AptitudeTestAssignment.Status.SUBMITTED,
+            AptitudeTestAssignment.Status.EXPIRED,
+        }:
+            return api_response(True, data={
+                'assignment': serialize_runtime_status(assignment),
+                'questions': [],
+                'result': build_aptitude_candidate_result_payload(assignment)['result'],
+            })
         if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment is not in progress.', status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -736,7 +902,10 @@ class AptitudeRuntimeAnswerApi(APIView):
         mark_aptitude_assignment_expired_if_needed(assignment)
         assignment.refresh_from_db()
         if assignment.status == AptitudeTestAssignment.Status.EXPIRED:
-            return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
+            return api_response(False, data={
+                'assignment': serialize_runtime_status(assignment),
+                'result': build_aptitude_candidate_result_payload(assignment)['result'],
+            }, error='Aptitude assignment has expired.', status_code=status.HTTP_400_BAD_REQUEST)
         if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Answers can only be saved while the aptitude assignment is in progress.', status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -784,24 +953,26 @@ class AptitudeRuntimeSubmitApi(APIView):
         mark_aptitude_assignment_expired_if_needed(assignment)
         assignment.refresh_from_db()
         if assignment.status in {AptitudeTestAssignment.Status.SUBMITTED, AptitudeTestAssignment.Status.EXPIRED}:
-            result = get_assignment_result(assignment)
-            if not result:
-                result = score_assignment(assignment)
             return api_response(True, data={
-                'assignment': serialize_runtime_status(assignment),
-                'result': serialize_runtime_result(result, assignment),
+                **build_aptitude_candidate_result_payload(assignment),
             })
         if assignment.status != AptitudeTestAssignment.Status.IN_PROGRESS:
             return api_response(False, data={'assignment': serialize_runtime_status(assignment)}, error='Only in-progress aptitude assignments can be submitted.', status_code=status.HTTP_400_BAD_REQUEST)
 
+        payload = request.data if isinstance(request.data, dict) else {}
         now = timezone.now()
         assignment.status = AptitudeTestAssignment.Status.SUBMITTED
         assignment.submitted_at = now
-        assignment.save(update_fields=['status', 'submitted_at', 'updated_at'])
-        result = score_assignment(assignment)
+        update_fields = ['status', 'submitted_at', 'updated_at']
+        if parse_bool(payload.get('early_exit', False)):
+            assignment.early_exit = True
+            assignment.early_exit_reason = str(payload.get('early_exit_reason') or 'candidate_quit').strip()[:80]
+            update_fields.extend(['early_exit', 'early_exit_reason'])
+        assignment.save(update_fields=update_fields)
+        score_assignment(assignment)
+        assignment.refresh_from_db()
         return api_response(True, data={
-            'assignment': serialize_runtime_status(assignment),
-            'result': serialize_runtime_result(result, assignment),
+            **build_aptitude_candidate_result_payload(assignment),
         })
 
 

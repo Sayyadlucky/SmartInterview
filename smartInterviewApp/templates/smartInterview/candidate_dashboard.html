@@ -428,6 +428,10 @@
       scroll-margin-top: var(--section-scroll-offset);
     }
 
+    .dashboard-section-content > .panel:last-child {
+      min-height: calc(100vh - var(--section-scroll-offset) - var(--space-4));
+    }
+
     .panel {
       position: relative;
       overflow: hidden;
@@ -4488,7 +4492,9 @@
             </p>
             <div class="card-actions">
               {% if analytics.next_interview %}
-                {% if analytics.next_interview_link %}
+                {% if analytics.next_action_link %}
+                  <a class="card-link" href="{{ analytics.next_action_link }}" target="_blank" rel="noopener"><i class="ph {{ analytics.next_action_icon|default:'ph-video-camera' }}" aria-hidden="true"></i>{{ analytics.next_action_label|default:'Join Interview' }}</a>
+                {% elif analytics.next_interview_link %}
                   <a class="card-link" href="{{ analytics.next_interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Join Interview</a>
                 {% endif %}
                 <button class="card-link" type="button" data-open-profile><i class="ph ph-user-circle" aria-hidden="true"></i>Review Profile</button>
@@ -4941,7 +4947,7 @@
                 <div>Interview Date</div>
                 <div>Score</div>
                 <div>Status</div>
-                <div>Interview Link</div>
+                <div>Action</div>
               </div>
 
               {% for item in timeline_preview %}
@@ -4951,10 +4957,10 @@
                   <div class="recent-activity__cell recent-activity__cell--recruiter">{{ item.recruiter }}</div>
                   <div class="recent-activity__cell recent-activity__cell--date">{% if item.interview_date %}{{ item.interview_date|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</div>
                   <div class="recent-activity__cell recent-activity__cell--score">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
-                  <div class="recent-activity__cell recent-activity__cell--status"><span class="status-badge">{{ item.status_label }}</span></div>
+                  <div class="recent-activity__cell recent-activity__cell--status"><span class="status-badge">{{ item.action_link_status_label|default:item.status_label }}</span></div>
                   <div class="recent-activity__cell recent-activity__cell--link">
-                    {% if item.interview_link %}
-                      <a class="card-link" href="{{ item.interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Join Interview</a>
+                    {% if item.action_link %}
+                      <a class="card-link" href="{{ item.action_link }}" target="_blank" rel="noopener"><i class="ph {{ item.action_link_icon|default:'ph-video-camera' }}" aria-hidden="true"></i>{{ item.action_link_label|default:'Join Interview' }}</a>
                     {% else %}
                       <span class="status-pill">Not available</span>
                     {% endif %}
@@ -5435,7 +5441,7 @@
             <div>Interview Date</div>
             <div>Score</div>
             <div>Status</div>
-            <div>Interview Link</div>
+            <div>Action</div>
           </div>
 
           {% for item in timeline %}
@@ -5445,10 +5451,10 @@
               <div class="recent-activity__cell recent-activity__cell--recruiter">{{ item.recruiter }}</div>
               <div class="recent-activity__cell recent-activity__cell--date">{% if item.interview_date %}{{ item.interview_date|date:"M d, Y h:i A" }}{% else %}Not scheduled{% endif %}</div>
               <div class="recent-activity__cell recent-activity__cell--score">{% if item.score is not None %}{{ item.score }}{% else %}Pending{% endif %}</div>
-              <div class="recent-activity__cell recent-activity__cell--status"><span class="status-badge">{{ item.status_label }}</span></div>
+              <div class="recent-activity__cell recent-activity__cell--status"><span class="status-badge">{{ item.action_link_status_label|default:item.status_label }}</span></div>
               <div class="recent-activity__cell recent-activity__cell--link">
-                {% if item.interview_link %}
-                  <a class="card-link" href="{{ item.interview_link }}" target="_blank" rel="noopener"><i class="ph ph-video-camera" aria-hidden="true"></i>Join Interview</a>
+                {% if item.action_link %}
+                  <a class="card-link" href="{{ item.action_link }}" target="_blank" rel="noopener"><i class="ph {{ item.action_link_icon|default:'ph-video-camera' }}" aria-hidden="true"></i>{{ item.action_link_label|default:'Join Interview' }}</a>
                 {% else %}
                   <span class="status-pill">Not available</span>
                 {% endif %}
@@ -5802,15 +5808,6 @@
             currentId = item.id;
           }
         });
-
-        const documentHeight = Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight
-        );
-        const isNearBottom = window.scrollY + window.innerHeight >= documentHeight - 4;
-        if (isNearBottom) {
-          currentId = navItems[navItems.length - 1].id;
-        }
 
         setActiveSection(currentId);
       }

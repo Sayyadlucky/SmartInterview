@@ -314,7 +314,11 @@ def _percent(numerator, denominator):
 def _build_section_breakdown(section_totals):
     breakdown = {}
     for section_key, totals in section_totals.items():
-        breakdown[section_key] = _json_totals(totals, section_name=totals.get('section_name', section_key))
+        breakdown[section_key] = _json_totals(
+            totals,
+            section_code=section_key,
+            section_name=totals.get('section_name', section_key),
+        )
     return breakdown
 
 
@@ -325,7 +329,8 @@ def _build_skill_breakdown(skill_totals):
     }
 
 
-def _json_totals(totals, *, section_name=None):
+def _json_totals(totals, *, section_code=None, section_name=None):
+    score_percent = float(_percent(totals['marks_obtained'], totals['total_marks']))
     payload = {
         'total_questions': totals['total_questions'],
         'attempted_questions': totals['attempted_questions'],
@@ -334,8 +339,15 @@ def _json_totals(totals, *, section_name=None):
         'skipped_questions': totals['skipped_questions'],
         'total_marks': float(totals['total_marks']),
         'marks_obtained': float(totals['marks_obtained']),
-        'score_percent': float(_percent(totals['marks_obtained'], totals['total_marks'])),
+        'score_percent': score_percent,
+        'score': float(totals['marks_obtained']),
+        'max_score': float(totals['total_marks']),
+        'correct_count': totals['correct_answers'],
+        'incorrect_count': totals['wrong_answers'],
+        'unanswered_count': totals['skipped_questions'],
     }
+    if section_code is not None:
+        payload = {'section_code': section_code, **payload}
     if section_name is not None:
         payload = {'section_name': section_name, **payload}
     return payload

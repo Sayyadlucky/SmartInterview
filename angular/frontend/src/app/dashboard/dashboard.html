@@ -846,7 +846,7 @@
                     <th>Recruiter</th>
                     <th>Evaluator</th>
                     <th>Role</th>
-                    <th>Interview Link</th>
+                    <th>Candidate Link</th>
                   </tr>
                 </thead>
                 <tbody id="candidateTable">
@@ -882,26 +882,28 @@
                     </td>
                     <td class="interview-link-cell" [class.interview-link-cell--open]="isInterviewLinkMenuOpen(candidate)">
                       <div
-                        *ngIf="candidate.interview_link"
+                        *ngIf="getCandidateActionLink(candidate)"
                         class="interview-link-menu"
                         [class.is-open]="isInterviewLinkMenuOpen(candidate)"
                         (click)="$event.stopPropagation()">
                         <button
                           type="button"
                           class="candidate-link interview-link-trigger candidate-interview-link interview-link"
+                          [class.interview-link-trigger--aptitude]="getCandidateActionLinkType(candidate) === 'aptitude'"
                           [attr.aria-expanded]="isInterviewLinkMenuOpen(candidate)"
                           (click)="toggleInterviewLinkMenu(candidate, $event)">
-                          <span>Interview Link</span>
+                          <i class="ph" [ngClass]="getCandidateActionLinkIcon(candidate)"></i>
+                          <span>{{ getCandidateActionLinkLabel(candidate) }}</span>
                           <i class="ph" [class.ph-caret-down]="!isInterviewLinkMenuOpen(candidate)" [class.ph-caret-up]="isInterviewLinkMenuOpen(candidate)"></i>
                         </button>
                         <div *ngIf="isInterviewLinkMenuOpen(candidate)" class="interview-link-popover" role="menu">
                           <button type="button" class="interview-link-action" (click)="copyInterviewLink(candidate, $event)">
                             <i class="ph ph-copy"></i>
-                            <span>Copy Link</span>
+                            <span>{{ getCandidateActionCopyLabel(candidate) }}</span>
                           </button>
                           <button type="button" class="interview-link-action" (click)="visitInterviewLink(candidate, $event)">
                             <i class="ph ph-arrow-square-out"></i>
-                            <span>Visit Link</span>
+                            <span>{{ getCandidateActionVisitLabel(candidate) }}</span>
                           </button>
                           <button
                             type="button"
@@ -909,11 +911,11 @@
                             [disabled]="resendingInterviewEmailId === candidate.id"
                             (click)="resendCandidateInterviewEmail(candidate, $event)">
                             <i class="ph" [class.ph-paper-plane-tilt]="resendingInterviewEmailId !== candidate.id" [class.ph-spinner-gap]="resendingInterviewEmailId === candidate.id"></i>
-                            <span>{{ resendingInterviewEmailId === candidate.id ? 'Sending...' : 'Send Email' }}</span>
+                            <span>{{ getCandidateActionEmailLabel(candidate) }}</span>
                           </button>
                         </div>
                       </div>
-                      <span *ngIf="!candidate.interview_link" class="interview-link-muted">Pending</span>
+                      <span *ngIf="!getCandidateActionLink(candidate)" class="interview-link-muted">Pending</span>
                     </td>
                   </tr>
                   }

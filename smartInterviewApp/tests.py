@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from smartInterviewApp.integrations.providers.contracts import ProviderResult
 from smartInterviewApp.api.serializers import ExotelWebhookSerializer
+from smartInterviewApp.forms import validate_profile_picture_upload
 from smartInterviewApp.integrations.providers.msg91 import Msg91OtpProvider, Msg91SmsProvider
 from smartInterviewApp.models import AutoInterviewEvaluationResult, CandidateIdentityVerification, CodingQuestion, JobInterviewBlueprint, JobInterviewSkill, Notification, NotificationAttempt, OtpRequest, QuestionGenerationJob, Skill, SkillQuestion, UserProfile, Vacancies, Interview, InterviewCallSession, InterviewReminderDelivery, CandidateSavedVacancy, CandidateVacancyApplication
 from smartInterviewApp.notifications.services import NotificationService
@@ -27,6 +28,7 @@ from smartInterviewApp.otp.services import OtpService
 from smartInterviewApp.commonViews import (
     SIGNUP_TOKEN_SALT,
     build_candidate_signup_link,
+    build_candidate_details,
     build_litio_interview_link,
     ensure_candidate_signup_token,
     send_existing_candidate_sms,
@@ -57,6 +59,30 @@ from smartInterviewApp.services.question_banks import (
     process_question_generation_task,
     resolve_equivalent_skill_ids_for_question_pool,
 )
+
+
+class ProfilePictureUploadValidationTests(TestCase):
+    def _upload(self, name, content):
+        return SimpleUploadedFile(name, content, content_type='application/octet-stream')
+
+    def test_profile_picture_validation_accepts_supported_magic_headers(self):
+        uploads = [
+            self._upload('profile.png', b'\x89PNG\r\n\x1a\n' + b'\x00' * 16),
+            self._upload('profile.jpg', b'\xff\xd8\xff\xe0\x00\x10JFIF\x00' + b'\x00' * 16),
+            self._upload('profile.webp', b'RIFF\x1a\x00\x00\x00WEBPVP8 ' + b'\x00' * 16),
+        ]
+
+        for upload in uploads:
+            with self.subTest(upload=upload.name):
+                self.assertIs(validate_profile_picture_upload(upload), upload)
+                self.assertEqual(upload.tell(), 0)
+
+    def test_profile_picture_validation_rejects_unsupported_image_bytes(self):
+        upload = self._upload('profile.jpg', b'not an image')
+
+        with self.assertRaisesMessage(Exception, 'The uploaded profile photo is invalid or unsupported.'):
+            validate_profile_picture_upload(upload)
+        self.assertEqual(upload.tell(), 0)
 
 
 class CandidateLiveSelfieVerificationEndpointTests(TestCase):
@@ -2148,6 +2174,99 @@ class InterviewReminderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['Success'])
         process_mock.assert_called_once_with(self.candidate.id)
+
+    def _create_aptitude_assignment(self, status_value=None, **kwargs):
+        status_value = status_value or AptitudeTestAssignment.Status.ASSIGNED
+        defaults = {
+            'candidate': self.candidate,
+            'vacancy': self.role,
+            'interview': self.interview,
+            'title': 'Aptitude Assessment',
+            'status': status_value,
+            'scheduled_at': timezone.now() + timedelta(hours=1),
+            'created_by': self.admin,
+        }
+        defaults.update(kwargs)
+        return AptitudeTestAssignment.objects.create(**defaults)
+
+    def test_build_candidate_details_without_aptitude_uses_interview_action_link(self):
+        details = build_candidate_details(self.interview)
+
+        self.assertEqual(details['candidate_action_link_type'], 'interview')
+        self.assertEqual(details['candidate_action_link_label'], 'Interview Link')
+        self.assertEqual(details['candidate_action_link'], details['interview_link'])
+        self.assertFalse(details['aptitude_pending'])
+        self.assertIsNone(details['aptitude_assignment_id'])
+        self.assertEqual(details['aptitude_link'], '')
+
+    def test_build_candidate_details_with_assigned_aptitude_uses_aptitude_action_link(self):
+        assignment = self._create_aptitude_assignment(AptitudeTestAssignment.Status.ASSIGNED)
+
+        details = build_candidate_details(self.interview)
+
+        self.assertEqual(details['aptitude_assignment_id'], assignment.id)
+        self.assertEqual(details['aptitude_status'], AptitudeTestAssignment.Status.ASSIGNED)
+        self.assertEqual(details['aptitude_status_label'], 'Assigned')
+        self.assertTrue(details['aptitude_pending'])
+        self.assertEqual(details['candidate_action_link_type'], 'aptitude')
+        self.assertEqual(details['candidate_action_link_label'], 'Aptitude Test Link')
+        self.assertEqual(details['candidate_action_link_status_label'], 'Assessment Pending')
+        self.assertEqual(details['candidate_action_link'], details['aptitude_link'])
+        self.assertIn(f'/aptitude/{assignment.public_token}/', details['aptitude_link'])
+
+    def test_build_candidate_details_with_in_progress_aptitude_uses_aptitude_action_link(self):
+        self._create_aptitude_assignment(AptitudeTestAssignment.Status.IN_PROGRESS)
+
+        details = build_candidate_details(self.interview)
+
+        self.assertTrue(details['aptitude_pending'])
+        self.assertEqual(details['candidate_action_link_type'], 'aptitude')
+        self.assertEqual(details['candidate_action_link_status_label'], 'Assessment In Progress')
+        self.assertEqual(details['candidate_action_link'], details['aptitude_link'])
+
+    def test_build_candidate_details_with_submitted_aptitude_uses_interview_action_link(self):
+        self._create_aptitude_assignment(AptitudeTestAssignment.Status.SUBMITTED)
+
+        details = build_candidate_details(self.interview)
+
+        self.assertFalse(details['aptitude_pending'])
+        self.assertEqual(details['candidate_action_link_type'], 'interview')
+        self.assertEqual(details['candidate_action_link_label'], 'Interview Link')
+        self.assertEqual(details['candidate_action_link'], details['interview_link'])
+
+    def test_build_candidate_details_with_expired_aptitude_uses_interview_action_link(self):
+        self._create_aptitude_assignment(AptitudeTestAssignment.Status.EXPIRED)
+
+        details = build_candidate_details(self.interview)
+
+        self.assertFalse(details['aptitude_pending'])
+        self.assertEqual(details['candidate_action_link_type'], 'interview')
+        self.assertEqual(details['candidate_action_link'], details['interview_link'])
+
+    def test_build_candidate_details_with_cancelled_aptitude_uses_interview_action_link(self):
+        self._create_aptitude_assignment(AptitudeTestAssignment.Status.CANCELLED)
+
+        details = build_candidate_details(self.interview)
+
+        self.assertFalse(details['aptitude_pending'])
+        self.assertEqual(details['candidate_action_link_type'], 'interview')
+        self.assertEqual(details['candidate_action_link'], details['interview_link'])
+
+    def test_dashboard_data_includes_aptitude_action_fields(self):
+        assignment = self._create_aptitude_assignment(AptitudeTestAssignment.Status.ASSIGNED)
+
+        response = self.client.get(reverse('dashboard-data'))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['Success'])
+        row = payload['Data']['candidate_data'][0]
+        self.assertEqual(row['aptitude_assignment_id'], assignment.id)
+        self.assertEqual(row['aptitude_status'], AptitudeTestAssignment.Status.ASSIGNED)
+        self.assertEqual(row['candidate_action_link_type'], 'aptitude')
+        self.assertEqual(row['candidate_action_link_label'], 'Aptitude Test Link')
+        self.assertEqual(row['candidate_action_link'], row['aptitude_link'])
+        self.assertIn(f'/aptitude/{assignment.public_token}/', row['candidate_action_link'])
 
     @patch('smartInterviewApp.views.send_candidate_interview_email_only')
     def test_resend_candidate_interview_email_endpoint_sends_email(self, send_email_only_mock):
@@ -5543,6 +5662,7 @@ from smartInterviewApp.models import (
     AptitudeSection,
     AptitudeTestAssignment,
     AptitudeTestQuestion,
+    AptitudeTestResult,
     AptitudeTestTemplate,
     AptitudeTestTemplateSection,
 )
@@ -6506,8 +6626,74 @@ class AptitudeRuntimeApiTests(TestCase):
         self.assertEqual(assignment.status, AptitudeTestAssignment.Status.SUBMITTED)
         payload = response.json()
         self.assertEqual(payload['data']['result']['score_percent'], 100.0)
+        self.assertEqual(payload['data']['result']['score'], 4)
+        self.assertEqual(payload['data']['result']['max_score'], 4)
         self.assertTrue(payload['data']['result']['passed'])
+        self.assertEqual(payload['data']['result']['result_label'], 'Passed')
+        self.assertEqual(payload['data']['assignment']['answered_count'], 2)
+        self.assertEqual(payload['data']['assignment']['unanswered_count'], 0)
+        self.assertTrue(hasattr(assignment, 'result'))
         self.assertNotIn('correct_keys', json.dumps(payload))
+
+    def test_submit_is_idempotent_and_returns_same_candidate_result(self):
+        assignment, q1, _ = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+
+        first_response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
+        first_result_id = assignment.result.id
+        second_response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(AptitudeTestAssignment.objects.get(id=assignment.id).result.id, first_result_id)
+        self.assertEqual(first_response.json()['data']['result'], second_response.json()['data']['result'])
+        self.assertEqual(AptitudeTestResult.objects.filter(assignment=assignment).count(), 1)
+
+    def test_early_exit_submit_stores_reason_and_scores_partial_answers(self):
+        assignment, q1, _ = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+
+        response = self.client.post(
+            reverse('api-aptitude-runtime-submit', args=[assignment.public_token]),
+            data=json.dumps({'early_exit': True, 'early_exit_reason': 'candidate_quit'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertTrue(assignment.early_exit)
+        self.assertEqual(assignment.early_exit_reason, 'candidate_quit')
+        payload = response.json()['data']
+        self.assertTrue(payload['assignment']['early_exit'])
+        self.assertEqual(payload['assignment']['early_exit_reason'], 'candidate_quit')
+        self.assertEqual(payload['assignment']['answered_count'], 1)
+        self.assertEqual(payload['assignment']['unanswered_count'], 1)
+        self.assertEqual(payload['result']['score_percent'], 50)
+        self.assertFalse(payload['result']['passed'])
+
+    def test_result_payload_has_section_results_with_counts(self):
+        assignment, q1, q2 = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+        AptitudeAnswer.objects.create(assignment=assignment, question=q2, answer_payload={'selected_keys': ['A']})
+
+        response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        section_results = response.json()['data']['result']['section_results']
+        self.assertEqual(len(section_results), 1)
+        section = section_results[0]
+        self.assertEqual(section['section_code'], 'quantitative_aptitude')
+        self.assertEqual(section['section_name'], 'Quantitative Aptitude')
+        self.assertEqual(section['score'], 2)
+        self.assertEqual(section['max_score'], 4)
+        self.assertEqual(section['score_percent'], 50)
+        self.assertEqual(section['correct_count'], 1)
+        self.assertEqual(section['incorrect_count'], 1)
+        self.assertEqual(section['unanswered_count'], 0)
+        self.assertEqual(section['total_questions'], 2)
 
     def test_save_answer_after_expires_at_is_rejected_and_scores_expired_assignment(self):
         assignment, question, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.IN_PROGRESS)
@@ -6543,7 +6729,7 @@ class AptitudeRuntimeApiTests(TestCase):
         self.assertTrue(hasattr(assignment, 'result'))
         self.assertEqual(response.json()['data']['assignment']['time_remaining_seconds'], 0)
 
-    def test_questions_after_expiry_returns_safe_expired_response(self):
+    def test_questions_after_expiry_returns_safe_result_without_questions(self):
         assignment, _, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.IN_PROGRESS)
         assignment.started_at = timezone.now() - timedelta(minutes=60)
         assignment.expires_at = timezone.now() - timedelta(minutes=30)
@@ -6551,10 +6737,12 @@ class AptitudeRuntimeApiTests(TestCase):
 
         response = self.client.get(reverse('api-aptitude-runtime-questions', args=[assignment.public_token]))
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertFalse(payload['success'])
+        self.assertTrue(payload['success'])
         self.assertEqual(payload['data']['assignment']['status'], AptitudeTestAssignment.Status.EXPIRED)
+        self.assertEqual(payload['data']['questions'], [])
+        self.assertIn('result', payload['data'])
         self.assertNotIn('answer_schema', json.dumps(payload))
 
     def test_submit_after_expiry_is_idempotent_and_returns_expired_result(self):
@@ -6571,13 +6759,102 @@ class AptitudeRuntimeApiTests(TestCase):
         self.assertEqual(assignment.status, AptitudeTestAssignment.Status.EXPIRED)
         payload = response.json()['data']
         self.assertEqual(payload['assignment']['status'], AptitudeTestAssignment.Status.EXPIRED)
-        self.assertEqual(payload['result']['status'], AptitudeTestAssignment.Status.EXPIRED)
         self.assertIn('score_percent', payload['result'])
+        self.assertEqual(payload['assignment']['answered_count'], 1)
+        self.assertEqual(payload['assignment']['unanswered_count'], 1)
 
         second_response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
 
         self.assertEqual(second_response.status_code, 200)
-        self.assertEqual(second_response.json()['data']['result']['status'], AptitudeTestAssignment.Status.EXPIRED)
+        self.assertEqual(second_response.json()['data']['assignment']['status'], AptitudeTestAssignment.Status.EXPIRED)
+
+    def test_status_for_submitted_assignment_includes_result_payload(self):
+        assignment, q1, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.SUBMITTED)
+        assignment.submitted_at = timezone.now()
+        assignment.save(update_fields=['submitted_at'])
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+
+        response = self.client.get(reverse('api-aptitude-runtime-status', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['data']
+        self.assertEqual(payload['assignment']['status'], AptitudeTestAssignment.Status.SUBMITTED)
+        self.assertEqual(payload['result']['score_percent'], 50)
+        self.assertIn('section_results', payload['result'])
+
+    def test_runtime_result_endpoint_returns_candidate_safe_payload(self):
+        assignment, q1, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.SUBMITTED)
+        assignment.submitted_at = timezone.now()
+        assignment.save(update_fields=['submitted_at'])
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+
+        response = self.client.get(reverse('api-aptitude-runtime-result', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['data']
+        self.assertEqual(payload['assignment']['id'], assignment.id)
+        self.assertEqual(payload['assignment']['candidate_name'], 'Runtime Candidate')
+        self.assertEqual(payload['result']['score_percent'], 50)
+        self.assertNotIn('answer_schema', json.dumps(payload))
+        self.assertNotIn('correct_keys', json.dumps(payload))
+        self.assertNotIn('explanation', json.dumps(payload))
+
+    def test_assignment_result_api_allows_assigned_candidate_safe_payload(self):
+        assignment, q1, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.SUBMITTED)
+        assignment.submitted_at = timezone.now()
+        assignment.save(update_fields=['submitted_at'])
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+
+        response = self.client.get(reverse('api-aptitude-assignment-result', args=[assignment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['data']
+        self.assertEqual(payload['assignment']['id'], assignment.id)
+        self.assertEqual(payload['result']['score_percent'], 50)
+        self.assertNotIn('events_by_type', json.dumps(payload))
+
+    def test_wrong_candidate_and_anonymous_cannot_fetch_runtime_result(self):
+        assignment, q1, _ = self._runtime_assignment(status_value=AptitudeTestAssignment.Status.SUBMITTED)
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+
+        self.client.logout()
+        anonymous_response = self.client.get(reverse('api-aptitude-runtime-result', args=[assignment.public_token]))
+        self._login_other_candidate()
+        wrong_candidate_response = self.client.get(reverse('api-aptitude-runtime-result', args=[assignment.public_token]))
+
+        self.assertEqual(anonymous_response.status_code, 401)
+        self.assertEqual(wrong_candidate_response.status_code, 403)
+
+    def test_integrity_summary_returns_safe_labels_only(self):
+        assignment, q1, _ = self._runtime_assignment()
+        self.client.post(reverse('api-aptitude-runtime-start', args=[assignment.public_token]))
+        AptitudeAnswer.objects.create(assignment=assignment, question=q1, answer_payload={'selected_keys': ['B']})
+        AptitudeIntegrityEvent.objects.create(
+            assignment=assignment,
+            event_type='tab_switch',
+            event_payload={'raw': {'hidden': True}},
+        )
+        AptitudeIntegrityEvent.objects.create(
+            assignment=assignment,
+            event_type='external_device_suspected',
+            event_payload={'object_label': 'cell phone', 'confidence': 0.91},
+        )
+        AptitudeIntegrityEvent.objects.create(
+            assignment=assignment,
+            event_type='copy_attempt',
+            event_payload={'raw': 'not candidate safe'},
+        )
+
+        response = self.client.post(reverse('api-aptitude-runtime-submit', args=[assignment.public_token]))
+
+        self.assertEqual(response.status_code, 200)
+        summary = response.json()['data']['result']['integrity_summary']
+        self.assertTrue(summary['review_required'])
+        self.assertEqual(summary['event_count'], 2)
+        self.assertCountEqual(summary['flags'], ['Tab switch', 'External device suspected'])
+        payload_text = json.dumps(response.json())
+        self.assertNotIn('cell phone', payload_text)
+        self.assertNotIn('events_by_type', payload_text)
 
     def test_integrity_event_is_stored(self):
         assignment, _, _ = self._runtime_assignment()

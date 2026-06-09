@@ -2,7 +2,6 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
-import imghdr
 import zipfile
 
 from smartInterviewApp.models import UserProfile
@@ -152,7 +151,7 @@ def validate_profile_picture_upload(profile_picture):
 
     header = profile_picture.read(512)
     profile_picture.seek(0)
-    image_type = imghdr.what(None, h=header)
+    image_type = detect_supported_profile_image_type(header)
     if image_type not in {'png', 'jpeg', 'webp'}:
         raise forms.ValidationError('The uploaded profile photo is invalid or unsupported.')
 
@@ -160,6 +159,16 @@ def validate_profile_picture_upload(profile_picture):
     if profile_picture.size > max_size:
         raise forms.ValidationError('Profile photo must be 3 MB or smaller.')
     return profile_picture
+
+
+def detect_supported_profile_image_type(header):
+    if header.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'png'
+    if header.startswith(b'\xff\xd8\xff'):
+        return 'jpeg'
+    if len(header) >= 12 and header[:4] == b'RIFF' and header[8:12] == b'WEBP':
+        return 'webp'
+    return None
 
 
 class CandidateLoginForm(AuthenticationForm):
