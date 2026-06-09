@@ -9,7 +9,9 @@
         class="ph"
         [class.ph-calendar-check]="mode === 'schedule'"
         [class.ph-users-three]="mode === 'bulk-assign'"
-        [class.ph-clipboard-text]="mode === 'evaluation-reviews'"></i>
+        [class.ph-clipboard-text]="mode === 'bulk-aptitude' || mode === 'evaluation-reviews'"
+        [class.ph-video-camera]="mode === 'bulk-interview'"
+      ></i>
     </div>
     <div class="copy">
       <h3 class="workflow-action-title">{{ title }}</h3>
@@ -323,6 +325,136 @@
       </div>
     </div>
 
+    <div *ngSwitchCase="'bulk-aptitude'" class="workflow-body bulk-workflow-body">
+      <ng-container *ngTemplateOutlet="bulkWorkflowScheduleTemplate"></ng-container>
+    </div>
+
+    <div *ngSwitchCase="'bulk-interview'" class="workflow-body bulk-workflow-body">
+      <ng-container *ngTemplateOutlet="bulkWorkflowScheduleTemplate"></ng-container>
+    </div>
+
+    <ng-template #bulkWorkflowScheduleTemplate>
+      <div class="workflow-column">
+        <div class="section-head">
+          <h4><i class="ph ph-briefcase"></i>Job Vacancy</h4>
+          <button *ngIf="selectedWorkflowRole" type="button" class="text-btn" (click)="resetSelectedWorkflowRole()">Change Vacancy</button>
+          <span *ngIf="!selectedWorkflowRole">Search and select</span>
+        </div>
+
+        <div class="bulk-workflow-purpose">
+          <span class="bulk-workflow-purpose-icon">
+            <i class="ph" [class.ph-clipboard-text]="mode === 'bulk-aptitude'" [class.ph-video-camera]="mode === 'bulk-interview'"></i>
+          </span>
+          <div>
+            <strong>{{ mode === 'bulk-aptitude' ? 'Assign aptitude tests by vacancy' : 'Assign interviews by vacancy' }}</strong>
+            <p>
+              This action targets only candidates still in assignment progress for the selected vacancy.
+              Candidates already scheduled for an interview or active aptitude assessment are skipped automatically.
+            </p>
+          </div>
+        </div>
+
+        <div class="candidate-search-block role-search-block">
+          <div class="field-shell">
+            <i class="ph ph-magnifying-glass"></i>
+            <input
+              type="text"
+              [ngModel]="roleSearch"
+              (ngModelChange)="onRoleSearchChange($event)"
+              placeholder="Search job vacancy by title or ID"
+              [readonly]="!!selectedWorkflowRole"
+              (focus)="openRoleSearch()"
+              (blur)="closeRoleSearch()" />
+          </div>
+          <div class="candidate-list candidate-list--overlay" *ngIf="showWorkflowRoleResults">
+            <button
+              type="button"
+              class="candidate-card role-result-card"
+              *ngFor="let role of filteredWorkflowRoleOptions; trackBy: trackRole"
+              (mousedown)="selectWorkflowRole(role)">
+              <div>
+                <strong>{{ role.label }}</strong>
+                <span>{{ role.helper }}</span>
+              </div>
+              <small>{{ role.eligible }} eligible</small>
+            </button>
+          </div>
+          <div class="candidate-search-empty" *ngIf="showWorkflowRoleEmpty">No vacancy matched your search.</div>
+        </div>
+
+        <div class="summary-panel bulk-workflow-summary" *ngIf="selectedWorkflowRole as role">
+          <div><span><i class="ph ph-briefcase"></i>Selected Vacancy</span><strong>{{ role.label }}</strong></div>
+          <div><span><i class="ph ph-user-focus"></i>Eligible Candidates</span><strong>{{ bulkWorkflowEligibleCount }}</strong></div>
+          <div><span><i class="ph ph-shield-check"></i>Protected Records</span><strong>{{ role.scheduled }} already scheduled skipped</strong></div>
+        </div>
+      </div>
+
+      <div class="workflow-column workflow-column--form">
+        <div class="section-head">
+          <h4>
+            <i class="ph" [class.ph-clipboard-text]="mode === 'bulk-aptitude'" [class.ph-calendar-check]="mode === 'bulk-interview'"></i>
+            {{ mode === 'bulk-aptitude' ? 'Aptitude Schedule' : 'Interview Schedule' }}
+          </h4>
+          <span>{{ selectedWorkflowRole ? bulkWorkflowEligibleCount + ' eligible' : 'Vacancy required' }}</span>
+        </div>
+
+        <div class="plan-guidance" *ngIf="!selectedWorkflowRole">
+          <span class="plan-guidance-icon"><i class="ph ph-briefcase"></i></span>
+          <div>
+            <strong>Select a vacancy to continue</strong>
+            <small>The platform will find assignment-in-progress candidates for that vacancy and skip records that already have a scheduled interview or active aptitude test.</small>
+          </div>
+        </div>
+
+        <div class="schedule-composer">
+          <div class="schedule-composer-head">
+            <div>
+              <span class="field-label"><i class="ph ph-clock-countdown"></i>{{ mode === 'bulk-aptitude' ? 'Assessment window' : 'Interview window' }}</span>
+              <h5>{{ mode === 'bulk-aptitude' ? 'Aptitude Test Date & Time' : 'Interview Date & Time' }}</h5>
+            </div>
+            <i class="ph ph-calendar-blank"></i>
+          </div>
+          <div class="schedule-grid">
+            <div class="schedule-input-card" [class.schedule-input-card--invalid]="!!scheduleDateError">
+              <label class="field-label"><i class="ph ph-calendar-dots"></i>Date</label>
+              <input
+                type="date"
+                [ngModel]="scheduledDate"
+                (ngModelChange)="onBulkScheduleDateChange($event)"
+                [min]="todayDateString"
+                [disabled]="!selectedWorkflowRole || saving" />
+              <small class="field-error" *ngIf="scheduleDateError">{{ scheduleDateError }}</small>
+            </div>
+            <div class="schedule-input-card">
+              <label class="field-label"><i class="ph ph-clock"></i>Time</label>
+              <input
+                type="time"
+                [ngModel]="scheduledTime"
+                (ngModelChange)="onBulkScheduleTimeChange($event)"
+                [disabled]="!selectedWorkflowRole || saving" />
+            </div>
+            <div class="schedule-input-card" *ngIf="mode === 'bulk-aptitude'">
+              <label class="field-label"><i class="ph ph-clipboard-text"></i>Assessment template</label>
+              <select [(ngModel)]="selectedAptitudeTemplateId" [disabled]="!selectedWorkflowRole || saving || loadingAptitudeTemplates">
+                <option [ngValue]="null">{{ loadingAptitudeTemplates ? 'Loading templates...' : 'Select assessment template' }}</option>
+                <option *ngFor="let template of aptitudeTemplates" [ngValue]="template.id">
+                  {{ template.title }}
+                </option>
+              </select>
+              <small *ngIf="selectedAptitudeTemplate as template">
+                {{ template.duration_minutes }} min · {{ template.total_questions }} questions
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div class="bulk-workflow-note">
+          <i class="ph ph-info"></i>
+          <span>{{ mode === 'bulk-aptitude' ? 'Aptitude assignments will be created only for eligible candidates without an active aptitude test.' : 'Interview links will be scheduled only for eligible candidates that are not already scheduled.' }}</span>
+        </div>
+      </div>
+    </ng-template>
+
     <div *ngSwitchCase="'evaluation-reviews'" class="evaluation-reviews-shell">
       <div class="evaluation-review-toolbar">
         <div class="field-shell field-shell--wide evaluation-review-search">
@@ -426,15 +558,23 @@
     <button
       type="button"
       class="primary-btn"
-      [disabled]="mode === 'schedule' ? !canSubmitSchedule : !canSubmitBulkAssign"
-      (click)="mode === 'schedule' ? saveSchedule() : saveBulkAssign()">
-      <i class="ph" [class.ph-calendar-plus]="mode === 'schedule'" [class.ph-user-plus]="mode !== 'schedule'"></i>
-      {{ saving ? 'Saving...' : (mode === 'schedule' ? 'Schedule Interview' : 'Assign Evaluator') }}
+      [disabled]="mode === 'schedule' ? !canSubmitSchedule : (isBulkScheduleMode ? !canSubmitBulkWorkflow : !canSubmitBulkAssign)"
+      (click)="mode === 'schedule' ? saveSchedule() : (isBulkScheduleMode ? saveBulkWorkflowSchedule() : saveBulkAssign())">
+      <i
+        class="ph"
+        [class.ph-calendar-plus]="mode === 'schedule' || mode === 'bulk-interview'"
+        [class.ph-clipboard-text]="mode === 'bulk-aptitude'"
+        [class.ph-user-plus]="mode === 'bulk-assign'"></i>
+      {{ saving ? 'Saving...' : (mode === 'schedule' ? 'Schedule Interview' : (mode === 'bulk-aptitude' ? 'Assign Aptitude Tests' : (mode === 'bulk-interview' ? 'Assign Interviews' : 'Assign Evaluator'))) }}
     </button>
   </div>
   <div class="workflow-action-helper" *ngIf="mode === 'schedule' && scheduleSubmitBlocker && !saving">
     <i class="ph ph-info"></i>
     <span>{{ scheduleSubmitBlocker }}</span>
+  </div>
+  <div class="workflow-action-helper" *ngIf="isBulkScheduleMode && bulkWorkflowSubmitBlocker && !saving">
+    <i class="ph ph-info"></i>
+    <span>{{ bulkWorkflowSubmitBlocker }}</span>
   </div>
 
   <div class="workflow-actions" *ngIf="mode === 'evaluation-reviews'">

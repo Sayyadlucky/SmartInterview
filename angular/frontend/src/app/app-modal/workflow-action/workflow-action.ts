@@ -6,7 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { catchError, of } from 'rxjs';
 import { AppToastService } from '../../core/app-toast.service';
 
-type WorkflowActionMode = 'schedule' | 'bulk-assign' | 'evaluation-reviews';
+type WorkflowActionMode = 'schedule' | 'bulk-assign' | 'bulk-aptitude' | 'bulk-interview' | 'evaluation-reviews';
 type ReviewFilterKey = 'all' | 'pending' | 'completed' | 'needs-decision' | 'overdue';
 
 interface WorkflowCandidate {
@@ -28,6 +28,18 @@ interface WorkflowCandidate {
   role_id?: number | null;
   profile_picture_url?: string;
   candidate_profile_picture_url?: string;
+  candidate_action_link_type?: string;
+  aptitude_assignment_id?: number | null;
+  aptitude_status?: string;
+}
+
+interface WorkflowRoleOption {
+  id: number;
+  label: string;
+  helper: string;
+  total: number;
+  eligible: number;
+  scheduled: number;
 }
 
 interface EvaluatorOption {
@@ -143,6 +155,7 @@ export class WorkflowAction {
 
   selectedInterviewId: number | null = null;
   selectedEvaluatorId: number | null = null;
+  selectedRoleId: number | null = null;
   selectedBulkIds = new Set<number>();
   scheduledDate = '';
   scheduledTime = '';
@@ -154,6 +167,8 @@ export class WorkflowAction {
   interviewType: 'manual' | 'auto' = 'manual';
   evaluatorSearch = '';
   evaluatorSearchOpen = false;
+  roleSearch = '';
+  roleSearchOpen = false;
 
   evaluatorOptions: EvaluatorOption[] = [];
   aptitudeTemplates: AptitudeTemplateOption[] = [];
@@ -171,7 +186,7 @@ export class WorkflowAction {
     if (this.mode !== 'evaluation-reviews') {
       this.loadEvaluatorOptions();
     }
-    if (this.mode === 'schedule') {
+    if (this.mode === 'schedule' || this.mode === 'bulk-aptitude') {
       this.loadAptitudeTemplates();
     }
     if (this.mode === 'evaluation-reviews') {
@@ -192,6 +207,8 @@ export class WorkflowAction {
   get title(): string {
     if (this.mode === 'schedule') return 'Schedule Interview';
     if (this.mode === 'bulk-assign') return 'Bulk Assign Evaluator';
+    if (this.mode === 'bulk-aptitude') return 'Bulk Assign Aptitude Test';
+    if (this.mode === 'bulk-interview') return 'Bulk Assign Interview';
     return 'Evaluation Reviews';
   }
 
@@ -202,7 +219,17 @@ export class WorkflowAction {
     if (this.mode === 'bulk-assign') {
       return 'Assign an evaluator across multiple candidates in one controlled workflow update.';
     }
+    if (this.mode === 'bulk-aptitude') {
+      return 'Select a vacancy and schedule aptitude tests for candidates still in assignment progress. Candidates already scheduled are skipped.';
+    }
+    if (this.mode === 'bulk-interview') {
+      return 'Select a vacancy and schedule interview links for candidates still in assignment progress. Existing scheduled candidates are not changed.';
+    }
     return 'Review completed interviews, evaluator feedback, and final hiring decisions.';
+  }
+
+  get isBulkScheduleMode(): boolean {
+    return this.mode === 'bulk-aptitude' || this.mode === 'bulk-interview';
   }
 
   get scheduleCandidates(): WorkflowCandidate[] {
@@ -231,6 +258,80 @@ export class WorkflowAction {
     return this.filterCandidates(this.candidates.filter((candidate) =>
       !['hired', 'rejected', 'cancelled'].includes(this.normalizeStatus(candidate.status))
     ));
+  }
+
+  get workflowRoleOptions(): WorkflowRoleOption[] {
+    const roleMap = new Map<number, WorkflowRoleOption>();
+    for (const candidate of this.candidates) {
+      const roleId = Number(candidate.role_id || 0);
+      if (!roleId) {
+        continue;
+      }
+      const current = roleMap.get(roleId) || {
+        id: roleId,
+        label: candidate.role || `Vacancy #${roleId}`,
+        helper: `Vacancy #${roleId}`,
+        total: 0,
+        eligible: 0,
+        scheduled: 0,
+      };
+      current.total += 1;
+      if (this.isExistingScheduledCandidate(candidate)) {
+        current.scheduled += 1;
+      }
+      if (this.isBulkWorkflowEligible(candidate)) {
+        current.eligible += 1;
+      }
+      roleMap.set(roleId, current);
+    }
+    return Array.from(roleMap.values())
+      .map((role) => ({
+        ...role,
+        helper: `${role.eligible} eligible · ${role.scheduled} already scheduled · ${role.total} total`,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }
+
+  get filteredWorkflowRoleOptions(): WorkflowRoleOption[] {
+    const term = this.roleSearch.trim().toLowerCase();
+    if (term.length < 2) {
+      return [];
+    }
+    return this.workflowRoleOptions.filter((role) =>
+      [role.label, role.helper, role.id]
+        .map((value) => (value || '').toString().toLowerCase())
+        .some((value) => value.includes(term))
+    );
+  }
+
+  get selectedWorkflowRole(): WorkflowRoleOption | null {
+    return this.workflowRoleOptions.find((role) => role.id === this.selectedRoleId) || null;
+  }
+
+  get bulkWorkflowEligibleCount(): number {
+    const roleId = this.selectedRoleId;
+    if (!roleId) {
+      return 0;
+    }
+    return this.candidates.filter((candidate) =>
+      Number(candidate.role_id || 0) === roleId && this.isBulkWorkflowEligible(candidate)
+    ).length;
+  }
+
+  get showWorkflowRoleResults(): boolean {
+    return this.isBulkScheduleMode
+      && this.roleSearchOpen
+      && this.roleSearch.trim().length >= 2
+      && !this.selectedWorkflowRole
+      && this.filteredWorkflowRoleOptions.length > 0;
+  }
+
+  get showWorkflowRoleEmpty(): boolean {
+    return this.isBulkScheduleMode
+      && this.roleSearchOpen
+      && this.roleSearch.trim().length >= 2
+      && !this.selectedWorkflowRole
+      && this.filteredWorkflowRoleOptions.length === 0;
   }
 
   get reviewCandidates(): ReviewCandidateView[] {
@@ -483,6 +584,29 @@ export class WorkflowAction {
     return !!(this.selectedBulkIds.size && this.selectedEvaluatorId && !this.saving);
   }
 
+  get bulkWorkflowSubmitBlocker(): string {
+    if (!this.selectedRoleId) {
+      return 'Select a job vacancy before assigning.';
+    }
+    if (!this.bulkWorkflowEligibleCount) {
+      return 'No assignment-in-progress candidates are eligible for this vacancy.';
+    }
+    if (!this.scheduledDate || !this.scheduledTime) {
+      return 'Select date and time for the bulk assignment.';
+    }
+    if (this.scheduleDateError) {
+      return this.scheduleDateError;
+    }
+    if (this.mode === 'bulk-aptitude' && !this.selectedAptitudeTemplateId) {
+      return 'Select assessment template.';
+    }
+    return '';
+  }
+
+  get canSubmitBulkWorkflow(): boolean {
+    return !this.saving && !this.bulkWorkflowSubmitBlocker;
+  }
+
   close(result: any = null): void {
     this.dialogRef.close(result);
   }
@@ -602,6 +726,43 @@ export class WorkflowAction {
     this.candidateSearchOpen = true;
   }
 
+  openRoleSearch(): void {
+    if (!this.isBulkScheduleMode || this.selectedWorkflowRole) {
+      return;
+    }
+    this.roleSearchOpen = true;
+  }
+
+  closeRoleSearch(): void {
+    window.setTimeout(() => {
+      this.roleSearchOpen = false;
+      if (this.selectedWorkflowRole) {
+        this.roleSearch = this.selectedWorkflowRole.label;
+      }
+    }, 120);
+  }
+
+  onRoleSearchChange(value: string): void {
+    this.roleSearch = value;
+    this.roleSearchOpen = true;
+    this.selectedRoleId = null;
+    this.errorMessage = '';
+  }
+
+  selectWorkflowRole(role: WorkflowRoleOption): void {
+    this.selectedRoleId = role.id;
+    this.roleSearch = role.label;
+    this.roleSearchOpen = false;
+    this.errorMessage = '';
+  }
+
+  resetSelectedWorkflowRole(): void {
+    this.selectedRoleId = null;
+    this.roleSearch = '';
+    this.roleSearchOpen = false;
+    this.errorMessage = '';
+  }
+
   onReviewSearchChange(value: string): void {
     this.reviewSearch = value;
     this.refreshReviewData();
@@ -687,6 +848,24 @@ export class WorkflowAction {
       return;
     }
     if (this.errorMessage === 'Interview time must be at least 2 hours after aptitude assessment time.') {
+      this.errorMessage = '';
+    }
+  }
+
+  onBulkScheduleDateChange(value: string): void {
+    this.scheduledDate = value;
+    if (this.scheduleDateError) {
+      this.errorMessage = this.scheduleDateError;
+      return;
+    }
+    if (this.errorMessage === 'Please select today or a future date.') {
+      this.errorMessage = '';
+    }
+  }
+
+  onBulkScheduleTimeChange(value: string): void {
+    this.scheduledTime = value;
+    if (this.errorMessage === 'Select date and time for the bulk assignment.') {
       this.errorMessage = '';
     }
   }
@@ -795,6 +974,19 @@ export class WorkflowAction {
       mode: 'bulk-assign',
       interview_ids: Array.from(this.selectedBulkIds),
       interviewer_id: this.selectedEvaluatorId,
+    });
+  }
+
+  saveBulkWorkflowSchedule(): void {
+    if (!this.canSubmitBulkWorkflow) {
+      this.errorMessage = this.bulkWorkflowSubmitBlocker || 'Complete the required bulk assignment fields.';
+      return;
+    }
+    this.submitBulkWorkflowSchedule({
+      mode: this.mode,
+      role_id: this.selectedRoleId,
+      scheduled_at: this.combineDateTime(),
+      aptitude_template_id: this.mode === 'bulk-aptitude' ? this.selectedAptitudeTemplateId : null,
     });
   }
 
@@ -1099,6 +1291,10 @@ export class WorkflowAction {
     return evaluator.id;
   }
 
+  trackRole(_: number, role: WorkflowRoleOption): number {
+    return role.id;
+  }
+
   private filterCandidates(source: WorkflowCandidate[]): WorkflowCandidate[] {
     const term = this.candidateSearch.trim().toLowerCase();
     if (term.length < 3) return [];
@@ -1153,6 +1349,53 @@ export class WorkflowAction {
         this.toast.showSuccess(this.mode === 'schedule' ? 'Interview scheduled' : 'Workflow updated', successMessage);
         this.close({ action: 'refresh', message: successMessage });
       });
+  }
+
+  private submitBulkWorkflowSchedule(payload: Record<string, unknown>): void {
+    this.saving = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.http.post<any>(`${this.getApiBaseUrl()}/bulk-workflow-schedule/`, payload)
+      .pipe(
+        catchError((error) => {
+          console.error('Error completing bulk workflow schedule', error);
+          this.saving = false;
+          this.errorMessage = error?.error?.Error || 'Unable to complete bulk assignment.';
+          this.toast.showError('Bulk assignment failed', this.errorMessage);
+          return of(null);
+        })
+      )
+      .subscribe((response) => {
+        this.saving = false;
+        if (!response?.Success) {
+          this.errorMessage = response?.Error || 'Unable to complete bulk assignment.';
+          this.toast.showError('Bulk assignment failed', this.errorMessage);
+          return;
+        }
+        const updatedCount = response?.Data?.updated_count || 0;
+        const skippedCount = response?.Data?.skipped_count || 0;
+        const noun = this.mode === 'bulk-aptitude' ? 'aptitude test' : 'interview';
+        const successMessage = `${updatedCount} ${noun}${updatedCount === 1 ? '' : 's'} assigned. ${skippedCount} candidate${skippedCount === 1 ? '' : 's'} skipped because they were already scheduled or not eligible.`;
+        this.successMessage = successMessage;
+        this.toast.showSuccess('Bulk assignment complete', successMessage);
+        this.close({ action: 'refresh', message: successMessage });
+      });
+  }
+
+  private isBulkWorkflowEligible(candidate: WorkflowCandidate): boolean {
+    const status = this.normalizeStatus(candidate.status);
+    return ['assignment in progress', 'assessment pending', 'assignment pending'].includes(status)
+      && !this.isExistingScheduledCandidate(candidate);
+  }
+
+  private isExistingScheduledCandidate(candidate: WorkflowCandidate): boolean {
+    const status = this.normalizeStatus(candidate.status);
+    return ['scheduled', 'auto screening scheduled'].includes(status)
+      || this.normalizeStatus(candidate.aptitude_status || '') === 'assigned'
+      || this.normalizeStatus(candidate.aptitude_status || '') === 'in progress'
+      || candidate.candidate_action_link_type === 'aptitude'
+      || !!candidate.aptitude_assignment_id;
   }
 
   private getApiBaseUrl(): string {

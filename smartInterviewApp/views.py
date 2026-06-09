@@ -24,7 +24,7 @@ from .forms import ContactForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .emailing import send_contact_notification_email
-from .models import AptitudeTestAssignment, AptitudeTestTemplate, CompanyProfile, Interview
+from .models import AptitudeTestAssignment, AptitudeTestTemplate, CompanyProfile, Interview, Vacancies
 from .commonViews import (
     build_litio_aptitude_link,
     build_litio_interview_link,
@@ -595,7 +595,7 @@ def dashboard(request):
     if profile and profile.role == 'candidate':
         return redirect(build_host_link(request, 'candidates'))
     ensure_company_profile_for_user(request.user)
-    return render(request, 'smartInterview/dashboard.html')
+    return render(request, 'angular_index.html')
 
 import traceback
 
@@ -1074,6 +1074,189 @@ def updateInterviewWorkflow(request):
         "Data": {
             "updated_count": len(updated_items),
             "items": updated_items,
+            "notifications": notifications,
+        }
+    })
+
+
+@csrf_exempt
+@login_required
+def bulkWorkflowSchedule(request):
+    if request.method != 'POST':
+        return JsonResponse({"Success": False, "Error": "Only POST is allowed."}, status=405)
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in {'admin', 'recruiter'}:
+        return JsonResponse({"Success": False, "Error": "Admin or recruiter access is required."}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return JsonResponse({"Success": False, "Error": "Invalid request payload."}, status=400)
+
+    mode = str(payload.get('mode') or '').strip().lower()
+    if mode not in {'bulk-aptitude', 'bulk-interview'}:
+        return JsonResponse({"Success": False, "Error": "Please select a valid bulk assignment type."}, status=400)
+
+    try:
+        role_id = int(payload.get('role_id') or 0)
+    except (TypeError, ValueError):
+        role_id = 0
+    if not role_id:
+        return JsonResponse({"Success": False, "Error": "Please select a job vacancy."}, status=400)
+
+    scheduled_at_raw = str(payload.get('scheduled_at') or '').strip()
+    scheduled_at = parse_datetime(scheduled_at_raw)
+    if not scheduled_at:
+        return JsonResponse({"Success": False, "Error": "Please provide a valid date and time."}, status=400)
+    if timezone.is_naive(scheduled_at):
+        scheduled_at = timezone.make_aware(scheduled_at, timezone.get_current_timezone())
+    if scheduled_at < timezone.now():
+        return JsonResponse({"Success": False, "Error": "Schedule time must not be in the past."}, status=400)
+
+    vacancy = Vacancies.objects.filter(id=role_id).first()
+    if not vacancy:
+        return JsonResponse({"Success": False, "Error": "Selected vacancy was not found."}, status=404)
+
+    accessible_interviews = (
+        get_accessible_interviews(request.user)
+        .filter(role_id=role_id)
+        .select_related('candidate', 'role', 'recruiter', 'interviewer')
+        .prefetch_related('aptitude_test_assignments')
+    )
+    all_role_interviews = list(accessible_interviews)
+    if not all_role_interviews:
+        return JsonResponse({"Success": False, "Error": "No accessible candidates were found for this vacancy."}, status=404)
+
+    eligible_statuses = {'assessment_pending', 'assignment_in_progress', 'assignment_pending'}
+    protected_statuses = {'scheduled', 'auto_screening_scheduled'}
+    eligible_interviews = [
+        interview for interview in all_role_interviews
+        if normalize_interview_status(interview.status) in eligible_statuses
+        and normalize_interview_status(interview.status) not in protected_statuses
+    ]
+
+    aptitude_template = None
+    if mode == 'bulk-aptitude':
+        try:
+            aptitude_template_id = int(payload.get('aptitude_template_id') or 0)
+        except (TypeError, ValueError):
+            aptitude_template_id = 0
+        aptitude_template = AptitudeTestTemplate.objects.filter(id=aptitude_template_id, is_active=True).first()
+        if not aptitude_template:
+            return JsonResponse({"Success": False, "Error": "Please select a valid assessment template."}, status=400)
+        readiness = validate_template_readiness(aptitude_template)
+        if not readiness['ready']:
+            return JsonResponse({
+                "Success": False,
+                "Error": "Aptitude question bank is not ready for the selected assessment template.",
+                "Data": {"readiness": readiness},
+            }, status=400)
+
+    updated_items = []
+    skipped_items = []
+    notifications = []
+    scheduled_jobs: list[dict] = []
+
+    with transaction.atomic():
+        for interview in eligible_interviews:
+            normalized_status = normalize_interview_status(interview.status)
+            if normalized_status in protected_statuses:
+                skipped_items.append({"id": interview.id, "reason": "Already scheduled"})
+                continue
+
+            if mode == 'bulk-aptitude':
+                active_assignment = (
+                    interview.aptitude_test_assignments
+                    .filter(status__in={
+                        AptitudeTestAssignment.Status.ASSIGNED,
+                        AptitudeTestAssignment.Status.IN_PROGRESS,
+                    })
+                    .order_by('-created_at', '-id')
+                    .first()
+                )
+                if active_assignment:
+                    skipped_items.append({"id": interview.id, "reason": "Aptitude already assigned"})
+                    continue
+
+                aptitude_assignment = ensure_interview_aptitude_assignment(
+                    interview=interview,
+                    template=aptitude_template,
+                    scheduled_at=scheduled_at,
+                    created_by=request.user,
+                )
+                aptitude_public_token, aptitude_link = build_litio_aptitude_link(request, aptitude_assignment)
+                interview.status = 'auto_screening_scheduled'
+                interview.date = scheduled_at
+                interview.save(update_fields=['status', 'date'])
+                updated_items.append({
+                    "id": interview.id,
+                    "status": normalize_interview_status(interview.status),
+                    "date": interview.date.isoformat() if interview.date else '',
+                    "aptitude_assignment_id": aptitude_assignment.id,
+                    "aptitude_public_token": aptitude_public_token,
+                    "aptitude_link": aptitude_link,
+                    "aptitude_scheduled_at": aptitude_assignment.scheduled_at.isoformat() if aptitude_assignment.scheduled_at else None,
+                    "aptitude_status": aptitude_assignment.status,
+                })
+                continue
+
+            interview.interview_type = 'auto'
+            interview.interviewer = None
+            interview.date = scheduled_at
+            interview.status = 'scheduled'
+            interview.save(update_fields=['interview_type', 'interviewer', 'date', 'status'])
+            interview_token, interview_link = build_litio_interview_link(request, interview)
+            updated_items.append({
+                "id": interview.id,
+                "interviewer_id": None,
+                "interviewer": '',
+                "interview_type": 'auto',
+                "status": normalize_interview_status(interview.status),
+                "date": interview.date.isoformat() if interview.date else '',
+                "interview_token": interview_token,
+                "interview_link": interview_link,
+            })
+            notification_result = send_existing_candidate_sms(
+                interview.candidate,
+                interview,
+                request=request,
+                notification_kind='scheduled',
+            )
+            notifications.append({
+                "interview_id": interview.id,
+                "result": {
+                    **notification_result,
+                    "queued": True,
+                    "reason": (
+                        f"{notification_result.get('reason', '').strip()} Reminder scheduling queued."
+                        if notification_result.get('reason')
+                        else "Reminder scheduling queued."
+                    ).strip(),
+                },
+            })
+            scheduled_jobs.append({
+                'interview_id': interview.id,
+                'expected_interview_time': interview.date.isoformat() if interview.date else '',
+            })
+
+    if mode == 'bulk-interview' and scheduled_jobs:
+        queued_jobs = tuple((item['interview_id'], item['expected_interview_time']) for item in scheduled_jobs)
+        transaction.on_commit(
+            lambda jobs=queued_jobs: queue_scheduled_interview_processing(
+                [{'interview_id': interview_id, 'expected_interview_time': expected_time} for interview_id, expected_time in jobs]
+            )
+        )
+
+    skipped_count = len(all_role_interviews) - len(updated_items)
+    return JsonResponse({
+        "Success": True,
+        "Error": None,
+        "Data": {
+            "updated_count": len(updated_items),
+            "skipped_count": skipped_count,
+            "items": updated_items,
+            "skipped": skipped_items,
             "notifications": notifications,
         }
     })

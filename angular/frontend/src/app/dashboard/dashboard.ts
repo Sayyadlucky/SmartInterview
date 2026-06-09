@@ -222,6 +222,50 @@ interface CandidateEvaluationSummary {
   profile_picture_data_url: string;
   updated_at: string;
   created_at: string;
+  aptitude_assessment: AptitudeAssessmentSummary;
+}
+
+interface AptitudeAssessmentSummary {
+  available: boolean;
+  status: string;
+  status_label: string;
+  assignment_id: number | null;
+  title: string;
+  scheduled_at: string;
+  submitted_at: string;
+  started_at: string;
+  expires_at: string;
+  score: number | null;
+  score_percent: number | null;
+  max_score: number | null;
+  passed: boolean | null;
+  result_label: string;
+  passing_score_percent: number | null;
+  total_questions: number;
+  answered_count: number;
+  unanswered_count: number;
+  early_exit: boolean;
+  early_exit_reason: string;
+  section_results: AptitudeSectionResult[];
+  integrity_summary: AptitudeIntegritySummary;
+}
+
+interface AptitudeSectionResult {
+  section_code: string;
+  section_name: string;
+  score: number | null;
+  max_score: number | null;
+  score_percent: number | null;
+  correct_count: number;
+  incorrect_count: number;
+  unanswered_count: number;
+  total_questions: number;
+}
+
+interface AptitudeIntegritySummary {
+  review_required: boolean;
+  event_count: number;
+  flags: string[];
 }
 
 interface ProfessionalSummarySection {
@@ -1883,7 +1927,7 @@ closeEvaluationSummaryModal(): void {
 openDetailedEvaluationReport(event?: Event): void {
   event?.preventDefault();
   event?.stopPropagation();
-  if (!this.evaluationSummary.available) {
+  if (!this.hasEvaluationReportContent()) {
     return;
   }
   this.evaluationReportGeneratedAt = new Date();
@@ -2007,6 +2051,7 @@ private buildDetailedEvaluationReportHtml(): string {
   `).join('');
   const attentionHtml = this.evaluationNeedAttentionItems.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('');
   const actionsHtml = this.evaluationActionItems.map((item) => `<label><span>&#10003;</span><small>${this.escapeHtml(item)}</small></label>`).join('');
+  const aptitudeHtml = this.renderAptitudeReportSection();
 
   return `<!doctype html>
 <html>
@@ -2103,6 +2148,8 @@ private buildDetailedEvaluationReportHtml(): string {
           <h2><span>⌁</span> Evaluation Progress</h2>
           <div class="report-progress-line">${progressHtml}</div>
         </article>
+
+        ${aptitudeHtml}
 
         <article class="report-card report-section">
           <h2><span>▣</span> Detailed Question & Answer Summary</h2>
@@ -2284,6 +2331,26 @@ private getDetailedReportStaticCss(): string {
     .report-progress-line article { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; text-align: center; min-width: 0; }
     .report-progress-line article > span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #8b5cf6; color: #fff; font-size: 0.86rem; font-weight: 900; } .report-progress-line article.is-active > span { background: #10b981; }
     .report-progress-line strong { color: #111827; font-size: 0.72rem; line-height: 1.25; } .report-progress-line small, .report-progress-line em { color: #4b5874; font-size: 0.66rem; font-style: normal; }
+    .report-aptitude-grid { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .report-aptitude-score { display: grid; justify-items: center; gap: 8px; border: 1px solid #dbeafe; border-radius: 8px; background: #f8fbff; padding: 14px; }
+    .report-aptitude-score strong { color: #111827; font-size: 1.65rem; line-height: 1; }
+    .report-aptitude-score span, .report-aptitude-score em { color: #4b5874; font-size: 0.72rem; font-style: normal; font-weight: 900; text-transform: uppercase; }
+    .report-aptitude-score em.is-success { color: #059669; } .report-aptitude-score em.is-danger { color: #dc2626; } .report-aptitude-score em.is-warning { color: #b45309; }
+    .report-aptitude-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .report-aptitude-metrics article { border: 1px solid #e5eaf2; border-radius: 8px; padding: 10px; background: #fff; }
+    .report-aptitude-metrics small { display: block; color: #4b5874; font-size: 0.68rem; font-weight: 900; text-transform: uppercase; }
+    .report-aptitude-metrics strong { display: block; margin-top: 5px; color: #111827; font-size: 0.78rem; overflow-wrap: anywhere; }
+    .report-aptitude-chips, .report-aptitude-integrity-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .report-aptitude-chips span, .report-aptitude-integrity-flags span { border: 1px solid #fde68a; border-radius: 999px; background: #fffbeb; color: #92400e; font-size: 0.68rem; font-weight: 900; padding: 5px 8px; }
+    .report-aptitude-table { display: grid; border: 1px solid #e5eaf2; border-radius: 8px; overflow: hidden; margin-top: 10px; }
+    .report-aptitude-head, .report-aptitude-row { display: grid; grid-template-columns: minmax(150px, 1fr) 110px 74px 78px 92px; gap: 10px; align-items: center; padding: 9px 10px; }
+    .report-aptitude-head { background: #f8fafc; color: #111a33; font-size: 0.68rem; font-weight: 900; text-transform: uppercase; }
+    .report-aptitude-row { border-top: 1px solid #e7ebf2; color: #111827; font-size: 0.72rem; }
+    .report-aptitude-row span, .report-aptitude-row strong { min-width: 0; overflow-wrap: anywhere; }
+    .report-aptitude-integrity { border: 1px solid #dbeafe; border-radius: 8px; padding: 10px; color: #25314d; font-size: 0.78rem; line-height: 1.5; margin-top: 10px; background: #f8fbff; }
+    .report-aptitude-integrity.is-warning { border-color: #fde68a; background: #fffbeb; }
+    .report-aptitude-integrity strong { display: block; color: #111827; font-size: 0.78rem; margin-bottom: 3px; }
+    .report-aptitude-integrity p { margin: 0; }
     .report-qa-table { display: grid; overflow: hidden; border: 1px solid #e5eaf2; border-radius: 8px; }
     .report-qa-head, .report-qa-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 130px 132px; gap: 12px; align-items: start; padding: 10px 12px; }
     .report-qa-head { background: #f8fafc; } .report-qa-row { border-top: 1px solid #e7ebf2; } .report-qa-row.is-warning { background: #fff1f2; }
@@ -2305,7 +2372,7 @@ private getDetailedReportStaticCss(): string {
     .report-download-btn, .report-close-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 38px; border-radius: 6px; font-weight: 900; cursor: pointer; }
     .report-download-btn { border: 1px solid #0b63ff; background: linear-gradient(95deg, #1649e9, #0057ff); color: #fff; } .report-close-btn { border: 1px solid #0b63ff; background: #fff; color: #0057ff; }
     .report-footer { margin-top: 14px; color: #64748b; font-size: 0.78rem; }
-    @media (max-width: 900px) { body { padding: 12px; } .report-page { padding: 22px 16px 22px 28px; } .report-header, .report-hero-grid, .report-body-grid, .report-meta-strip, .report-evidence-grid, .report-insight-grid, .report-skills-layout { grid-template-columns: 1fr; } .report-generated { text-align: left; } .report-meta-strip article { border-right: 0; border-bottom: 1px solid #e4e9f1; padding: 10px 0; } .report-candidate-hero, .report-score-decision { grid-template-columns: 112px minmax(0, 1fr); } .report-avatar, .report-score-ring { width: 112px; height: 112px; } .report-progress-line { grid-template-columns: 1fr; } .report-progress-line::before { display: none; } .report-skill-head, .report-qa-head { display: none; } .report-skill-row { grid-template-columns: 1fr; gap: 6px; padding: 10px 0; } .report-qa-row { grid-template-columns: 28px minmax(0, 1fr); } .report-qa-row strong, .report-qa-row em { grid-column: 2; } }
+    @media (max-width: 900px) { body { padding: 12px; } .report-page { padding: 22px 16px 22px 28px; } .report-header, .report-hero-grid, .report-body-grid, .report-meta-strip, .report-evidence-grid, .report-insight-grid, .report-skills-layout, .report-aptitude-grid, .report-aptitude-metrics { grid-template-columns: 1fr; } .report-generated { text-align: left; } .report-meta-strip article { border-right: 0; border-bottom: 1px solid #e4e9f1; padding: 10px 0; } .report-candidate-hero, .report-score-decision { grid-template-columns: 112px minmax(0, 1fr); } .report-avatar, .report-score-ring { width: 112px; height: 112px; } .report-progress-line { grid-template-columns: 1fr; } .report-progress-line::before { display: none; } .report-skill-head, .report-qa-head, .report-aptitude-head { display: none; } .report-skill-row, .report-aptitude-row { grid-template-columns: 1fr; gap: 6px; padding: 10px; } .report-qa-row { grid-template-columns: 28px minmax(0, 1fr); } .report-qa-row strong, .report-qa-row em { grid-column: 2; } }
     @media print { body { background: #fff; padding: 0; } .report-page { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; padding: 12mm 10mm 12mm 14mm; } .report-card, .report-section, .report-meta-strip article, .report-qa-row, .report-progress-line article { break-inside: avoid; } .report-actions-card { display: none; } }
   `;
 }
@@ -3141,6 +3208,7 @@ normalizeEvaluationPayload(report: Record<string, any>): CandidateEvaluationSumm
     profile_picture_data_url: this.stringValue(field('profile_picture_data_url')),
     updated_at: this.stringValue(field('updated_at')),
     created_at: this.stringValue(field('created_at')),
+    aptitude_assessment: this.normalizeAptitudeSummary(field('aptitude_assessment')),
   };
 }
 
@@ -3357,6 +3425,209 @@ getReportDecisionColor(): string {
   return '#f59e0b';
 }
 
+hasEvaluationReportContent(): boolean {
+  return Boolean(this.evaluationSummary.available || this.hasAptitudeAssessment());
+}
+
+getAptitudeSummary(): AptitudeAssessmentSummary {
+  return this.evaluationSummary.aptitude_assessment || this.createEmptyAptitudeSummary();
+}
+
+hasAptitudeAssessment(): boolean {
+  return Boolean(this.getAptitudeSummary().available);
+}
+
+isAptitudeCompleted(): boolean {
+  const summary = this.getAptitudeSummary();
+  const status = this.normalizeEvaluationLabel(summary.status);
+  return Boolean(
+    summary.available
+    && (status === 'submitted' || status === 'expired')
+    && summary.score_percent !== null
+  );
+}
+
+getAptitudeScoreLabel(): string {
+  const score = this.getAptitudeSummary().score_percent;
+  if (score === null) {
+    return 'N/A';
+  }
+  return `${this.formatScore(score)}%`;
+}
+
+getAptitudeResultTone(): string {
+  const summary = this.getAptitudeSummary();
+  if (summary.passed === true) return 'success';
+  if (summary.passed === false && this.isAptitudeCompleted()) return 'danger';
+  const status = this.normalizeEvaluationLabel(summary.status);
+  if (status === 'expired') return 'warning';
+  return 'neutral';
+}
+
+getAptitudeResultLabel(): string {
+  const summary = this.getAptitudeSummary();
+  if (this.isAptitudeCompleted()) {
+    return summary.result_label || (summary.passed ? 'Passed' : 'Not Passed');
+  }
+  return summary.status_label || this.humanizeLabel(summary.status) || 'Assigned';
+}
+
+getAptitudeStatusCopy(): string {
+  const summary = this.getAptitudeSummary();
+  const status = this.normalizeEvaluationLabel(summary.status);
+  if (status === 'assigned') {
+    return 'The aptitude assessment has been assigned and is awaiting candidate completion.';
+  }
+  if (status === 'in progress') {
+    return 'The candidate has started the aptitude assessment.';
+  }
+  if (status === 'expired' && !this.isAptitudeCompleted()) {
+    return 'The aptitude assessment window has expired. No scored result is currently available.';
+  }
+  if (this.isAptitudeCompleted()) {
+    return 'The aptitude assessment has been completed and scored.';
+  }
+  return 'Aptitude assessment status is available for review.';
+}
+
+getAptitudeSectionRows(): AptitudeSectionResult[] {
+  return this.getAptitudeSummary().section_results;
+}
+
+getAptitudeSectionScoreText(section: AptitudeSectionResult): string {
+  const scoreLabel = section.score_percent === null ? 'N/A' : `${this.formatScore(section.score_percent)}%`;
+  const rawScore = section.score === null || section.max_score === null
+    ? 'Not scored'
+    : `${this.formatScore(section.score)}/${this.formatScore(section.max_score)}`;
+  return `${scoreLabel} · ${rawScore}`;
+}
+
+getAptitudeSectionProgressValue(section: AptitudeSectionResult): number {
+  const score = section.score_percent ?? 0;
+  return Math.max(0, Math.min(100, score));
+}
+
+getAptitudeAnsweredLabel(): string {
+  const summary = this.getAptitudeSummary();
+  return `${summary.answered_count}/${summary.total_questions || 0}`;
+}
+
+getAptitudePassingBenchmarkLabel(): string {
+  const benchmark = this.getAptitudeSummary().passing_score_percent;
+  return benchmark === null ? 'Not set' : `${this.formatScore(benchmark)}%`;
+}
+
+getAptitudeReviewLabel(integrity: AptitudeIntegritySummary = this.getAptitudeSummary().integrity_summary): string {
+  return integrity.review_required ? 'Review recommended' : 'Clear';
+}
+
+getAptitudeIntegrityFlags(integrity: AptitudeIntegritySummary = this.getAptitudeSummary().integrity_summary): string[] {
+  if (integrity.flags.length) {
+    return integrity.flags;
+  }
+  if (integrity.review_required && integrity.event_count > 0) {
+    return [`${integrity.event_count} integrity event${integrity.event_count === 1 ? '' : 's'}`];
+  }
+  return [];
+}
+
+getAptitudeIntegrityText(): string {
+  const integrity = this.getAptitudeSummary().integrity_summary;
+  if (integrity.review_required && integrity.flags.length) {
+    return 'Review the integrity signals captured during the assessment.';
+  }
+  if (integrity.review_required) {
+    return `Review recommended: ${integrity.event_count} integrity event${integrity.event_count === 1 ? '' : 's'} recorded`;
+  }
+  return 'No major integrity flags recorded';
+}
+
+getAptitudeTimelineLabel(): string {
+  const summary = this.getAptitudeSummary();
+  const dateValue = summary.submitted_at || summary.started_at || summary.scheduled_at || summary.expires_at;
+  if (!dateValue) {
+    return '';
+  }
+  const date = this.toDate(dateValue);
+  return date ? date.toLocaleString() : '';
+}
+
+renderAptitudeReportSection(): string {
+  if (!this.hasAptitudeAssessment()) {
+    return '';
+  }
+  const summary = this.getAptitudeSummary();
+  const tone = this.getAptitudeResultTone();
+  const sectionHtml = this.renderAptitudeSectionBreakdown();
+  const integrityHtml = this.renderAptitudeIntegritySummary();
+  const timelineLabel = this.getAptitudeTimelineLabel();
+  return `
+        <article class="report-card report-section">
+          <h2><span>◉</span> Aptitude Assessment</h2>
+          <div class="report-aptitude-grid">
+            <div class="report-aptitude-score">
+              <span>Aptitude Score</span>
+              <strong>${this.escapeHtml(this.getAptitudeScoreLabel())}</strong>
+              <em class="is-${this.escapeHtmlAttr(tone)}">${this.escapeHtml(this.getAptitudeResultLabel())}</em>
+            </div>
+            <div class="report-aptitude-content">
+              <div class="report-aptitude-metrics">
+                <article><small>Status</small><strong>${this.escapeHtml(summary.status_label || this.humanizeLabel(summary.status) || 'Not captured')}</strong></article>
+                <article><small>Score</small><strong>${this.escapeHtml(summary.score === null || summary.max_score === null ? 'Not scored' : `${this.formatScore(summary.score)} / ${this.formatScore(summary.max_score)}`)}</strong></article>
+                <article><small>Passing Benchmark</small><strong>${this.escapeHtml(this.getAptitudePassingBenchmarkLabel())}</strong></article>
+                <article><small>Questions Answered</small><strong>${this.escapeHtml(this.getAptitudeAnsweredLabel())}</strong></article>
+              </div>
+              <p>${this.escapeHtml(this.getAptitudeStatusCopy())}</p>
+              ${timelineLabel ? `<p>Latest aptitude timestamp: ${this.escapeHtml(timelineLabel)}</p>` : ''}
+              ${summary.unanswered_count ? `<div class="report-aptitude-chips"><span>Unanswered: ${this.escapeHtml(String(summary.unanswered_count))}</span></div>` : ''}
+              ${(summary.early_exit || this.normalizeEvaluationLabel(summary.status) === 'expired') ? `<p>${this.escapeHtml(summary.early_exit ? `Early exit: ${summary.early_exit_reason || 'Reason not captured'}` : 'Time expired')}</p>` : ''}
+              ${sectionHtml}
+              ${integrityHtml}
+            </div>
+          </div>
+        </article>
+  `;
+}
+
+renderAptitudeSectionBreakdown(): string {
+  const rows = this.getAptitudeSectionRows();
+  if (!rows.length || !this.isAptitudeCompleted()) {
+    return '';
+  }
+  return `
+              <div class="report-aptitude-table">
+                <div class="report-aptitude-head"><span>Section</span><span>Score</span><span>Correct</span><span>Incorrect</span><span>Unanswered</span></div>
+                ${rows.map((row) => `
+                  <div class="report-aptitude-row">
+                    <strong>${this.escapeHtml(row.section_name || this.humanizeLabel(row.section_code) || 'Section')}</strong>
+                    <span>${this.escapeHtml(this.getAptitudeSectionScoreText(row))}</span>
+                    <span>${this.escapeHtml(String(row.correct_count))}</span>
+                    <span>${this.escapeHtml(String(row.incorrect_count))}</span>
+                    <span>${this.escapeHtml(`${row.unanswered_count}/${row.total_questions || 0}`)}</span>
+                  </div>
+                `).join('')}
+              </div>
+  `;
+}
+
+renderAptitudeIntegritySummary(): string {
+  if (!this.isAptitudeCompleted()) {
+    return '';
+  }
+  const integrity = this.getAptitudeSummary().integrity_summary;
+  const flags = this.getAptitudeIntegrityFlags(integrity);
+  const flagHtml = flags.length
+    ? `<div class="report-aptitude-integrity-flags">${flags.map((flag) => `<span>${this.escapeHtml(flag)}</span>`).join('')}</div>`
+    : '';
+  return `
+              <div class="report-aptitude-integrity${integrity.review_required ? ' is-warning' : ''}">
+                <strong>${this.escapeHtml(this.getAptitudeReviewLabel(integrity) === 'Review recommended' ? 'Integrity review recommended' : 'Integrity clear')}</strong>
+                <p>${this.escapeHtml(this.getAptitudeIntegrityText())}</p>
+                ${flagHtml}
+              </div>
+  `;
+}
+
 getEvaluationMetaItems(): EvaluationReportMetaItem[] {
   return [
     { label: 'Role', value: this.evaluationSummary.role_title || this.evaluationSummaryCandidate?.role || 'Not captured', icon: 'ph ph-briefcase' },
@@ -3472,8 +3743,13 @@ getReportSkillRows(): EvaluationReportSkillRow[] {
 getReportProgressSteps(): EvaluationReportProgressStep[] {
   const current = this.normalizeEvaluationLabel(this.getEvaluationCurrentStage());
   const score = this.formatReportScore() === 'N/A' ? 'Not captured' : `${this.formatReportScore()} / 100`;
-  const labels = ['Application Review', 'Technical Assessment', 'Technical Interview', 'HR Interview', 'Final Evaluation'];
-  const currentIndex = labels.findIndex((label) => current.includes(label.toLowerCase()));
+  const assessmentLabel = this.shouldUseAptitudeAssessmentProgressLabel() ? 'Aptitude Assessment' : 'Technical Assessment';
+  const labels = ['Application Review', assessmentLabel, 'Technical Interview', 'HR Interview', 'Final Evaluation'];
+  const currentIndex = labels.findIndex((label) => {
+    const normalizedLabel = label.toLowerCase();
+    return current.includes(normalizedLabel)
+      || (normalizedLabel === 'aptitude assessment' && current.includes('technical assessment'));
+  });
   const activeIndex = currentIndex >= 0 ? currentIndex : (this.evaluationSummary.available ? 2 : 0);
   return labels.map((label, index) => ({
     label,
@@ -3482,6 +3758,14 @@ getReportProgressSteps(): EvaluationReportProgressStep[] {
     active: index <= activeIndex,
     tone: index <= activeIndex ? (index === activeIndex ? 'current' : 'done') : 'pending',
   }));
+}
+
+shouldUseAptitudeAssessmentProgressLabel(): boolean {
+  const aptitude = this.getAptitudeSummary();
+  if (aptitude.available || aptitude.assignment_id !== null) {
+    return true;
+  }
+  return this.getCandidateActionLinkType(this.evaluationSummaryCandidate) === 'aptitude';
 }
 
 getFeedbackRows(): Array<{ avatar: string; evaluator: string; stage: string; score: string; summary: string; tone: string }> {
@@ -3778,6 +4062,38 @@ private createEmptyEvaluationSummary(): CandidateEvaluationSummary {
     profile_picture_data_url: '',
     updated_at: '',
     created_at: '',
+    aptitude_assessment: this.createEmptyAptitudeSummary(),
+  };
+}
+
+private createEmptyAptitudeSummary(): AptitudeAssessmentSummary {
+  return {
+    available: false,
+    status: '',
+    status_label: '',
+    assignment_id: null,
+    title: '',
+    scheduled_at: '',
+    submitted_at: '',
+    started_at: '',
+    expires_at: '',
+    score: null,
+    score_percent: null,
+    max_score: null,
+    passed: null,
+    result_label: '',
+    passing_score_percent: null,
+    total_questions: 0,
+    answered_count: 0,
+    unanswered_count: 0,
+    early_exit: false,
+    early_exit_reason: '',
+    section_results: [],
+    integrity_summary: {
+      review_required: false,
+      event_count: 0,
+      flags: [],
+    },
   };
 }
 
@@ -3810,6 +4126,65 @@ private normalizeCandidateBehavior(value: unknown): CandidateBehaviorSummary {
     gaze_tracking: this.isObjectRecord(source['gaze_tracking']) ? (source['gaze_tracking'] as Record<string, unknown>) : {},
     voice_verification: this.isObjectRecord(source['voice_verification']) ? (source['voice_verification'] as Record<string, unknown>) : {},
   };
+}
+
+private normalizeAptitudeSummary(value: unknown): AptitudeAssessmentSummary {
+  const source = this.isObjectRecord(value) ? (value as Record<string, unknown>) : {};
+  const integrity = this.isObjectRecord(source['integrity_summary'])
+    ? source['integrity_summary'] as Record<string, unknown>
+    : {};
+  return {
+    available: Boolean(source['available']),
+    status: this.stringValue(source['status']),
+    status_label: this.stringValue(source['status_label']),
+    assignment_id: this.numberOrNull(source['assignment_id']),
+    title: this.stringValue(source['title']),
+    scheduled_at: this.stringValue(source['scheduled_at']),
+    submitted_at: this.stringValue(source['submitted_at']),
+    started_at: this.stringValue(source['started_at']),
+    expires_at: this.stringValue(source['expires_at']),
+    score: this.numberOrNull(source['score']),
+    score_percent: this.numberOrNull(source['score_percent']),
+    max_score: this.numberOrNull(source['max_score']),
+    passed: typeof source['passed'] === 'boolean' ? source['passed'] as boolean : null,
+    result_label: this.stringValue(source['result_label']),
+    passing_score_percent: this.numberOrNull(source['passing_score_percent']),
+    total_questions: this.numberOrNull(source['total_questions']) ?? 0,
+    answered_count: this.numberOrNull(source['answered_count']) ?? 0,
+    unanswered_count: this.numberOrNull(source['unanswered_count']) ?? 0,
+    early_exit: Boolean(source['early_exit']),
+    early_exit_reason: this.stringValue(source['early_exit_reason']),
+    section_results: this.normalizeAptitudeSectionResults(source['section_results']),
+    integrity_summary: {
+      review_required: Boolean(integrity['review_required']),
+      event_count: this.numberOrNull(integrity['event_count']) ?? 0,
+      flags: Array.isArray(integrity['flags'])
+        ? integrity['flags'].map((item) => this.stringValue(item)).filter(Boolean)
+        : [],
+    },
+  };
+}
+
+private normalizeAptitudeSectionResults(value: unknown): AptitudeSectionResult[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item) => this.isObjectRecord(item))
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        section_code: this.stringValue(row['section_code']),
+        section_name: this.stringValue(row['section_name']),
+        score: this.numberOrNull(row['score']),
+        max_score: this.numberOrNull(row['max_score']),
+        score_percent: this.numberOrNull(row['score_percent']),
+        correct_count: this.numberOrNull(row['correct_count']) ?? 0,
+        incorrect_count: this.numberOrNull(row['incorrect_count']) ?? 0,
+        unanswered_count: this.numberOrNull(row['unanswered_count']) ?? 0,
+        total_questions: this.numberOrNull(row['total_questions']) ?? 0,
+      };
+    });
 }
 
 private normalizeTextArray(value: unknown): string[] {
@@ -4293,7 +4668,7 @@ addRRole(): void {
     });
   }
 
-  openWorkflowAction(mode: 'schedule' | 'bulk-assign' | 'evaluation-reviews', candidate?: any): void {
+  openWorkflowAction(mode: 'schedule' | 'bulk-assign' | 'bulk-aptitude' | 'bulk-interview' | 'evaluation-reviews', candidate?: any): void {
     const isEvaluationReviews = mode === 'evaluation-reviews';
     const dialogRef = this.dialog.open(WorkflowAction, {
       disableClose: true,

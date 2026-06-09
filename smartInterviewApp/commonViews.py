@@ -180,6 +180,9 @@ def mask_phone_last_four(value: str) -> str:
 
 
 def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict:
+    def aptitude_payload() -> dict:
+        return build_aptitude_evaluation_summary(interview)
+
     def trim_text(value, limit: int = 600) -> str:
         text = str(value or '').strip()
         if len(text) <= limit:
@@ -252,6 +255,7 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
         'profile_picture_data_url': '',
         'updated_at': '',
         'created_at': '',
+        'aptitude_assessment': aptitude_payload(),
     }
     if not interview:
         return empty_payload
@@ -340,7 +344,106 @@ def build_auto_interview_evaluation_summary(interview: Interview | None) -> dict
         'profile_picture_data_url': embedded_profile_picture,
         'updated_at': result.updated_at.isoformat() if result.updated_at else '',
         'created_at': result.created_at.isoformat() if result.created_at else '',
+        'aptitude_assessment': empty_payload['aptitude_assessment'],
     }
+
+
+def build_aptitude_evaluation_summary(interview: Interview | None) -> dict:
+    empty_payload = {
+        'available': False,
+        'status': '',
+        'status_label': '',
+        'assignment_id': None,
+        'title': '',
+        'scheduled_at': '',
+        'submitted_at': '',
+        'started_at': '',
+        'expires_at': '',
+        'score': None,
+        'score_percent': None,
+        'max_score': None,
+        'passed': None,
+        'result_label': '',
+        'passing_score_percent': None,
+        'total_questions': 0,
+        'answered_count': 0,
+        'unanswered_count': 0,
+        'early_exit': False,
+        'early_exit_reason': '',
+        'section_results': [],
+        'integrity_summary': {
+            'review_required': False,
+            'event_count': 0,
+            'flags': [],
+        },
+    }
+    if not interview:
+        return empty_payload
+
+    try:
+        assignment = (
+            interview.aptitude_test_assignments
+            .order_by('-created_at', '-id')
+            .first()
+        )
+    except (AttributeError, DatabaseError):
+        return empty_payload
+
+    if not assignment:
+        return empty_payload
+
+    def isoformat_or_empty(value) -> str:
+        return value.isoformat() if value else ''
+
+    payload = {
+        **empty_payload,
+        'available': True,
+        'status': assignment.status or '',
+        'status_label': assignment.get_status_display() if assignment.status else '',
+        'assignment_id': assignment.id,
+        'title': assignment.title or '',
+        'scheduled_at': isoformat_or_empty(getattr(assignment, 'scheduled_at', None)),
+        'submitted_at': isoformat_or_empty(getattr(assignment, 'submitted_at', None)),
+        'started_at': isoformat_or_empty(getattr(assignment, 'started_at', None)),
+        'expires_at': isoformat_or_empty(getattr(assignment, 'expires_at', None)),
+        'passing_score_percent': float(assignment.passing_score_percent) if assignment.passing_score_percent is not None else None,
+        'early_exit': bool(getattr(assignment, 'early_exit', False)),
+        'early_exit_reason': getattr(assignment, 'early_exit_reason', '') or '',
+    }
+
+    try:
+        from smartInterviewApp.api.views import build_aptitude_candidate_result_payload
+        safe_payload = build_aptitude_candidate_result_payload(assignment)
+    except Exception:
+        safe_payload = {}
+
+    assignment_payload = safe_payload.get('assignment') if isinstance(safe_payload, dict) else {}
+    if isinstance(assignment_payload, dict):
+        payload.update({
+            'total_questions': int(assignment_payload.get('total_questions') or 0),
+            'answered_count': int(assignment_payload.get('answered_count') or 0),
+            'unanswered_count': int(assignment_payload.get('unanswered_count') or 0),
+            'passing_score_percent': assignment_payload.get('passing_score_percent'),
+            'started_at': assignment_payload.get('started_at') or payload['started_at'],
+            'submitted_at': assignment_payload.get('submitted_at') or payload['submitted_at'],
+            'expires_at': assignment_payload.get('expires_at') or payload['expires_at'],
+            'early_exit': bool(assignment_payload.get('early_exit')),
+            'early_exit_reason': assignment_payload.get('early_exit_reason') or '',
+        })
+
+    result_payload = safe_payload.get('result') if isinstance(safe_payload, dict) else None
+    if isinstance(result_payload, dict):
+        payload.update({
+            'score': result_payload.get('score'),
+            'score_percent': result_payload.get('score_percent'),
+            'max_score': result_payload.get('max_score'),
+            'passed': result_payload.get('passed'),
+            'result_label': result_payload.get('result_label') or '',
+            'section_results': result_payload.get('section_results') if isinstance(result_payload.get('section_results'), list) else [],
+            'integrity_summary': result_payload.get('integrity_summary') if isinstance(result_payload.get('integrity_summary'), dict) else empty_payload['integrity_summary'],
+        })
+
+    return payload
 
 
 def candidate_password_reset_rate_limited(request, action: str, identifier: str, limit: int, window_seconds: int) -> bool:

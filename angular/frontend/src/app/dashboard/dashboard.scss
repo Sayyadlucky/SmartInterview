@@ -341,6 +341,22 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
   --skeleton-shimmer: var(--dashboard-skeleton-shimmer);
 }
 
+.desktop-sidebar.shell-loading {
+  overflow: hidden;
+}
+
+.desktop-sidebar.shell-loading .desktop-sidebar-scroll {
+  overflow: hidden;
+  overscroll-behavior: none;
+  scrollbar-width: none;
+}
+
+.desktop-sidebar.shell-loading .desktop-sidebar-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .navbar-shell.shell-loading .desktop-header-title {
   gap: 7px;
 }
@@ -3356,6 +3372,267 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   font-size: 0.72rem;
 }
 
+.aptitude-panel-head {
+  align-items: flex-start;
+}
+
+.aptitude-panel-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.aptitude-result-badge,
+.aptitude-marker-row span,
+.aptitude-integrity-flags span {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.aptitude-result-badge {
+  justify-self: end;
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+}
+
+.aptitude-result-badge.is-success {
+  background: rgba(45, 212, 191, 0.14);
+  color: #5eead4;
+}
+
+.aptitude-result-badge.is-danger {
+  background: rgba(251, 113, 133, 0.14);
+  color: #fda4af;
+}
+
+.aptitude-result-badge.is-warning {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
+.aptitude-summary-card {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  border: 1px solid rgba(43, 172, 255, 0.18);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(9, 37, 71, 0.72), rgba(5, 24, 50, 0.66));
+  padding: 14px;
+}
+
+.aptitude-score-card {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(137, 206, 246, 0.12);
+  border-radius: 10px;
+  background: rgba(4, 22, 47, 0.34);
+  padding: 14px;
+  text-align: center;
+}
+
+.aptitude-score-card div:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.aptitude-score-card > div:last-child > span,
+.aptitude-metric-card span,
+.aptitude-section-main span,
+.aptitude-section-metric span,
+.aptitude-integrity-copy span {
+  color: #9fb4d4;
+  font-size: 0.72rem;
+}
+
+.aptitude-score-card strong,
+.aptitude-metric-card strong,
+.aptitude-section-main strong,
+.aptitude-section-metric strong,
+.aptitude-integrity-copy strong {
+  color: #f8fbff;
+}
+
+.aptitude-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aptitude-metric-card {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 88px;
+  border: 1px solid rgba(137, 206, 246, 0.12);
+  border-radius: 10px;
+  background: rgba(4, 22, 47, 0.28);
+  padding: 12px;
+}
+
+.aptitude-metric-card strong {
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+.aptitude-status-copy {
+  margin: 12px 0 0;
+}
+
+.aptitude-marker-row,
+.aptitude-integrity-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.aptitude-marker-row span,
+.aptitude-integrity-flags span {
+  border: 1px solid rgba(251, 191, 36, 0.24);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+}
+
+.aptitude-section-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.aptitude-section-list-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aptitude-section-list-head strong {
+  color: #f8fbff;
+}
+
+.aptitude-section-list-head span {
+  color: #9fb4d4;
+  font-size: 0.72rem;
+}
+
+.aptitude-section-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border: 1px solid rgba(137, 206, 246, 0.12);
+  border-radius: 10px;
+  background: rgba(4, 22, 47, 0.28);
+  padding: 12px;
+}
+
+.aptitude-section-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aptitude-section-main strong,
+.aptitude-section-main span {
+  overflow-wrap: anywhere;
+}
+
+.aptitude-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.aptitude-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #2dd4bf);
+}
+
+.aptitude-section-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 96px);
+  gap: 10px;
+}
+
+.aptitude-section-metric {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(137, 206, 246, 0.12);
+  border-radius: 8px;
+  background: rgba(8, 31, 63, 0.72);
+  padding: 9px 10px;
+}
+
+.aptitude-section-metric strong {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.aptitude-section-metric.is-good strong {
+  color: #5eead4;
+}
+
+.aptitude-section-metric.is-bad strong {
+  color: #fda4af;
+}
+
+.aptitude-section-metric.is-neutral strong {
+  color: #cbd5e1;
+}
+
+.aptitude-integrity-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.08);
+  padding: 12px;
+}
+
+.aptitude-integrity-card.is-warning {
+  border-color: rgba(251, 191, 36, 0.24);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.aptitude-integrity-copy {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.aptitude-integrity-copy i {
+  flex: 0 0 auto;
+  color: #5eead4;
+  font-size: 1.1rem;
+}
+
+.aptitude-integrity-card.is-warning .aptitude-integrity-copy i {
+  color: #fcd34d;
+}
+
+.aptitude-integrity-copy div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 .evaluation-highlight-row {
   align-items: center;
   gap: 10px;
@@ -4184,6 +4461,40 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
 
 .report-footer i {
   color: #0057ff;
+}
+
+@media (max-width: 768px) {
+  .aptitude-panel-head {
+    display: grid;
+    gap: 10px;
+  }
+
+  .aptitude-result-badge {
+    justify-self: start;
+  }
+
+  .aptitude-summary-card,
+  .aptitude-section-row {
+    grid-template-columns: 1fr;
+  }
+
+  .aptitude-metric-grid,
+  .aptitude-section-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .aptitude-metric-card:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .aptitude-section-list-head {
+    display: grid;
+    gap: 4px;
+  }
+
+  .aptitude-section-metric {
+    padding: 8px;
+  }
 }
 
 @media (max-width: 1100px) {

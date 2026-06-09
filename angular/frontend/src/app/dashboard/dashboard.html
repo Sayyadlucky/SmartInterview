@@ -638,6 +638,18 @@
               <span>Bulk Assign Evaluator</span>
             </button>
           </div>
+          <div class="dashboard-card quick-action quick-action--aptitude-bulk">
+            <button class="quick-action-btn" (click)="openWorkflowAction('bulk-aptitude')">
+              <i class="ph ph-clipboard-text"></i>
+              <span>Bulk Assign Aptitude Test</span>
+            </button>
+          </div>
+          <div class="dashboard-card quick-action quick-action--interview-bulk">
+            <button class="quick-action-btn" (click)="openWorkflowAction('bulk-interview')">
+              <i class="ph ph-video-camera"></i>
+              <span>Bulk Assign Interview</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1525,7 +1537,7 @@
     </div>
 
     <ng-container *ngIf="!evaluationSummaryLoading && !evaluationSummaryError">
-      <div class="evaluation-report" *ngIf="evaluationSummary.available; else noEvaluationSummary">
+      <div class="evaluation-report" *ngIf="hasEvaluationReportContent(); else noEvaluationSummary">
         <section class="evaluation-summary-candidate-strip">
           <div class="evaluation-summary-person">
             <span class="evaluation-summary-avatar">{{ getEvaluationCandidateInitials() }}</span>
@@ -1568,6 +1580,83 @@
               <small>{{ step.state }}</small>
               <em>{{ step.score }}</em>
             </article>
+          </div>
+        </section>
+
+        <section class="evaluation-summary-section aptitude-summary-panel" *ngIf="hasAptitudeAssessment()">
+          <div class="evaluation-report-section__head aptitude-panel-head">
+            <div>
+              <h4>Aptitude Assessment</h4>
+              <span>{{ getAptitudeSummary().title || 'Candidate aptitude result' }}</span>
+            </div>
+            <strong class="aptitude-result-badge" [ngClass]="'is-' + getAptitudeResultTone()">{{ getAptitudeResultLabel() }}</strong>
+          </div>
+          <div class="aptitude-summary-card">
+            <div class="aptitude-score-card" [class.is-success]="getAptitudeResultTone() === 'success'" [class.is-danger]="getAptitudeResultTone() === 'danger'" [class.is-warning]="getAptitudeResultTone() === 'warning'">
+              <div class="evaluation-summary-score-ring" [ngStyle]="scoreRingStyle(getAptitudeSummary().score_percent === null ? 0 : getAptitudeSummary().score_percent, getAptitudeResultTone() === 'success' ? '#2dd4bf' : (getAptitudeResultTone() === 'danger' ? '#fb7185' : '#fbbf24'), 'rgba(148, 163, 184, 0.22)')">
+                <span>{{ getAptitudeScoreLabel() }}</span>
+              </div>
+              <div>
+                <span>Aptitude Score</span>
+                <strong>{{ getAptitudeResultLabel() }}</strong>
+              </div>
+            </div>
+            <div class="aptitude-metric-grid">
+              <div class="aptitude-metric-card">
+                <span>Questions Answered</span>
+                <strong>{{ getAptitudeAnsweredLabel() }}</strong>
+              </div>
+              <div class="aptitude-metric-card">
+                <span>Passing Benchmark</span>
+                <strong>{{ getAptitudePassingBenchmarkLabel() }}</strong>
+              </div>
+              <div class="aptitude-metric-card">
+                <span>Status</span>
+                <strong>{{ getAptitudeSummary().status_label || humanizeLabel(getAptitudeSummary().status) }}</strong>
+              </div>
+              <div class="aptitude-metric-card">
+                <span>Review</span>
+                <strong>{{ getAptitudeReviewLabel() }}</strong>
+              </div>
+            </div>
+          </div>
+          <p class="aptitude-status-copy">{{ getAptitudeStatusCopy() }}</p>
+          <div class="aptitude-marker-row" *ngIf="getAptitudeSummary().unanswered_count || getAptitudeSummary().early_exit || getAptitudeSummary().status === 'expired'">
+            <span *ngIf="getAptitudeSummary().unanswered_count">Unanswered: {{ getAptitudeSummary().unanswered_count }}</span>
+            <span *ngIf="getAptitudeSummary().early_exit">Early exit: {{ getAptitudeSummary().early_exit_reason || 'Reason not captured' }}</span>
+            <span *ngIf="getAptitudeSummary().status === 'expired'">Time expired</span>
+          </div>
+          <div class="aptitude-section-list" *ngIf="isAptitudeCompleted() && getAptitudeSectionRows().length">
+            <div class="aptitude-section-list-head">
+              <strong>Section-wise Performance</strong>
+              <span>Score, accuracy, and missed questions by section</span>
+            </div>
+            <article class="aptitude-section-row" *ngFor="let row of getAptitudeSectionRows()">
+              <div class="aptitude-section-main">
+                <strong>{{ row.section_name || humanizeLabel(row.section_code) }}</strong>
+                <span>{{ getAptitudeSectionScoreText(row) }}</span>
+                <div class="aptitude-progress-track" aria-hidden="true">
+                  <span [style.width.%]="getAptitudeSectionProgressValue(row)"></span>
+                </div>
+              </div>
+              <div class="aptitude-section-metrics">
+                <div class="aptitude-section-metric is-good"><span>Correct</span><strong>{{ row.correct_count }}</strong></div>
+                <div class="aptitude-section-metric is-bad"><span>Incorrect</span><strong>{{ row.incorrect_count }}</strong></div>
+                <div class="aptitude-section-metric is-neutral"><span>Unanswered</span><strong>{{ row.unanswered_count }}</strong></div>
+              </div>
+            </article>
+          </div>
+          <div class="aptitude-integrity-card" *ngIf="isAptitudeCompleted()" [class.is-warning]="getAptitudeSummary().integrity_summary.review_required">
+            <div class="aptitude-integrity-copy">
+              <i class="ph" [class.ph-shield-check]="!getAptitudeSummary().integrity_summary.review_required" [class.ph-warning]="getAptitudeSummary().integrity_summary.review_required" aria-hidden="true"></i>
+              <div>
+                <strong>{{ getAptitudeReviewLabel() === 'Review recommended' ? 'Integrity review recommended' : 'Integrity clear' }}</strong>
+                <span>{{ getAptitudeIntegrityText() }}</span>
+              </div>
+            </div>
+            <div class="aptitude-integrity-flags" *ngIf="getAptitudeIntegrityFlags().length">
+              <span *ngFor="let flag of getAptitudeIntegrityFlags()">{{ flag }}</span>
+            </div>
           </div>
         </section>
 

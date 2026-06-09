@@ -807,6 +807,76 @@ option {
   padding: 16px;
 }
 
+.bulk-workflow-body {
+  align-items: stretch;
+}
+
+.bulk-workflow-purpose,
+.bulk-workflow-note {
+  border: 1px solid rgba(128, 208, 240, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(51, 223, 247, 0.10), transparent 34%),
+    linear-gradient(180deg, rgba(8, 36, 68, 0.70), rgba(6, 26, 52, 0.86));
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 13px;
+  padding: 15px;
+}
+
+.bulk-workflow-purpose {
+  margin-bottom: 16px;
+}
+
+.bulk-workflow-purpose-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #061323;
+  background: linear-gradient(135deg, #33dff7, #1687ff);
+  box-shadow: 0 12px 26px rgba(18, 128, 255, 0.22);
+}
+
+.bulk-workflow-purpose strong,
+.bulk-workflow-summary strong {
+  color: #f0fbff;
+}
+
+.bulk-workflow-purpose p,
+.bulk-workflow-note span {
+  margin: 5px 0 0;
+  color: #a7c8dd;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.role-search-block {
+  position: relative;
+  z-index: 8;
+}
+
+.role-result-card small {
+  white-space: nowrap;
+}
+
+.bulk-workflow-summary {
+  margin-top: 16px;
+}
+
+.bulk-workflow-note {
+  margin-top: 14px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  padding: 13px 14px;
+}
+
+.bulk-workflow-note i {
+  color: #7de2ff;
+  font-size: 1.05rem;
+}
+
 .availability-insight-head {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);

@@ -2568,6 +2568,31 @@ class CandidateEvaluationSummaryTests(TestCase):
         )
         self.client.login(username='eval-admin', password='pass1234')
 
+    def _create_report_aptitude_assignment(self, status_value=None, **kwargs):
+        status_value = status_value or AptitudeTestAssignment.Status.ASSIGNED
+        defaults = {
+            'candidate': self.candidate,
+            'vacancy': self.role,
+            'interview': self.interview,
+            'title': 'Backend Aptitude Assessment',
+            'status': status_value,
+            'scheduled_at': timezone.now() - timedelta(hours=1),
+            'created_by': self.admin,
+            'total_questions': 10,
+            'total_marks': 100,
+            'passing_score_percent': 70,
+        }
+        defaults.update(kwargs)
+        assignment = AptitudeTestAssignment.objects.create(**defaults)
+        for index in range(10):
+            AptitudeTestQuestion.objects.create(
+                assignment=assignment,
+                question_text=f'Aptitude question {index + 1}',
+                order_index=index + 1,
+                marks=10,
+            )
+        return assignment
+
     def test_candidate_evaluation_summary_endpoint_returns_saved_summary(self):
         AutoInterviewEvaluationResult.objects.create(
             interview_id=self.interview.id,
@@ -2604,6 +2629,84 @@ class CandidateEvaluationSummaryTests(TestCase):
         self.assertEqual(payload['score'], 86.5)
         self.assertEqual(payload['strengths'], ['Python fundamentals', 'System design'])
         self.assertEqual(payload['hire_recommendation_action'], 'ADVANCE')
+        self.assertFalse(payload['aptitude_assessment']['available'])
+
+    def test_candidate_evaluation_summary_endpoint_returns_pending_aptitude_without_auto_summary(self):
+        assignment = self._create_report_aptitude_assignment(AptitudeTestAssignment.Status.IN_PROGRESS, started_at=timezone.now())
+
+        response = self.client.get(reverse('candidate-evaluation-summary', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['Data']['evaluation_summary']
+        aptitude = payload['aptitude_assessment']
+        self.assertFalse(payload['available'])
+        self.assertTrue(aptitude['available'])
+        self.assertEqual(aptitude['assignment_id'], assignment.id)
+        self.assertEqual(aptitude['status'], AptitudeTestAssignment.Status.IN_PROGRESS)
+        self.assertEqual(aptitude['status_label'], 'In Progress')
+        self.assertIsNone(aptitude['score_percent'])
+        self.assertEqual(aptitude['total_questions'], 10)
+        self.assertEqual(aptitude['answered_count'], 0)
+
+    def test_candidate_evaluation_summary_endpoint_returns_safe_completed_aptitude_result(self):
+        assignment = self._create_report_aptitude_assignment(
+            AptitudeTestAssignment.Status.SUBMITTED,
+            started_at=timezone.now() - timedelta(minutes=45),
+            submitted_at=timezone.now(),
+            early_exit=True,
+            early_exit_reason='candidate_submitted',
+        )
+        AptitudeTestResult.objects.create(
+            assignment=assignment,
+            total_questions=10,
+            attempted_questions=8,
+            correct_answers=7,
+            wrong_answers=1,
+            skipped_questions=2,
+            total_marks=100,
+            marks_obtained=76,
+            score_percent=76,
+            passed=True,
+            section_breakdown={
+                'quantitative_aptitude': {
+                    'section_name': 'Quantitative Aptitude',
+                    'score': 40,
+                    'max_score': 50,
+                    'score_percent': 80,
+                    'correct_count': 4,
+                    'incorrect_count': 1,
+                    'unanswered_count': 0,
+                    'total_questions': 5,
+                },
+            },
+        )
+        AptitudeIntegrityEvent.objects.create(
+            assignment=assignment,
+            event_type=AptitudeIntegrityEvent.EventType.TAB_SWITCH,
+        )
+        AptitudeIntegrityEvent.objects.create(
+            assignment=assignment,
+            event_type=AptitudeIntegrityEvent.EventType.RIGHT_CLICK,
+        )
+
+        response = self.client.get(reverse('candidate-evaluation-summary', args=[self.interview.id]))
+
+        self.assertEqual(response.status_code, 200)
+        aptitude = response.json()['Data']['evaluation_summary']['aptitude_assessment']
+        self.assertTrue(aptitude['available'])
+        self.assertEqual(aptitude['score'], 76)
+        self.assertEqual(aptitude['score_percent'], 76)
+        self.assertEqual(aptitude['max_score'], 100)
+        self.assertTrue(aptitude['passed'])
+        self.assertEqual(aptitude['result_label'], 'Passed')
+        self.assertEqual(aptitude['answered_count'], 8)
+        self.assertEqual(aptitude['unanswered_count'], 2)
+        self.assertTrue(aptitude['early_exit'])
+        self.assertEqual(aptitude['section_results'][0]['section_name'], 'Quantitative Aptitude')
+        self.assertEqual(aptitude['section_results'][0]['correct_count'], 4)
+        self.assertTrue(aptitude['integrity_summary']['review_required'])
+        self.assertEqual(aptitude['integrity_summary']['event_count'], 1)
+        self.assertEqual(aptitude['integrity_summary']['flags'], ['Tab switch'])
 
     def test_candidate_evaluation_summary_endpoint_returns_litio_report_payload(self):
         AutoInterviewEvaluationResult.objects.create(

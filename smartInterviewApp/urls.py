@@ -20,6 +20,7 @@ urlpatterns = [
     path('update-company-profile/', views.updateCompanyProfile, name='update-company-profile'),
     path('update-candidate-status/', views.updateCandidateStatus, name='update-candidate-status'),
     path('update-interview-workflow/', views.updateInterviewWorkflow, name='update-interview-workflow'),
+    path('bulk-workflow-schedule/', views.bulkWorkflowSchedule, name='bulk-workflow-schedule'),
     path('resend-candidate-interview-email/', views.resendCandidateInterviewEmail, name='resend-candidate-interview-email'),
     path('internal/tasks/send-interview-reminder/', views.internalSendInterviewReminder, name='internal-send-interview-reminder'),
     path('internal/tasks/process-scheduled-interviews/', views.internalProcessScheduledInterviews, name='internal-process-scheduled-interviews'),
