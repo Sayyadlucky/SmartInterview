@@ -1,41 +1,13 @@
-<header class="navbar-shell">
-<nav class="navbar" aria-label="Primary navigation">
-  <a class="navbar-brand shortlistii-logo shortlistii-navbar" aria-label="Shortlist dashboard" href="/dashboard">
-    <span class="logo-text">shortlist</span>
-    <span class="logo-ii" aria-hidden="true">
-      <span class="person">
-        <span class="head"></span>
-        <span class="body"></span>
-        <span class="tie"></span>
-      </span>
-      <span class="person">
-        <span class="head"></span>
-        <span class="body"></span>
-        <span class="tie"></span>
-      </span>
-    </span>
-  </a>
-
-  <button
-    #mobileNavToggleButton
-    type="button"
-    class="mobile-nav-toggle"
-    [attr.aria-expanded]="mobileNavOpen"
-    aria-controls="jobsMobileNavPanel"
-    aria-label="Toggle navigation menu"
-    (click)="toggleMobileNav()">
-    <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen" aria-hidden="true"></i>
-  </button>
-
-  <div class="navbar-right" aria-label="Desktop navigation">
-    <a href="/dashboard"><i class="ph ph-gauge" aria-hidden="true"></i> Dashboard</a>
-    <a href="/dashboard/jobs" class="active" aria-current="page"><i class="ph ph-briefcase" aria-hidden="true"></i> Job Postings</a>
-    <a href="/dashboard?tab=candidates"><i class="ph ph-users" aria-hidden="true"></i> Candidates</a>
-    <a [href]="getTalentPoolUrl()"><i class="ph ph-sparkle" aria-hidden="true"></i> AI Talent Pool</a>
-    <a href="/logout/"><i class="ph ph-sign-out" aria-hidden="true"></i> Logout</a>
-  </div>
-</nav>
-</header>
+<button
+  #mobileNavToggleButton
+  type="button"
+  class="mobile-nav-toggle mobile-nav-toggle--floating"
+  [attr.aria-expanded]="mobileNavOpen"
+  aria-controls="jobsMobileNavPanel"
+  aria-label="Toggle navigation menu"
+  (click)="toggleMobileNav()">
+  <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen" aria-hidden="true"></i>
+</button>
 
 <nav
   #mobileNavPanel

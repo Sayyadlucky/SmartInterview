@@ -1,74 +1,13 @@
-<header class="navbar-shell" [class.shell-loading]="shellLoading" [attr.aria-busy]="shellLoading">
-<nav class="navbar" aria-label="Primary navigation">
-  <div class="navbar-brand shortlistii-logo shortlistii-navbar" aria-label="shortlistii.com">
-    <span class="logo-text">shortlist</span>
-    <span class="logo-ii" aria-hidden="true">
-      <span class="person">
-        <span class="head"></span>
-        <span class="body"></span>
-        <span class="tie"></span>
-      </span>
-      <span class="person">
-        <span class="head"></span>
-        <span class="body"></span>
-        <span class="tie"></span>
-      </span>
-    </span>
-  </div>
-  <button
-    #mobileNavToggleButton
-    type="button"
-    class="mobile-nav-toggle"
-    [attr.aria-expanded]="mobileNavOpen"
-    aria-controls="dashboardMobileNavPanel"
-    aria-label="Toggle navigation menu"
-    (click)="toggleMobileNav()">
-    <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen"></i>
-  </button>
-  <div class="navbar-right">
-    <a href="/dashboard" [class.active]="activeTab === 'overview'"><i class="ph ph-gauge"></i> Dashboard</a>
-    <a href="/dashboard/jobs"><i class="ph ph-briefcase"></i> Job Postings</a>
-    <button type="button" class="nav-link-button" [class.active]="activeTab === 'candidates'" (click)="setActiveTab('candidates')"><i class="ph ph-users"></i> Candidates</button>
-    <button type="button" class="nav-link-button" [class.active]="activeTab === 'ai-talent-pool'" (click)="openAiTalentPool()"><i class="ph ph-sparkle"></i> AI Talent Pool</button>
-    <a href="/logout/"><i class="ph ph-sign-out"></i> Logout</a>
-  </div>
-  <div class="desktop-header-title" aria-label="Current workspace">
-    <ng-container *ngIf="!shellLoading; else desktopHeaderTitleSkeleton">
-      <span>Recruiter Workspace</span>
-      <strong>Hiring Dashboard</strong>
-    </ng-container>
-    <ng-template #desktopHeaderTitleSkeleton>
-      <span class="skeleton-line shell-skeleton-kicker"></span>
-      <strong class="skeleton-line shell-skeleton-title"></strong>
-    </ng-template>
-  </div>
-  <div class="desktop-header-tools" aria-label="Global controls">
-    <ng-container *ngIf="!shellLoading; else desktopHeaderToolsSkeleton">
-      <button type="button" class="desktop-icon-button" data-tour="pending-requests" aria-label="Review pending requests" (click)="openPendingRequestsModal()">
-        <i class="ph ph-bell" aria-hidden="true"></i>
-        <span class="notification-dot">{{ recruiterApplicationsCount || 0 }}</span>
-      </button>
-      <button type="button" class="desktop-profile-pill" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()" aria-label="Open company profile">
-        <span class="desktop-profile-avatar">{{ companyInitials }}</span>
-        <span class="desktop-profile-copy">
-          <strong>{{ companyDisplayName }}</strong>
-          <small>{{ loginUserRole || 'Workspace' }}</small>
-        </span>
-      </button>
-    </ng-container>
-    <ng-template #desktopHeaderToolsSkeleton>
-      <span class="skeleton-icon shell-skeleton-header-icon" aria-hidden="true"></span>
-      <span class="shell-skeleton-profile skeleton-card" aria-hidden="true">
-        <span class="skeleton-avatar shell-skeleton-profile-avatar"></span>
-        <span class="shell-skeleton-profile-copy">
-          <span class="skeleton-line shell-skeleton-profile-name"></span>
-          <span class="skeleton-line shell-skeleton-profile-role"></span>
-        </span>
-      </span>
-    </ng-template>
-  </div>
-</nav>
-</header>
+<button
+  #mobileNavToggleButton
+  type="button"
+  class="mobile-nav-toggle mobile-nav-toggle--floating"
+  [attr.aria-expanded]="mobileNavOpen"
+  aria-controls="dashboardMobileNavPanel"
+  aria-label="Toggle navigation menu"
+  (click)="toggleMobileNav()">
+  <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen"></i>
+</button>
 <nav
   #mobileNavPanel
   id="dashboardMobileNavPanel"
@@ -135,6 +74,11 @@
     <button type="button" class="sidebar-nav-item" [disabled]="!companyProfile" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openCompanyDetailsModal(); closeMobileNav()">
       <i class="ph ph-buildings" aria-hidden="true"></i>
       <span>Company Profile</span>
+    </button>
+    <button type="button" class="sidebar-nav-item sidebar-nav-item--notification" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="openPendingRequestsModal(); closeMobileNav()">
+      <i class="ph ph-bell" aria-hidden="true"></i>
+      <span>Pending Actions</span>
+      <strong class="sidebar-notification-count">{{ recruiterApplicationsCount || 0 }}</strong>
     </button>
     <a class="sidebar-nav-item" href="/logout/" [attr.tabindex]="mobileNavOpen ? null : -1" (click)="closeMobileNav()">
       <i class="ph ph-sign-out" aria-hidden="true"></i>
@@ -245,6 +189,11 @@
         <button type="button" class="sidebar-nav-item" [disabled]="!companyProfile" (click)="openCompanyDetailsModal()">
           <i class="ph ph-buildings" aria-hidden="true"></i>
           <span>Company Profile</span>
+        </button>
+        <button type="button" class="sidebar-nav-item sidebar-nav-item--notification" data-tour="pending-requests" (click)="openPendingRequestsModal()">
+          <i class="ph ph-bell" aria-hidden="true"></i>
+          <span>Pending Actions</span>
+          <strong class="sidebar-notification-count">{{ recruiterApplicationsCount || 0 }}</strong>
         </button>
         <a class="sidebar-nav-item" href="/logout/">
           <i class="ph ph-sign-out" aria-hidden="true"></i>

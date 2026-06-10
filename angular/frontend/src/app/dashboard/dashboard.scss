@@ -152,6 +152,15 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
   background: rgba(12, 42, 77, 0.92);
   color: #61d8ff;
 }
+
+.mobile-nav-toggle--floating {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 14px;
+  z-index: 72;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+}
 .navbar-right { font-size:1rem;display:flex;gap:.65rem;font-weight:500;align-items:center; }
 .navbar-right a,
 .nav-link-button {
@@ -449,6 +458,29 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
   width: 40px;
   height: 40px;
   border-radius: 12px;
+}
+
+.sidebar-nav-item--notification {
+  position: relative;
+}
+
+.sidebar-notification-count {
+  flex: 0 0 auto;
+  min-width: 24px;
+  min-height: 24px;
+  margin-left: auto;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(103, 239, 255, 0.24);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #33dff7, #287dff);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(15, 132, 218, 0.22);
 }
 
 .dashboard-skeleton-grid {
@@ -4856,6 +4888,10 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
     touch-action: manipulation;
   }
 
+  .mobile-nav-panel .sidebar-nav-item--notification {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+
   .mobile-nav-panel .sidebar-nav-item i {
     width: 32px;
     height: 32px;
@@ -5021,7 +5057,7 @@ a.candidate-link:hover { color:#0fd9ff; transition:color 0.15s; }
   }
 
   .dashboard-wrap {
-    margin: 14px auto;
+    margin: 72px auto 14px;
     padding: 0 12px calc(94px + env(safe-area-inset-bottom));
   }
 
