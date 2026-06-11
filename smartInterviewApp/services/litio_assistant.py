@@ -56,10 +56,61 @@ SENSITIVE_PATTERNS = [
     r'\binternal logic\b',
 ]
 
+CANDIDATE_JOB_MAPPING_DEFAULTS = {
+    'category': 'candidate_workflow',
+    'title': 'Candidate job mapping',
+    'question_patterns': [
+        'how to tag candidate with job role',
+        'assign candidate to job',
+        'map candidate to vacancy',
+        'link candidate with role',
+        'attach candidate to job',
+        'candidate job mapping',
+        'move candidate to job pipeline',
+        'add candidate to vacancy',
+        'assign candidate to vacancy',
+        'candidate with job role',
+        'map candidate to role',
+        'assign candidate role',
+        'connect candidate to opening',
+    ],
+    'short_answer': 'To link a candidate with a job role, use Assign Candidate to create or find the candidate profile, select the active role, assign the hiring owner, and save the candidate into that role workflow.',
+    'detailed_answer': 'Once the candidate is mapped to the role, the candidate appears with that role in the candidate pipeline and can move into interviews, aptitude tests, reports, or status updates.',
+    'steps': [
+        'Open Candidates or use the dashboard Assign Candidate action.',
+        'Create or find the candidate profile.',
+        'Search and select the target Role by title or role ID.',
+        'Select the recruiter or hiring owner for follow-up.',
+        'Save with Assign Candidate.',
+        'Review the candidate under that role in Candidate Management or the role pipeline.',
+    ],
+    'related_links': [],
+    'metadata': {},
+    'is_active': True,
+    'priority': 25,
+}
+
+TYPO_NORMALIZATIONS = {
+    'candiate': 'candidate',
+    'candiadte': 'candidate',
+    'candidata': 'candidate',
+    'rile': 'role',
+    'roel': 'role',
+    'jpb': 'job',
+    'vacany': 'vacancy',
+    'vacnacy': 'vacancy',
+    'intervew': 'interview',
+    'interivew': 'interview',
+    'aptitute': 'aptitude',
+    'apptitude': 'aptitude',
+    'recuriter': 'recruiter',
+    'recuiter': 'recruiter',
+}
+
 INTENT_KEYWORDS = {
     'troubleshooting': {'issue', 'problem', 'not received', 'did not receive', 'camera', 'mic', 'microphone', 'permission', 'troubleshoot'},
     'score_explanation': {'score', 'resume score', 'role fit', 'fit score', 'marks', 'passing'},
-    'workflow_recommendation': {'workflow', 'next step', 'recommend', 'assign', 'status', 'reminder'},
+    'workflow_recommendation': {'workflow', 'next step', 'recommend', 'assign', 'tag', 'map', 'link', 'attach', 'connect', 'status', 'reminder'},
     'navigation_help': {'where', 'open', 'go to', 'find', 'navigate'},
     'feedback': {'feedback', 'confusing', 'missing', 'not working', 'suggestion'},
     'how_to': {'how', 'create', 'add', 'upload', 'schedule', 'review', 'send'},
@@ -74,6 +125,7 @@ DEFAULT_SUGGESTIONS = [
 
 CATEGORY_SUGGESTIONS = {
     'vacancy': ['Add candidates', 'Explain AI Talent Pool', 'Assign Litio interview'],
+    'candidate_workflow': ['Assign Litio interview', 'Assign aptitude test', 'Understand candidate scores'],
     'candidate': ['Understand candidate scores', 'Assign aptitude test', 'Review reports'],
     'interview': ['Assign aptitude test', 'Review reports', 'Send reminders'],
     'assessment': ['Understand candidate scores', 'Review reports', 'Troubleshoot candidate link'],
@@ -117,11 +169,50 @@ def is_sensitive_query(message: str) -> bool:
     return any(re.search(pattern, message, flags=re.IGNORECASE) for pattern in SENSITIVE_PATTERNS)
 
 
+def normalize_query_text(value: str) -> str:
+    def replace_token(match: re.Match[str]) -> str:
+        token = match.group(0)
+        return TYPO_NORMALIZATIONS.get(token.lower(), token)
+
+    return re.sub(r'\b[a-zA-Z]+\b', replace_token, value or '')
+
+
+def is_candidate_job_mapping_query(message: str) -> bool:
+    tokens = _tokens(message)
+    has_candidate = 'candidate' in tokens
+    has_role_target = bool(tokens & {'job', 'role', 'vacancy', 'opening', 'pipeline'})
+    has_mapping_action = bool(tokens & {'assign', 'tag', 'map', 'mapping', 'link', 'attach', 'add', 'move', 'connect'})
+    return has_candidate and has_role_target and has_mapping_action
+
+
+def get_candidate_job_mapping_knowledge() -> LitioAssistantKnowledge:
+    knowledge, _created = LitioAssistantKnowledge.objects.get_or_create(
+        slug='candidate-job-mapping',
+        defaults=CANDIDATE_JOB_MAPPING_DEFAULTS,
+    )
+    if not knowledge.is_active:
+        knowledge.is_active = True
+        knowledge.save(update_fields=['is_active'])
+    return knowledge
+
+
+def is_role_fit_score_query(message: str) -> bool:
+    tokens = _tokens(message)
+    if 'score' in tokens or 'rating' in tokens or 'indicator' in tokens:
+        return bool(tokens & {'role', 'fit', 'matching', 'match', 'candidate'})
+    if 'fit' in tokens and bool(tokens & {'role', 'candidate'}):
+        return bool(tokens & {'what', 'explain', 'why', 'mean', 'means'})
+    return False
+
+
 def _tokens(value: str) -> set[str]:
     return {token for token in re.findall(r'[a-z0-9]+', value.lower()) if len(token) > 2}
 
 
 def _knowledge_score(message: str, message_tokens: set[str], knowledge: LitioAssistantKnowledge) -> float:
+    if knowledge.slug == 'role-fit-score' and not is_role_fit_score_query(message):
+        return 0.0
+
     haystacks = [
         knowledge.title,
         knowledge.category,
@@ -149,12 +240,15 @@ def _knowledge_score(message: str, message_tokens: set[str], knowledge: LitioAss
 
 
 def match_knowledge(message: str) -> AssistantMatch:
-    lowered = message.lower().strip()
+    lowered = normalize_query_text(message).lower().strip()
     intent = classify_intent(lowered)
     if intent == 'sensitive_internal_query':
         return AssistantMatch(None, intent, 1.0)
 
     message_tokens = _tokens(lowered)
+    if is_candidate_job_mapping_query(lowered):
+        return AssistantMatch(get_candidate_job_mapping_knowledge(), 'workflow_recommendation', 1.0)
+
     best: LitioAssistantKnowledge | None = None
     best_score = 0.0
     for knowledge in LitioAssistantKnowledge.objects.filter(is_active=True).order_by('priority', 'title'):
@@ -254,6 +348,8 @@ def answer_message(
         'answer': answer,
         'intent': match.intent,
         'category': category,
+        'matched_knowledge_slug': match.knowledge.slug if match.knowledge else '',
+        'matched_knowledge_title': match.knowledge.title if match.knowledge else '',
         'confidence': match.confidence,
         'suggestions': suggestions_for(category),
         'show_feedback': True,
