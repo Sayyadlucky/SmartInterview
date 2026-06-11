@@ -122,6 +122,22 @@ class NotificationResponseSerializer(serializers.ModelSerializer):
         ]
 
 
+class LitioAssistantChatSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=3000)
+    conversation_id = serializers.IntegerField(required=False, allow_null=True)
+    page_context = serializers.CharField(max_length=160, required=False, allow_blank=True)
+    page_url = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+
+class LitioAssistantFeedbackSerializer(serializers.Serializer):
+    conversation_id = serializers.IntegerField()
+    rating = serializers.ChoiceField(choices=('yes', 'no', 'needs_help'))
+    comment = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+    message_id = serializers.IntegerField(required=False, allow_null=True)
+    page_context = serializers.CharField(max_length=160, required=False, allow_blank=True)
+    page_url = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+
 class Msg91WebhookSerializer(serializers.Serializer):
     request_id = serializers.CharField(required=False, allow_blank=True)
     id = serializers.CharField(required=False, allow_blank=True)

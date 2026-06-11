@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 
 from smartInterviewApp.api.serializers import (
     ExotelWebhookSerializer,
+    LitioAssistantChatSerializer,
+    LitioAssistantFeedbackSerializer,
     Msg91WebhookSerializer,
     NotificationResponseSerializer,
     NotificationSendSerializer,
@@ -42,6 +44,7 @@ from smartInterviewApp.services.aptitude_assignments import (
 )
 from smartInterviewApp.services.aptitude_scoring import mark_aptitude_assignment_expired_if_needed, score_assignment
 from smartInterviewApp.services.interview_calls import InterviewCallService
+from smartInterviewApp.services.litio_assistant import QUICK_CHIPS, answer_message, save_feedback
 from smartInterviewApp.webhooks.services import WebhookService
 
 
@@ -611,6 +614,55 @@ class NotificationDetailApi(APIView):
             return Response({'success': False, 'error': 'Notification not found.', 'data': None}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({'success': True, 'error': None, 'data': NotificationResponseSerializer(notification).data})
+
+
+class LitioAssistantChatApi(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = LitioAssistantChatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            data = answer_message(
+                user=request.user,
+                message=serializer.validated_data['message'],
+                conversation_id=serializer.validated_data.get('conversation_id'),
+                page_context=serializer.validated_data.get('page_context', ''),
+                page_url=serializer.validated_data.get('page_url', ''),
+            )
+        except ValueError as exc:
+            return api_response(False, error=str(exc), status_code=status.HTTP_400_BAD_REQUEST)
+        return api_response(True, data=data)
+
+
+class LitioAssistantFeedbackApi(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = LitioAssistantFeedbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            feedback = save_feedback(
+                user=request.user,
+                conversation_id=serializer.validated_data['conversation_id'],
+                rating=serializer.validated_data['rating'],
+                comment=serializer.validated_data.get('comment', ''),
+                message_id=serializer.validated_data.get('message_id'),
+                page_context=serializer.validated_data.get('page_context', ''),
+                page_url=serializer.validated_data.get('page_url', ''),
+            )
+        except LookupError as exc:
+            return api_response(False, error=str(exc), status_code=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return api_response(False, error=str(exc), status_code=status.HTTP_400_BAD_REQUEST)
+        return api_response(True, data={'success': True, 'feedback_id': feedback.id})
+
+
+class LitioAssistantSuggestionsApi(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return api_response(True, data={'suggestions': QUICK_CHIPS})
 
 
 class AptitudeTemplateReadinessApi(APIView):

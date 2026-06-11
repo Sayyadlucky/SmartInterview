@@ -8,6 +8,7 @@
   (click)="toggleMobileNav()">
   <i class="ph" [class.ph-list]="!mobileNavOpen" [class.ph-x]="mobileNavOpen"></i>
 </button>
+<app-litio-assistant #litioAssistant></app-litio-assistant>
 <nav
   #mobileNavPanel
   id="dashboardMobileNavPanel"
@@ -654,14 +655,14 @@
           <div class="ai-assistant-glow" aria-hidden="true"></div>
           <div class="ai-assistant-head">
             <h3 class="section-title">
-              <i class="ph ph-lightning" aria-hidden="true"></i>
-              <span>AI Assistant</span>
+              <i class="ph ph-sparkle" aria-hidden="true"></i>
+              <span>Litio AI Assistant</span>
             </h3>
-            <span>BETA</span>
+            <span>Your smart hiring workflow guide.</span>
           </div>
-          <p>Find top matching candidates, generate JD suggestions, and review hiring actions.</p>
-          <button type="button" class="ai-assistant-btn" (click)="openAiTalentPool()">
-            Ask AI Assistant <i class="ph ph-arrow-right" aria-hidden="true"></i>
+          <p>Ask about Shortlistii features, candidate workflows, interviews, aptitude tests, reports, reminders, or share feedback.</p>
+          <button type="button" class="ai-assistant-btn" (click)="litioAssistant.openAssistant()">
+            Ask Litio <i class="ph ph-arrow-right" aria-hidden="true"></i>
           </button>
         </div>
       </div>

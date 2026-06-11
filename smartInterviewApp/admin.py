@@ -22,6 +22,10 @@ from .models import (
     InterviewReminderDelivery,
     JobInterviewBlueprint,
     JobInterviewSkill,
+    LitioAssistantConversation,
+    LitioAssistantFeedback,
+    LitioAssistantKnowledge,
+    LitioAssistantMessage,
     Notification,
     NotificationAttempt,
     OtpRequest,
@@ -238,8 +242,39 @@ class JobInterviewSkillAdmin(admin.ModelAdmin):
     list_display = ('job', 'skill', 'skill_role', 'priority', 'questions_to_ask', 'coding_questions_to_ask', 'confidence', 'is_active')
     list_filter = ('skill_role', 'skill', 'is_required', 'is_active', 'source')
     search_fields = ('job__role', 'job__position', 'job__description', 'skill__name')
+
+
+@admin.register(LitioAssistantKnowledge)
+class LitioAssistantKnowledgeAdmin(admin.ModelAdmin):
+    list_display = ('title', 'category', 'slug', 'is_active', 'priority', 'updated_at')
+    list_filter = ('category', 'is_active')
+    search_fields = ('title', 'slug', 'short_answer', 'detailed_answer')
+    prepopulated_fields = {'slug': ('title',)}
     readonly_fields = ('created_at', 'updated_at')
-    autocomplete_fields = ('blueprint', 'skill')
+
+
+@admin.register(LitioAssistantConversation)
+class LitioAssistantConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'company', 'status', 'feedback_rating', 'last_message_at')
+    list_filter = ('status', 'feedback_rating', 'company')
+    search_fields = ('user__username', 'user__email', 'page_context', 'page_url')
+    readonly_fields = ('started_at', 'last_message_at')
+
+
+@admin.register(LitioAssistantMessage)
+class LitioAssistantMessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'sender', 'intent', 'matched_knowledge', 'confidence', 'created_at')
+    list_filter = ('sender', 'intent', 'matched_knowledge')
+    search_fields = ('message', 'conversation__user__username', 'conversation__user__email')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(LitioAssistantFeedback)
+class LitioAssistantFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'conversation', 'rating', 'feature_area', 'created_at')
+    list_filter = ('rating', 'feature_area')
+    search_fields = ('user__username', 'user__email', 'comment', 'page_context')
+    readonly_fields = ('created_at',)
 
 
 @admin.register(QuestionGenerationJob)

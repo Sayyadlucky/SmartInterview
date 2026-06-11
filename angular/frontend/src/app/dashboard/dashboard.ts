@@ -11,6 +11,7 @@ import { Candidates } from '../candidates/candidates';
 import { Activity } from '../activity/activity';
 import { Analytics } from '../analytics/analytics';
 import { TalentPool } from '../talent-pool/talent-pool';
+import { LitioAssistantComponent } from '../litio-assistant/litio-assistant';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
 import { AddUser } from '../app-modal/add-user/add-user';
@@ -350,7 +351,7 @@ interface WorkspaceTourStep {
   standalone: true,
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
-  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, FormsModule, DigitsOnlyDirective],
+  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, LitioAssistantComponent, FormsModule, DigitsOnlyDirective],
 })
 export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);

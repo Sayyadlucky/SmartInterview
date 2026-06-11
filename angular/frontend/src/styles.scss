@@ -1420,15 +1420,15 @@ app-dashboard .ai-assistant-card {
   display: grid;
   align-content: start;
   gap: 14px;
+  border-color: rgba(96, 216, 246, 0.2);
+  background:
+    linear-gradient(135deg, rgba(7, 31, 57, 0.94), rgba(6, 19, 36, 0.96));
 }
 
 app-dashboard .ai-assistant-glow {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 86% 17%, rgba(177, 122, 255, 0.28), transparent 20%),
-    radial-gradient(circle at 106% 72%, rgba(38, 122, 255, 0.22), transparent 30%),
-    radial-gradient(circle at 76% 42%, rgba(54, 218, 255, 0.08), transparent 28%);
+  background: linear-gradient(108deg, rgba(53, 215, 241, 0.13), transparent 54%);
   pointer-events: none;
 }
 
@@ -1445,11 +1445,11 @@ app-dashboard .ai-assistant-glow::before {
   right: 35px;
   width: 58px;
   height: 58px;
-  background: linear-gradient(135deg, #ffffff, #b996ff 55%, #6d8cff);
+  background: linear-gradient(135deg, #ffffff, #68e7ff 55%, #54a9ff);
   clip-path: polygon(50% 0%, 61% 35%, 96% 50%, 61% 65%, 50% 100%, 39% 65%, 4% 50%, 39% 35%);
   filter:
-    drop-shadow(0 0 10px rgba(190, 152, 255, 0.85))
-    drop-shadow(0 0 26px rgba(77, 144, 255, 0.35));
+    drop-shadow(0 0 10px rgba(104, 231, 255, 0.75))
+    drop-shadow(0 0 22px rgba(84, 169, 255, 0.28));
   opacity: 0.96;
 }
 
@@ -1458,27 +1458,27 @@ app-dashboard .ai-assistant-glow::after {
   right: 85px;
   width: 22px;
   height: 22px;
-  background: linear-gradient(135deg, #ffffff, #9d79ff);
+  background: linear-gradient(135deg, #ffffff, #6ee8ff);
   clip-path: polygon(50% 0%, 61% 35%, 96% 50%, 61% 65%, 50% 100%, 39% 65%, 4% 50%, 39% 35%);
-  filter: drop-shadow(0 0 10px rgba(176, 126, 255, 0.8));
+  filter: drop-shadow(0 0 10px rgba(104, 231, 255, 0.72));
   opacity: 0.88;
 }
 
 app-dashboard .ai-assistant-head {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
   gap: 10px;
   justify-content: flex-start;
+  max-width: calc(100% - 92px);
 }
 
 app-dashboard .ai-assistant-head > span {
-  border-radius: 999px;
-  padding: 4px 9px;
-  background: rgba(63, 111, 255, 0.28);
-  color: #93c6ff;
-  font-size: 0.68rem;
-  font-weight: 800;
+  color: #a9d4ed;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 app-dashboard .ai-assistant-card p {
@@ -1496,11 +1496,20 @@ app-dashboard .ai-assistant-btn {
   gap: 8px;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(95deg, #7655f5, #2e78ff);
+  background: linear-gradient(95deg, #35d7f1, #2e78ff);
   color: #ffffff;
   font-weight: 800;
   padding: 11px 16px;
   cursor: pointer;
+  box-shadow: 0 14px 26px rgba(19, 133, 210, 0.24);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+app-dashboard .ai-assistant-btn:hover,
+app-dashboard .ai-assistant-btn:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 18px 34px rgba(19, 133, 210, 0.34);
 }
 
 app-dashboard .candidate-board {
@@ -2058,7 +2067,7 @@ app-dashboard .interview-link-trigger {
   }
 
   app-dashboard .ai-assistant-card p {
-    max-width: 74% !important;
+    max-width: 100% !important;
     font-size: 0.92rem !important;
     line-height: 1.65 !important;
   }

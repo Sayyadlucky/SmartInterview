@@ -1,0 +1,146 @@
+<button
+  type="button"
+  class="litio-fab"
+  [class.has-pulse]="!hasOpened && !isOpen"
+  [attr.aria-expanded]="isOpen"
+  aria-controls="litioAssistantPanel"
+  aria-label="Ask Litio"
+  (click)="openAssistant()">
+  <i class="ph ph-chat-circle-dots" aria-hidden="true"></i>
+  <span>Ask Litio</span>
+</button>
+
+<button
+  type="button"
+  class="litio-backdrop"
+  [class.is-open]="isOpen"
+  [attr.aria-hidden]="!isOpen"
+  aria-label="Close Litio AI Assistant"
+  (click)="closeAssistant()"></button>
+
+<section
+  id="litioAssistantPanel"
+  class="litio-panel"
+  [class.is-open]="isOpen"
+  role="dialog"
+  aria-modal="false"
+  aria-labelledby="litioAssistantTitle"
+  [attr.aria-hidden]="!isOpen">
+  <header class="litio-header">
+    <div class="litio-avatar" aria-hidden="true">
+      <i class="ph ph-sparkle"></i>
+    </div>
+    <div class="litio-header-copy">
+      <h2 id="litioAssistantTitle">Litio AI Assistant</h2>
+      <p>Ready to help with Shortlistii</p>
+    </div>
+    <div class="litio-header-actions">
+      <button type="button" class="litio-icon-btn" aria-label="Start a new Litio chat" (click)="resetChat()">
+        <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="litio-icon-btn" aria-label="Close Litio AI Assistant" (click)="closeAssistant()">
+        <i class="ph ph-x" aria-hidden="true"></i>
+      </button>
+    </div>
+  </header>
+
+  <div #messageViewport class="litio-messages" aria-live="polite">
+    <article
+      *ngFor="let message of messages"
+      class="litio-message"
+      [class.is-user]="message.sender === 'user'"
+      [class.is-assistant]="message.sender === 'assistant'"
+      [class.is-error]="message.isError">
+      <div class="litio-message-avatar" *ngIf="message.sender === 'assistant'" aria-hidden="true">
+        <i class="ph ph-sparkle"></i>
+      </div>
+      <div class="litio-message-stack">
+        <div class="litio-bubble">{{ message.text }}</div>
+        <div class="litio-feedback" *ngIf="message.showFeedback && message.feedbackState !== 'saved'">
+          <span>Was this helpful?</span>
+          <div class="litio-feedback-actions">
+            <button
+              type="button"
+              [disabled]="message.feedbackState === 'saving'"
+              (click)="submitFeedback(message, 'yes')">
+              Yes
+            </button>
+            <button
+              type="button"
+              [class.is-selected]="message.feedbackState === 'collecting-no'"
+              [disabled]="message.feedbackState === 'saving'"
+              (click)="submitFeedback(message, 'no')">
+              No
+            </button>
+            <button
+              type="button"
+              [disabled]="message.feedbackState === 'saving'"
+              (click)="submitFeedback(message, 'needs_help')">
+              Need more help
+            </button>
+          </div>
+          <div class="litio-feedback-comment" *ngIf="message.feedbackState === 'collecting-no'">
+            <label>
+              <span>Sorry about that. What was missing?</span>
+              <textarea
+                rows="2"
+                [(ngModel)]="message.feedbackComment"
+                placeholder="Add optional context"></textarea>
+            </label>
+            <button type="button" (click)="submitFeedback(message, 'no')">Save feedback</button>
+          </div>
+        </div>
+        <div class="litio-feedback-saved" *ngIf="message.feedbackLabel">{{ message.feedbackLabel }}</div>
+      </div>
+    </article>
+
+    <article class="litio-message is-assistant is-typing" *ngIf="isSending">
+      <div class="litio-message-avatar" aria-hidden="true">
+        <i class="ph ph-sparkle"></i>
+      </div>
+      <div class="litio-message-stack">
+        <div class="litio-bubble litio-typing-bubble">
+          <span>Litio is typing</span>
+          <span class="litio-dots" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
+          </span>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <div class="litio-quick-chips" *ngIf="messages.length === 1">
+    <button type="button" *ngFor="let chip of quickChips" (click)="sendQuickChip(chip)">
+      {{ chip }}
+    </button>
+  </div>
+
+  <div class="litio-quick-chips compact" *ngIf="latestSuggestions.length && messages.length > 1">
+    <button type="button" *ngFor="let suggestion of latestSuggestions" (click)="sendQuickChip(suggestion)">
+      {{ suggestion }}
+    </button>
+  </div>
+
+  <footer class="litio-composer">
+    <label class="litio-composer-box">
+      <span class="sr-only">Ask Litio about Shortlistii features</span>
+      <textarea
+        #composerInput
+        rows="1"
+        [(ngModel)]="composerValue"
+        [disabled]="isSending"
+        placeholder="Ask Litio about Shortlistii features..."
+        (keydown)="onComposerKeydown($event)"></textarea>
+    </label>
+    <button
+      type="button"
+      class="litio-send-btn"
+      aria-label="Send message to Litio"
+      [disabled]="!composerValue.trim() || isSending"
+      (click)="sendMessage()">
+      <i class="ph" [class.ph-paper-plane-tilt]="!isSending" [class.ph-spinner-gap]="isSending" aria-hidden="true"></i>
+    </button>
+  </footer>
+</section>

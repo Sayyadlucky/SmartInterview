@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ParticleBackground } from './particle-background';
+import { ParticleBackgroundComponent } from './particle-background';
 
 describe('ParticleBackground', () => {
-  let component: ParticleBackground;
-  let fixture: ComponentFixture<ParticleBackground>;
+  let component: ParticleBackgroundComponent;
+  let fixture: ComponentFixture<ParticleBackgroundComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ParticleBackground]
+      imports: [ParticleBackgroundComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(ParticleBackground);
+    fixture = TestBed.createComponent(ParticleBackgroundComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
