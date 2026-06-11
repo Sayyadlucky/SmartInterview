@@ -8360,7 +8360,7 @@ def analyticsTabData(request):
                 for row in source_rows
             }
 
-        for row in scoped_interviews.values('id', 'candidate_id', 'role_id').distinct().iterator():
+        for row in scoped_interviews.values('id', 'candidate_id', 'role_id').distinct().iterator(chunk_size=2000):
             pipeline_source = application_sources.get((row.get('candidate_id'), row.get('role_id'))) or ''
             source_label = pipeline_source_labels.get(pipeline_source, 'Unclassified')
             source_agg[source_label]['total'] += 1
