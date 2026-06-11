@@ -108,6 +108,16 @@ interface TalentCandidateView extends TalentResult {
   activityTime: number;
 }
 
+interface TalentKpiCard {
+  label: string;
+  value: string;
+  sublabel: string;
+  icon: string;
+  tone: 'blue' | 'purple' | 'teal' | 'orange' | 'pink';
+  sparkPath: string;
+  sparkAreaPath: string;
+}
+
 type TalentSortOption = 'best-match' | 'recent-activity' | 'candidate-name';
 type TalentBreakdownKey = 'skills' | 'experience' | 'role_similarity' | 'education' | 'location';
 
@@ -372,49 +382,74 @@ export class TalentPool implements OnInit, OnChanges {
     ).size;
   }
 
-  get kpiCards(): Array<{ label: string; value: string; sublabel: string; icon: string; tone: 'blue' | 'purple' | 'teal' | 'orange' | 'pink'; spark: string }> {
+  get kpiCards(): TalentKpiCard[] {
     return [
-      {
+      this.buildKpiCard({
         label: 'Total Candidates',
         value: this.formatNumber(this.isRoleScoped ? this.totalCandidates : this.workspaceCandidateCount),
         sublabel: this.isRoleScoped ? 'For selected role' : 'Across workspace',
         icon: 'ph-users-three',
         tone: 'blue',
-        spark: 'M2 34 L18 29 L31 22 L45 28 L59 12 L74 27 L88 19 L104 31 L118 18 L134 25 L148 11',
-      },
-      {
+        values: this.isRoleScoped
+          ? this.buildCandidateActivityBuckets()
+          : this.workspaceSummarySeries,
+      }),
+      this.buildKpiCard({
         label: 'Strong Matches',
         value: this.formatNumber(this.strongFitCount),
         sublabel: this.totalCandidates ? `${this.getPercent(this.strongFitCount, this.totalCandidates)}% of view` : 'Select a role',
         icon: 'ph-shield-star',
         tone: 'purple',
-        spark: 'M2 33 L18 30 L31 24 L45 31 L58 21 L72 27 L88 17 L103 32 L118 24 L133 29 L148 13',
-      },
-      {
+        values: this.buildCandidateActivityBuckets((candidate) => candidate.matchTone === 'strong'),
+      }),
+      this.buildKpiCard({
         label: 'Good Matches',
         value: this.formatNumber(this.goodFitCount),
         sublabel: this.totalCandidates ? `${this.getPercent(this.goodFitCount, this.totalCandidates)}% of view` : 'Awaiting role match',
         icon: 'ph-thumbs-up',
         tone: 'teal',
-        spark: 'M2 35 L17 32 L31 34 L45 21 L60 16 L75 26 L89 29 L104 22 L119 25 L133 17 L148 20',
-      },
-      {
+        values: this.buildCandidateActivityBuckets((candidate) => candidate.matchTone === 'good'),
+      }),
+      this.buildKpiCard({
         label: 'Watchlist',
         value: this.formatNumber(this.watchlistCount),
         sublabel: this.totalCandidates ? `${this.getPercent(this.watchlistCount, this.totalCandidates)}% of view` : 'Awaiting role match',
         icon: 'ph-eye',
         tone: 'orange',
-        spark: 'M2 30 L17 22 L31 33 L45 38 L59 29 L74 34 L89 24 L103 27 L118 13 L133 31 L148 20',
-      },
-      {
+        values: this.buildCandidateActivityBuckets((candidate) => candidate.matchTone === 'watch'),
+      }),
+      this.buildKpiCard({
         label: 'Open Roles',
         value: this.formatNumber(this.workspaceOpenRolesCount),
         sublabel: this.openPositionsCount ? `${this.formatNumber(this.openPositionsCount)} open positions` : 'Active job postings',
         icon: 'ph-briefcase',
         tone: 'pink',
-        spark: 'M2 36 L16 31 L31 33 L45 24 L59 30 L74 20 L88 35 L103 28 L118 37 L133 27 L148 21',
-      },
+        values: this.roleOpeningsSeries,
+      }),
     ];
+  }
+
+  private get workspaceSummarySeries(): number[] {
+    return [
+      Number(this.workspaceSummary.assessment_pending || 0),
+      Number(this.workspaceSummary.auto_screening_scheduled || 0),
+      Number(this.workspaceSummary.scheduled || 0),
+      Number(this.workspaceSummary.shortlisted || 0),
+      Number(this.workspaceSummary.hired || 0),
+      Number(this.workspaceSummary.rejected || 0) + Number(this.workspaceSummary.cancelled || 0),
+    ];
+  }
+
+  private get roleOpeningsSeries(): number[] {
+    const openRoles = this.roles
+      .filter((role) => {
+        const status = this.normalizeStatus(role.status || role.status_label || '');
+        return status ? !['closed', 'cancelled', 'inactive', 'archived'].includes(status) : true;
+      })
+      .map((role) => Number(role.open_positions || role.applications || 0))
+      .filter((value) => Number.isFinite(value))
+      .slice(0, 6);
+    return openRoles.length ? openRoles : [this.workspaceOpenRolesCount, this.openPositionsCount];
   }
 
   get matchQualityRows(): Array<{ key: 'strong' | 'good' | 'watch'; label: string; count: number; percent: number; color: string }> {
@@ -830,6 +865,78 @@ export class TalentPool implements OnInit, OnChanges {
 
   trackByCandidate(index: number, candidate: TalentCandidateView): number {
     return candidate.id || index;
+  }
+
+  trackByKpiCard(_index: number, card: TalentKpiCard): string {
+    return card.label;
+  }
+
+  private buildKpiCard(input: Omit<TalentKpiCard, 'sparkPath' | 'sparkAreaPath'> & { values: number[] }): TalentKpiCard {
+    const spark = this.buildSparklinePaths(input.values);
+    return {
+      label: input.label,
+      value: input.value,
+      sublabel: input.sublabel,
+      icon: input.icon,
+      tone: input.tone,
+      sparkPath: spark.sparkPath,
+      sparkAreaPath: spark.sparkAreaPath,
+    };
+  }
+
+  private buildCandidateActivityBuckets(predicate: (candidate: TalentCandidateView) => boolean = () => true): number[] {
+    const bucketCount = 6;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - ((bucketCount - 1) * 7));
+    const buckets = Array(bucketCount).fill(0);
+
+    for (const candidate of this.filteredCandidates) {
+      if (!predicate(candidate) || !candidate.activityTime) continue;
+      const ageInDays = Math.floor((candidate.activityTime - start.getTime()) / dayMs);
+      const bucketIndex = Math.floor(ageInDays / 7);
+      if (bucketIndex >= 0 && bucketIndex < bucketCount) {
+        buckets[bucketIndex] += 1;
+      }
+    }
+
+    return buckets;
+  }
+
+  private buildSparklinePaths(values: number[]): { sparkPath: string; sparkAreaPath: string } {
+    const width = 150;
+    const height = 44;
+    const padding = 3;
+    const cleaned = values.length >= 2
+      ? values.map((value) => Math.max(0, Number(value || 0))).filter((value) => Number.isFinite(value))
+      : [0, 0];
+    const safeValues = cleaned.length >= 2 ? cleaned.slice(-6) : [0, 0];
+    const min = Math.min(...safeValues);
+    const max = Math.max(...safeValues);
+    const range = max - min || 1;
+    const step = (width - padding * 2) / Math.max(safeValues.length - 1, 1);
+    const isFlat = min === max;
+    const points = safeValues.map((value, index) => {
+      const x = padding + step * index;
+      const y = isFlat
+        ? height / 2
+        : padding + (1 - ((value - min) / range)) * (height - padding * 2);
+      return { x, y };
+    });
+    const sparkPath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${this.formatSparkCoord(point.x)} ${this.formatSparkCoord(point.y)}`)
+      .join(' ');
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
+    const baseY = height - padding;
+    const sparkAreaPath = `${sparkPath} L ${this.formatSparkCoord(lastPoint.x)} ${this.formatSparkCoord(baseY)} L ${this.formatSparkCoord(firstPoint.x)} ${this.formatSparkCoord(baseY)} Z`;
+    return { sparkPath, sparkAreaPath };
+  }
+
+  private formatSparkCoord(value: number): string {
+    return Number(value.toFixed(2)).toString();
   }
 
   private loadTalentPool(): void {

@@ -134,14 +134,17 @@
       <div class="filter-error" *ngIf="dateRangeError">{{ dateRangeError }}</div>
 
       <div class="summary-grid">
-        <article class="summary-card" *ngFor="let card of summaryCards | slice:0:6" [ngClass]="card.tone ? 'tone-' + card.tone : ''">
+        <article class="summary-card" *ngFor="let card of summaryCards | slice:0:6; trackBy: trackSummaryCard" [ngClass]="card.tone ? 'tone-' + card.tone : ''">
           <span class="summary-icon"><i [class]="card.icon"></i></span>
           <div class="summary-copy">
             <span class="label">{{ card.label }}</span>
             <strong>{{ card.value }}</strong>
             <small>{{ card.helper }}</small>
           </div>
-          <div class="kpi-line" aria-hidden="true"><span></span></div>
+          <svg class="kpi-line" viewBox="0 0 160 30" preserveAspectRatio="none" aria-hidden="true">
+            <path class="kpi-line-area" [attr.d]="card.sparkAreaPath"></path>
+            <path class="kpi-line-path" [attr.d]="card.sparkPath"></path>
+          </svg>
         </article>
       </div>
 

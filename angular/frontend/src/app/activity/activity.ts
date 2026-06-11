@@ -116,6 +116,8 @@ interface SummaryCard {
   value: string;
   helper: string;
   tone?: SignalSeverity;
+  sparkPath: string;
+  sparkAreaPath: string;
 }
 
 interface SignalAction {
@@ -397,6 +399,10 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
 
   weeklyDelta(): number {
     return this.weeklyDeltaValue;
+  }
+
+  trackSummaryCard(_index: number, card: SummaryCard): string {
+    return card.label;
   }
 
   selectedDateRangeLabel(): string {
@@ -883,59 +889,138 @@ export class Activity implements OnInit, AfterViewInit, OnDestroy {
 
   private buildSummaryCards(): SummaryCard[] {
     return [
-      {
+      this.buildSummaryCard({
         label: 'Total Interviews',
         icon: 'ph ph-chats-teardrop',
         value: this.formatMetricValue(this.summary.total_interviews),
         helper: 'Activity tracked in the current scope',
-      },
-      {
+        values: this.trend.interviews,
+      }),
+      this.buildSummaryCard({
         label: 'Upcoming Interviews',
         icon: 'ph ph-calendar-plus',
         value: this.formatMetricValue(this.summary.upcoming),
         helper: this.summary.upcoming ? 'Scheduled interviews still ahead' : 'No interviews are lined up',
         tone: this.summary.upcoming ? 'info' : 'warning',
-      },
-      {
+        values: this.upcomingActivitySeries,
+      }),
+      this.buildSummaryCard({
         label: 'Hired',
         icon: 'ph ph-user-check',
         value: this.formatMetricValue(this.summary.hired),
         helper: 'Completed or hired outcomes',
         tone: this.summary.hired > 0 ? 'positive' : 'info',
-      },
-      {
+        values: this.trend.hired,
+      }),
+      this.buildSummaryCard({
         label: 'Active Recruiters',
         icon: 'ph ph-users-three',
         value: this.formatMetricValue(this.summary.active_recruiters),
         helper: 'Recruiters contributing in the range',
-      },
-      {
+        values: this.recruiterBreakdown.map((item) => item.count),
+      }),
+      this.buildSummaryCard({
         label: 'Open Roles',
         icon: 'ph ph-briefcase-metal',
         value: this.formatMetricValue(this.summary.open_roles),
         helper: 'Roles still needing pipeline coverage',
-      },
-      {
+        values: this.openRoleActivitySeries,
+      }),
+      this.buildSummaryCard({
         label: 'Hire Rate',
         icon: 'ph ph-chart-bar',
         value: `${this.summary.hire_rate}%`,
         helper: 'Conversion of tracked interviews',
         tone: this.summary.hire_rate >= 20 ? 'positive' : 'info',
-      },
-      {
+        values: this.hireRateSeries,
+      }),
+      this.buildSummaryCard({
         label: 'Response Time',
         icon: 'ph ph-timer',
         value: this.formatDurationHours(this.responseTime.avg_hours),
         helper: 'Average first-touch speed',
         tone: this.responseTime.avg_hours <= 24 && this.responseTime.avg_hours > 0 ? 'positive' : 'warning',
-      },
-      {
+        values: this.responseTime.by_recruiter.map((item) => item.avg_hours),
+      }),
+      this.buildSummaryCard({
         label: 'Last 30 Days',
         icon: 'ph ph-clock-countdown',
         value: this.formatMetricValue(this.summary.last_30_days),
         helper: 'Recent interview velocity snapshot',
-      },
+        values: this.productivity.daily.map((item) => item.total),
+      }),
     ];
+  }
+
+  private buildSummaryCard(input: Omit<SummaryCard, 'sparkPath' | 'sparkAreaPath'> & { values: Array<number | null | undefined> }): SummaryCard {
+    const spark = this.buildSparklinePaths(input.values);
+    return {
+      label: input.label,
+      icon: input.icon,
+      value: input.value,
+      helper: input.helper,
+      tone: input.tone,
+      sparkPath: spark.sparkPath,
+      sparkAreaPath: spark.sparkAreaPath,
+    };
+  }
+
+  private get upcomingActivitySeries(): number[] {
+    if (this.upcomingLoadHeat.days.length) {
+      return this.upcomingLoadHeat.days.map((day) =>
+        Object.values(day.cells || {}).reduce((sum, value) => sum + Number(value || 0), 0)
+      );
+    }
+    return [this.summary.upcoming, this.upcomingList.length];
+  }
+
+  private get openRoleActivitySeries(): number[] {
+    if (this.roleRiskScore.length) {
+      return this.roleRiskScore.map((role) => Math.max(0, Number(role.remaining || 0))).slice(0, 6);
+    }
+    return this.roleBreakdown.map((role) => Number(role.count || 0)).slice(0, 6);
+  }
+
+  private get hireRateSeries(): number[] {
+    return this.trend.interviews.map((total, index) => {
+      const hired = Number(this.trend.hired[index] || 0);
+      return total > 0 ? Math.round((hired / total) * 100) : 0;
+    });
+  }
+
+  private buildSparklinePaths(values: Array<number | null | undefined>): { sparkPath: string; sparkAreaPath: string } {
+    const width = 160;
+    const height = 30;
+    const padding = 3;
+    const cleaned = values
+      .map((value) => Math.max(0, Number(value || 0)))
+      .filter((value) => Number.isFinite(value))
+      .slice(-6);
+    const safeValues = cleaned.length >= 2 ? cleaned : [cleaned[0] || 0, cleaned[0] || 0];
+    const min = Math.min(...safeValues);
+    const max = Math.max(...safeValues);
+    const range = max - min || 1;
+    const step = (width - padding * 2) / Math.max(safeValues.length - 1, 1);
+    const isFlat = min === max;
+    const points = safeValues.map((value, index) => {
+      const x = padding + step * index;
+      const y = isFlat
+        ? height / 2
+        : padding + (1 - ((value - min) / range)) * (height - padding * 2);
+      return { x, y };
+    });
+    const sparkPath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${this.formatSparkCoord(point.x)} ${this.formatSparkCoord(point.y)}`)
+      .join(' ');
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
+    const baseY = height - padding;
+    const sparkAreaPath = `${sparkPath} L ${this.formatSparkCoord(lastPoint.x)} ${this.formatSparkCoord(baseY)} L ${this.formatSparkCoord(firstPoint.x)} ${this.formatSparkCoord(baseY)} Z`;
+    return { sparkPath, sparkAreaPath };
+  }
+
+  private formatSparkCoord(value: number): string {
+    return Number(value.toFixed(2)).toString();
   }
 
   private buildAiSignals(): ActivitySignal[] {

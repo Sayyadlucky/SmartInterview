@@ -434,17 +434,28 @@ button {
   align-self: end;
   height: 22px;
   width: 100%;
-  display: flex;
-  align-items: end;
+  color: var(--blue);
 }
 
-.kpi-line span {
-  width: 100%;
-  height: 20px;
-  opacity: 0.78;
-  background:
-    linear-gradient(135deg, transparent 8%, var(--blue) 9% 10%, transparent 11% 22%, var(--blue) 23% 25%, transparent 26% 35%, var(--blue) 36% 38%, transparent 39% 49%, var(--blue) 50% 53%, transparent 54% 66%, var(--blue) 67% 70%, transparent 71% 82%, var(--blue) 83% 86%, transparent 87%);
+.kpi-line-area {
+  fill: currentColor;
+  opacity: 0.1;
 }
+
+.kpi-line-path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.86;
+}
+
+.summary-card:nth-child(2) .kpi-line { color: #9d42ff; }
+.summary-card:nth-child(3) .kpi-line { color: #24ddc2; }
+.summary-card:nth-child(4) .kpi-line { color: #ff9416; }
+.summary-card:nth-child(5) .kpi-line { color: #f04473; }
+.summary-card:nth-child(6) .kpi-line { color: #1278ef; }
 
 .dashboard-grid {
   display: grid;

@@ -35,6 +35,18 @@ interface CandidateViewModel extends CandidateItem {
   searchBlob: string;
 }
 
+interface CandidateSummaryCard {
+  key: string;
+  label: string;
+  value: number;
+  helper: string;
+  icon: string;
+  cardClass: string;
+  sparkPath: string;
+  sparkAreaPath: string;
+  sparkTitle: string;
+}
+
 interface UpcomingItem {
   id: number;
   candidate: string;
@@ -432,6 +444,56 @@ export class Candidates implements OnInit, OnDestroy {
     return this.attentionCandidatesCache;
   }
 
+  get summaryCards(): CandidateSummaryCard[] {
+    return [
+      this.buildSummaryCard(
+        'total',
+        'Total Candidates',
+        Number(this.summary.total || 0),
+        'All time',
+        'ph ph-users-three',
+        'summary-card--total',
+        () => true
+      ),
+      this.buildSummaryCard(
+        'scheduled',
+        'Scheduled',
+        Number(this.summary.scheduled || 0),
+        'Open interviews',
+        'ph ph-calendar-check',
+        'summary-card--scheduled',
+        (candidate) => candidate.normalizedStatus === 'scheduled'
+      ),
+      this.buildSummaryCard(
+        'shortlisted',
+        'Shortlisted',
+        this.shortlistedCount,
+        'Decision-ready',
+        'ph ph-star',
+        'summary-card--shortlisted',
+        (candidate) => ['shortlisted', 'offer made', 'offer accepted'].includes(candidate.normalizedStatus)
+      ),
+      this.buildSummaryCard(
+        'hired',
+        'Hired',
+        Number(this.summary.hired || 0),
+        `${this.hireRate}% of candidates`,
+        'ph ph-briefcase',
+        'summary-card--hired',
+        (candidate) => ['hired', 'completed'].includes(candidate.normalizedStatus)
+      ),
+      this.buildSummaryCard(
+        'rejected',
+        'Rejected',
+        Number(this.summary.rejected || 0),
+        'Closed out',
+        'ph ph-x-circle',
+        'summary-card--rejected',
+        (candidate) => candidate.normalizedStatus === 'rejected'
+      ),
+    ];
+  }
+
   get pipelineSegments(): Array<{ label: string; key: string; count: number; color: string }> {
     return [
       { label: 'Scheduled', key: 'scheduled', count: Number(this.summary.scheduled || 0), color: '#1686ff' },
@@ -540,6 +602,10 @@ export class Candidates implements OnInit, OnDestroy {
     return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   }
 
+  trackSummaryCard(_index: number, item: CandidateSummaryCard): string {
+    return item.key;
+  }
+
   private getApiBaseUrl(): string {
     let portNumber = '';
     if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
@@ -579,6 +645,82 @@ export class Candidates implements OnInit, OnDestroy {
   private countCandidatesByStatus(status: string): number {
     const normalized = this.normalizeStatus(status);
     return this.candidates.filter((item) => item.normalizedStatus === normalized).length;
+  }
+
+  private buildSummaryCard(
+    key: string,
+    label: string,
+    value: number,
+    helper: string,
+    icon: string,
+    cardClass: string,
+    predicate: (candidate: CandidateViewModel) => boolean
+  ): CandidateSummaryCard {
+    const buckets = this.buildWeeklyCandidateBuckets(predicate);
+    const spark = this.buildSparklinePaths(buckets);
+    return {
+      key,
+      label,
+      value,
+      helper,
+      icon,
+      cardClass,
+      sparkPath: spark.sparkPath,
+      sparkAreaPath: spark.sparkAreaPath,
+      sparkTitle: `${label} activity over the last 6 weeks`,
+    };
+  }
+
+  private buildWeeklyCandidateBuckets(predicate: (candidate: CandidateViewModel) => boolean): number[] {
+    const bucketCount = 6;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - ((bucketCount - 1) * 7));
+    const buckets = Array(bucketCount).fill(0);
+
+    this.candidates.forEach((candidate) => {
+      if (!predicate(candidate) || !candidate.dateValue) return;
+      const ageInDays = Math.floor((candidate.dateValue - start.getTime()) / dayMs);
+      const bucketIndex = Math.floor(ageInDays / 7);
+      if (bucketIndex >= 0 && bucketIndex < bucketCount) {
+        buckets[bucketIndex] += 1;
+      }
+    });
+
+    return buckets;
+  }
+
+  private buildSparklinePaths(values: number[]): { sparkPath: string; sparkAreaPath: string } {
+    const width = 180;
+    const height = 36;
+    const padding = 3;
+    const cleaned = values.length >= 2 ? values : [0, 0];
+    const min = Math.min(...cleaned);
+    const max = Math.max(...cleaned);
+    const range = max - min || 1;
+    const step = (width - padding * 2) / Math.max(cleaned.length - 1, 1);
+    const isFlat = min === max;
+    const points = cleaned.map((value, index) => {
+      const x = padding + step * index;
+      const y = isFlat
+        ? height / 2
+        : padding + (1 - ((value - min) / range)) * (height - padding * 2);
+      return { x, y };
+    });
+    const sparkPath = points
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${this.formatSparkCoord(point.x)} ${this.formatSparkCoord(point.y)}`)
+      .join(' ');
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
+    const baseY = height - padding;
+    const sparkAreaPath = `${sparkPath} L ${this.formatSparkCoord(lastPoint.x)} ${this.formatSparkCoord(baseY)} L ${this.formatSparkCoord(firstPoint.x)} ${this.formatSparkCoord(baseY)} Z`;
+    return { sparkPath, sparkAreaPath };
+  }
+
+  private formatSparkCoord(value: number): string {
+    return Number(value.toFixed(2)).toString();
   }
 
   private isClosedStatus(status: string): boolean {

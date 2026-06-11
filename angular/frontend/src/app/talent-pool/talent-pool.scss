@@ -262,7 +262,12 @@
   z-index: 1;
 }
 
-.talent-sparkline path {
+.talent-sparkline-area {
+  fill: currentColor;
+  opacity: 0.1;
+}
+
+.talent-sparkline-line {
   fill: none;
   stroke: currentColor;
   stroke-width: 2.5;

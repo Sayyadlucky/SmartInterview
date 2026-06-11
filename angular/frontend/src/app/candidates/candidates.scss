@@ -335,28 +335,40 @@
   grid-column: 1 / -1;
   height: 32px;
   opacity: 0.96;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
+  width: 100%;
+}
+
+.sparkline-area {
+  fill: currentColor;
+  opacity: 0.1;
+}
+
+.sparkline-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .summary-card--total .sparkline {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 36' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 28 L12 24 L22 25 L32 20 L42 21 L52 17 L62 18 L72 11 L82 21 L94 20 L104 14 L114 25 L126 15 L138 12 L150 20 L162 8 L180 17' fill='none' stroke='%231686ff' stroke-width='2.2'/%3E%3C/svg%3E");
+  color: #1686ff;
 }
 
 .summary-card--scheduled .sparkline {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 36' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 26 L18 21 L32 16 L45 25 L58 10 L70 14 L82 6 L94 11 L106 28 L120 24 L134 25 L150 22 L164 12 L180 8' fill='none' stroke='%237c4dff' stroke-width='2.2'/%3E%3C/svg%3E");
+  color: #7c4dff;
 }
 
 .summary-card--shortlisted .sparkline {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 36' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 25 L14 19 L28 21 L42 14 L56 17 L70 8 L86 16 L100 15 L112 24 L126 28 L142 20 L156 23 L180 12' fill='none' stroke='%2315c1a2' stroke-width='2.2'/%3E%3C/svg%3E");
+  color: #15c1a2;
 }
 
 .summary-card--hired .sparkline {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 36' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 22 L14 12 L28 17 L42 18 L56 24 L70 27 L86 22 L100 24 L116 18 L132 13 L148 21 L164 14 L180 9' fill='none' stroke='%23ff8a00' stroke-width='2.2'/%3E%3C/svg%3E");
+  color: #ff8a00;
 }
 
 .summary-card--rejected .sparkline {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 36' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20 L14 16 L28 18 L42 14 L56 7 L72 17 L88 15 L102 19 L118 16 L134 24 L150 30 L164 20 L180 16' fill='none' stroke='%23ff365f' stroke-width='2.2'/%3E%3C/svg%3E");
+  color: #ff365f;
 }
 
 .toolbar {

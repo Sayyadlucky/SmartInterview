@@ -40,6 +40,17 @@ interface MonthlyTrendCard {
   direction: TrendDirection;
 }
 
+interface OverviewKpiCard {
+  key: string;
+  label: string;
+  value: number;
+  icon: string;
+  toneClass: string;
+  trendText: string;
+  trendDirection: TrendDirection;
+  trendIcon: string;
+}
+
 interface AttentionItem {
   key: AttentionFilterKey;
   title: string;
@@ -456,6 +467,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private sourceChart?: Chart;
   @ViewChild('sourcePerformanceCanvas', { static: false })
   set sourceCanvasRef(value: ElementRef<HTMLCanvasElement> | undefined) {
+    if (!value && this.sourceChart) {
+      this.sourceChart.destroy();
+      this.sourceChart = undefined;
+    }
     this.sourceCanvas = value;
     if (value && this.activeTab === 'overview') {
       setTimeout(() => this.renderChart(), 0);
@@ -1163,6 +1178,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
 
   get pendingActionTotalCount(): number {
     return this.pendingActionCards.reduce((total, card) => total + (card.count || 0), 0);
+  }
+
+  trackByOverviewKpiCard(_index: number, card: OverviewKpiCard): string {
+    return card.key;
   }
 
   get filteredPendingActionItems(): PendingActionListItem[] {
@@ -2849,6 +2868,51 @@ get chartLegendData() {
   }));
 }
 
+get hasSourceChartData(): boolean {
+  return this.chartLegendData.some((item) => item.value > 0);
+}
+
+get overviewKpiCards(): OverviewKpiCard[] {
+  const list = this.candidatesData || [];
+  return [
+    this.buildOverviewKpiCard(
+      'total-candidates',
+      'Total Candidates',
+      'ph ph-users-three',
+      'kpi-card--candidates',
+      list,
+      () => true
+    ),
+    this.buildOverviewKpiCard(
+      'scheduled',
+      'Scheduled',
+      'ph ph-calendar-check',
+      'kpi-card--scheduled',
+      list,
+      (candidate) => this.normalizeStatus(candidate?.status) === 'scheduled' && !this.isAutoScreeningCandidate(candidate)
+    ),
+    this.buildOverviewKpiCard(
+      'hired',
+      'Hired',
+      'ph ph-check-circle',
+      'kpi-card--hired',
+      list,
+      (candidate) => {
+        const status = this.normalizeStatus(candidate?.status);
+        return status === 'completed' || status === 'hired';
+      }
+    ),
+    this.buildOverviewKpiCard(
+      'disqualified',
+      'Disqualified',
+      'ph ph-x-circle',
+      'kpi-card--rejected',
+      list,
+      (candidate) => this.normalizeStatus(candidate?.status) === 'rejected'
+    ),
+  ];
+}
+
 get roleSnapshotData() {
   const roleMap = new Map<string, { roleId: string; role: string; vacancies: number; applied: number; hired: number }>();
 
@@ -3063,6 +3127,57 @@ private toDate(value: any): Date | null {
 
 private isRateCard(key: string): boolean {
   return key === 'shortlist-rate' || key === 'hire-rate';
+}
+
+private buildOverviewKpiCard(
+  key: string,
+  label: string,
+  icon: string,
+  toneClass: string,
+  list: any[],
+  predicate: (candidate: any) => boolean
+): OverviewKpiCard {
+  const value = list.filter(predicate).length;
+  const current = this.countCandidatesInRecentWindow(list, 0, 30, predicate);
+  const previous = this.countCandidatesInRecentWindow(list, 30, 60, predicate);
+  const delta = current - previous;
+  const direction: TrendDirection = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+  const directionWord = direction === 'up' ? 'more' : direction === 'down' ? 'fewer' : 'same';
+  const trendText = current || previous
+    ? `${Math.abs(delta)} ${directionWord} vs previous 30 days`
+    : 'No dated activity in last 60 days';
+
+  return {
+    key,
+    label,
+    value,
+    icon,
+    toneClass,
+    trendText,
+    trendDirection: direction,
+    trendIcon: direction === 'up' ? 'ph ph-trend-up' : direction === 'down' ? 'ph ph-trend-down' : 'ph ph-minus',
+  };
+}
+
+private countCandidatesInRecentWindow(
+  list: any[],
+  startDaysAgo: number,
+  endDaysAgo: number,
+  predicate: (candidate: any) => boolean
+): number {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - endDaysAgo);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now);
+  end.setDate(now.getDate() - startDaysAgo);
+  end.setHours(23, 59, 59, 999);
+
+  return list.filter((candidate) => {
+    if (!predicate(candidate)) return false;
+    const date = this.toDate(candidate?.date);
+    return !!date && date >= start && date <= end;
+  }).length;
 }
 
 private getOverdueFeedbackCandidates(list: any[], now: Date): any[] {
@@ -4303,6 +4418,10 @@ private renderChart(): void {
 
   const labels = ['Scheduled ', 'Shortlisted ', 'Hired ', 'Auto Screening Scheduled ', 'Rejected ', 'Assessment Pending ', 'Cancelled '];
   const colors = ['#22d3ee', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#9ca3af'];
+
+  if (!this.hasSourceChartData) {
+    return;
+  }
 
   this.sourceChart = new Chart(ctx, {
     type: 'doughnut',

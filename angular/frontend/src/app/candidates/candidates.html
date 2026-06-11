@@ -130,50 +130,17 @@
       </header>
 
       <div class="summary-grid">
-        <article class="summary-card summary-card--total">
-          <span class="metric-icon"><i class="ph ph-users-three"></i></span>
+        <article class="summary-card" *ngFor="let card of summaryCards; trackBy: trackSummaryCard" [ngClass]="card.cardClass">
+          <span class="metric-icon"><i [class]="card.icon"></i></span>
           <div class="metric-copy">
-            <span class="label">Total Candidates</span>
-            <span class="value">{{ summary.total }}</span>
-            <small>All time</small>
+            <span class="label">{{ card.label }}</span>
+            <span class="value">{{ card.value }}</span>
+            <small>{{ card.helper }}</small>
           </div>
-          <span class="sparkline"></span>
-        </article>
-        <article class="summary-card summary-card--scheduled">
-          <span class="metric-icon"><i class="ph ph-calendar-check"></i></span>
-          <div class="metric-copy">
-            <span class="label">Scheduled</span>
-            <span class="value">{{ summary.scheduled }}</span>
-            <small>Open interviews</small>
-          </div>
-          <span class="sparkline"></span>
-        </article>
-        <article class="summary-card summary-card--shortlisted">
-          <span class="metric-icon"><i class="ph ph-star"></i></span>
-          <div class="metric-copy">
-            <span class="label">Shortlisted</span>
-            <span class="value">{{ shortlistedCount }}</span>
-            <small>Decision-ready</small>
-          </div>
-          <span class="sparkline"></span>
-        </article>
-        <article class="summary-card summary-card--hired">
-          <span class="metric-icon"><i class="ph ph-briefcase"></i></span>
-          <div class="metric-copy">
-            <span class="label">Hired</span>
-            <span class="value">{{ summary.hired }}</span>
-            <small>{{ hireRate }}% of candidates</small>
-          </div>
-          <span class="sparkline"></span>
-        </article>
-        <article class="summary-card summary-card--rejected">
-          <span class="metric-icon"><i class="ph ph-x-circle"></i></span>
-          <div class="metric-copy">
-            <span class="label">Rejected</span>
-            <span class="value">{{ summary.rejected }}</span>
-            <small>Closed out</small>
-          </div>
-          <span class="sparkline"></span>
+          <svg class="sparkline" viewBox="0 0 180 36" preserveAspectRatio="none" role="img" [attr.aria-label]="card.sparkTitle">
+            <path class="sparkline-area" [attr.d]="card.sparkAreaPath"></path>
+            <path class="sparkline-line" [attr.d]="card.sparkPath"></path>
+          </svg>
         </article>
       </div>
 

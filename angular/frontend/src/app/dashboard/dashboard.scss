@@ -1380,6 +1380,23 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
   align-items: center;
   justify-content: center;
   text-align: center;
+  gap: 5px;
+  color: #b8d3e8;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  min-height: 32px;
+}
+
+.kpi-trend.up {
+  color: #9af0d3;
+}
+
+.kpi-trend.down {
+  color: #ffc6c6;
+}
+
+.kpi-trend.flat {
+  color: #b8d3e8;
 }
 
 @media (max-width: 640px) {
@@ -1474,6 +1491,20 @@ h1,h2,h3,h4,h5,h6 { color:#ffffff; }
 .source-chart-wrap canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+.source-chart-empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed rgba(147, 187, 226, 0.28);
+  border-radius: 999px;
+  color: #9fbad5;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 18px;
 }
 
 .chart-legend {

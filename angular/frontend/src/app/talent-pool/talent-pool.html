@@ -37,7 +37,7 @@
   </section>
 
   <section class="talent-kpi-grid" aria-label="Talent pool summary">
-    <article class="talent-kpi-card" *ngFor="let card of kpiCards" [ngClass]="'tone-' + card.tone">
+    <article class="talent-kpi-card" *ngFor="let card of kpiCards; trackBy: trackByKpiCard" [ngClass]="'tone-' + card.tone">
       <div class="talent-kpi-top">
         <span class="talent-kpi-icon"><i class="ph" [class]="card.icon" aria-hidden="true"></i></span>
         <div>
@@ -47,7 +47,8 @@
         </div>
       </div>
       <svg class="talent-sparkline" viewBox="0 0 150 44" preserveAspectRatio="none" aria-hidden="true">
-        <path [attr.d]="card.spark"></path>
+        <path class="talent-sparkline-area" [attr.d]="card.sparkAreaPath"></path>
+        <path class="talent-sparkline-line" [attr.d]="card.sparkPath"></path>
       </svg>
     </article>
   </section>

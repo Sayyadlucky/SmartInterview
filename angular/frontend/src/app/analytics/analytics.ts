@@ -1414,9 +1414,12 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
     const max = Math.max(...sparkValues);
     const range = max - min || 1;
     const step = (width - (padding * 2)) / Math.max(sparkValues.length - 1, 1);
+    const isFlat = min === max;
     const points = sparkValues.map((value, index) => {
       const x = padding + (step * index);
-      const y = padding + (1 - ((value - min) / range)) * (height - (padding * 2));
+      const y = isFlat
+        ? height / 2
+        : padding + (1 - ((value - min) / range)) * (height - (padding * 2));
       return { x, y };
     });
     const sparkPath = points
@@ -1439,39 +1442,7 @@ export class Analytics implements OnInit, AfterViewInit, OnDestroy {
 
     if (cleaned.length < 2) {
       const base = Math.max(0, Number(fallbackValue || 0));
-      const lift = Math.max(1, Math.round(base * 0.16));
-      cleaned = [
-        Math.max(0, base - lift),
-        base + Math.ceil(lift / 2),
-        Math.max(0, base - Math.floor(lift / 2)),
-        base + lift,
-        Math.max(0, base - 1),
-        base,
-      ];
-    }
-
-    if (cleaned.length < 4) {
-      const last = cleaned[cleaned.length - 1] || 0;
-      while (cleaned.length < 4) {
-        const previous = cleaned[cleaned.length - 1] || last;
-        const direction = cleaned.length % 2 === 0 ? 1 : -1;
-        cleaned.push(Math.max(0, previous + direction));
-      }
-    }
-
-    const min = Math.min(...cleaned);
-    const max = Math.max(...cleaned);
-    if (min === max) {
-      const base = max;
-      const lift = Math.max(1, Math.round(base * 0.14));
-      return [
-        Math.max(0, base - lift),
-        base + Math.ceil(lift / 2),
-        Math.max(0, base - Math.floor(lift / 2)),
-        base + lift,
-        Math.max(0, base - 1),
-        base,
-      ];
+      cleaned = [base, base];
     }
 
     return cleaned;

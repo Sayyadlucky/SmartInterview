@@ -267,13 +267,10 @@
           <div class="ai-hiring-insight-title">
             <i class="ph ph-sparkle" aria-hidden="true"></i>
             <span>AI Hiring Insight</span>
-            <strong>Healthy</strong>
+            <strong>{{ pendingActionTotalCount > 0 ? 'Review' : 'Healthy' }}</strong>
           </div>
-          <p>Your hiring pipeline is active. Review pending actions and candidate progress.</p>
+          <p>{{ pendingActionTotalCount > 0 ? pendingActionTotalCount + ' pending hiring actions need review.' : 'Your hiring pipeline is active with no pending action backlog.' }}</p>
           <button type="button" (click)="openAiTalentPool()">View full insight <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
-        </div>
-        <div class="ai-sparkline" aria-hidden="true">
-          <span></span>
         </div>
       </section>
     </div>
@@ -413,36 +410,14 @@
       <div *ngIf="!loading">
 
       <div class="overview-kpi-grid">
-        <div class="dashboard-card kpi-card kpi-card--candidates">
-          <div class="kpi-icon"><i class="ph ph-users-three"></i></div>
+        <div class="dashboard-card kpi-card" *ngFor="let card of overviewKpiCards; trackBy: trackByOverviewKpiCard" [ngClass]="card.toneClass">
+          <div class="kpi-icon"><i [class]="card.icon"></i></div>
           <div class="kpi-copy">
-            <div class="kpi-head"><span>Total Candidates</span></div>
-            <div class="kpi-value">{{ candidatesData?.length || 0 }}</div>
-            <div class="kpi-trend up"><i class="ph ph-trend-up"></i> 10% vs last 30 days</div>
-          </div>
-        </div>
-        <div class="dashboard-card kpi-card kpi-card--scheduled">
-          <div class="kpi-icon"><i class="ph ph-calendar-check"></i></div>
-          <div class="kpi-copy">
-            <div class="kpi-head"><span>Scheduled</span></div>
-            <div class="kpi-value">{{ scheduledCandidates?.length || 0 }}</div>
-            <div class="kpi-trend up"><i class="ph ph-trend-up"></i> 25% vs last 30 days</div>
-          </div>
-        </div>
-        <div class="dashboard-card kpi-card kpi-card--hired">
-          <div class="kpi-icon"><i class="ph ph-check-circle"></i></div>
-          <div class="kpi-copy">
-            <div class="kpi-head"><span>Hired</span></div>
-            <div class="kpi-value">{{ hiredCandidates?.length || 0 }}</div>
-            <div class="kpi-trend up"><i class="ph ph-trend-up"></i> 33% vs last 30 days</div>
-          </div>
-        </div>
-        <div class="dashboard-card kpi-card kpi-card--rejected">
-          <div class="kpi-icon"><i class="ph ph-x-circle"></i></div>
-          <div class="kpi-copy">
-            <div class="kpi-head"><span>Disqualified</span></div>
-            <div class="kpi-value">{{ rejectedCandidates?.length || 0 }}</div>
-            <div class="kpi-trend down"><i class="ph ph-trend-down"></i> 50% vs last 30 days</div>
+            <div class="kpi-head"><span>{{ card.label }}</span></div>
+            <div class="kpi-value">{{ card.value }}</div>
+            <div class="kpi-trend" [ngClass]="card.trendDirection">
+              <i [class]="card.trendIcon"></i> {{ card.trendText }}
+            </div>
           </div>
         </div>
       </div>
@@ -496,7 +471,10 @@
                 <span>Source Performance</span>
               </h3>
               <div class="source-chart-wrap">
-                <canvas #sourcePerformanceCanvas></canvas>
+                <canvas #sourcePerformanceCanvas *ngIf="hasSourceChartData; else noSourceChart"></canvas>
+                <ng-template #noSourceChart>
+                  <div class="source-chart-empty">No status data yet</div>
+                </ng-template>
               </div>
               <div class="chart-legend">
                 @for (item of chartLegendData; track item.label) {
