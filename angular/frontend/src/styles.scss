@@ -1506,9 +1506,12 @@ app-dashboard .ai-assistant-btn {
 app-litio-assistant .litio-fab,
 app-litio-assistant .litio-panel-header,
 app-litio-assistant .litio-title-wrap,
+app-litio-assistant .litio-header-actions,
 app-litio-assistant .litio-mark,
+app-litio-assistant .litio-fab-icon,
 app-litio-assistant .litio-icon-btn,
 app-litio-assistant .litio-message-row,
+app-litio-assistant .litio-avatar,
 app-litio-assistant .litio-feedback,
 app-litio-assistant .litio-quick-chips,
 app-litio-assistant .litio-composer {
@@ -1518,36 +1521,70 @@ app-litio-assistant .litio-composer {
 
 app-litio-assistant .litio-fab {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 88;
-  gap: 8px;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(28px, env(safe-area-inset-bottom));
+  z-index: 84;
+  gap: 10px;
   min-height: 48px;
-  border: 1px solid rgba(103, 239, 255, 0.34);
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(10, 55, 96, 0.96), rgba(11, 86, 93, 0.96));
+  border: 1px solid rgba(110, 236, 255, 0.38);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(12, 59, 94, 0.98), rgba(13, 101, 92, 0.96)),
+    rgba(4, 18, 38, 0.92);
   color: #f4fdff;
-  box-shadow: 0 18px 40px rgba(1, 10, 24, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  padding: 0 16px;
+  box-shadow:
+    0 18px 44px rgba(0, 6, 18, 0.44),
+    0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  padding: 0 18px 0 10px;
   font-weight: 850;
+  letter-spacing: 0;
   cursor: pointer;
+  transition: transform 0.18s var(--chrome-ease), border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+app-litio-assistant .litio-fab:hover {
+  border-color: rgba(142, 252, 255, 0.56);
+  transform: translateY(-2px);
+  box-shadow:
+    0 22px 54px rgba(0, 6, 18, 0.5),
+    0 0 28px rgba(38, 216, 229, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+app-litio-assistant .litio-fab:focus-visible,
+app-litio-assistant .litio-icon-btn:focus-visible,
+app-litio-assistant .litio-feedback button:focus-visible,
+app-litio-assistant .litio-quick-chips button:focus-visible,
+app-litio-assistant .litio-composer textarea:focus-visible,
+app-litio-assistant .litio-composer button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(103, 239, 255, 0.5),
+    0 0 0 4px rgba(103, 239, 255, 0.16);
+}
+
+app-litio-assistant .litio-fab-icon {
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(236, 255, 255, 0.12);
+  color: #9af7ff;
 }
 
 app-litio-assistant .litio-fab i {
-  font-size: 1.15rem;
-}
-
-app-litio-assistant .litio-fab.is-open {
-  background: rgba(7, 36, 69, 0.98);
+  font-size: 1rem;
 }
 
 app-litio-assistant .litio-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 86;
+  z-index: 82;
   pointer-events: none;
   opacity: 0;
-  background: rgba(2, 8, 18, 0.42);
+  background: rgba(2, 8, 18, 0.36);
+  backdrop-filter: blur(2px);
   transition: opacity 0.2s ease;
 }
 
@@ -1558,35 +1595,56 @@ app-litio-assistant .litio-backdrop.is-open {
 
 app-litio-assistant .litio-panel {
   position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 87;
+  top: 18px;
+  right: 18px;
+  bottom: 18px;
+  z-index: 83;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-  width: min(430px, calc(100vw - 32px));
-  height: 100vh;
-  border-left: 1px solid rgba(102, 211, 232, 0.28);
-  background: rgba(4, 18, 38, 0.98);
-  box-shadow: -26px 0 70px rgba(0, 0, 0, 0.42);
-  transform: translateX(104%);
-  transition: transform 0.24s var(--chrome-ease);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  width: min(410px, calc(100vw - 36px));
+  min-height: 420px;
+  max-height: calc(100dvh - 36px);
+  overflow: hidden;
+  border: 1px solid rgba(112, 217, 240, 0.26);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(40, 168, 220, 0.11), transparent 34%),
+    radial-gradient(circle at 100% 14%, rgba(46, 117, 255, 0.09), transparent 30%),
+    linear-gradient(180deg, rgba(6, 25, 52, 0.985), rgba(3, 14, 31, 0.985));
+  box-shadow:
+    0 28px 86px rgba(0, 0, 0, 0.54),
+    0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transform: translateX(calc(100% + 32px)) scale(0.98);
+  transform-origin: right bottom;
+  transition: transform 0.24s var(--chrome-ease), opacity 0.18s ease;
+  opacity: 0;
+  pointer-events: none;
 }
 
 app-litio-assistant .litio-panel.is-open {
   transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 app-litio-assistant .litio-panel-header {
   justify-content: space-between;
   gap: 16px;
-  min-height: 76px;
+  min-height: 78px;
   border-bottom: 1px solid rgba(137, 206, 246, 0.14);
-  padding: 18px;
+  background: rgba(2, 11, 26, 0.26);
+  padding: 18px 18px 16px;
 }
 
 app-litio-assistant .litio-title-wrap {
   gap: 12px;
   min-width: 0;
+}
+
+app-litio-assistant .litio-header-actions {
+  flex: 0 0 auto;
+  gap: 8px;
 }
 
 app-litio-assistant .litio-mark,
@@ -1596,12 +1654,15 @@ app-litio-assistant .litio-icon-btn {
 }
 
 app-litio-assistant .litio-mark {
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(103, 239, 255, 0.32);
-  border-radius: 12px;
-  background: rgba(12, 76, 91, 0.72);
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(103, 239, 255, 0.36);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(23, 157, 134, 0.72), rgba(31, 105, 214, 0.74)),
+    rgba(12, 76, 91, 0.72);
   color: #9af7ff;
+  box-shadow: 0 12px 28px rgba(0, 12, 28, 0.26);
 }
 
 app-litio-assistant .litio-title-wrap h2 {
@@ -1615,7 +1676,7 @@ app-litio-assistant .litio-title-wrap h2 {
 
 app-litio-assistant .litio-title-wrap p {
   margin: 4px 0 0;
-  color: #9bbbd2;
+  color: #a9c9df;
   font-size: 0.8rem;
 }
 
@@ -1623,10 +1684,17 @@ app-litio-assistant .litio-icon-btn {
   width: 40px;
   height: 40px;
   border: 1px solid rgba(137, 206, 246, 0.2);
-  border-radius: 10px;
-  background: rgba(9, 39, 75, 0.82);
+  border-radius: 12px;
+  background: rgba(9, 39, 75, 0.72);
   color: #edfaff;
   cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s var(--chrome-ease);
+}
+
+app-litio-assistant .litio-icon-btn:hover {
+  border-color: rgba(137, 226, 255, 0.34);
+  background: rgba(16, 56, 98, 0.9);
+  transform: translateY(-1px);
 }
 
 app-litio-assistant .litio-conversation {
@@ -1634,12 +1702,14 @@ app-litio-assistant .litio-conversation {
   overflow: auto;
   overscroll-behavior: contain;
   padding: 18px;
+  scrollbar-color: rgba(118, 206, 232, 0.42) transparent;
 }
 
 app-litio-assistant .litio-message-row {
-  align-items: flex-end;
+  align-items: flex-start;
+  gap: 9px;
   width: 100%;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 app-litio-assistant .litio-message-row.is-user {
@@ -1651,19 +1721,34 @@ app-litio-assistant .litio-message-row.is-litio {
 }
 
 app-litio-assistant .litio-message-bubble {
-  max-width: min(82%, 330px);
-  border: 1px solid rgba(137, 206, 246, 0.13);
-  border-radius: 14px;
-  padding: 11px 12px;
+  max-width: min(78%, 314px);
+  border: 1px solid rgba(137, 206, 246, 0.15);
+  border-radius: 16px 16px 16px 6px;
+  padding: 11px 13px;
   color: #e8f7ff;
-  background: rgba(8, 37, 73, 0.84);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  background:
+    linear-gradient(180deg, rgba(11, 44, 82, 0.9), rgba(7, 32, 66, 0.88)),
+    rgba(8, 37, 73, 0.84);
+  box-shadow:
+    0 10px 26px rgba(0, 4, 12, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow-wrap: anywhere;
 }
 
 app-litio-assistant .litio-message-row.is-user .litio-message-bubble {
   border-color: rgba(80, 222, 186, 0.28);
-  background: rgba(12, 92, 78, 0.9);
+  border-radius: 16px 16px 6px 16px;
+  background:
+    linear-gradient(135deg, rgba(16, 145, 120, 0.98), rgba(25, 111, 200, 0.92)),
+    rgba(12, 92, 78, 0.9);
+  color: #f8fffd;
+}
+
+app-litio-assistant .litio-message-bubble.is-error {
+  border-color: rgba(255, 151, 151, 0.32);
+  background:
+    linear-gradient(180deg, rgba(87, 35, 49, 0.88), rgba(48, 20, 36, 0.9)),
+    rgba(60, 20, 32, 0.9);
 }
 
 app-litio-assistant .litio-message-bubble p {
@@ -1672,12 +1757,50 @@ app-litio-assistant .litio-message-bubble p {
   line-height: 1.5;
 }
 
+app-litio-assistant .litio-avatar {
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  margin-top: 2px;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+app-litio-assistant .litio-assistant-avatar {
+  border: 1px solid rgba(103, 239, 255, 0.3);
+  background:
+    linear-gradient(145deg, rgba(13, 91, 109, 0.96), rgba(31, 80, 163, 0.92)),
+    #082546;
+  color: #9cf7ff;
+}
+
+app-litio-assistant .litio-assistant-avatar i {
+  font-size: 1rem;
+}
+
+app-litio-assistant .litio-user-avatar {
+  border: 1px solid rgba(116, 240, 205, 0.32);
+  background:
+    linear-gradient(145deg, rgba(25, 153, 126, 0.98), rgba(21, 102, 188, 0.94)),
+    #0d5b4f;
+  color: #ffffff;
+}
+
 app-litio-assistant .litio-feedback {
   gap: 6px;
   margin-top: 10px;
 }
 
 app-litio-assistant .litio-feedback button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 30px;
   height: 30px;
   border: 1px solid rgba(137, 206, 246, 0.22);
@@ -1685,6 +1808,13 @@ app-litio-assistant .litio-feedback button {
   background: rgba(5, 23, 48, 0.72);
   color: #cdefff;
   cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+app-litio-assistant .litio-feedback button:hover {
+  border-color: rgba(103, 239, 255, 0.38);
+  background: rgba(11, 47, 84, 0.9);
+  color: #ffffff;
 }
 
 app-litio-assistant .litio-feedback-state {
@@ -1698,9 +1828,11 @@ app-litio-assistant .litio-feedback-state {
 app-litio-assistant .litio-typing {
   gap: 6px;
   min-width: 64px;
+  width: fit-content;
+  padding: 13px 14px;
 }
 
-app-litio-assistant .litio-typing span {
+app-litio-assistant .litio-typing-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -1708,31 +1840,39 @@ app-litio-assistant .litio-typing span {
   animation: litioTypingPulse 1s ease-in-out infinite;
 }
 
-app-litio-assistant .litio-typing span:nth-child(2) {
+app-litio-assistant .litio-typing-dot:nth-child(2) {
   animation-delay: 0.12s;
 }
 
-app-litio-assistant .litio-typing span:nth-child(3) {
+app-litio-assistant .litio-typing-dot:nth-child(3) {
   animation-delay: 0.24s;
 }
 
 app-litio-assistant .litio-quick-chips {
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
   border-top: 1px solid rgba(137, 206, 246, 0.1);
-  padding: 12px 18px 0;
+  background: rgba(2, 11, 26, 0.16);
+  padding: 12px 18px 2px;
 }
 
 app-litio-assistant .litio-quick-chips button {
   min-height: 32px;
   border: 1px solid rgba(103, 239, 255, 0.22);
   border-radius: 999px;
-  background: rgba(9, 43, 83, 0.76);
+  background: rgba(9, 43, 83, 0.66);
   color: #dbf6ff;
   padding: 0 11px;
   font-size: 0.78rem;
   font-weight: 750;
   cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s var(--chrome-ease);
+}
+
+app-litio-assistant .litio-quick-chips button:hover:not(:disabled) {
+  border-color: rgba(103, 239, 255, 0.38);
+  background: rgba(13, 56, 103, 0.86);
+  transform: translateY(-1px);
 }
 
 app-litio-assistant .litio-quick-chips button:disabled {
@@ -1740,48 +1880,66 @@ app-litio-assistant .litio-quick-chips button:disabled {
   cursor: wait;
 }
 
-app-litio-assistant .litio-error {
-  margin: 8px 18px 0;
-  color: #ffb7b7;
-  font-size: 0.82rem;
-}
-
 app-litio-assistant .litio-composer {
+  align-items: flex-end;
   gap: 10px;
+  border-top: 1px solid rgba(137, 206, 246, 0.08);
+  background: rgba(2, 11, 26, 0.28);
   padding: 14px 18px 18px;
 }
 
-app-litio-assistant .litio-composer input {
+app-litio-assistant .litio-composer textarea {
   flex: 1 1 auto;
   min-width: 0;
-  height: 44px;
+  max-height: 124px;
+  height: 46px;
   border: 1px solid rgba(137, 206, 246, 0.18);
-  border-radius: 12px;
+  border-radius: 14px;
   background: rgba(3, 15, 32, 0.9);
   color: #f5fbff;
   outline: none;
-  padding: 0 13px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  overflow-y: hidden;
+  resize: none;
+  scrollbar-color: rgba(118, 206, 232, 0.42) transparent;
 }
 
-app-litio-assistant .litio-composer input:focus {
+app-litio-assistant .litio-composer textarea::placeholder {
+  color: rgba(202, 226, 241, 0.62);
+}
+
+app-litio-assistant .litio-composer textarea:focus {
   border-color: rgba(103, 239, 255, 0.44);
   box-shadow: 0 0 0 3px rgba(103, 239, 255, 0.12);
 }
 
 app-litio-assistant .litio-composer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #18a185, #2d78ff);
   color: #ffffff;
   cursor: pointer;
+  box-shadow: 0 12px 28px rgba(24, 115, 199, 0.24);
+  transition: transform 0.18s var(--chrome-ease), box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+app-litio-assistant .litio-composer button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(24, 115, 199, 0.32);
 }
 
 app-litio-assistant .litio-composer button:disabled {
   opacity: 0.48;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 @keyframes litioTypingPulse {
@@ -1795,18 +1953,30 @@ app-litio-assistant .litio-composer button:disabled {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  app-litio-assistant .litio-typing-dot {
+    animation: none;
+    opacity: 0.8;
+    transform: none;
+  }
+}
+
 @media (max-width: 720px) {
   app-litio-assistant .litio-fab {
-    right: 16px;
-    bottom: 84px;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(84px, env(safe-area-inset-bottom));
     min-height: 46px;
-    padding: 0 14px;
+    padding: 0 14px 0 9px;
   }
 
   app-litio-assistant .litio-panel {
-    width: 100vw;
-    height: 100dvh;
-    border-left: 0;
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+    min-height: 0;
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
   }
 
   app-litio-assistant .litio-backdrop.is-open {
@@ -1814,7 +1984,7 @@ app-litio-assistant .litio-composer button:disabled {
   }
 
   app-litio-assistant .litio-message-bubble {
-    max-width: min(88%, 360px);
+    max-width: min(80%, 360px);
   }
 
   app-litio-assistant .litio-panel-header {
@@ -1831,7 +2001,30 @@ app-litio-assistant .litio-composer button:disabled {
   }
 
   app-litio-assistant .litio-composer {
-    padding: 12px 16px 16px;
+    padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 420px) {
+  app-litio-assistant .litio-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  app-litio-assistant .litio-message-row {
+    gap: 7px;
+  }
+
+  app-litio-assistant .litio-message-bubble {
+    max-width: min(78%, 300px);
+  }
+
+  app-litio-assistant .litio-panel-header {
+    padding: 13px 14px;
+  }
+
+  app-litio-assistant .litio-conversation {
+    padding: 13px 14px;
   }
 }
 

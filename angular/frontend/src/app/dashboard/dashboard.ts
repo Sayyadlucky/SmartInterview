@@ -377,6 +377,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   currentPage: number = 1;        // starting page
   showPagination: boolean = false;
   loginUser = '';
+  loginUserEmail = '';
   loginUserRole = '';
   companyProfile: CompanyProfileData | null = null;
   companyDetailsModalOpen = false;
@@ -738,8 +739,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
             ...c,
             status: this.normalizeStatus(c?.status)
           }));
-          this.loginUser = this.data.Data.login_user.name;
-          this.loginUserRole = this.data.Data.login_user.role || '';
+          const loginUserData = this.data.Data.login_user || {};
+          this.loginUser = loginUserData.name || loginUserData.full_name || loginUserData.username || '';
+          this.loginUserEmail = loginUserData.email || loginUserData.username || '';
+          this.loginUserRole = loginUserData.role || '';
           this.companyProfile = this.data.Data.company_profile || null;
           writeWorkspaceContext({
             loginUserName: this.loginUser,
