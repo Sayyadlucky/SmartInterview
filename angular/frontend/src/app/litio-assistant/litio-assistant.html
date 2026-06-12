@@ -1,11 +1,12 @@
 <button
+  *ngIf="!isOpen"
   type="button"
   class="litio-fab"
-  [class.is-open]="isOpen"
-  [attr.aria-expanded]="isOpen"
+  aria-label="Open Litio AI Assistant"
+  aria-expanded="false"
   aria-controls="litioAssistantPanel"
-  (click)="toggle()">
-  <i class="ph" [class.ph-sparkle]="!isOpen" [class.ph-x]="isOpen" aria-hidden="true"></i>
+  (click)="open()">
+  <span class="litio-fab-icon"><i class="ph ph-sparkle" aria-hidden="true"></i></span>
   <span>Ask Litio</span>
 </button>
 
@@ -16,6 +17,7 @@
   class="litio-panel"
   [class.is-open]="isOpen"
   [attr.aria-hidden]="!isOpen"
+  [attr.inert]="!isOpen ? '' : null"
   aria-label="Litio AI Assistant">
   <header class="litio-panel-header">
     <div class="litio-title-wrap">
@@ -25,15 +27,27 @@
         <p>Hiring workflow help</p>
       </div>
     </div>
-    <button type="button" class="litio-icon-btn" aria-label="Close Litio AI Assistant" (click)="close()">
-      <i class="ph ph-x" aria-hidden="true"></i>
-    </button>
+    <div class="litio-header-actions">
+      <button type="button" class="litio-icon-btn" aria-label="Restart Litio chat" (click)="restartChat()">
+        <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="litio-icon-btn" aria-label="Close Litio AI Assistant" (click)="close()">
+        <i class="ph ph-x" aria-hidden="true"></i>
+      </button>
+    </div>
   </header>
 
   <div #conversationLog class="litio-conversation" aria-live="polite">
     @for (message of messages; track $index) {
-      <article class="litio-message-row" [class.is-user]="message.role === 'user'" [class.is-litio]="message.role === 'litio'">
-        <div class="litio-message-bubble">
+      <article
+        class="litio-message-row"
+        [class.is-user]="message.role === 'user'"
+        [class.is-litio]="message.role === 'litio'"
+        [class.is-error]="message.tone === 'error'">
+        <span class="litio-avatar litio-assistant-avatar" *ngIf="message.role === 'litio'" aria-hidden="true">
+          <i class="ph ph-robot" aria-hidden="true"></i>
+        </span>
+        <div class="litio-message-bubble" [class.is-error]="message.tone === 'error'">
           <p>{{ message.text }}</p>
           <div class="litio-feedback" *ngIf="message.role === 'litio' && message.pendingFeedback">
             <button type="button" aria-label="Mark answer helpful" (click)="sendFeedback(message, 'helpful')">
@@ -45,37 +59,44 @@
           </div>
           <span class="litio-feedback-state" *ngIf="message.feedback">Feedback saved</span>
         </div>
+        <span class="litio-avatar litio-user-avatar" *ngIf="message.role === 'user'" aria-label="Your message">
+          {{ userInitials }}
+        </span>
       </article>
     }
 
-    <div class="litio-message-row is-litio" *ngIf="isSending">
+    <div class="litio-message-row is-litio litio-typing-row" *ngIf="isAssistantTyping">
+      <span class="litio-avatar litio-assistant-avatar" aria-hidden="true">
+        <i class="ph ph-robot" aria-hidden="true"></i>
+      </span>
       <div class="litio-message-bubble litio-typing" aria-label="Litio is typing">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span class="litio-typing-dot"></span>
+        <span class="litio-typing-dot"></span>
+        <span class="litio-typing-dot"></span>
       </div>
     </div>
   </div>
 
-  <div class="litio-quick-chips" *ngIf="suggestions.length">
+  <div class="litio-quick-chips" *ngIf="showSuggestions && suggestions.length">
     @for (suggestion of suggestions; track suggestion) {
       <button type="button" (click)="useSuggestion(suggestion)" [disabled]="isSending">{{ suggestion }}</button>
     }
   </div>
 
-  <p class="litio-error" *ngIf="errorMessage">{{ errorMessage }}</p>
-
   <form class="litio-composer" (ngSubmit)="sendMessage()">
-    <input
-      type="text"
+    <textarea
+      #composerInput
       name="litioQuestion"
       [(ngModel)]="inputText"
       [disabled]="isSending"
+      aria-label="Ask Litio a question"
       autocomplete="off"
-      placeholder="Ask about a hiring workflow">
+      rows="1"
+      placeholder="Ask about a hiring workflow"
+      (input)="autoResizeComposer(composerInput)"
+      (keydown)="handleComposerKeydown($event)"></textarea>
     <button type="submit" [disabled]="isSending || !inputText.trim()" aria-label="Send message">
       <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
     </button>
   </form>
 </section>
-

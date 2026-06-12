@@ -1665,7 +1665,11 @@
   </div>
 </div>
 
-<app-litio-assistant #litioAssistant></app-litio-assistant>
+<app-litio-assistant
+  #litioAssistant
+  [userDisplayName]="loginUser"
+  [userEmail]="loginUserEmail">
+</app-litio-assistant>
 
 <div class="application-toast" *ngIf="applicationToastOpen">
   <div class="application-toast__copy">

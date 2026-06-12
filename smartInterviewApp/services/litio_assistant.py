@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from decimal import Decimal
+from difflib import get_close_matches
 from typing import Iterable
 
 from django.contrib.auth.models import AnonymousUser, User
@@ -36,15 +37,136 @@ SUGGESTIONS = [
 TYPO_REPLACEMENTS = {
     'candiate': 'candidate',
     'candiadte': 'candidate',
+    'candidat': 'candidate',
     'rile': 'role',
+    'jib': 'job',
+    'joob': 'job',
+    'jpb': 'job',
     'rol': 'role',
+    'vacnacy': 'vacancy',
+    'vacency': 'vacancy',
     'vacany': 'vacancy',
     'vancancy': 'vacancy',
     'vacancie': 'vacancy',
+    'opning': 'opening',
+    'opprtunity': 'opportunity',
+    'recruter': 'recruiter',
+    'recruitor': 'recruiter',
     'asign': 'assign',
     'assing': 'assign',
+    'assgin': 'assign',
+    'mathc': 'match',
+    'macth': 'match',
     'tagg': 'tag',
-    'jpb': 'job',
+    'intervew': 'interview',
+    'interviw': 'interview',
+    'intrview': 'interview',
+    'evalution': 'evaluation',
+    'evluation': 'evaluation',
+    'scor': 'score',
+    'aptitute': 'aptitude',
+    'aptitudee': 'aptitude',
+    'resum': 'resume',
+    'whatsap': 'whatsapp',
+    'watsapp': 'whatsapp',
+    'mesage': 'message',
+    'remider': 'reminder',
+}
+
+PHRASE_REPLACEMENTS = {
+    'rolefit': 'role fit',
+    'role fit score': 'role fit score',
+    'resume score': 'resume score',
+    'fit score': 'role fit score',
+    'candidate fit': 'role fit',
+    'map candidate': 'assign candidate',
+    'tag candidate': 'assign candidate',
+    'link candidate': 'assign candidate',
+    'post a job': 'create vacancy',
+    'post job': 'create vacancy',
+    'add job': 'create vacancy',
+    'create job': 'create vacancy',
+    'new opening': 'create vacancy',
+    'auto interview': 'litio interview',
+    'ai interview': 'litio interview',
+    'aptitude exam': 'aptitude test',
+    'assessment test': 'aptitude test',
+    'whats app': 'whatsapp',
+}
+
+SYNONYM_REPLACEMENTS = {
+    'vacancies': 'vacancy',
+    'jobs': 'job',
+    'roles': 'role',
+    'openings': 'opening',
+    'opportunities': 'opportunity',
+    'candidates': 'candidate',
+    'recruiters': 'recruiter',
+    'interviews': 'interview',
+    'interviewing': 'interview',
+    'assessments': 'assessment',
+    'evaluations': 'evaluation',
+    'reports': 'report',
+    'scores': 'score',
+    'scoring': 'score',
+    'assigning': 'assign',
+    'assigned': 'assign',
+    'mapping': 'map',
+    'mapped': 'map',
+    'tagging': 'tag',
+    'tagged': 'tag',
+    'linking': 'link',
+    'linked': 'link',
+    'matching': 'match',
+    'matched': 'match',
+    'scheduling': 'schedule',
+    'scheduled': 'schedule',
+    'messages': 'message',
+    'reminders': 'reminder',
+    'updates': 'update',
+    'statuses': 'status',
+}
+
+INTENT_KEYWORDS = {
+    'candidate_job_mapping': {'candidate', 'job', 'role', 'vacancy', 'assign', 'map', 'tag', 'link', 'match'},
+    'create_vacancy': {'create', 'post', 'add', 'new', 'job', 'vacancy', 'role', 'opening', 'opportunity'},
+    'role_fit_score': {'role', 'fit', 'score', 'match', 'candidate'},
+    'resume_score': {'resume', 'score', 'profile'},
+    'schedule_interview': {'schedule', 'interview', 'candidate', 'calendar'},
+    'litio_interview': {'start', 'litio', 'auto', 'interview', 'screening'},
+    'aptitude_test': {'aptitude', 'test', 'exam', 'assessment'},
+    'evaluation_report': {'evaluation', 'report', 'feedback', 'result'},
+    'communication_updates': {'whatsapp', 'sms', 'message', 'reminder', 'status', 'update'},
+}
+
+FUZZY_VOCABULARY = sorted({
+    word
+    for words in INTENT_KEYWORDS.values()
+    for word in words
+} | {
+    'assistant',
+    'dashboard',
+    'interviewer',
+    'recruiter',
+    'recruitment',
+})
+
+SENSITIVE_TOKEN_SKIP = {
+    'ai',
+    'api',
+    'key',
+    'keys',
+    'model',
+    'models',
+    'openai',
+    'provider',
+    'providers',
+    'prompt',
+    'prompts',
+    'secret',
+    'secrets',
+    'system',
+    'training',
 }
 
 SENSITIVE_TERMS = {
@@ -106,6 +228,66 @@ DEFAULT_KNOWLEDGE = [
         ),
     },
     {
+        'intent_key': 'resume_score',
+        'title': 'Resume score',
+        'priority': 12,
+        'keywords': ['resume', 'score', 'profile', 'candidate'],
+        'answer': (
+            'Resume score summarizes the visible strength and completeness of a candidate profile from the resume '
+            'and available profile evidence. Use it as a screening signal alongside role fit score and recruiter review.'
+        ),
+    },
+    {
+        'intent_key': 'schedule_interview',
+        'title': 'Schedule interview',
+        'priority': 15,
+        'keywords': ['schedule', 'interview', 'candidate', 'calendar'],
+        'answer': (
+            'To schedule an interview, open the candidate or pipeline record, choose the interview action, select the '
+            'role, date, time, and participants, then save the schedule.'
+        ),
+    },
+    {
+        'intent_key': 'litio_interview',
+        'title': 'Litio interview',
+        'priority': 16,
+        'keywords': ['litio', 'auto', 'interview', 'screening', 'start'],
+        'answer': (
+            'To start a Litio interview workflow, open the candidate interview area for the role and use the available '
+            'Litio interview or auto-screening action when it is enabled for that candidate and vacancy.'
+        ),
+    },
+    {
+        'intent_key': 'aptitude_test',
+        'title': 'Aptitude test',
+        'priority': 18,
+        'keywords': ['aptitude', 'test', 'exam', 'assessment', 'candidate'],
+        'answer': (
+            'Use aptitude tests to assess candidate reasoning and job-relevant aptitude. Assign an available aptitude '
+            'test from the candidate or role workflow, then review the submitted result after completion.'
+        ),
+    },
+    {
+        'intent_key': 'evaluation_report',
+        'title': 'Evaluation report',
+        'priority': 20,
+        'keywords': ['evaluation', 'report', 'feedback', 'result', 'interview'],
+        'answer': (
+            'Evaluation reports collect interview or assessment outcomes into a recruiter-facing summary. Open the '
+            'candidate or interview record to review available scores, feedback, and result details.'
+        ),
+    },
+    {
+        'intent_key': 'communication_updates',
+        'title': 'WhatsApp and SMS updates',
+        'priority': 22,
+        'keywords': ['whatsapp', 'sms', 'message', 'reminder', 'status', 'update'],
+        'answer': (
+            'Litio can use configured WhatsApp and SMS workflows for interview reminders and delivery/status updates. '
+            'Check the interview schedule, reminder status, and candidate notification preferences when following up.'
+        ),
+    },
+    {
         'intent_key': 'candidate_pipeline',
         'title': 'Candidate pipeline',
         'priority': 30,
@@ -137,12 +319,35 @@ class AssistantResult:
 
 
 def normalize_query(value: str) -> str:
-    text = (value or '').lower()
-    text = re.sub(r'[^a-z0-9\s-]', ' ', text)
+    text = (value or '').lower().strip()
+    text = re.sub(r'[-_/]+', ' ', text)
+    text = re.sub(r'[^a-z0-9\s]', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+
     words = []
-    for word in text.replace('-', ' ').split():
-        words.append(TYPO_REPLACEMENTS.get(word, word))
-    return re.sub(r'\s+', ' ', ' '.join(words)).strip()
+    for word in text.split():
+        normalized = TYPO_REPLACEMENTS.get(word, word)
+        normalized = SYNONYM_REPLACEMENTS.get(normalized, normalized)
+        if normalized == word:
+            normalized = _fuzzy_normalize_token(word)
+        words.append(normalized)
+
+    text = re.sub(r'\s+', ' ', ' '.join(words)).strip()
+    return _apply_phrase_replacements(text)
+
+
+def _fuzzy_normalize_token(word: str) -> str:
+    if len(word) < 4 or word in SENSITIVE_TOKEN_SKIP:
+        return word
+    match = get_close_matches(word, FUZZY_VOCABULARY, n=1, cutoff=0.84)
+    return match[0] if match else word
+
+
+def _apply_phrase_replacements(text: str) -> str:
+    normalized = f' {text} '
+    for source, target in sorted(PHRASE_REPLACEMENTS.items(), key=lambda item: len(item[0]), reverse=True):
+        normalized = re.sub(rf'\b{re.escape(source)}\b', target, normalized)
+    return re.sub(r'\s+', ' ', normalized).strip()
 
 
 def _contains_sensitive_query(normalized: str) -> bool:
@@ -155,7 +360,7 @@ def _is_candidate_job_mapping(normalized: str) -> bool:
     tokens = set(normalized.split())
     has_candidate = 'candidate' in tokens
     has_job_target = bool(tokens & {'job', 'role', 'vacancy'})
-    has_mapping_action = bool(tokens & {'assign', 'map', 'tag', 'link'})
+    has_mapping_action = bool(tokens & {'assign', 'map', 'tag', 'link', 'match'})
     return has_candidate and has_job_target and has_mapping_action
 
 
@@ -163,15 +368,53 @@ def _is_role_fit_score(normalized: str) -> bool:
     tokens = set(normalized.split())
     has_score = bool(tokens & {'score', 'scoring'})
     has_role_fit = 'role' in tokens and 'fit' in tokens
-    asks_explanation = bool(tokens & {'explain', 'explanation', 'calculate', 'mean', 'means'})
-    return has_score and (has_role_fit or asks_explanation)
+    has_matching_context = 'match' in tokens and bool(tokens & {'candidate', 'role'})
+    return has_score and (has_role_fit or has_matching_context)
+
+
+def _is_resume_score(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'resume' in tokens and 'score' in tokens
+
+
+def _is_schedule_interview(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'schedule' in tokens and 'interview' in tokens
+
+
+def _is_litio_interview(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'interview' in tokens and bool(tokens & {'litio', 'auto', 'screening'}) and bool(tokens & {'start', 'schedule', 'litio', 'auto'})
+
+
+def _is_aptitude_test(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'aptitude' in tokens and bool(tokens & {'test', 'exam', 'assessment'})
+
+
+def _is_evaluation_report(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'evaluation' in tokens and bool(tokens & {'report', 'result', 'feedback'})
+
+
+def _is_communication_update(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    has_channel = bool(tokens & {'whatsapp', 'sms', 'message'})
+    has_update_or_reminder = bool(tokens & {'status', 'update', 'reminder'})
+    return has_channel and has_update_or_reminder
 
 
 def _is_create_vacancy(normalized: str) -> bool:
-    if 'post a job' in normalized or 'post job' in normalized:
+    if 'create vacancy' in normalized or 'post a job' in normalized or 'post job' in normalized:
         return True
     tokens = set(normalized.split())
-    return bool(tokens & {'create', 'post', 'add'}) and bool(tokens & {'vacancy', 'job', 'role'})
+    has_create_action = bool(tokens & {'create', 'post', 'add', 'new'})
+    has_role_target = bool(tokens & {'vacancy', 'job', 'role', 'opening', 'opportunity'})
+    return has_create_action and has_role_target
+
+
+def _default_knowledge_item(intent_key: str) -> dict:
+    return next(entry for entry in DEFAULT_KNOWLEDGE if entry['intent_key'] == intent_key)
 
 
 def _iter_knowledge() -> Iterable[dict]:
@@ -218,14 +461,32 @@ class LitioAssistantService:
         if _contains_sensitive_query(normalized):
             return AssistantResult(SAFE_RESPONSE, 'protected', Decimal('1.00'))
         if _is_candidate_job_mapping(normalized):
-            item = next(entry for entry in DEFAULT_KNOWLEDGE if entry['intent_key'] == 'candidate_job_mapping')
+            item = _default_knowledge_item('candidate_job_mapping')
             return AssistantResult(item['answer'], item['intent_key'], Decimal('0.99'), item['title'])
         if _is_role_fit_score(normalized):
-            item = next(entry for entry in DEFAULT_KNOWLEDGE if entry['intent_key'] == 'role_fit_score')
+            item = _default_knowledge_item('role_fit_score')
             return AssistantResult(item['answer'], item['intent_key'], Decimal('0.93'), item['title'])
+        if _is_resume_score(normalized):
+            item = _default_knowledge_item('resume_score')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
         if _is_create_vacancy(normalized):
-            item = next(entry for entry in DEFAULT_KNOWLEDGE if entry['intent_key'] == 'create_vacancy')
+            item = _default_knowledge_item('create_vacancy')
             return AssistantResult(item['answer'], item['intent_key'], Decimal('0.94'), item['title'])
+        if _is_litio_interview(normalized):
+            item = _default_knowledge_item('litio_interview')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
+        if _is_schedule_interview(normalized):
+            item = _default_knowledge_item('schedule_interview')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
+        if _is_aptitude_test(normalized):
+            item = _default_knowledge_item('aptitude_test')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
+        if _is_evaluation_report(normalized):
+            item = _default_knowledge_item('evaluation_report')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
+        if _is_communication_update(normalized):
+            item = _default_knowledge_item('communication_updates')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
 
         best_item = None
         best_score = 0
@@ -287,4 +548,3 @@ class LitioAssistantService:
                 return conversation
         title = question.strip()[:160] or 'Litio Assistant Chat'
         return LitioAssistantConversation.objects.create(user=user, title=title)
-

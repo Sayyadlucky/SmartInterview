@@ -1,14 +1,15 @@
-import { AfterViewChecked, Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, Input, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { catchError, finalize, of, timeout } from 'rxjs';
+import { catchError, of, timeout } from 'rxjs';
 import { getApiBaseUrl } from '../core/api-base';
 
 interface LitioAssistantMessage {
   id: number | null;
   role: 'user' | 'litio';
   text: string;
+  tone?: 'normal' | 'error';
   pendingFeedback?: boolean;
   feedback?: 'helpful' | 'not_helpful';
 }
@@ -39,25 +40,30 @@ interface LitioSuggestionsResponse {
 })
 export class LitioAssistant implements AfterViewChecked {
   @ViewChild('conversationLog') private conversationLog?: ElementRef<HTMLElement>;
+  @ViewChild('composerInput') private composerInput?: ElementRef<HTMLTextAreaElement>;
+  @Input() userDisplayName = '';
+  @Input() userEmail = '';
+  @Input() explicitUserInitials = '';
   isOpen = false;
-  isSending = false;
+  isSubmitting = false;
+  isAssistantTyping = false;
+  showSuggestions = true;
   inputText = '';
   conversationId: number | null = null;
-  errorMessage = '';
   suggestions: string[] = [
     'How do I post a job?',
     'How do I assign a candidate to a role?',
     'How is role fit score explained?',
   ];
-  messages: LitioAssistantMessage[] = [
-    {
-      id: null,
-      role: 'litio',
-      text: 'Ask me about Litio workflows, jobs, candidate assignment, and role matching.',
-    },
-  ];
+  messages: LitioAssistantMessage[] = this.buildInitialMessages();
   private shouldScroll = false;
   private readonly apiTimeoutMs = 12000;
+  private readonly minTypingMs = 900;
+  private readonly textareaMinHeightPx = 46;
+  private readonly textareaMaxHeightPx = 124;
+  private typingStartedAt = 0;
+  private chatSessionVersion = 0;
+  private readonly ignoredNameParts = new Set(['mr', 'mrs', 'ms', 'miss', 'dr', 'prof']);
 
   constructor(private http: HttpClient) {
     this.fetchSuggestions();
@@ -83,7 +89,6 @@ export class LitioAssistant implements AfterViewChecked {
 
   open(): void {
     this.isOpen = true;
-    this.errorMessage = '';
     this.shouldScroll = true;
   }
 
@@ -104,16 +109,60 @@ export class LitioAssistant implements AfterViewChecked {
     this.sendMessage();
   }
 
+  restartChat(): void {
+    this.chatSessionVersion += 1;
+    this.messages = this.buildInitialMessages();
+    this.inputText = '';
+    this.conversationId = null;
+    this.isSubmitting = false;
+    this.isAssistantTyping = false;
+    this.showSuggestions = true;
+    this.typingStartedAt = 0;
+    this.resetComposerHeight();
+    this.scheduleScrollToBottom();
+  }
+
+  get isSending(): boolean {
+    return this.isSubmitting;
+  }
+
+  get userInitials(): string {
+    return this.getUserInitials();
+  }
+
+  getUserInitials(): string {
+    const nameInitials = this.initialsFromName(
+      this.userDisplayName || document.body?.dataset?.['userName'] || '',
+    );
+    if (nameInitials) {
+      return nameInitials;
+    }
+
+    const emailInitials = this.initialsFromEmail(
+      this.userEmail || document.body?.dataset?.['userEmail'] || '',
+    );
+    if (emailInitials) {
+      return emailInitials;
+    }
+
+    const explicit = this.normalizeInitials(this.explicitUserInitials || document.body?.dataset?.['userInitials'] || '');
+    return explicit || 'U';
+  }
+
   sendMessage(): void {
     const message = this.inputText.trim();
-    if (!message || this.isSending) {
+    if (!message || this.isSubmitting) {
       return;
     }
-    this.errorMessage = '';
     this.inputText = '';
+    this.showSuggestions = false;
     this.messages.push({ id: null, role: 'user', text: message });
-    this.isSending = true;
-    this.shouldScroll = true;
+    this.isSubmitting = true;
+    this.isAssistantTyping = true;
+    this.typingStartedAt = Date.now();
+    this.resetComposerHeight();
+    this.scheduleScrollToBottom();
+    const requestSessionVersion = this.chatSessionVersion;
 
     this.http.post<LitioChatResponse>(
       `${getApiBaseUrl()}/api/litio-assistant/chat/`,
@@ -126,30 +175,116 @@ export class LitioAssistant implements AfterViewChecked {
       .pipe(
         timeout(this.apiTimeoutMs),
         catchError(() => {
-          this.errorMessage = 'Litio could not answer right now. Please try again.';
-          return of(null);
-        }),
-        finalize(() => {
-          this.isSending = false;
-          this.shouldScroll = true;
+          return of({
+            success: false,
+            error: 'Litio could not answer right now. Please try again.',
+          } as LitioChatResponse);
         }),
       )
       .subscribe((response) => {
-        if (!response?.success || !response.data) {
-          this.errorMessage = response?.error || this.errorMessage || 'Litio could not answer right now.';
-          return;
-        }
-        this.conversationId = response.data.conversation_id;
-        if (response.data.suggestions?.length) {
-          this.suggestions = response.data.suggestions;
-        }
-        this.messages.push({
-          id: response.data.assistant_message_id,
-          role: 'litio',
-          text: response.data.answer,
-          pendingFeedback: true,
-        });
+        void this.finishChatResponse(response, this.typingStartedAt, requestSessionVersion);
       });
+  }
+
+  handleComposerKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    if (event.shiftKey) {
+      window.setTimeout(() => this.autoResizeComposer(), 0);
+      return;
+    }
+    event.preventDefault();
+    this.sendMessage();
+  }
+
+  autoResizeComposer(textarea: HTMLTextAreaElement | null = this.composerInput?.nativeElement || null): void {
+    if (!textarea) {
+      return;
+    }
+    textarea.style.height = 'auto';
+    const nextHeight = Math.min(textarea.scrollHeight, this.textareaMaxHeightPx);
+    textarea.style.height = `${Math.max(this.textareaMinHeightPx, nextHeight)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > this.textareaMaxHeightPx ? 'auto' : 'hidden';
+  }
+
+  private async finishChatResponse(
+    response: LitioChatResponse | null,
+    typingStartedAt: number,
+    requestSessionVersion: number,
+  ): Promise<void> {
+    await this.waitForMinimumTypingTime(typingStartedAt);
+    if (requestSessionVersion !== this.chatSessionVersion) {
+      return;
+    }
+    this.isAssistantTyping = false;
+    if (!response?.success || !response.data) {
+      this.appendErrorMessage(response?.error || 'Litio could not answer right now. Please try again.');
+    } else {
+      this.conversationId = response.data.conversation_id;
+      if (response.data.suggestions?.length) {
+        this.suggestions = response.data.suggestions;
+      }
+      this.messages.push({
+        id: response.data.assistant_message_id,
+        role: 'litio',
+        text: response.data.answer,
+        pendingFeedback: true,
+      });
+    }
+    this.isSubmitting = false;
+    this.scheduleScrollToBottom();
+  }
+
+  private waitForMinimumTypingTime(startedAt: number): Promise<void> {
+    const elapsedMs = Date.now() - startedAt;
+    const remainingMs = Math.max(0, this.minTypingMs - elapsedMs);
+    return new Promise((resolve) => window.setTimeout(resolve, remainingMs));
+  }
+
+  private scheduleScrollToBottom(): void {
+    this.shouldScroll = true;
+    const scroll = () => {
+      const element = this.conversationLog?.nativeElement;
+      if (element) {
+        element.scrollTop = element.scrollHeight;
+      }
+    };
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(scroll);
+      return;
+    }
+    window.setTimeout(scroll, 0);
+  }
+
+  private appendErrorMessage(text: string): void {
+    this.messages.push({
+      id: null,
+      role: 'litio',
+      text,
+      tone: 'error',
+    });
+  }
+
+  private resetComposerHeight(): void {
+    window.setTimeout(() => {
+      const textarea = this.composerInput?.nativeElement;
+      if (!textarea) {
+        return;
+      }
+      textarea.style.height = `${this.textareaMinHeightPx}px`;
+      textarea.style.overflowY = 'hidden';
+    }, 0);
+  }
+
+  private buildInitialMessages(): LitioAssistantMessage[] {
+    return [
+      {
+        id: null,
+        role: 'litio',
+        text: 'Ask me about Litio workflows, jobs, candidate assignment, and role matching.',
+      },
+    ];
   }
 
   sendFeedback(message: LitioAssistantMessage, rating: 'helpful' | 'not_helpful'): void {
@@ -203,5 +338,42 @@ export class LitioAssistant implements AfterViewChecked {
       .find((item) => item.startsWith(`${name}=`));
     return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : '';
   }
-}
 
+  private initialsFromName(value: string): string {
+    const parts = this.cleanIdentityText(value)
+      .split(/\s+/)
+      .map((part) => part.replace(/[^a-zA-Z0-9]/g, ''))
+      .filter((part) => part && !this.ignoredNameParts.has(part.toLowerCase()));
+    return parts
+      .slice(0, 2)
+      .map((part) => part.charAt(0))
+      .join('')
+      .toUpperCase();
+  }
+
+  private initialsFromEmail(value: string): string {
+    const localPart = (value || '').trim().split('@')[0] || '';
+    if (!localPart) {
+      return '';
+    }
+    const parts = localPart
+      .split(/[^a-zA-Z0-9]+/)
+      .filter(Boolean);
+    if (parts.length > 1) {
+      return parts
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join('')
+        .toUpperCase();
+    }
+    return localPart.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
+  }
+
+  private normalizeInitials(value: string): string {
+    return (value || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase();
+  }
+
+  private cleanIdentityText(value: string): string {
+    return (value || '').trim().replace(/\s+/g, ' ');
+  }
+}

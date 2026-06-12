@@ -9,7 +9,7 @@ from smartInterviewApp.models import (
     LitioAssistantFeedback,
     LitioAssistantMessage,
 )
-from smartInterviewApp.services.litio_assistant import LitioAssistantService
+from smartInterviewApp.services.litio_assistant import LitioAssistantService, normalize_query
 
 
 class LitioAssistantServiceTests(TestCase):
@@ -66,6 +66,34 @@ class LitioAssistantServiceTests(TestCase):
         self.assertEqual(result.intent_key, 'role_fit_score')
         self.assertIn('Role fit score summarizes', result.answer)
 
+    def test_common_typo_and_synonym_queries(self):
+        cases = [
+            ('post a jib', 'create_vacancy'),
+            ('create vacnacy', 'create_vacancy'),
+            ('add opning', 'create_vacancy'),
+            ('assing candiate to rile', 'candidate_job_mapping'),
+            ('map candiate with vacancy', 'candidate_job_mapping'),
+            ('how to tag candidate to job', 'candidate_job_mapping'),
+            ('rolefit score', 'role_fit_score'),
+            ('resume scor', 'resume_score'),
+            ('schedule intervew', 'schedule_interview'),
+            ('start litio auto interviw', 'litio_interview'),
+            ('aptitute test', 'aptitude_test'),
+            ('evalution report', 'evaluation_report'),
+            ('whatsap status update', 'communication_updates'),
+            ('sms remider', 'communication_updates'),
+            ('what ai model do you use', 'protected'),
+        ]
+
+        for query, intent_key in cases:
+            with self.subTest(query=query):
+                result = self.service.answer(query)
+                self.assertEqual(result.intent_key, intent_key)
+
+    def test_normalize_query_expands_typos_and_phrases(self):
+        self.assertIn('assign candidate role', normalize_query('assing candiate to rile').replace(' to ', ' '))
+        self.assertIn('create vacancy', normalize_query('post a jib'))
+
 
 class LitioAssistantApiTests(TestCase):
     def setUp(self):
@@ -117,4 +145,3 @@ class LitioAssistantApiTests(TestCase):
         self.assertEqual(feedback.rating, LitioAssistantFeedback.Rating.HELPFUL)
         self.assertEqual(feedback.comment, 'Clear answer')
         self.assertEqual(feedback.user, self.user)
-
