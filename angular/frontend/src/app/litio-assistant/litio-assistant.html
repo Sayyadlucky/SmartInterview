@@ -1,0 +1,81 @@
+<button
+  type="button"
+  class="litio-fab"
+  [class.is-open]="isOpen"
+  [attr.aria-expanded]="isOpen"
+  aria-controls="litioAssistantPanel"
+  (click)="toggle()">
+  <i class="ph" [class.ph-sparkle]="!isOpen" [class.ph-x]="isOpen" aria-hidden="true"></i>
+  <span>Ask Litio</span>
+</button>
+
+<div class="litio-backdrop" [class.is-open]="isOpen" (click)="close()" aria-hidden="true"></div>
+
+<section
+  id="litioAssistantPanel"
+  class="litio-panel"
+  [class.is-open]="isOpen"
+  [attr.aria-hidden]="!isOpen"
+  aria-label="Litio AI Assistant">
+  <header class="litio-panel-header">
+    <div class="litio-title-wrap">
+      <span class="litio-mark"><i class="ph ph-sparkle" aria-hidden="true"></i></span>
+      <div>
+        <h2>Litio AI Assistant</h2>
+        <p>Hiring workflow help</p>
+      </div>
+    </div>
+    <button type="button" class="litio-icon-btn" aria-label="Close Litio AI Assistant" (click)="close()">
+      <i class="ph ph-x" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <div #conversationLog class="litio-conversation" aria-live="polite">
+    @for (message of messages; track $index) {
+      <article class="litio-message-row" [class.is-user]="message.role === 'user'" [class.is-litio]="message.role === 'litio'">
+        <div class="litio-message-bubble">
+          <p>{{ message.text }}</p>
+          <div class="litio-feedback" *ngIf="message.role === 'litio' && message.pendingFeedback">
+            <button type="button" aria-label="Mark answer helpful" (click)="sendFeedback(message, 'helpful')">
+              <i class="ph ph-thumbs-up" aria-hidden="true"></i>
+            </button>
+            <button type="button" aria-label="Mark answer not helpful" (click)="sendFeedback(message, 'not_helpful')">
+              <i class="ph ph-thumbs-down" aria-hidden="true"></i>
+            </button>
+          </div>
+          <span class="litio-feedback-state" *ngIf="message.feedback">Feedback saved</span>
+        </div>
+      </article>
+    }
+
+    <div class="litio-message-row is-litio" *ngIf="isSending">
+      <div class="litio-message-bubble litio-typing" aria-label="Litio is typing">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="litio-quick-chips" *ngIf="suggestions.length">
+    @for (suggestion of suggestions; track suggestion) {
+      <button type="button" (click)="useSuggestion(suggestion)" [disabled]="isSending">{{ suggestion }}</button>
+    }
+  </div>
+
+  <p class="litio-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+  <form class="litio-composer" (ngSubmit)="sendMessage()">
+    <input
+      type="text"
+      name="litioQuestion"
+      [(ngModel)]="inputText"
+      [disabled]="isSending"
+      autocomplete="off"
+      placeholder="Ask about a hiring workflow">
+    <button type="submit" [disabled]="isSending || !inputText.trim()" aria-label="Send message">
+      <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
+    </button>
+  </form>
+</section>
+

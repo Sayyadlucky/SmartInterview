@@ -87,6 +87,127 @@ class RecruiterNote(models.Model):
         return f"Note for {self.recruiter.username} by {self.author.username if self.author else 'system'}"
 
 
+class LitioAssistantKnowledge(models.Model):
+    class Category(models.TextChoices):
+        WORKFLOW = 'workflow', 'Workflow'
+        FEATURE = 'feature', 'Feature'
+        POLICY = 'policy', 'Policy'
+
+    title = models.CharField(max_length=180)
+    intent_key = models.CharField(max_length=120, unique=True)
+    category = models.CharField(max_length=30, choices=Category.choices, default=Category.FEATURE)
+    question_patterns = models.JSONField(default=list, blank=True)
+    keywords = models.JSONField(default=list, blank=True)
+    answer = models.TextField()
+    priority = models.PositiveSmallIntegerField(default=50, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['priority', 'title']
+        indexes = [
+            models.Index(fields=['is_active', 'priority']),
+            models.Index(fields=['intent_key']),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class LitioAssistantConversation(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='litio_assistant_conversations',
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=180, blank=True, default='')
+    status = models.CharField(max_length=30, default='open', db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['user', 'updated_at']),
+            models.Index(fields=['status', 'updated_at']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Litio Assistant Conversation {self.id}'
+
+
+class LitioAssistantMessage(models.Model):
+    class Sender(models.TextChoices):
+        USER = 'user', 'User'
+        ASSISTANT = 'assistant', 'Assistant'
+
+    conversation = models.ForeignKey(
+        LitioAssistantConversation,
+        on_delete=models.CASCADE,
+        related_name='messages',
+    )
+    sender = models.CharField(max_length=20, choices=Sender.choices, db_index=True)
+    content = models.TextField()
+    intent_key = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    confidence = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['sender', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.sender} message for conversation {self.conversation_id}'
+
+
+class LitioAssistantFeedback(models.Model):
+    class Rating(models.TextChoices):
+        HELPFUL = 'helpful', 'Helpful'
+        NOT_HELPFUL = 'not_helpful', 'Not Helpful'
+
+    conversation = models.ForeignKey(
+        LitioAssistantConversation,
+        on_delete=models.CASCADE,
+        related_name='feedback',
+    )
+    message = models.ForeignKey(
+        LitioAssistantMessage,
+        on_delete=models.SET_NULL,
+        related_name='feedback',
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='litio_assistant_feedback',
+        null=True,
+        blank=True,
+    )
+    rating = models.CharField(max_length=20, choices=Rating.choices)
+    comment = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['rating', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'Litio Assistant feedback {self.rating} for conversation {self.conversation_id}'
+
+
 class CompanyProfile(models.Model):
     class CompanyType(models.TextChoices):
         PRIVATE = 'private', 'Private Limited'

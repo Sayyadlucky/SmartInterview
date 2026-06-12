@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 
 from smartInterviewApp.api.serializers import (
     ExotelWebhookSerializer,
+    LitioAssistantChatSerializer,
+    LitioAssistantFeedbackSerializer,
     Msg91WebhookSerializer,
     NotificationResponseSerializer,
     NotificationSendSerializer,
@@ -29,6 +31,9 @@ from smartInterviewApp.models import (
     AptitudeTestQuestion,
     AptitudeTestTemplate,
     Interview,
+    LitioAssistantConversation,
+    LitioAssistantFeedback,
+    LitioAssistantMessage,
     Notification,
     Vacancies,
 )
@@ -42,6 +47,7 @@ from smartInterviewApp.services.aptitude_assignments import (
 )
 from smartInterviewApp.services.aptitude_scoring import mark_aptitude_assignment_expired_if_needed, score_assignment
 from smartInterviewApp.services.interview_calls import InterviewCallService
+from smartInterviewApp.services.litio_assistant import SUGGESTIONS, LitioAssistantService
 from smartInterviewApp.webhooks.services import WebhookService
 
 
@@ -1008,6 +1014,44 @@ class AptitudeRuntimeIntegrityEventApi(APIView):
             event_payload=event_payload,
         )
         return api_response(True, data={'event': {'id': event.id, 'event_type': event.event_type}})
+
+
+class LitioAssistantChatApi(APIView):
+    def post(self, request):
+        serializer = LitioAssistantChatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        service = LitioAssistantService()
+        result = service.chat(
+            question=serializer.validated_data['message'],
+            user=request.user,
+            conversation_id=serializer.validated_data.get('conversation_id'),
+        )
+        return api_response(True, data=result)
+
+
+class LitioAssistantFeedbackApi(APIView):
+    @transaction.atomic
+    def post(self, request):
+        serializer = LitioAssistantFeedbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        conversation = LitioAssistantConversation.objects.get(id=serializer.validated_data['conversation_id'])
+        message = None
+        message_id = serializer.validated_data.get('message_id')
+        if message_id:
+            message = LitioAssistantMessage.objects.get(id=message_id)
+        feedback = LitioAssistantFeedback.objects.create(
+            conversation=conversation,
+            message=message,
+            user=request.user if request.user.is_authenticated else None,
+            rating=serializer.validated_data['rating'],
+            comment=serializer.validated_data.get('comment', ''),
+        )
+        return api_response(True, data={'feedback_id': feedback.id, 'saved': True})
+
+
+class LitioAssistantSuggestionsApi(APIView):
+    def get(self, request):
+        return api_response(True, data={'suggestions': SUGGESTIONS})
 
 
 class MetaWhatsappWebhookApi(APIView):

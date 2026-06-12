@@ -6,7 +6,7 @@ from typing import Any
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from smartInterviewApp.models import Notification
+from smartInterviewApp.models import LitioAssistantConversation, LitioAssistantFeedback, LitioAssistantMessage, Notification
 
 PHONE_RE = re.compile(r'^\+?[0-9]{10,15}$')
 ALLOWED_PURPOSES = {'login', 'signup', 'password_reset', 'verify_phone', 'verify_email'}
@@ -120,6 +120,46 @@ class NotificationResponseSerializer(serializers.ModelSerializer):
             }
             for attempt in obj.attempts.all().order_by('attempted_at')
         ]
+
+
+class LitioAssistantChatSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=2000, trim_whitespace=True)
+    conversation_id = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate_conversation_id(self, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if value <= 0:
+            raise serializers.ValidationError('conversation_id is invalid.')
+        if not LitioAssistantConversation.objects.filter(id=value).exists():
+            raise serializers.ValidationError('Conversation was not found.')
+        return value
+
+
+class LitioAssistantFeedbackSerializer(serializers.Serializer):
+    conversation_id = serializers.IntegerField()
+    message_id = serializers.IntegerField(required=False, allow_null=True)
+    rating = serializers.ChoiceField(choices=LitioAssistantFeedback.Rating.choices)
+    comment = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+    def validate_conversation_id(self, value: int) -> int:
+        if not LitioAssistantConversation.objects.filter(id=value).exists():
+            raise serializers.ValidationError('Conversation was not found.')
+        return value
+
+    def validate_message_id(self, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if not LitioAssistantMessage.objects.filter(id=value).exists():
+            raise serializers.ValidationError('Message was not found.')
+        return value
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        message_id = attrs.get('message_id')
+        conversation_id = attrs.get('conversation_id')
+        if message_id and not LitioAssistantMessage.objects.filter(id=message_id, conversation_id=conversation_id).exists():
+            raise serializers.ValidationError({'message_id': 'Message does not belong to this conversation.'})
+        return attrs
 
 
 class Msg91WebhookSerializer(serializers.Serializer):
