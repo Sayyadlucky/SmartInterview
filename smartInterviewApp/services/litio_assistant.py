@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 from difflib import get_close_matches
-from typing import Iterable
+from typing import Any, Iterable
 
 from django.contrib.auth.models import AnonymousUser, User
 from django.db import transaction
@@ -125,6 +125,20 @@ SYNONYM_REPLACEMENTS = {
     'reminders': 'reminder',
     'updates': 'update',
     'statuses': 'status',
+    'flags': 'flag',
+    'warnings': 'warning',
+    'signs': 'sign',
+    'concerns': 'concern',
+    'alerts': 'alert',
+    'signals': 'signal',
+    'behaviour': 'behavior',
+    'behaviours': 'behavior',
+    'recommendations': 'recommendation',
+    'recommended': 'recommendation',
+    'notifications': 'notification',
+    'notified': 'notify',
+    'notifies': 'notify',
+    'actions': 'action',
 }
 
 INTENT_KEYWORDS = {
@@ -136,6 +150,10 @@ INTENT_KEYWORDS = {
     'litio_interview': {'start', 'litio', 'auto', 'interview', 'screening'},
     'aptitude_test': {'aptitude', 'test', 'exam', 'assessment'},
     'evaluation_report': {'evaluation', 'report', 'feedback', 'result'},
+    'evaluation_red_flags': {'red', 'flag', 'warning', 'sign', 'concern', 'integrity', 'alert', 'suspicious', 'behavior'},
+    'next_hiring_step': {'next', 'step', 'action', 'proceed', 'move', 'forward', 'hiring', 'candidate'},
+    'explain_recommendation': {'explain', 'recommendation', 'hire', 'decision', 'why', 'meaning', 'candidate'},
+    'send_reminder': {'send', 'reminder', 'notify', 'notification', 'follow', 'up', 'candidate', 'interview', 'whatsapp', 'sms', 'status', 'update'},
     'communication_updates': {'whatsapp', 'sms', 'message', 'reminder', 'status', 'update'},
 }
 
@@ -278,13 +296,82 @@ DEFAULT_KNOWLEDGE = [
         ),
     },
     {
+        'intent_key': 'evaluation_red_flags',
+        'title': 'Evaluation red flags',
+        'priority': 21,
+        'keywords': ['red', 'flag', 'warning', 'sign', 'concern', 'integrity', 'alert', 'suspicious', 'behavior'],
+        'answer': (
+            'Red flags are warning signals shown in a candidate evaluation, such as incomplete or weak answers, '
+            'low-confidence evidence, unusual interview behavior, integrity alerts, repeated off-screen activity, '
+            'copy/paste or fullscreen exits, voice or face mismatch signals, or major gaps against the role. Treat '
+            'them as review signals, not automatic rejection. Open the evaluation report, check the evidence and '
+            'transcript summary, then decide whether to shortlist, follow up, or disqualify.'
+        ),
+    },
+    {
+        'intent_key': 'next_hiring_step',
+        'title': 'Next hiring step',
+        'priority': 22,
+        'keywords': ['next', 'step', 'action', 'proceed', 'move', 'forward', 'hiring', 'candidate'],
+        'answer': (
+            'Use the next hiring step based on the candidate current stage and evidence. If the role fit and evaluation '
+            'look strong, shortlist or schedule the next interview. If evidence is incomplete, add a follow-up note or '
+            'ask for clarification. If major gaps or red flags are present, review the evaluation evidence before '
+            'disqualifying. Shortlistii should support the recruiter decision, not make the final decision automatically.'
+        ),
+    },
+    {
+        'intent_key': 'explain_recommendation',
+        'title': 'Explain recommendation',
+        'priority': 23,
+        'keywords': ['explain', 'recommendation', 'hire', 'decision', 'why', 'meaning', 'candidate'],
+        'answer': (
+            'The recommendation summarizes the available hiring evidence for the candidate, including role fit, interview '
+            'answers, evaluation signals, and visible gaps. Treat it as a recruiter review aid. Open the evaluation report, '
+            'check the evidence behind the recommendation, compare it with role requirements, and then decide whether to '
+            'shortlist, follow up, schedule another round, or reject.'
+        ),
+    },
+    {
+        'intent_key': 'send_reminder',
+        'title': 'Send reminder',
+        'priority': 24,
+        'keywords': ['send', 'reminder', 'notify', 'notification', 'follow', 'up', 'candidate', 'interview', 'whatsapp', 'sms', 'status', 'update'],
+        'answer': (
+            'To send a reminder, open the candidate, interview, or assignment workflow and use the configured communication '
+            'action for WhatsApp, SMS, email, or call where available. Check the schedule, candidate contact details, and '
+            'notification preference before sending. Use reminders for interview schedules, pending assessments, application '
+            'updates, or follow-up actions.'
+        ),
+    },
+    {
         'intent_key': 'communication_updates',
         'title': 'WhatsApp and SMS updates',
-        'priority': 22,
+        'priority': 25,
         'keywords': ['whatsapp', 'sms', 'message', 'reminder', 'status', 'update'],
         'answer': (
             'Litio can use configured WhatsApp and SMS workflows for interview reminders and delivery/status updates. '
             'Check the interview schedule, reminder status, and candidate notification preferences when following up.'
+        ),
+    },
+    {
+        'intent_key': 'ai_talent_pool',
+        'title': 'AI Talent Pool',
+        'priority': 28,
+        'keywords': ['ai', 'talent', 'pool', 'ai talent pool', 'candidate pool', 'litio', 'talent-pool'],
+        'answer': (
+            'AI Talent Pool provides an aggregated workspace for curated candidate matches and insights. Use the talent '
+            'pool to explore suggested candidates, view matching signals, and surface candidates for roles or outreach.'
+        ),
+    },
+    {
+        'intent_key': 'dashboard_analytics',
+        'title': 'Dashboard analytics',
+        'priority': 29,
+        'keywords': ['analytics', 'reports', 'dashboard', 'metrics', 'kpi', 'insights'],
+        'answer': (
+            'Dashboard analytics surface hiring KPIs and trends such as open roles, pipeline health, and pending actions. '
+            'Use the analytics tab to filter dates, export reports, and identify areas that need recruiter attention.'
         ),
     },
     {
@@ -397,6 +484,78 @@ def _is_evaluation_report(normalized: str) -> bool:
     return 'evaluation' in tokens and bool(tokens & {'report', 'result', 'feedback'})
 
 
+def _is_evaluation_red_flags(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    phrases = {
+        'red flag',
+        'warning sign',
+        'candidate concern',
+        'integrity flag',
+        'evaluation flag',
+        'fraud signal',
+        'interview alert',
+        'suspicious behavior',
+        'behavior alert',
+    }
+    if any(phrase in normalized for phrase in phrases):
+        return True
+    has_alert_signal = bool(tokens & {'flag', 'warning', 'concern', 'alert'})
+    has_evaluation_context = bool(tokens & {'candidate', 'evaluation', 'interview', 'integrity', 'behavior', 'red'})
+    return has_alert_signal and has_evaluation_context
+
+
+def _is_next_hiring_step(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    phrases = {
+        'next hiring step',
+        'next step',
+        'what should i do next',
+        'next action',
+        'proceed candidate',
+        'move forward',
+        'hiring action',
+    }
+    if any(phrase in normalized for phrase in phrases):
+        return True
+    return bool(tokens & {'next', 'proceed'}) and bool(tokens & {'step', 'action', 'candidate', 'hiring'})
+
+
+def _is_explain_recommendation(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    phrases = {
+        'explain recommendation',
+        'hire recommendation',
+        'recommendation meaning',
+        'why recommendation',
+        'why not recommendation',
+        'decision recommendation',
+    }
+    if any(phrase in normalized for phrase in phrases):
+        return True
+    return 'recommendation' in tokens and bool(tokens & {'explain', 'hire', 'why', 'meaning', 'decision'})
+
+
+def _is_send_reminder(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    phrases = {
+        'send reminder',
+        'candidate reminder',
+        'interview reminder',
+        'whatsapp reminder',
+        'sms reminder',
+        'notify candidate',
+        'follow up candidate',
+        'status update',
+    }
+    if any(phrase in normalized for phrase in phrases):
+        return True
+    has_reminder = 'reminder' in tokens
+    has_notify = bool(tokens & {'notify', 'notification'})
+    has_follow_up = 'follow' in tokens and 'up' in tokens and 'candidate' in tokens
+    has_status_update = 'status' in tokens and 'update' in tokens
+    return has_reminder or has_notify or has_follow_up or has_status_update
+
+
 def _is_communication_update(normalized: str) -> bool:
     tokens = set(normalized.split())
     has_channel = bool(tokens & {'whatsapp', 'sms', 'message'})
@@ -453,13 +612,140 @@ def _knowledge_score(normalized: str, item: dict) -> int:
     return score
 
 
+SAFE_CONTEXT_KEYS = {
+    'page',
+    'section',
+    'activeTab',
+    'openModal',
+    'vacancyId',
+    'vacancyTitle',
+    'candidateId',
+    'candidateName',
+    'candidateStage',
+    'evaluationStatus',
+}
+
+
+def _sanitize_context(context: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(context, dict):
+        return {}
+    sanitized: dict[str, str] = {}
+    for key in SAFE_CONTEXT_KEYS:
+        value = context.get(key)
+        if value is None:
+            continue
+        if not isinstance(value, (str, int, float, bool)):
+            continue
+        text = re.sub(r'\s+', ' ', str(value)).strip()[:120]
+        if text:
+            sanitized[key] = text
+    return sanitized
+
+
+def _context_text(context: dict[str, str]) -> str:
+    return normalize_query(' '.join(context.values()))
+
+
+def _has_vacancy_context(context: dict[str, str]) -> bool:
+    text = _context_text(context)
+    return bool(context.get('vacancyId') or context.get('vacancyTitle') or {'vacancy', 'role', 'talent', 'pool'} & set(text.split()))
+
+
+def _has_candidate_context(context: dict[str, str]) -> bool:
+    text = _context_text(context)
+    return bool(context.get('candidateId') or context.get('candidateName') or {'candidate', 'profile', 'evaluation'} & set(text.split()))
+
+
+def _has_evaluation_context(context: dict[str, str]) -> bool:
+    text = _context_text(context)
+    return bool({'evaluation', 'report', 'profile', 'score'} & set(text.split()) or context.get('evaluationStatus'))
+
+
+def _has_aptitude_context(context: dict[str, str]) -> bool:
+    return 'aptitude' in set(_context_text(context).split())
+
+
+def _is_assignment_question(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return bool(tokens & {'assign', 'map', 'tag', 'link', 'match'}) and bool(tokens & {'candidate', 'here', 'this'})
+
+
+def _is_score_question(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'score' in tokens and bool(tokens & {'mean', 'explain', 'this', 'role', 'fit', 'evaluation', 'recommendation'})
+
+
+def _is_interview_question(normalized: str) -> bool:
+    tokens = set(normalized.split())
+    return 'interview' in tokens and bool(tokens & {'schedule', 'start', 'here', 'this', 'next', 'litio', 'auto'})
+
+
+def _contextual_answer(normalized: str, context: dict[str, str]) -> AssistantResult | None:
+    if not context:
+        return None
+    vacancy_title = context.get('vacancyTitle', '')
+    vacancy_phrase = f' for {vacancy_title}' if vacancy_title else ''
+
+    if _is_assignment_question(normalized) and _has_vacancy_context(context):
+        return AssistantResult(
+            (
+                f'From this vacancy view{vacancy_phrase}, use the candidate assignment or matching action to add candidates '
+                'to the role. Review the visible match signals, select the candidates you want to move forward, and save '
+                'the assignment.'
+            ),
+            'candidate_job_mapping',
+            Decimal('0.96'),
+            'Assign candidate to role',
+        )
+
+    if _is_score_question(normalized) and (_has_candidate_context(context) or _has_evaluation_context(context)):
+        return AssistantResult(
+            (
+                'On this candidate or evaluation view, the visible score is a recruiter-facing signal for fit or evaluation '
+                'strength. Use it to prioritize review, then confirm against the candidate profile, interview feedback, '
+                'and role requirements before deciding the next step.'
+            ),
+            'evaluation_report',
+            Decimal('0.92'),
+            'Evaluation score',
+        )
+
+    if _is_interview_question(normalized) and (_has_candidate_context(context) or _has_evaluation_context(context)):
+        return AssistantResult(
+            (
+                'From this candidate context, use the interview or Litio interview action to schedule the next screening '
+                'step. Confirm the role, time, participants, and notification settings before saving.'
+            ),
+            'schedule_interview',
+            Decimal('0.91'),
+            'Schedule interview',
+        )
+
+    if _is_aptitude_test(normalized) and (_has_candidate_context(context) or _has_aptitude_context(context)):
+        return AssistantResult(
+            (
+                'From this candidate context, use the aptitude assessment action to assign the relevant test, then review '
+                'the submitted result and status once the candidate completes it.'
+            ),
+            'aptitude_test',
+            Decimal('0.91'),
+            'Aptitude test',
+        )
+
+    return None
+
+
 class LitioAssistantService:
-    def answer(self, question: str) -> AssistantResult:
+    def answer(self, question: str, context: dict[str, Any] | None = None) -> AssistantResult:
         normalized = normalize_query(question)
+        safe_context = _sanitize_context(context)
         if not normalized:
             return AssistantResult(UNKNOWN_RESPONSE, 'unknown', Decimal('0.00'))
         if _contains_sensitive_query(normalized):
             return AssistantResult(SAFE_RESPONSE, 'protected', Decimal('1.00'))
+        contextual_result = _contextual_answer(normalized, safe_context)
+        if contextual_result:
+            return contextual_result
         if _is_candidate_job_mapping(normalized):
             item = _default_knowledge_item('candidate_job_mapping')
             return AssistantResult(item['answer'], item['intent_key'], Decimal('0.99'), item['title'])
@@ -481,6 +767,18 @@ class LitioAssistantService:
         if _is_aptitude_test(normalized):
             item = _default_knowledge_item('aptitude_test')
             return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
+        if _is_evaluation_red_flags(normalized):
+            item = _default_knowledge_item('evaluation_red_flags')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.94'), item['title'])
+        if _is_next_hiring_step(normalized):
+            item = _default_knowledge_item('next_hiring_step')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.94'), item['title'])
+        if _is_explain_recommendation(normalized):
+            item = _default_knowledge_item('explain_recommendation')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.94'), item['title'])
+        if _is_send_reminder(normalized):
+            item = _default_knowledge_item('send_reminder')
+            return AssistantResult(item['answer'], item['intent_key'], Decimal('0.94'), item['title'])
         if _is_evaluation_report(normalized):
             item = _default_knowledge_item('evaluation_report')
             return AssistantResult(item['answer'], item['intent_key'], Decimal('0.92'), item['title'])
@@ -508,22 +806,25 @@ class LitioAssistantService:
         question: str,
         user: User | AnonymousUser | None = None,
         conversation_id: int | None = None,
+        context: dict[str, Any] | None = None,
     ) -> dict:
+        safe_context = _sanitize_context(context)
         user_obj = user if getattr(user, 'is_authenticated', False) else None
         conversation = self._get_or_create_conversation(question, user_obj, conversation_id)
         user_message = LitioAssistantMessage.objects.create(
             conversation=conversation,
             sender=LitioAssistantMessage.Sender.USER,
             content=question.strip(),
+            metadata={'dashboard_context': safe_context} if safe_context else {},
         )
-        result = self.answer(question)
+        result = self.answer(question, safe_context)
         assistant_message = LitioAssistantMessage.objects.create(
             conversation=conversation,
             sender=LitioAssistantMessage.Sender.ASSISTANT,
             content=result.answer,
             intent_key=result.intent_key,
             confidence=result.confidence,
-            metadata={'matched_title': result.matched_title},
+            metadata={'matched_title': result.matched_title, 'dashboard_context': safe_context} if safe_context else {'matched_title': result.matched_title},
         )
         conversation.save(update_fields=['updated_at'])
         return {

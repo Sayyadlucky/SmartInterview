@@ -1025,6 +1025,7 @@ class LitioAssistantChatApi(APIView):
             question=serializer.validated_data['message'],
             user=request.user,
             conversation_id=serializer.validated_data.get('conversation_id'),
+            context=serializer.validated_data.get('context') or {},
         )
         return api_response(True, data=result)
 

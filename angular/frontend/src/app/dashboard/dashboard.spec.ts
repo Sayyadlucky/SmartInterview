@@ -26,6 +26,13 @@ describe('Dashboard', () => {
     expect(component).toBeTruthy();
   });
 
+  it('renders one Litio Assistant host and no old AI assistant card', () => {
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('app-litio-assistant').length).toBe(1);
+    expect(fixture.nativeElement.querySelector('.ai-assistant-card')).toBeNull();
+  });
+
   it('uses aptitude action link metadata when aptitude is pending', () => {
     const candidate = {
       id: 7,

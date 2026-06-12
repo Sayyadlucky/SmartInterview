@@ -52,6 +52,16 @@ describe('LitioAssistant', () => {
     const suggestionButtons = fixture.nativeElement.querySelectorAll('.litio-quick-chips button');
     expect(component.showSuggestions).toBeTrue();
     expect(suggestionButtons.length).toBeGreaterThan(0);
+    expect(fixture.nativeElement.querySelector('.litio-suggestions-label')?.textContent.trim()).toBe('Suggested questions');
+  });
+
+  it('hides suggestions label when suggestions are hidden', () => {
+    component.open();
+    component.showSuggestions = false;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.litio-suggestions')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.litio-suggestions-label')).toBeNull();
   });
 
   it('shows launcher when closed and hides it when open', () => {
@@ -63,6 +73,14 @@ describe('LitioAssistant', () => {
 
     expect(fixture.nativeElement.querySelector('.litio-fab')).toBeNull();
     expect(fixture.nativeElement.querySelector('.litio-panel.is-open')).not.toBeNull();
+  });
+
+  it('renders the launcher when context is null', () => {
+    component.context = null;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.litio-fab')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.litio-panel.is-open')).toBeNull();
   });
 
   it('renders an accessible restart chat button', () => {
@@ -167,7 +185,7 @@ describe('LitioAssistant', () => {
     expect(component.messages.some((message) => message.text.includes('save the schedule'))).toBeTrue();
   }));
 
-  it('hides suggestions after the first user send', fakeAsync(() => {
+  it('hides suggestions while sending and shows contextual follow-ups after the assistant response', fakeAsync(() => {
     component.open();
     component.inputText = 'schedule interview';
     component.sendMessage();
@@ -183,16 +201,188 @@ describe('LitioAssistant', () => {
         conversation_id: 4,
         assistant_message_id: 9,
         answer: 'Choose the interview action and save the schedule.',
-        suggestions: ['How do I post a job?'],
+        intent_key: 'schedule_interview',
       },
     });
     tick(900);
     flushPaint();
     fixture.detectChanges();
 
-    expect(component.showSuggestions).toBeFalse();
-    expect(fixture.nativeElement.querySelector('.litio-quick-chips')).toBeNull();
+    expect(component.showSuggestions).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.litio-suggestions-label')?.textContent.trim()).toBe('Suggested next questions');
+    const suggestionButtons = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-quick-chips button'),
+    ).map((button: Element) => button.textContent?.trim());
+    expect(suggestionButtons).toContain('Schedule interview');
+    expect(suggestionButtons).not.toContain('Prepare candidate');
+    expect(suggestionButtons).not.toContain('Review evaluation');
   }));
+
+  it('clicking Assign candidates suggestion sends a non-empty mapped prompt', fakeAsync(() => {
+    component.open();
+    component.inputText = '';
+    component.suggestions = ['Assign candidates'];
+    component.showSuggestions = true;
+    fixture.detectChanges();
+
+    const suggestionButton = fixture.nativeElement.querySelector('.litio-quick-chips button') as HTMLButtonElement;
+    suggestionButton.click();
+    fixture.detectChanges();
+
+    const userMessages = component.messages.filter((message) => message.role === 'user');
+    expect(userMessages.length).toBe(1);
+    expect(userMessages[0].text).toBe('How do I assign candidates to a vacancy?');
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    expect(request.request.body.message).toBe('How do I assign candidates to a vacancy?');
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 4,
+        assistant_message_id: 9,
+        answer: 'Use the assignment or matching action from the vacancy view.',
+        intent_key: 'candidate_job_mapping',
+      },
+    });
+    tick(900);
+    flushPaint();
+  }));
+
+  it('clicking Send reminder suggestion sends a non-empty prompt and renders no blank rows', fakeAsync(() => {
+    component.open();
+    component.inputText = '';
+    component.suggestions = ['Send reminder'];
+    component.showSuggestions = true;
+    fixture.detectChanges();
+
+    const suggestionButton = fixture.nativeElement.querySelector('.litio-quick-chips button') as HTMLButtonElement;
+    suggestionButton.click();
+    fixture.detectChanges();
+
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    expect(request.request.body.message).toBe('How do I send a candidate reminder?');
+    expect(component.messages.filter((message) => message.role === 'user')[0].text).toBe('How do I send a candidate reminder?');
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 4,
+        assistant_message_id: 9,
+        answer: 'Use the configured communication action from the candidate workflow.',
+        intent_key: 'send_reminder',
+      },
+    });
+    tick(900);
+    flushPaint();
+    fixture.detectChanges();
+
+    const renderedText = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-message-bubble p'),
+    ).map((element: Element) => element.textContent?.trim() || '');
+    expect(renderedText.every(Boolean)).toBeTrue();
+  }));
+
+  it('ignores blank suggestion clicks without creating a user message', () => {
+    component.open();
+    component.useSuggestion('   ');
+    fixture.detectChanges();
+
+    expect(component.messages.filter((message) => message.role === 'user').length).toBe(0);
+    httpMock.expectNone((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+  });
+
+  it('does not append a blank message for empty or whitespace composer submits', () => {
+    component.open();
+    component.inputText = '   ';
+    component.sendMessage();
+    component.inputText = '';
+    component.sendMessage();
+    fixture.detectChanges();
+
+    expect(component.messages.filter((message) => message.role === 'user').length).toBe(0);
+    httpMock.expectNone((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+  });
+
+  it('does not render blank rows for empty message content', () => {
+    component.open();
+    component.messages = [
+      { id: null, role: 'litio', text: 'Welcome' },
+      { id: null, role: 'user', text: '   ' },
+      { id: 9, role: 'litio', text: '' },
+    ];
+    fixture.detectChanges();
+
+    const rows = fixture.nativeElement.querySelectorAll('.litio-conversation .litio-message-row:not(.litio-typing-row)');
+    const renderedText = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-message-bubble p'),
+    ).map((element: Element) => element.textContent?.trim() || '');
+    expect(rows.length).toBe(1);
+    expect(renderedText).toEqual(['Welcome']);
+  });
+
+  it('uses fallback text for an empty assistant response', fakeAsync(() => {
+    component.open();
+    component.inputText = 'send reminder';
+    component.sendMessage();
+
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 4,
+        assistant_message_id: 9,
+        answer: '   ',
+        intent_key: 'send_reminder',
+      },
+    });
+    tick(900);
+    flushPaint();
+    fixture.detectChanges();
+
+    const assistantMessages = component.messages.filter((message) => message.role === 'litio');
+    expect(assistantMessages.some((message) => message.text.includes('complete answer'))).toBeTrue();
+    const renderedText = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-message-bubble p'),
+    ).map((element: Element) => element.textContent?.trim() || '');
+    expect(renderedText.every(Boolean)).toBeTrue();
+  }));
+
+  it('shows candidate profile suggestions without post-job chip', () => {
+    component.context = {
+      page: 'Recruiter dashboard',
+      activeTab: 'candidates',
+      openModal: 'candidate_profile',
+      candidateId: 42,
+      candidateName: 'Asha Hire',
+      candidateStage: 'shortlisted',
+    };
+    component.open();
+    fixture.detectChanges();
+
+    const suggestionButtons = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-quick-chips button'),
+    ).map((button: Element) => button.textContent?.trim());
+    expect(suggestionButtons).toContain('Explain resume score');
+    expect(suggestionButtons).toContain('View red flags');
+    expect(suggestionButtons).not.toContain('How do I post a job?');
+  });
+
+  it('shows evaluation context suggestions', () => {
+    component.context = {
+      page: 'Recruiter dashboard',
+      activeTab: 'candidates',
+      openModal: 'candidate_evaluation_summary',
+      candidateId: 42,
+      evaluationStatus: 'available',
+    };
+    component.open();
+    fixture.detectChanges();
+
+    const suggestionButtons = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-quick-chips button'),
+    ).map((button: Element) => button.textContent?.trim());
+    expect(suggestionButtons).toContain('Explain recommendation');
+    expect(suggestionButtons).toContain('View red flags');
+    expect(suggestionButtons).toContain('Next hiring step');
+  });
 
   it('does not create duplicate typing indicators or duplicate requests while pending', fakeAsync(() => {
     component.open();
@@ -251,9 +441,14 @@ describe('LitioAssistant', () => {
     expect(component.isSubmitting).toBeFalse();
     expect(component.isAssistantTyping).toBeFalse();
     expect(component.showSuggestions).toBeTrue();
+    const suggestionButtons = Array.from<Element>(
+      fixture.nativeElement.querySelectorAll('.litio-quick-chips button'),
+    ).map((button: Element) => button.textContent?.trim());
+    expect(suggestionButtons).toContain('How do I post a job?');
     expect(component.messages.length).toBe(1);
     expect(component.messages[0].role).toBe('litio');
     expect(fixture.nativeElement.querySelector('.litio-quick-chips')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.litio-suggestions-label')?.textContent.trim()).toBe('Suggested questions');
     expect(fixture.nativeElement.querySelector('.litio-panel.is-open')).not.toBeNull();
   }));
 
@@ -359,6 +554,40 @@ describe('LitioAssistant', () => {
     expect(component.conversationId).toBe(4);
     expect(component.messages.some((message) => message.role === 'user')).toBeTrue();
     expect(component.messages.some((message) => message.text.includes('role or vacancy'))).toBeTrue();
+  }));
+
+  it('includes safe context in chat requests when context input is available', fakeAsync(() => {
+    component.context = {
+      page: 'Recruiter dashboard',
+      activeTab: 'ai-talent-pool',
+      openModal: 'vacancy_detail',
+      vacancyId: 12,
+      vacancyTitle: 'Backend Engineer',
+      candidateName: '',
+    };
+    component.open();
+    component.inputText = 'how do I assign candidates here?';
+    component.sendMessage();
+
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    expect(request.request.body.context).toEqual({
+      page: 'Recruiter dashboard',
+      activeTab: 'ai-talent-pool',
+      openModal: 'vacancy_detail',
+      vacancyId: '12',
+      vacancyTitle: 'Backend Engineer',
+    });
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 4,
+        assistant_message_id: 9,
+        answer: 'From this vacancy view, use candidate matching.',
+        intent_key: 'candidate_job_mapping',
+      },
+    });
+    tick(900);
+    flushPaint();
   }));
 
   it('shows a clean assistant error bubble after failed send', fakeAsync(() => {

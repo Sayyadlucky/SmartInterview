@@ -11,7 +11,7 @@ import { Candidates } from '../candidates/candidates';
 import { Activity } from '../activity/activity';
 import { Analytics } from '../analytics/analytics';
 import { TalentPool } from '../talent-pool/talent-pool';
-import { LitioAssistant } from '../litio-assistant/litio-assistant';
+import { LitioAssistant, LitioAssistantContext } from '../litio-assistant/litio-assistant';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
 import { AddUser } from '../app-modal/add-user/add-user';
@@ -450,6 +450,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   workspaceTourIndex = 0;
   workspaceTourSpotlightStyle: Record<string, string> = {};
   workspaceTourTooltipStyle: Record<string, string> = {};
+  activeRoleContext: { id: string; title: string } | null = null;
+  activeCandidateContext: any | null = null;
+  activeWorkflowContext: { mode: string; candidate?: any | null } | null = null;
+  addUserModalContext: 'candidate' | 'role' | null = null;
   @ViewChild('mobileNavPanel') mobileNavPanelRef?: ElementRef<HTMLElement>;
   @ViewChild('mobileNavToggleButton') mobileNavToggleButtonRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('companyModalCard') companyModalCardRef?: ElementRef<HTMLElement>;
@@ -559,6 +563,32 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
 
   openLitioAssistant(): void {
     this.litioAssistant?.open();
+  }
+
+  get litioAssistantContext(): LitioAssistantContext {
+    const candidate = this.evaluationSummaryCandidate || this.activeCandidateContext || this.activeWorkflowContext?.candidate || null;
+    const roleContext = this.activeRoleContext || this.getRoleContext(this.talentPoolRoleId || candidate?.role_id || null);
+    const context: LitioAssistantContext = {
+      page: 'Recruiter dashboard',
+      section: this.getDashboardSectionLabel(this.activeTab),
+      activeTab: this.activeTab,
+      openModal: this.getLitioOpenModalContext(),
+      vacancyId: roleContext?.id || candidate?.role_id || null,
+      vacancyTitle: roleContext?.title || candidate?.role || '',
+      candidateId: candidate?.id || null,
+      candidateName: candidate?.name || candidate?.candidate_name || '',
+      candidateStage: this.normalizeStatus(candidate?.status || candidate?.current_stage),
+      evaluationStatus: this.getLitioEvaluationStatus(),
+    };
+
+    Object.keys(context).forEach((key) => {
+      const typedKey = key as keyof LitioAssistantContext;
+      const value = context[typedKey];
+      if (value === '' || value === null || value === undefined) {
+        delete context[typedKey];
+      }
+    });
+    return context;
   }
 
   ngOnDestroy(): void {
@@ -1576,6 +1606,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   }
 
   profileUpdate(candidate?: any): void {
+    this.activeCandidateContext = candidate || null;
     const dialogRef = this.dialog.open(CandidateProfile, {
       width: 'min(1220px, 95vw)',
       maxWidth: '95vw',
@@ -1586,6 +1617,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     });
 
      dialogRef.afterClosed().subscribe((result: any) => {
+      this.activeCandidateContext = null;
       if (!result) return;
 
       if (result.action === 'updated' && result.candidate) {
@@ -1793,6 +1825,80 @@ nextPage() {
       default:
         return null;
     }
+  }
+
+  private getDashboardSectionLabel(tab: string): string {
+    switch (tab) {
+      case 'overview':
+        return 'Overview';
+      case 'recruiters':
+        return 'Recruiters';
+      case 'evaluators':
+        return 'Evaluators';
+      case 'candidates':
+        return 'Candidates';
+      case 'ai-talent-pool':
+        return 'AI Talent Pool';
+      case 'activity':
+        return 'Activity';
+      case 'analytics':
+        return 'Analytics';
+      default:
+        return 'Dashboard';
+    }
+  }
+
+  private getLitioOpenModalContext(): string {
+    if (this.evaluationSummaryModalOpen || this.evaluationSummaryLoading) {
+      return 'candidate_evaluation_summary';
+    }
+    if (this.evaluationReportOpen) {
+      return 'candidate_evaluation_report';
+    }
+    if (this.activeCandidateContext) {
+      return 'candidate_profile';
+    }
+    if (this.activeRoleContext) {
+      return 'vacancy_detail';
+    }
+    if (this.activeWorkflowContext) {
+      return `workflow_${this.activeWorkflowContext.mode}`;
+    }
+    if (this.addUserModalContext) {
+      return this.addUserModalContext === 'role' ? 'create_vacancy' : 'create_candidate';
+    }
+    if (this.pendingRequestsModalOpen) {
+      return 'pending_requests';
+    }
+    if (this.companyDetailsModalOpen) {
+      return 'company_profile';
+    }
+    return '';
+  }
+
+  private getLitioEvaluationStatus(): string {
+    if (this.evaluationSummaryLoading) {
+      return 'loading';
+    }
+    if (this.evaluationSummaryModalOpen || this.evaluationReportOpen) {
+      return this.evaluationSummary.available ? 'available' : 'unavailable';
+    }
+    return '';
+  }
+
+  private getRoleContext(roleId: any): { id: string; title: string } | null {
+    const id = this.stringValue(roleId);
+    if (!id) {
+      return null;
+    }
+    const role = [
+      ...(this.roleCatalog || []),
+      ...(this.rolesData || []),
+    ].find((item: any) => this.stringValue(item?.id) === id);
+    return {
+      id,
+      title: this.stringValue(role?.name || role?.role || role?.title),
+    };
   }
 
   private updateWorkspaceUrl(): void {
@@ -4740,6 +4846,7 @@ private downloadBlob(blob: Blob, filename: string): void {
 }
 
 addUser(): void {
+    this.addUserModalContext = 'candidate';
     const dialogRef = this.dialog.open(AddUser, {
       disableClose: true,
       width: '550px',
@@ -4747,6 +4854,7 @@ addUser(): void {
     });
 
      dialogRef.afterClosed().subscribe(result => {
+      this.addUserModalContext = null;
       if (result) {
         this.candidatesData.push(result);
         this.candidatesData = this.candidatesData.map((c: any) => {
@@ -4763,12 +4871,14 @@ addUser(): void {
   }
 
 addRRole(): void {
+  this.addUserModalContext = 'role';
   const dialogRef = this.dialog.open(AddUser, {
     disableClose: true,
     width: '550px',
     data: { type: 'Role' }
   });
     dialogRef.afterClosed().subscribe(result => {
+    this.addUserModalContext = null;
     if (result) {
       this.rolesData.push(result);
       this.fetchRoleCatalog();
@@ -4777,6 +4887,7 @@ addRRole(): void {
 }
 
   openRoldeModal(role_id: any): void {
+    this.activeRoleContext = this.getRoleContext(role_id) || { id: this.stringValue(role_id), title: '' };
     const dialogRef = this.dialog.open(RoleDetail, {
       width: 'min(1280px, 96vw)',
       maxWidth: '96vw',
@@ -4786,6 +4897,7 @@ addRRole(): void {
     });
 
     dialogRef.afterClosed().subscribe(result => {
+      this.activeRoleContext = null;
       // if (result) {
       //   // Update the role in the rolesData array
       //   const index = this.rolesData.findIndex((r: any) => r.id === role_id);
@@ -4797,6 +4909,7 @@ addRRole(): void {
   }
 
   openWorkflowAction(mode: 'schedule' | 'bulk-assign' | 'bulk-aptitude' | 'bulk-interview' | 'evaluation-reviews', candidate?: any): void {
+    this.activeWorkflowContext = { mode, candidate: candidate || null };
     const isEvaluationReviews = mode === 'evaluation-reviews';
     const dialogRef = this.dialog.open(WorkflowAction, {
       disableClose: true,
@@ -4813,6 +4926,7 @@ addRRole(): void {
     });
 
     dialogRef.afterClosed().subscribe((result: any) => {
+      this.activeWorkflowContext = null;
       if (!result) {
         return;
       }

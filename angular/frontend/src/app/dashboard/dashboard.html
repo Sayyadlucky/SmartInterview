@@ -650,20 +650,6 @@
           </div>
         </div>
 
-        <div class="dashboard-card ai-assistant-card">
-          <div class="ai-assistant-glow" aria-hidden="true"></div>
-          <div class="ai-assistant-head">
-            <h3 class="section-title">
-              <i class="ph ph-lightning" aria-hidden="true"></i>
-              <span>Litio AI Assistant</span>
-            </h3>
-            <span>BETA</span>
-          </div>
-          <p>Ask practical questions about jobs, candidate assignment, role fit, and hiring workflows.</p>
-          <button type="button" class="ai-assistant-btn" (click)="openLitioAssistant()">
-            Ask Litio <i class="ph ph-arrow-right" aria-hidden="true"></i>
-          </button>
-        </div>
       </div>
 
       
@@ -1668,7 +1654,8 @@
 <app-litio-assistant
   #litioAssistant
   [userDisplayName]="loginUser"
-  [userEmail]="loginUserEmail">
+  [userEmail]="loginUserEmail"
+  [context]="litioAssistantContext">
 </app-litio-assistant>
 
 <div class="application-toast" *ngIf="applicationToastOpen">

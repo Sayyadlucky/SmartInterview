@@ -39,33 +39,35 @@
 
   <div #conversationLog class="litio-conversation" aria-live="polite">
     @for (message of messages; track $index) {
-      <article
-        class="litio-message-row"
-        [class.is-user]="message.role === 'user'"
-        [class.is-litio]="message.role === 'litio'"
-        [class.is-error]="message.tone === 'error'">
-        <span class="litio-avatar litio-assistant-avatar" *ngIf="message.role === 'litio'" aria-hidden="true">
-          <i class="ph ph-robot" aria-hidden="true"></i>
-        </span>
-        <div class="litio-message-bubble" [class.is-error]="message.tone === 'error'">
-          <p>{{ message.text }}</p>
-          <div class="litio-feedback" *ngIf="message.role === 'litio' && message.pendingFeedback">
-            <button type="button" aria-label="Mark answer helpful" (click)="sendFeedback(message, 'helpful')">
-              <i class="ph ph-thumbs-up" aria-hidden="true"></i>
-            </button>
-            <button type="button" aria-label="Mark answer not helpful" (click)="sendFeedback(message, 'not_helpful')">
-              <i class="ph ph-thumbs-down" aria-hidden="true"></i>
-            </button>
+      @if (isVisibleMessage(message)) {
+        <article
+          class="litio-message-row"
+          [class.is-user]="message.role === 'user'"
+          [class.is-litio]="message.role === 'litio'"
+          [class.is-error]="message.tone === 'error'">
+          <span class="litio-avatar litio-assistant-avatar" *ngIf="message.role === 'litio'" aria-hidden="true">
+            <i class="ph ph-robot" aria-hidden="true"></i>
+          </span>
+          <div class="litio-message-bubble" [class.is-error]="message.tone === 'error'">
+            <p>{{ message.text }}</p>
+            <div class="litio-feedback" *ngIf="message.role === 'litio' && message.pendingFeedback">
+              <button type="button" aria-label="Mark answer helpful" (click)="sendFeedback(message, 'helpful')">
+                <i class="ph ph-thumbs-up" aria-hidden="true"></i>
+              </button>
+              <button type="button" aria-label="Mark answer not helpful" (click)="sendFeedback(message, 'not_helpful')">
+                <i class="ph ph-thumbs-down" aria-hidden="true"></i>
+              </button>
+            </div>
+            <span class="litio-feedback-state" *ngIf="message.feedback">Feedback saved</span>
           </div>
-          <span class="litio-feedback-state" *ngIf="message.feedback">Feedback saved</span>
-        </div>
-        <span class="litio-avatar litio-user-avatar" *ngIf="message.role === 'user'" aria-label="Your message">
-          {{ userInitials }}
-        </span>
-      </article>
+          <span class="litio-avatar litio-user-avatar" *ngIf="message.role === 'user'" aria-label="Your message">
+            {{ userInitials }}
+          </span>
+        </article>
+      }
     }
 
-    <div class="litio-message-row is-litio litio-typing-row" *ngIf="isAssistantTyping">
+    <div class="litio-message-row is-litio litio-typing-row" *ngIf="isAssistantTyping" aria-live="polite">
       <span class="litio-avatar litio-assistant-avatar" aria-hidden="true">
         <i class="ph ph-robot" aria-hidden="true"></i>
       </span>
@@ -77,10 +79,13 @@
     </div>
   </div>
 
-  <div class="litio-quick-chips" *ngIf="showSuggestions && suggestions.length">
-    @for (suggestion of suggestions; track suggestion) {
-      <button type="button" (click)="useSuggestion(suggestion)" [disabled]="isSending">{{ suggestion }}</button>
-    }
+  <div class="litio-suggestions" *ngIf="visibleSuggestions.length">
+    <div class="litio-suggestions-label">{{ suggestionGroupLabel }}</div>
+    <div class="litio-quick-chips">
+      @for (suggestion of visibleSuggestions; track suggestion) {
+        <button type="button" (click)="useSuggestion(suggestion)" [disabled]="isSending">{{ suggestion }}</button>
+      }
+    </div>
   </div>
 
   <form class="litio-composer" (ngSubmit)="sendMessage()">

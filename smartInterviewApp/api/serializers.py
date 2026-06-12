@@ -125,6 +125,7 @@ class NotificationResponseSerializer(serializers.ModelSerializer):
 class LitioAssistantChatSerializer(serializers.Serializer):
     message = serializers.CharField(max_length=2000, trim_whitespace=True)
     conversation_id = serializers.IntegerField(required=False, allow_null=True)
+    context = serializers.JSONField(required=False)
 
     def validate_conversation_id(self, value: int | None) -> int | None:
         if value is None:
@@ -133,6 +134,13 @@ class LitioAssistantChatSerializer(serializers.Serializer):
             raise serializers.ValidationError('conversation_id is invalid.')
         if not LitioAssistantConversation.objects.filter(id=value).exists():
             raise serializers.ValidationError('Conversation was not found.')
+        return value
+
+    def validate_context(self, value: Any) -> dict[str, Any]:
+        if value in (None, ''):
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('context must be an object.')
         return value
 
 

@@ -1,4 +1,4 @@
-import { AfterViewChecked, Component, ElementRef, HostListener, Input, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -14,12 +14,26 @@ interface LitioAssistantMessage {
   feedback?: 'helpful' | 'not_helpful';
 }
 
+export interface LitioAssistantContext {
+  page?: string;
+  section?: string;
+  activeTab?: string;
+  openModal?: string;
+  vacancyId?: number | string | null;
+  vacancyTitle?: string;
+  candidateId?: number | string | null;
+  candidateName?: string;
+  candidateStage?: string;
+  evaluationStatus?: string;
+}
+
 interface LitioChatResponse {
   success: boolean;
   data?: {
     conversation_id: number;
     assistant_message_id: number;
     answer: string;
+    intent_key?: string;
     suggestions?: string[];
   };
   error?: string | null;
@@ -38,24 +52,48 @@ interface LitioSuggestionsResponse {
   imports: [CommonModule, FormsModule],
   templateUrl: './litio-assistant.html',
 })
-export class LitioAssistant implements AfterViewChecked {
+export class LitioAssistant implements AfterViewChecked, OnChanges {
   @ViewChild('conversationLog') private conversationLog?: ElementRef<HTMLElement>;
   @ViewChild('composerInput') private composerInput?: ElementRef<HTMLTextAreaElement>;
   @Input() userDisplayName = '';
   @Input() userEmail = '';
   @Input() explicitUserInitials = '';
+  @Input() context: LitioAssistantContext | null = null;
   isOpen = false;
   isSubmitting = false;
   isAssistantTyping = false;
   showSuggestions = true;
   inputText = '';
   conversationId: number | null = null;
+  private initialSuggestions: string[] = [
+    'How do I post a job?',
+    'How do I assign a candidate to a role?',
+    'How is role fit score explained?',
+    'How do I map a candidate to a vacancy?',
+  ];
   suggestions: string[] = [
     'How do I post a job?',
     'How do I assign a candidate to a role?',
     'How is role fit score explained?',
+    'How do I map a candidate to a vacancy?',
   ];
   messages: LitioAssistantMessage[] = this.buildInitialMessages();
+  private readonly suggestionPrompts: Record<string, string> = {
+    'Assign candidates': 'How do I assign candidates to a vacancy?',
+    'Explain matching': 'How is role fit score explained?',
+    'Explain role fit score': 'How is role fit score explained?',
+    'Explain resume score': 'How is resume score explained?',
+    'Explain recommendation': 'Explain the candidate recommendation.',
+    'View red flags': 'What are candidate red flags in evaluation?',
+    'Schedule interview': 'How do I schedule an interview?',
+    'Schedule Litio interview': 'How do I schedule a Litio interview?',
+    'Send reminder': 'How do I send a candidate reminder?',
+    'Next hiring step': 'What is the next hiring step?',
+    'WhatsApp status updates': 'How do WhatsApp status updates work?',
+    'SMS reminders': 'How do SMS reminders work?',
+    'Candidate notifications': 'How do I notify a candidate?',
+  };
+  private readonly emptyAnswerFallback = 'Litio could not find a complete answer for that. Try asking about candidate assignment, scores, interviews, reminders, or evaluation guidance.';
   private shouldScroll = false;
   private readonly apiTimeoutMs = 12000;
   private readonly minTypingMs = 900;
@@ -67,6 +105,12 @@ export class LitioAssistant implements AfterViewChecked {
 
   constructor(private http: HttpClient) {
     this.fetchSuggestions();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['context']) {
+      this.refreshInitialSuggestions();
+    }
   }
 
   ngAfterViewChecked(): void {
@@ -89,6 +133,7 @@ export class LitioAssistant implements AfterViewChecked {
 
   open(): void {
     this.isOpen = true;
+    this.refreshInitialSuggestions();
     this.shouldScroll = true;
   }
 
@@ -104,9 +149,12 @@ export class LitioAssistant implements AfterViewChecked {
     this.open();
   }
 
-  useSuggestion(suggestion: string): void {
-    this.inputText = suggestion;
-    this.sendMessage();
+  useSuggestion(suggestion: string | null | undefined): void {
+    const label = (suggestion || '').trim();
+    if (!label) {
+      return;
+    }
+    this.sendMessage(this.suggestionPrompts[label] || label);
   }
 
   restartChat(): void {
@@ -116,6 +164,7 @@ export class LitioAssistant implements AfterViewChecked {
     this.conversationId = null;
     this.isSubmitting = false;
     this.isAssistantTyping = false;
+    this.suggestions = this.buildInitialSuggestionsForContext();
     this.showSuggestions = true;
     this.typingStartedAt = 0;
     this.resetComposerHeight();
@@ -128,6 +177,20 @@ export class LitioAssistant implements AfterViewChecked {
 
   get userInitials(): string {
     return this.getUserInitials();
+  }
+
+  get visibleSuggestions(): string[] {
+    return this.showSuggestions ? this.suggestions : [];
+  }
+
+  get suggestionGroupLabel(): string {
+    if (this.hasOnlyInitialMessage() && this.hasContextualSuggestionSurface()) {
+      return 'Suggestions for this view';
+    }
+    if (this.hasOnlyInitialMessage()) {
+      return 'Suggested questions';
+    }
+    return 'Suggested next questions';
   }
 
   getUserInitials(): string {
@@ -149,14 +212,15 @@ export class LitioAssistant implements AfterViewChecked {
     return explicit || 'U';
   }
 
-  sendMessage(): void {
-    const message = this.inputText.trim();
+  sendMessage(explicitMessage?: string | null): void {
+    const rawMessage = explicitMessage !== undefined ? explicitMessage : this.inputText;
+    const message = (rawMessage || '').trim();
     if (!message || this.isSubmitting) {
       return;
     }
     this.inputText = '';
     this.showSuggestions = false;
-    this.messages.push({ id: null, role: 'user', text: message });
+    this.appendMessage('user', message);
     this.isSubmitting = true;
     this.isAssistantTyping = true;
     this.typingStartedAt = Date.now();
@@ -169,6 +233,7 @@ export class LitioAssistant implements AfterViewChecked {
       {
         message,
         conversation_id: this.conversationId,
+        ...this.buildContextPayload(),
       },
       { headers: this.buildHeaders() },
     )
@@ -222,15 +287,13 @@ export class LitioAssistant implements AfterViewChecked {
       this.appendErrorMessage(response?.error || 'Litio could not answer right now. Please try again.');
     } else {
       this.conversationId = response.data.conversation_id;
-      if (response.data.suggestions?.length) {
-        this.suggestions = response.data.suggestions;
-      }
-      this.messages.push({
+      const answer = (response.data.answer || '').trim() || this.emptyAnswerFallback;
+      this.appendMessage('litio', answer, {
         id: response.data.assistant_message_id,
-        role: 'litio',
-        text: response.data.answer,
         pendingFeedback: true,
       });
+      this.suggestions = this.buildFollowUpSuggestions(response.data.intent_key, answer);
+      this.showSuggestions = this.suggestions.length > 0;
     }
     this.isSubmitting = false;
     this.scheduleScrollToBottom();
@@ -258,12 +321,33 @@ export class LitioAssistant implements AfterViewChecked {
   }
 
   private appendErrorMessage(text: string): void {
-    this.messages.push({
-      id: null,
-      role: 'litio',
-      text,
-      tone: 'error',
-    });
+    this.appendMessage('litio', text, { tone: 'error' });
+  }
+
+  private appendMessage(
+    role: 'user' | 'litio',
+    text: string | null | undefined,
+    options: Partial<Omit<LitioAssistantMessage, 'role' | 'text'>> = {},
+  ): void {
+    const normalized = (text || '').trim();
+    if (!normalized) {
+      return;
+    }
+    this.messages = [
+      ...this.messages,
+      {
+        id: options.id ?? null,
+        role,
+        text: normalized,
+        tone: options.tone,
+        pendingFeedback: options.pendingFeedback,
+        feedback: options.feedback,
+      },
+    ];
+  }
+
+  isVisibleMessage(message: LitioAssistantMessage): boolean {
+    return Boolean((message?.text || '').trim());
   }
 
   private resetComposerHeight(): void {
@@ -278,13 +362,138 @@ export class LitioAssistant implements AfterViewChecked {
   }
 
   private buildInitialMessages(): LitioAssistantMessage[] {
-    return [
-      {
-        id: null,
-        role: 'litio',
-        text: 'Ask me about Litio workflows, jobs, candidate assignment, and role matching.',
-      },
-    ];
+    const text = 'Ask me about Litio workflows, jobs, candidate assignment, and role matching.';
+    return text.trim() ? [{ id: null, role: 'litio', text }] : [];
+  }
+
+  private buildContextPayload(): { context?: LitioAssistantContext } {
+    const context = this.getSafeContext();
+    return context ? { context } : {};
+  }
+
+  private getSafeContext(): LitioAssistantContext | null {
+    const source = this.context || {};
+    const context: LitioAssistantContext = {};
+    this.assignSafeText(context, 'page', source.page);
+    this.assignSafeText(context, 'section', source.section);
+    this.assignSafeText(context, 'activeTab', source.activeTab);
+    this.assignSafeText(context, 'openModal', source.openModal);
+    this.assignSafeId(context, 'vacancyId', source.vacancyId);
+    this.assignSafeText(context, 'vacancyTitle', source.vacancyTitle);
+    this.assignSafeId(context, 'candidateId', source.candidateId);
+    this.assignSafeText(context, 'candidateName', source.candidateName);
+    this.assignSafeText(context, 'candidateStage', source.candidateStage);
+    this.assignSafeText(context, 'evaluationStatus', source.evaluationStatus);
+    return Object.keys(context).length ? context : null;
+  }
+
+  private assignSafeText<T extends keyof LitioAssistantContext>(
+    target: LitioAssistantContext,
+    key: T,
+    value: LitioAssistantContext[T],
+  ): void {
+    if (typeof value !== 'string') {
+      return;
+    }
+    const trimmed = value.trim().replace(/\s+/g, ' ').slice(0, 120);
+    if (trimmed) {
+      target[key] = trimmed as LitioAssistantContext[T];
+    }
+  }
+
+  private assignSafeId<T extends keyof LitioAssistantContext>(
+    target: LitioAssistantContext,
+    key: T,
+    value: LitioAssistantContext[T],
+  ): void {
+    if (value === null || value === undefined) {
+      return;
+    }
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      return;
+    }
+    const normalized = String(value).trim().slice(0, 80);
+    if (normalized) {
+      target[key] = normalized as LitioAssistantContext[T];
+    }
+  }
+
+  private buildFollowUpSuggestions(intentKey = '', answer = ''): string[] {
+    const context = this.getSafeContext();
+    const searchable = `${intentKey} ${answer} ${context?.openModal || ''} ${context?.activeTab || ''}`.toLowerCase();
+    if (searchable.includes('send_reminder') || searchable.includes('communication') || searchable.includes('whatsapp') || searchable.includes('sms')) {
+      return ['Send reminder', 'WhatsApp status updates', 'SMS reminders', 'Candidate notifications'];
+    }
+    if (searchable.includes('explain_recommendation') || searchable.includes('next_hiring_step') || searchable.includes('evaluation_red_flags')) {
+      return ['Explain recommendation', 'View red flags', 'Next hiring step', 'Send reminder'];
+    }
+    if (searchable.includes('candidate_job_mapping') || searchable.includes('assign')) {
+      return ['Explain matching', 'Schedule Litio interview', 'Send reminder'];
+    }
+    if (searchable.includes('create_vacancy') || searchable.includes('post') || searchable.includes('vacancy')) {
+      return ['Assign candidates', 'Explain role fit score', 'Schedule interview', 'Send reminder'];
+    }
+    if (searchable.includes('evaluation') || searchable.includes('score') || searchable.includes('profile')) {
+      return ['Explain recommendation', 'View red flags', 'Next hiring step', 'Send reminder'];
+    }
+    if (searchable.includes('interview')) {
+      return ['Schedule interview', 'Send reminder', 'Next hiring step'];
+    }
+    return ['Assign candidates', 'Explain role fit score', 'Schedule interview', 'Send reminder'];
+  }
+
+  private buildInitialSuggestionsForContext(): string[] {
+    const context = this.getSafeContext();
+    const modal = (context?.openModal || '').toLowerCase();
+    const activeTab = (context?.activeTab || '').toLowerCase();
+    const contextText = `${modal} ${activeTab} ${context?.evaluationStatus || ''}`.toLowerCase();
+
+    if (contextText.includes('evaluation')) {
+      return ['Explain recommendation', 'View red flags', 'Next hiring step', 'Send reminder'];
+    }
+    if (contextText.includes('candidate_profile') || context?.candidateId || context?.candidateName) {
+      return ['Explain resume score', 'Explain role fit score', 'View red flags', 'Schedule interview', 'Send reminder', 'Next hiring step'];
+    }
+    if (contextText.includes('vacancy') || contextText.includes('role') || context?.vacancyId || context?.vacancyTitle) {
+      return ['Assign candidates', 'Explain matching', 'Schedule interview', 'Send reminder'];
+    }
+    if (contextText.includes('communication') || contextText.includes('reminder')) {
+      return ['Send reminder', 'WhatsApp status updates', 'SMS reminders', 'Candidate notifications'];
+    }
+    return this.initialSuggestions.slice();
+  }
+
+  private refreshInitialSuggestions(): void {
+    if (!this.showSuggestions || this.isSubmitting || !this.hasOnlyInitialMessage()) {
+      return;
+    }
+    this.suggestions = this.buildInitialSuggestionsForContext();
+  }
+
+  private hasOnlyInitialMessage(): boolean {
+    return this.messages.length === 1 && this.messages[0]?.role === 'litio';
+  }
+
+  private hasContextualSuggestionSurface(): boolean {
+    const context = this.getSafeContext();
+    const contextText = [
+      context?.openModal,
+      context?.activeTab,
+      context?.section,
+      context?.evaluationStatus,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return Boolean(
+      context?.candidateId ||
+      context?.candidateName ||
+      context?.vacancyId ||
+      context?.vacancyTitle ||
+      contextText.includes('candidate') ||
+      contextText.includes('profile') ||
+      contextText.includes('evaluation') ||
+      contextText.includes('role') ||
+      contextText.includes('vacancy'),
+    );
   }
 
   sendFeedback(message: LitioAssistantMessage, rating: 'helpful' | 'not_helpful'): void {
@@ -321,7 +530,8 @@ export class LitioAssistant implements AfterViewChecked {
       .subscribe((response) => {
         const suggestions = response?.data?.suggestions || [];
         if (suggestions.length) {
-          this.suggestions = suggestions;
+          this.initialSuggestions = suggestions.map((suggestion) => (suggestion || '').trim()).filter(Boolean);
+          this.refreshInitialSuggestions();
         }
       });
   }
