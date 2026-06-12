@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.db.models import F
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
@@ -67,9 +69,46 @@ admin.site.register(Interview)
 @admin.register(LitioAssistantKnowledge)
 class LitioAssistantKnowledgeAdmin(admin.ModelAdmin):
     list_display = ('title', 'intent_key', 'category', 'priority', 'is_active', 'updated_at')
-    list_filter = ('category', 'is_active')
-    search_fields = ('title', 'intent_key', 'answer')
+    list_filter = ('is_active', 'category', 'intent_key', 'updated_at')
+    search_fields = ('title', 'intent_key', 'category', 'keywords', 'question_patterns', 'answer')
+    ordering = ('category', 'intent_key', '-priority', 'title')
     readonly_fields = ('created_at', 'updated_at')
+    actions = ('mark_selected_active', 'mark_selected_inactive', 'increase_priority', 'decrease_priority')
+
+    fieldsets = (
+        ('Identity', {
+            'fields': ('title', 'intent_key', 'category', 'priority', 'is_active')
+        }),
+        ('Matching', {
+            'fields': ('question_patterns', 'keywords')
+        }),
+        ('Answer', {
+            'fields': ('answer',)
+        }),
+        ('Audit', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+    @admin.action(description='Mark selected as active')
+    def mark_selected_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'Marked {updated} knowledge row(s) as active.')
+
+    @admin.action(description='Mark selected as inactive')
+    def mark_selected_inactive(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'Marked {updated} knowledge row(s) as inactive.')
+
+    @admin.action(description='Increase priority by 1')
+    def increase_priority(self, request, queryset):
+        queryset.update(priority=F('priority') - 1)
+        self.message_user(request, f'Increased priority for {queryset.count()} row(s).')
+
+    @admin.action(description='Decrease priority by 1')
+    def decrease_priority(self, request, queryset):
+        queryset.update(priority=F('priority') + 1)
+        self.message_user(request, f'Decreased priority for {queryset.count()} row(s).')
 
 
 class LitioAssistantMessageInline(admin.TabularInline):
@@ -110,26 +149,122 @@ class LitioAssistantFeedbackAdmin(admin.ModelAdmin):
 
 @admin.register(LitioAssistantKnowledgeGap)
 class LitioAssistantKnowledgeGapAdmin(admin.ModelAdmin):
-    list_display = ('id', 'created_at', 'status', 'fallback_reason', 'original_question_short', 'normalized_question', 'user', 'company', 'conversation')
+    list_display = (
+        'created_at',
+        'status',
+        'fallback_reason',
+        'question_preview',
+        'normalized_question',
+        'context_page',
+        'context_section',
+        'user',
+        'company',
+    )
     list_filter = ('status', 'fallback_reason', 'created_at')
     search_fields = ('original_question', 'normalized_question', 'admin_notes')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = (
+        'original_question',
+        'normalized_question',
+        'context',
+        'fallback_reason',
+        'conversation',
+        'message',
+        'company',
+        'user',
+        'created_at',
+        'updated_at',
+    )
+    # Using fieldsets below; do not define top-level `fields` to avoid admin.E005
+    actions = ('mark_reviewed', 'mark_ignored', 'mark_resolved', 'create_draft_knowledge_from_selected_gaps')
 
-    def original_question_short(self, obj):
-        return (obj.original_question or '')[:80]
-    original_question_short.short_description = 'original_question'
+    fieldsets = (
+        ('Gap', {
+            'fields': ('original_question', 'normalized_question', 'fallback_reason', 'status')
+        }),
+        ('Review', {
+            'fields': ('admin_notes', 'resolved_by_knowledge')
+        }),
+        ('Context', {
+            'fields': ('context', 'context_page', 'context_section')
+        }),
+        ('Links', {
+            'fields': ('conversation', 'message', 'company', 'user')
+        }),
+        ('Audit', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+    def question_preview(self, obj):
+        return (obj.original_question or '')[:120]
+    question_preview.short_description = 'question_preview'
+
+    def context_page(self, obj):
+        if isinstance(obj.context, dict):
+            return obj.context.get('page') or obj.context.get('openModal') or ''
+        return ''
+    context_page.short_description = 'context_page'
+
+    def context_section(self, obj):
+        if isinstance(obj.context, dict):
+            return obj.context.get('section') or obj.context.get('activeTab') or ''
+        return ''
+    context_section.short_description = 'context_section'
+
+    def age_days(self, obj):
+        if not obj.created_at:
+            return ''
+        delta = timezone.now() - obj.created_at
+        return delta.days
+    age_days.short_description = 'age_days'
 
     @admin.action(description='Mark selected as reviewed')
     def mark_reviewed(self, request, queryset):
-        queryset.update(status=LitioAssistantKnowledgeGap.Status.REVIEWED)
+        updated = queryset.update(status=LitioAssistantKnowledgeGap.Status.REVIEWED)
+        self.message_user(request, f'Marked {updated} gap(s) as reviewed.')
 
     @admin.action(description='Mark selected as ignored')
     def mark_ignored(self, request, queryset):
-        queryset.update(status=LitioAssistantKnowledgeGap.Status.IGNORED)
+        updated = queryset.update(status=LitioAssistantKnowledgeGap.Status.IGNORED)
+        self.message_user(request, f'Marked {updated} gap(s) as ignored.')
 
     @admin.action(description='Mark selected as resolved')
     def mark_resolved(self, request, queryset):
-        queryset.update(status=LitioAssistantKnowledgeGap.Status.RESOLVED)
+        updated = queryset.update(status=LitioAssistantKnowledgeGap.Status.RESOLVED)
+        self.message_user(request, f'Marked {updated} gap(s) as resolved.')
+
+    @admin.action(description='Create draft knowledge from selected gaps')
+    def create_draft_knowledge_from_selected_gaps(self, request, queryset):
+        from .models import LitioAssistantKnowledge
+
+        created = 0
+        skipped = 0
+        for gap in queryset:
+            if gap.resolved_by_knowledge_id:
+                skipped += 1
+                continue
+            title = (gap.original_question or '')[:140] or f'Knowledge draft from gap {gap.id}'
+            # Ensure unique intent_key by appending gap id to base key to avoid unique constraint errors
+            intent_key = f'gap_review_{gap.id}'
+            try:
+                knowledge = LitioAssistantKnowledge.objects.create(
+                    title=title,
+                    intent_key=intent_key,
+                    category='knowledge_gap',
+                    priority=0,
+                    is_active=False,
+                    question_patterns=[p for p in ([gap.original_question] + ([gap.normalized_question] if gap.normalized_question else [])) if p],
+                    keywords=[],
+                    answer='TODO: Add reviewed answer.',
+                )
+                # link gap to created knowledge and mark reviewed
+                gap.resolved_by_knowledge = knowledge
+                gap.status = LitioAssistantKnowledgeGap.Status.REVIEWED
+                gap.save(update_fields=['resolved_by_knowledge', 'status'])
+                created += 1
+            except Exception:
+                skipped += 1
+        self.message_user(request, f'Created {created} draft knowledge row(s); skipped {skipped}.')
 
 
 @admin.register(Vacancies)
