@@ -208,6 +208,69 @@ class LitioAssistantFeedback(models.Model):
         return f'Litio Assistant feedback {self.rating} for conversation {self.conversation_id}'
 
 
+class LitioAssistantKnowledgeGap(models.Model):
+    class Status(models.TextChoices):
+        OPEN = 'open', 'Open'
+        REVIEWED = 'reviewed', 'Reviewed'
+        RESOLVED = 'resolved', 'Resolved'
+        IGNORED = 'ignored', 'Ignored'
+
+    conversation = models.ForeignKey(
+        LitioAssistantConversation,
+        on_delete=models.SET_NULL,
+        related_name='knowledge_gaps',
+        null=True,
+        blank=True,
+    )
+    message = models.ForeignKey(
+        LitioAssistantMessage,
+        on_delete=models.SET_NULL,
+        related_name='knowledge_gaps',
+        null=True,
+        blank=True,
+    )
+    company = models.ForeignKey(
+        'CompanyProfile',
+        on_delete=models.SET_NULL,
+        related_name='litio_assistant_knowledge_gaps',
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='litio_assistant_knowledge_gaps',
+        null=True,
+        blank=True,
+    )
+    original_question = models.TextField(null=True, blank=True)
+    normalized_question = models.CharField(max_length=512, null=True, blank=True, db_index=True)
+    context = models.JSONField(default=dict, blank=True)
+    fallback_reason = models.CharField(max_length=120, default='no_matching_knowledge', db_index=True)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.OPEN, db_index=True)
+    admin_notes = models.TextField(blank=True, default='')
+    resolved_by_knowledge = models.ForeignKey(
+        LitioAssistantKnowledge,
+        on_delete=models.SET_NULL,
+        related_name='resolved_gaps',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['normalized_question', 'status']),
+            models.Index(fields=['fallback_reason', 'created_at']),
+        ]
+
+    def __str__(self):
+        preview = (self.original_question or '')[:120]
+        return f'Knowledge gap {self.id}: {preview}'
+
+
 class CompanyProfile(models.Model):
     class CompanyType(models.TextChoices):
         PRIVATE = 'private', 'Private Limited'

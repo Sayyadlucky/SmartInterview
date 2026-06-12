@@ -25,6 +25,7 @@ from .models import (
     LitioAssistantConversation,
     LitioAssistantFeedback,
     LitioAssistantKnowledge,
+    LitioAssistantKnowledgeGap,
     LitioAssistantMessage,
     Notification,
     NotificationAttempt,
@@ -105,6 +106,30 @@ class LitioAssistantFeedbackAdmin(admin.ModelAdmin):
     list_filter = ('rating', 'created_at')
     search_fields = ('comment', 'conversation__title', 'user__username', 'user__email')
     readonly_fields = ('created_at',)
+
+
+@admin.register(LitioAssistantKnowledgeGap)
+class LitioAssistantKnowledgeGapAdmin(admin.ModelAdmin):
+    list_display = ('id', 'created_at', 'status', 'fallback_reason', 'original_question_short', 'normalized_question', 'user', 'company', 'conversation')
+    list_filter = ('status', 'fallback_reason', 'created_at')
+    search_fields = ('original_question', 'normalized_question', 'admin_notes')
+    readonly_fields = ('created_at', 'updated_at')
+
+    def original_question_short(self, obj):
+        return (obj.original_question or '')[:80]
+    original_question_short.short_description = 'original_question'
+
+    @admin.action(description='Mark selected as reviewed')
+    def mark_reviewed(self, request, queryset):
+        queryset.update(status=LitioAssistantKnowledgeGap.Status.REVIEWED)
+
+    @admin.action(description='Mark selected as ignored')
+    def mark_ignored(self, request, queryset):
+        queryset.update(status=LitioAssistantKnowledgeGap.Status.IGNORED)
+
+    @admin.action(description='Mark selected as resolved')
+    def mark_resolved(self, request, queryset):
+        queryset.update(status=LitioAssistantKnowledgeGap.Status.RESOLVED)
 
 
 @admin.register(Vacancies)

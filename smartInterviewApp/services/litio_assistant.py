@@ -13,6 +13,7 @@ from smartInterviewApp.models import (
     LitioAssistantConversation,
     LitioAssistantKnowledge,
     LitioAssistantMessage,
+    LitioAssistantKnowledgeGap,
 )
 
 
@@ -338,10 +339,11 @@ DEFAULT_KNOWLEDGE = [
         'priority': 24,
         'keywords': ['send', 'reminder', 'notify', 'notification', 'follow', 'up', 'candidate', 'interview', 'whatsapp', 'sms', 'status', 'update'],
         'answer': (
-            'To send a reminder, open the candidate, interview, or assignment workflow and use the configured communication '
-            'action for WhatsApp, SMS, email, or call where available. Check the schedule, candidate contact details, and '
-            'notification preference before sending. Use reminders for interview schedules, pending assessments, application '
-            'updates, or follow-up actions.'
+            'Interview reminders are sent automatically based on the scheduled interview time. Shortlistii/Litio triggers '
+            'candidate reminders before the interview, including around 60 minutes, 30 minutes, and 15 minutes before the '
+            'scheduled start. To make sure reminders work correctly, confirm that the interview is scheduled, the candidate '
+            'contact details are valid, and the required communication channels are configured. There is no separate manual '
+            'reminder step unless a manual send action is available in your workflow.'
         ),
     },
     {
@@ -827,6 +829,37 @@ class LitioAssistantService:
             metadata={'matched_title': result.matched_title, 'dashboard_context': safe_context} if safe_context else {'matched_title': result.matched_title},
         )
         conversation.save(update_fields=['updated_at'])
+        # Phase 3: create a knowledge gap record when assistant falls back with no confirmed help article
+        try:
+            if result.intent_key == 'unknown' and result.answer == UNKNOWN_RESPONSE:
+                normalized = normalize_query(question)
+                # Simple duplicate prevention: open gap with same normalized question and same user
+                existing = LitioAssistantKnowledgeGap.objects.filter(
+                    normalized_question=normalized,
+                    status=LitioAssistantKnowledgeGap.Status.OPEN,
+                    user=conversation.user,
+                ).exists()
+                if not existing:
+                    company = None
+                    user_obj = conversation.user if getattr(conversation, 'user', None) else None
+                    try:
+                        company = getattr(user_obj.profile, 'company', None) if user_obj else None
+                    except Exception:
+                        company = None
+                    LitioAssistantKnowledgeGap.objects.create(
+                        conversation=conversation,
+                        message=user_message if user_message else None,
+                        company=company,
+                        user=user_obj,
+                        original_question=question.strip(),
+                        normalized_question=normalized,
+                        context=safe_context or {},
+                        fallback_reason='no_matching_knowledge',
+                        status=LitioAssistantKnowledgeGap.Status.OPEN,
+                    )
+        except Exception:
+            # Never allow knowledge gap creation errors to break the chat flow
+            pass
         return {
             'conversation_id': conversation.id,
             'user_message_id': user_message.id,
