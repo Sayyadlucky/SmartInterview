@@ -11,6 +11,7 @@ import { Candidates } from '../candidates/candidates';
 import { Activity } from '../activity/activity';
 import { Analytics } from '../analytics/analytics';
 import { TalentPool } from '../talent-pool/talent-pool';
+import { LitioAssistant } from '../litio-assistant/litio-assistant';
 import { Chart, registerables } from 'chart.js';
 import * as XLSX from 'xlsx';
 import { AddUser } from '../app-modal/add-user/add-user';
@@ -350,7 +351,7 @@ interface WorkspaceTourStep {
   standalone: true,
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
-  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, FormsModule, DigitsOnlyDirective],
+  imports: [CommonModule, MatDialogModule, Evaluators, Recruiters, Candidates, Activity, Analytics, TalentPool, LitioAssistant, FormsModule, DigitsOnlyDirective],
 })
 export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
@@ -453,6 +454,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('companyModalCard') companyModalCardRef?: ElementRef<HTMLElement>;
   @ViewChild('companyModalCloseButton') companyModalCloseButtonRef?: ElementRef<HTMLButtonElement>;
   @ViewChild('pendingRequestsDialog') pendingRequestsDialogRef?: ElementRef<HTMLElement>;
+  @ViewChild('litioAssistant') litioAssistant?: LitioAssistant;
   private applicationIdsSeen = new Set<number>();
   private applicationPollTimer: ReturnType<typeof setInterval> | null = null;
   private applicationToastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -552,6 +554,10 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   openAiTalentPool(roleId?: string | number | null): void {
     const nextRoleId = roleId ? String(roleId) : null;
     this.setActiveTab('ai-talent-pool', { roleId: nextRoleId, updateUrl: true });
+  }
+
+  openLitioAssistant(): void {
+    this.litioAssistant?.open();
   }
 
   ngOnDestroy(): void {

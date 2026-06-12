@@ -22,6 +22,10 @@ from .models import (
     InterviewReminderDelivery,
     JobInterviewBlueprint,
     JobInterviewSkill,
+    LitioAssistantConversation,
+    LitioAssistantFeedback,
+    LitioAssistantKnowledge,
+    LitioAssistantMessage,
     Notification,
     NotificationAttempt,
     OtpRequest,
@@ -57,6 +61,50 @@ admin.site.register(User, UserAdmin)
 
 # Register other models
 admin.site.register(Interview)
+
+
+@admin.register(LitioAssistantKnowledge)
+class LitioAssistantKnowledgeAdmin(admin.ModelAdmin):
+    list_display = ('title', 'intent_key', 'category', 'priority', 'is_active', 'updated_at')
+    list_filter = ('category', 'is_active')
+    search_fields = ('title', 'intent_key', 'answer')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+class LitioAssistantMessageInline(admin.TabularInline):
+    model = LitioAssistantMessage
+    extra = 0
+    fields = ('sender', 'content', 'intent_key', 'confidence', 'created_at')
+    readonly_fields = ('sender', 'content', 'intent_key', 'confidence', 'created_at')
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LitioAssistantConversation)
+class LitioAssistantConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'title', 'status', 'created_at', 'updated_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('title', 'user__username', 'user__email')
+    readonly_fields = ('created_at', 'updated_at')
+    inlines = (LitioAssistantMessageInline,)
+
+
+@admin.register(LitioAssistantMessage)
+class LitioAssistantMessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'sender', 'intent_key', 'confidence', 'created_at')
+    list_filter = ('sender', 'intent_key', 'created_at')
+    search_fields = ('content', 'intent_key', 'conversation__title')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(LitioAssistantFeedback)
+class LitioAssistantFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'message', 'user', 'rating', 'created_at')
+    list_filter = ('rating', 'created_at')
+    search_fields = ('comment', 'conversation__title', 'user__username', 'user__email')
+    readonly_fields = ('created_at',)
 
 
 @admin.register(Vacancies)
