@@ -15,6 +15,7 @@ from smartInterviewApp.models import (
     LitioAssistantMessage,
     LitioAssistantKnowledgeGap,
 )
+from smartInterviewApp.services.litio_data_intents import answer_data_question as _answer_data_question
 
 
 SAFE_RESPONSE = (
@@ -745,6 +746,7 @@ class LitioAssistantService:
             return AssistantResult(UNKNOWN_RESPONSE, 'unknown', Decimal('0.00'))
         if _contains_sensitive_query(normalized):
             return AssistantResult(SAFE_RESPONSE, 'protected', Decimal('1.00'))
+        # Data-intent handling is performed in chat() where the authenticated user is available.
         contextual_result = _contextual_answer(normalized, safe_context)
         if contextual_result:
             return contextual_result
@@ -801,7 +803,6 @@ class LitioAssistantService:
             return AssistantResult(best_item['answer'], best_item['intent_key'], confidence, best_item.get('title', ''))
         return AssistantResult(UNKNOWN_RESPONSE, 'unknown', Decimal('0.00'))
 
-    @transaction.atomic
     def chat(
         self,
         *,
@@ -819,7 +820,23 @@ class LitioAssistantService:
             content=question.strip(),
             metadata={'dashboard_context': safe_context} if safe_context else {},
         )
-        result = self.answer(question, safe_context)
+        # Before falling back to knowledge, check sensitive and then data intents using the authenticated user.
+        normalized = normalize_query(question)
+        if _contains_sensitive_query(normalized):
+            # sensitive handled by answer() as protected
+            result = self.answer(question, safe_context)
+        else:
+            try:
+                data_result = _answer_data_question(user_obj, question, safe_context)
+            except Exception:
+                data_result = None
+            if data_result and getattr(data_result, 'handled', False):
+                if data_result.needs_clarification:
+                    result = AssistantResult(data_result.clarification, 'data_clarification', Decimal('0.90'))
+                else:
+                    result = AssistantResult(data_result.answer, data_result.intent_key or 'data', Decimal('0.99'))
+            else:
+                result = self.answer(question, safe_context)
         assistant_message = LitioAssistantMessage.objects.create(
             conversation=conversation,
             sender=LitioAssistantMessage.Sender.ASSISTANT,
