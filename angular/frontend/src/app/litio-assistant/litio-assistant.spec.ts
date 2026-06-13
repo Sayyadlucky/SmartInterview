@@ -1,6 +1,8 @@
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { RouterTestingModule } from '@angular/router/testing';
+import { Router } from '@angular/router';
 import { LitioAssistant } from './litio-assistant';
 
 describe('LitioAssistant', () => {
@@ -14,11 +16,12 @@ describe('LitioAssistant', () => {
     document.body.removeAttribute('data-user-email');
 
     await TestBed.configureTestingModule({
-      imports: [LitioAssistant],
+      imports: [LitioAssistant, RouterTestingModule.withRoutes([{ path: 'dashboard', children: [] }])],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
+      teardown: { destroyAfterEach: false },
     }).compileComponents();
 
     fixture = TestBed.createComponent(LitioAssistant);
@@ -185,6 +188,102 @@ describe('LitioAssistant', () => {
     expect(component.messages.some((message) => message.text.includes('save the schedule'))).toBeTrue();
   }));
 
+  it('renders action chips and navigates on click', fakeAsync(() => {
+    component.open();
+    component.inputText = 'show SLA breaches';
+    component.sendMessage();
+    fixture.detectChanges();
+
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 5,
+        assistant_message_id: 11,
+        answer: 'You have 1 SLA breached candidate.',
+        intent_key: 'data_sla_breaches',
+        actions: [
+          { label: 'View SLA breached candidates', action_type: 'navigate', route: '/dashboard', query_params: { section: 'candidates', filter: 'sla_breached' } }
+        ]
+      }
+    });
+    tick(900);
+    fixture.detectChanges();
+
+    const actionButtons = fixture.nativeElement.querySelectorAll('.litio-action-chip');
+    expect(actionButtons.length).toBeGreaterThan(0);
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate').and.callThrough();
+    (actionButtons[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(navSpy).toHaveBeenCalled();
+    // assistant panel should close after navigation action
+    expect(component.isOpen).toBeFalse();
+  }));
+
+  it('ignores unknown action types', fakeAsync(() => {
+    component.open();
+    component.inputText = 'show unknown action';
+    component.sendMessage();
+    fixture.detectChanges();
+
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 6,
+        assistant_message_id: 12,
+        answer: 'Unknown action present.',
+        intent_key: 'data_unknown',
+        actions: [
+          { label: 'Do something unsafe', action_type: 'unknown', route: '/dashboard', query_params: { } }
+        ]
+      }
+    });
+    tick(900);
+    fixture.detectChanges();
+
+    const actionButtons = fixture.nativeElement.querySelectorAll('.litio-action-chip');
+    expect(actionButtons.length).toBeGreaterThan(0);
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate').and.callThrough();
+    (actionButtons[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(navSpy).not.toHaveBeenCalled();
+  }));
+
+  it('handles missing route by falling back to dashboard', fakeAsync(() => {
+    component.open();
+    component.inputText = 'missing route action';
+    component.sendMessage();
+    fixture.detectChanges();
+
+    const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
+    request.flush({
+      success: true,
+      data: {
+        conversation_id: 7,
+        assistant_message_id: 13,
+        answer: 'Missing route action.',
+        intent_key: 'data_missing_route',
+        actions: [
+          { label: 'Open candidates', action_type: 'navigate', query_params: { section: 'candidates' } }
+        ]
+      }
+    });
+    tick(900);
+    fixture.detectChanges();
+
+    const actionButtons = fixture.nativeElement.querySelectorAll('.litio-action-chip');
+    expect(actionButtons.length).toBeGreaterThan(0);
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate').and.callThrough();
+    (actionButtons[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(navSpy).toHaveBeenCalled();
+    expect(component.isOpen).toBeFalse();
+  }));
+
   it('hides suggestions while sending and shows contextual follow-ups after the assistant response', fakeAsync(() => {
     component.open();
     component.inputText = 'schedule interview';
@@ -232,6 +331,8 @@ describe('LitioAssistant', () => {
     const userMessages = component.messages.filter((message) => message.role === 'user');
     expect(userMessages.length).toBe(1);
     expect(userMessages[0].text).toBe('How do I assign candidates to a vacancy?');
+    // suggestion clicks should NOT close the assistant panel
+    expect(component.isOpen).toBeTrue();
     const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
     expect(request.request.body.message).toBe('How do I assign candidates to a vacancy?');
     request.flush({
@@ -261,6 +362,8 @@ describe('LitioAssistant', () => {
     const request = httpMock.expectOne((incoming) => incoming.url.endsWith('/api/litio-assistant/chat/'));
     expect(request.request.body.message).toBe('How do I send a candidate reminder?');
     expect(component.messages.filter((message) => message.role === 'user')[0].text).toBe('How do I send a candidate reminder?');
+    // suggestion clicks should not close the assistant panel
+    expect(component.isOpen).toBeTrue();
     request.flush({
       success: true,
       data: {

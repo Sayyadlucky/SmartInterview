@@ -1766,6 +1766,33 @@ app-litio-assistant .litio-message-bubble p {
   line-height: 1.5;
 }
 
+app-litio-assistant .litio-action-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+app-litio-assistant .litio-action-chip {
+  min-height: 32px;
+  border: 1px solid rgba(103, 239, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(9, 43, 83, 0.66);
+  color: #dbf6ff;
+  padding: 0 11px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.12s var(--chrome-ease);
+  pointer-events: auto;
+}
+
+app-litio-assistant .litio-action-chip:hover:not(:disabled) {
+  border-color: rgba(103, 239, 255, 0.38);
+  background: rgba(13, 56, 103, 0.86);
+  transform: translateY(-1px);
+}
+
 app-litio-assistant .litio-avatar {
   justify-content: center;
   flex: 0 0 auto;

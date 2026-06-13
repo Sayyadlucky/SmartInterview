@@ -1,4 +1,5 @@
 import { Component, AfterViewInit, OnDestroy, OnInit, ViewChild, ElementRef, SimpleChanges, DestroyRef, inject, HostListener } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';  // Import HttpClient
 import { catchError } from 'rxjs/operators';
 import { of, timeout } from 'rxjs';
@@ -489,7 +490,9 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
     this.fetchRoleCatalog();
   };
 
-  constructor(private http: HttpClient, private dialog: MatDialog) {}  // Inject HttpClient and MatDialog
+  private lastAppliedLitioDeepLink = '';
+
+  constructor(private http: HttpClient, private dialog: MatDialog, private route: ActivatedRoute, private router: Router) {}  // Inject HttpClient, MatDialog, ActivatedRoute and Router
 
   private hasData(): boolean {
     return (
@@ -527,6 +530,14 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
   }
   ngOnInit(): void {
     this.syncWorkspaceStateFromLocation();
+    // React to query param changes (Litio assistant navigations may update query params)
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((pm: any) => {
+      try {
+        this.applyLitioDeepLink(pm);
+      } catch (e) {
+        // swallow errors - do not break dashboard
+      }
+    });
     window.addEventListener('candidate-status-updated', this.statusUpdateListener as EventListener);
     window.addEventListener('global-data-refresh', this.statusUpdateListener as EventListener);
     this.fetchData();
@@ -1793,12 +1804,158 @@ nextPage() {
     const url = new URL(window.location.href);
     const requestedTab = this.normalizeDashboardTab(url.searchParams.get('tab') || url.hash.replace(/^#/, ''));
     const requestedRoleId = (url.searchParams.get('role') || '').trim() || null;
+    // Support Litio assistant navigation query params (section/filter/entity)
+    const requestedSection = (url.searchParams.get('section') || '').trim() || null;
+    const requestedFilter = (url.searchParams.get('filter') || '').trim() || null;
+    const requestedCandidateId = (url.searchParams.get('candidateId') || url.searchParams.get('candidateid') || '').trim() || null;
+    const requestedVacancyId = (url.searchParams.get('vacancyId') || url.searchParams.get('vacancyid') || '').trim() || null;
 
     if (requestedTab) {
       this.activeTab = requestedTab;
     }
     if (requestedTab === 'ai-talent-pool') {
       this.talentPoolRoleId = requestedRoleId;
+    }
+
+    // Map section query param to dashboard tabs where possible
+    if (requestedSection) {
+      const sec = requestedSection.toLowerCase();
+      if (sec === 'candidates') {
+        this.setActiveTab('candidates', { updateUrl: false });
+        // if candidateId present, set it as search query to help locate the record
+        if (requestedCandidateId) {
+          this.searchQuery = requestedCandidateId;
+        }
+      } else if (sec === 'interviews') {
+        this.setActiveTab('activity', { updateUrl: false });
+      } else if (sec === 'aptitude') {
+        this.setActiveTab('overview', { updateUrl: false });
+      } else if (sec === 'pipeline') {
+        this.setActiveTab('analytics', { updateUrl: false });
+      }
+      // Apply simple filter hints (safe; UI will decide what to show)
+      if (requestedFilter) {
+        // set selectedStatus/searchQuery as a light-weight hint
+        this.selectedStatus = requestedFilter;
+      }
+      if (requestedVacancyId) {
+        // store vacancy id as talent pool role id if applicable
+        this.talentPoolRoleId = requestedVacancyId;
+      }
+    }
+    // mark current state as applied so we don't re-open modals repeatedly
+    try {
+      const key = JSON.stringify({ requestedSection, requestedFilter, requestedCandidateId, requestedVacancyId });
+      this.lastAppliedLitioDeepLink = key;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  private applyLitioDeepLink(params: any): void {
+    const section = (params.get('section') || '').trim() || null;
+    const filter = (params.get('filter') || '').trim() || null;
+    const candidateId = (params.get('candidateId') || params.get('candidateid') || '').trim() || null;
+    const vacancyId = (params.get('vacancyId') || params.get('vacancyid') || '').trim() || null;
+    const recruiterId = (params.get('recruiterId') || params.get('recruiterid') || '').trim() || null;
+
+    const key = JSON.stringify({ section, filter, candidateId, vacancyId, recruiterId });
+    if (key === this.lastAppliedLitioDeepLink) {
+      return;
+    }
+    this.lastAppliedLitioDeepLink = key;
+
+    if (section) {
+      const sec = section.toLowerCase();
+      if (sec === 'candidates') {
+        this.setActiveTab('candidates', { updateUrl: false });
+        if (candidateId) {
+          // try to find candidate in loaded data
+          const candidate = (this.candidatesData || []).find((c: any) => String(c.id) === String(candidateId) || String(c.candidate_id) === String(candidateId));
+          if (candidate) {
+            // open candidate profile modal
+            this.profileUpdate(candidate);
+            return;
+          }
+          // fallback: set search query to candidateId so UI can surface it
+          this.searchQuery = candidateId;
+          return;
+        }
+        // apply filter hint
+        if (filter) {
+          this.selectedStatus = filter;
+        }
+        return;
+      }
+
+      if (sec === 'interviews') {
+        this.setActiveTab('activity', { updateUrl: false });
+        if (filter) {
+          this.selectedStatus = filter;
+        }
+        if (recruiterId) {
+          // store recruiterId as a light hint; components can use it if they support it
+          this.searchQuery = recruiterId;
+        }
+        return;
+      }
+
+      if (sec === 'aptitude') {
+        this.setActiveTab('overview', { updateUrl: false });
+        if (filter) {
+          this.selectedStatus = filter;
+        }
+        return;
+      }
+
+      if (sec === 'pipeline') {
+        this.setActiveTab('analytics', { updateUrl: false });
+        if (vacancyId) {
+          // attempt to open role modal if role exists
+          const role = this.getRoleContext(vacancyId);
+          if (role) {
+            this.openRoldeModal(vacancyId);
+            return;
+          }
+          this.talentPoolRoleId = vacancyId;
+        }
+        if (filter) {
+          this.selectedStatus = filter;
+        }
+        return;
+      }
+
+      if (sec === 'recruiters') {
+        this.setActiveTab('recruiters', { updateUrl: false });
+        if (filter) {
+          this.selectedStatus = filter;
+        }
+        if (recruiterId) {
+          this.searchQuery = recruiterId;
+        }
+        return;
+      }
+    }
+
+    // if no section specified but candidateId present
+    if (!section && candidateId) {
+      this.setActiveTab('candidates', { updateUrl: false });
+      const candidate = (this.candidatesData || []).find((c: any) => String(c.id) === String(candidateId) || String(c.candidate_id) === String(candidateId));
+      if (candidate) {
+        this.profileUpdate(candidate);
+        return;
+      }
+      this.searchQuery = candidateId;
+    }
+    // if only vacancyId present
+    if (!section && vacancyId) {
+      this.setActiveTab('analytics', { updateUrl: false });
+      const role = this.getRoleContext(vacancyId);
+      if (role) {
+        this.openRoldeModal(vacancyId);
+        return;
+      }
+      this.talentPoolRoleId = vacancyId;
     }
   }
 

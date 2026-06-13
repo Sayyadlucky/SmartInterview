@@ -50,6 +50,12 @@
           </span>
           <div class="litio-message-bubble" [class.is-error]="message.tone === 'error'">
             <p>{{ message.text }}</p>
+            
+              <div class="litio-action-chips" *ngIf="message.role === 'litio' && message.actions?.length">
+                @for (act of message.actions; track $index) {
+                  <button type="button" class="litio-action-chip" (click)="handleAction(act, $event)">{{ act.label }}</button>
+                }
+              </div>
             <div class="litio-feedback" *ngIf="message.role === 'litio' && message.pendingFeedback">
               <button type="button" aria-label="Mark answer helpful" (click)="sendFeedback(message, 'helpful')">
                 <i class="ph ph-thumbs-up" aria-hidden="true"></i>

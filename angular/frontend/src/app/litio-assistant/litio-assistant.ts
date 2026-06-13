@@ -1,4 +1,5 @@
 import { AfterViewChecked, Component, ElementRef, HostListener, Input, OnChanges, SimpleChanges, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +13,14 @@ interface LitioAssistantMessage {
   tone?: 'normal' | 'error';
   pendingFeedback?: boolean;
   feedback?: 'helpful' | 'not_helpful';
+  actions?: Array<{
+    label: string;
+    action_type: string;
+    route?: string;
+    query_params?: Record<string, any> | null;
+    entity_type?: string;
+    entity_id?: number | string | null;
+  }>;
 }
 
 export interface LitioAssistantContext {
@@ -35,6 +44,7 @@ interface LitioChatResponse {
     answer: string;
     intent_key?: string;
     suggestions?: string[];
+    actions?: Array<{ label: string; action_type: string; route?: string; query_params?: Record<string, any> | null; entity_type?: string; entity_id?: number | string | null }>;
   };
   error?: string | null;
 }
@@ -103,7 +113,7 @@ export class LitioAssistant implements AfterViewChecked, OnChanges {
   private chatSessionVersion = 0;
   private readonly ignoredNameParts = new Set(['mr', 'mrs', 'ms', 'miss', 'dr', 'prof']);
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private router: Router) {
     this.fetchSuggestions();
   }
 
@@ -291,6 +301,7 @@ export class LitioAssistant implements AfterViewChecked, OnChanges {
       this.appendMessage('litio', answer, {
         id: response.data.assistant_message_id,
         pendingFeedback: true,
+        actions: response.data.actions || [],
       });
       this.suggestions = this.buildFollowUpSuggestions(response.data.intent_key, answer);
       this.showSuggestions = this.suggestions.length > 0;
@@ -342,8 +353,52 @@ export class LitioAssistant implements AfterViewChecked, OnChanges {
         tone: options.tone,
         pendingFeedback: options.pendingFeedback,
         feedback: options.feedback,
+        actions: (options as any).actions || undefined,
       },
     ];
+  }
+
+  handleAction(
+    action: { label: string; action_type: string; route?: string; query_params?: Record<string, any> | null; entity_type?: string; entity_id?: number | string | null; } | undefined,
+    event?: Event,
+  ): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if (!action || !action.action_type || !action.label) {
+      return;
+    }
+
+    // Only support safe read/navigation action types
+    const allowed = new Set([
+      'navigate',
+      'open_candidate',
+      'open_vacancy',
+      'open_interviews',
+      'open_aptitude',
+      'open_followups',
+      'open_pipeline',
+      'open_recruiter_activity',
+    ]);
+    if (!allowed.has(action.action_type)) {
+      return;
+    }
+
+    const rawRoute = action.route || '/dashboard';
+    // normalize route to array form accepted by router.navigate
+    const cleaned = String(rawRoute || '').trim();
+    const routeCommands: any[] = cleaned.startsWith('/') ? [cleaned] : ['/' + cleaned];
+    const params = action.query_params || {};
+
+    try {
+      // Trigger navigation and close the assistant panel so destination is visible.
+      // We don't wait on the navigation promise to resolve; user intent is to leave the chat.
+      this.router.navigate(routeCommands, { queryParams: params }).catch(() => {});
+      this.isOpen = false;
+    } catch (e) {
+      // swallow navigation errors silently to avoid crashing the UI
+      this.isOpen = false;
+    }
   }
 
   isVisibleMessage(message: LitioAssistantMessage): boolean {

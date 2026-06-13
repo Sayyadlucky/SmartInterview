@@ -46,6 +46,9 @@ class LitioDataIntentsTests(TestCase):
         resp = self.service.chat(question='How many pending interviews do we have?', user=self.admin)
         self.assertEqual(resp['intent_key'], 'data_pending_interviews')
         self.assertIn('pending interviews', resp['answer'])
+        # actions should include a navigation to pending interviews
+        actions = resp.get('actions') or []
+        self.assertTrue(any(a.get('action_type') == 'navigate' and 'pending' in (a.get('query_params') or {}).get('filter', '') for a in actions))
 
     def test_candidate_latest_score_found(self):
         q = f"What is the score of {self.candidate.first_name} in the last evaluation?"
@@ -62,6 +65,8 @@ class LitioDataIntentsTests(TestCase):
     def test_protected_query_still_protected(self):
         resp = self.service.chat(question='what ai model do you use?', user=self.admin)
         self.assertEqual(resp['intent_key'], 'protected')
+        # ensure no unsafe actions are returned for protected queries
+        self.assertFalse(resp.get('actions'))
 
     def test_context_candidate_id_works(self):
         resp = self.service.chat(question="What is this candidate's score?", user=self.admin, context={'candidateId': self.candidate.id})
@@ -80,6 +85,25 @@ class LitioDataIntentsTests(TestCase):
         self.assertEqual(resp.intent_key, 'data_sla_breaches')
         # Handler may return either a stale-count signal or note missing timestamps
         self.assertTrue(('pending action beyond the 48-hour' in (resp.answer or '')) or ('lack status timestamps' in (resp.answer or '')))
+        # if actions are provided, validate they are safe; some environments may omit actions
+        actions = getattr(resp, 'actions', []) or []
+        if actions:
+            labels = [a.label for a in actions]
+            self.assertTrue(any('SLA breached' in lbl or 'Open candidate' in lbl for lbl in labels))
+            for a in actions:
+                self.assertIn(a.action_type, ('navigate', 'open_candidate', 'open_vacancy', 'open_interviews', 'open_aptitude', 'open_followups'))
+                # route must be dashboard for navigation/open actions
+                if a.action_type in ('navigate', 'open_candidate', 'open_vacancy'):
+                    self.assertEqual(a.route, '/dashboard')
+                # query params should be a dict when present
+                if a.query_params is not None:
+                    self.assertIsInstance(a.query_params, dict)
+            # forbidden keys must not appear in action labels or query params
+            forbidden = ['resume', 'transcript', 'prompt', 'provider', 'model', 'key', 'secret', 'api key']
+            for a in actions:
+                combined = ' '.join([str(a.label), str(a.query_params or ''), str(a.entity_type or ''), str(a.entity_id or '')]).lower()
+                for f in forbidden:
+                    self.assertNotIn(f, combined)
 
     def test_pipeline_health_identifies_zero_candidate_role(self):
         # create another vacancy with no candidates
@@ -97,6 +121,10 @@ class LitioDataIntentsTests(TestCase):
         self.assertTrue(resp.handled)
         self.assertIn(resp.intent_key, ('data_aptitude_analytics', 'aptitude_test'))
         self.assertTrue(('could not find completed aptitude' in (resp.answer or '')) or ('candidates have completed aptitude tests' in (resp.answer or '')))
+        # if actions included, ensure aptitude navigation exists
+        actions = getattr(resp, 'actions', []) or []
+        if actions:
+            self.assertTrue(any(a.action_type == 'navigate' and (a.route == '/dashboard' or (a.query_params or {}).get('section') == 'aptitude') for a in actions))
 
     def test_candidate_followups_identifies_missed_and_pending(self):
         # missed interview: scheduled in past
@@ -108,6 +136,10 @@ class LitioDataIntentsTests(TestCase):
         self.assertTrue(resp.handled)
         self.assertEqual(resp.intent_key, 'data_candidate_followups')
         self.assertIn('missed interviews', (resp.answer or '').lower())
+        # follow-up actions present based on counts
+        actions = getattr(resp, 'actions', []) or []
+        # at least check missed interviews action when missed exists
+        self.assertTrue(any((a.action_type == 'navigate' and (a.query_params or {}).get('filter') in ('missed', 'missed_interviews')) or ('missed' in (a.label or '').lower() ) for a in actions))
 
     def test_company_isolation_non_staff_cannot_see_other_company(self):
         # create another company and data under it

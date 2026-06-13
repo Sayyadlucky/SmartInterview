@@ -826,6 +826,7 @@ class LitioAssistantService:
             # sensitive handled by answer() as protected
             result = self.answer(question, safe_context)
         else:
+            data_result = None
             try:
                 data_result = _answer_data_question(user_obj, question, safe_context)
             except Exception:
@@ -877,6 +878,23 @@ class LitioAssistantService:
         except Exception:
             # Never allow knowledge gap creation errors to break the chat flow
             pass
+        # include optional safe actions from data intents
+        actions = []
+        try:
+            if data_result and getattr(data_result, 'actions', None):
+                for a in data_result.actions:
+                    # serialize allowed fields only
+                    actions.append({
+                        'label': getattr(a, 'label', '') or '',
+                        'action_type': getattr(a, 'action_type', '') or '',
+                        'route': getattr(a, 'route', '') or '',
+                        'query_params': getattr(a, 'query_params', None) or None,
+                        'entity_type': getattr(a, 'entity_type', '') or '',
+                        'entity_id': getattr(a, 'entity_id', None),
+                    })
+        except Exception:
+            actions = []
+
         return {
             'conversation_id': conversation.id,
             'user_message_id': user_message.id,
@@ -885,6 +903,7 @@ class LitioAssistantService:
             'intent_key': result.intent_key,
             'confidence': float(result.confidence),
             'suggestions': SUGGESTIONS,
+            'actions': actions,
         }
 
     def _get_or_create_conversation(

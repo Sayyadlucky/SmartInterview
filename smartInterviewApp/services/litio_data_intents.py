@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 import re
 
@@ -21,12 +21,24 @@ from django.db import DatabaseError, transaction
 
 
 @dataclass
+class LitioAssistantAction:
+    label: str
+    action_type: str
+    route: str = ""
+    query_params: dict | None = None
+    entity_type: str = ""
+    entity_id: int | str | None = None
+    payload: dict | None = None
+
+
+@dataclass
 class LitioDataIntentResult:
     handled: bool
     answer: str = ""
     intent_key: str = ""
     needs_clarification: bool = False
     clarification: str = ""
+    actions: list[LitioAssistantAction] = field(default_factory=list)
 
 
 def _get_company_for_user(user: User):
@@ -193,7 +205,20 @@ def _handle_latest_candidate_score(user: User, question: str, context: dict | No
     summary = _latest_candidate_score_summary(user, candidate)
     if not summary:
         return LitioDataIntentResult(True, answer=f"I found the candidate, but I could not find a completed evaluation or test score yet.", intent_key='data_latest_candidate_score')
-    return LitioDataIntentResult(True, answer=summary, intent_key='data_latest_candidate_score')
+    # include an action to open the candidate in the dashboard
+    actions: list[LitioAssistantAction] = []
+    try:
+        actions.append(LitioAssistantAction(
+            label=f"Open candidate: {candidate.first_name or candidate.username}",
+            action_type='open_candidate',
+            route='/dashboard',
+            entity_type='candidate',
+            entity_id=candidate.id,
+            query_params={'candidateId': candidate.id},
+        ))
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=summary, intent_key='data_latest_candidate_score', actions=actions)
 
 
 def _handle_pending_interviews(user: User, question: str, context: dict | None):
@@ -227,7 +252,34 @@ def _handle_pending_interviews(user: User, question: str, context: dict | None):
     answer = f"You currently have {total} pending interviews."
     if today_count:
         answer += f" {today_count} are scheduled for today." 
-    return LitioDataIntentResult(True, answer=answer, intent_key='data_pending_interviews')
+    actions: list[LitioAssistantAction] = []
+    try:
+        actions.append(LitioAssistantAction(
+            label='View pending interviews',
+            action_type='navigate',
+            route='/dashboard',
+            query_params={'section': 'interviews', 'filter': 'pending'},
+        ))
+        if today_count:
+            actions.append(LitioAssistantAction(
+                label="View today's interviews",
+                action_type='navigate',
+                route='/dashboard',
+                query_params={'section': 'interviews', 'filter': 'today'},
+            ))
+        if total and total - today_count > 0:
+            # overdue if any scheduled before now
+            overdue = qs.filter(date__lt=timezone.now()).count()
+            if overdue:
+                actions.append(LitioAssistantAction(
+                    label='View overdue interviews',
+                    action_type='navigate',
+                    route='/dashboard',
+                    query_params={'section': 'interviews', 'filter': 'overdue'},
+                ))
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=answer, intent_key='data_pending_interviews', actions=actions)
 
 
 def _handle_recruiter_performance(user: User, question: str, context: dict | None):
@@ -275,13 +327,41 @@ def _handle_recruiter_performance(user: User, question: str, context: dict | Non
             f"Recruiter {recruiter.first_name} {recruiter.last_name or ''} handled {unique_candidates} candidates in the last 7 days, "
             f"scheduled {interviews_scheduled} interviews, and has {pending} pending interviews. This is an activity summary, not a performance rating."
         )
-        return LitioDataIntentResult(True, answer=answer, intent_key='data_recruiter_performance')
+        # include safe navigation actions for recruiter drill-down
+        actions: list[LitioAssistantAction] = []
+        try:
+            actions.append(LitioAssistantAction(
+                label=f"View recruiter activity",
+                action_type='open_recruiter_activity',
+                route='/dashboard',
+                query_params={'section': 'recruiters', 'filter': 'activity', 'recruiterId': recruiter.id},
+            ))
+            actions.append(LitioAssistantAction(
+                label="View recruiter's pending interviews",
+                action_type='open_interviews',
+                route='/dashboard',
+                query_params={'section': 'interviews', 'filter': 'pending', 'recruiterId': recruiter.id},
+            ))
+        except Exception:
+            actions = []
+        return LitioDataIntentResult(True, answer=answer, intent_key='data_recruiter_performance', actions=actions)
 
     # overall summary
     interviews_scheduled = Interview.objects.filter(date__gte=start).count()
     interviews_completed = Interview.objects.filter(status='completed', date__gte=start).count()
     answer = f"Across recruiters in the last 7 days: {interviews_scheduled} interviews scheduled and {interviews_completed} completed."
-    return LitioDataIntentResult(True, answer=answer, intent_key='data_recruiter_performance')
+    # add a conservative action to view overall recruiter activity
+    actions: list[LitioAssistantAction] = []
+    try:
+        actions.append(LitioAssistantAction(
+            label='View recruiter activity',
+            action_type='open_recruiter_activity',
+            route='/dashboard',
+            query_params={'section': 'recruiters', 'filter': 'activity'},
+        ))
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=answer, intent_key='data_recruiter_performance', actions=actions)
 
 
 def _handle_sla_breaches(user: User, question: str, context: dict | None):
@@ -322,7 +402,30 @@ def _handle_sla_breaches(user: User, question: str, context: dict | None):
     oldest = stale_sorted[0][1]
     answer = (f"You currently have {total} candidates that appear to be pending action beyond the 48-hour review window. "
               f"The oldest pending item is {oldest} days old. Treat this as an operational follow-up signal. Top items: {items}.")
-    return LitioDataIntentResult(True, answer=answer, intent_key='data_sla_breaches')
+    actions: list[LitioAssistantAction] = []
+    try:
+        actions.append(LitioAssistantAction(
+            label='View SLA breached candidates',
+            action_type='navigate',
+            route='/dashboard',
+            query_params={'section': 'candidates', 'filter': 'sla_breached'},
+        ))
+        # add top candidate open action
+        if top:
+            top_app = top[0][0]
+            cand = getattr(top_app, 'candidate', None)
+            if cand:
+                actions.append(LitioAssistantAction(
+                    label=f"Open candidate: {cand.first_name or cand.username}",
+                    action_type='open_candidate',
+                    route='/dashboard',
+                    entity_type='candidate',
+                    entity_id=cand.id,
+                    query_params={'candidateId': cand.id},
+                ))
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=answer, intent_key='data_sla_breaches', actions=actions)
 
 
 def _handle_pipeline_health(user: User, question: str, context: dict | None):
@@ -372,7 +475,36 @@ def _handle_pipeline_health(user: User, question: str, context: dict | None):
         parts.append(f"{len(inactive)} roles with no activity in 7+ days (e.g. {sample})")
 
     answer = "Based on available vacancy, application and interview counts: " + '; '.join(parts)
-    return LitioDataIntentResult(True, answer=answer, intent_key='data_pipeline_health')
+    actions: list[LitioAssistantAction] = []
+    try:
+        actions.append(LitioAssistantAction(
+            label='Open pipeline health',
+            action_type='navigate',
+            route='/dashboard',
+            query_params={'section': 'pipeline'},
+        ))
+        if zero_candidate or no_interview or inactive:
+            actions.append(LitioAssistantAction(
+                label='View roles needing attention',
+                action_type='navigate',
+                route='/dashboard',
+                query_params={'section': 'pipeline', 'filter': 'needs_attention'},
+            ))
+        # optionally include top vacancy open action
+        if no_interview:
+            v = no_interview[0][0]
+            if getattr(v, 'id', None):
+                actions.append(LitioAssistantAction(
+                    label=f"Open role: {v.role}",
+                    action_type='open_vacancy',
+                    route='/dashboard',
+                    entity_type='vacancy',
+                    entity_id=v.id,
+                    query_params={'vacancyId': v.id},
+                ))
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=answer, intent_key='data_pipeline_health', actions=actions)
 
 
 def _handle_aptitude_analytics(user: User, question: str, context: dict | None):
@@ -421,7 +553,41 @@ def _handle_aptitude_analytics(user: User, question: str, context: dict | None):
         answer += f"The average score is {round(avg, 1)}%. "
     if top:
         answer += "Top scorers: " + ', '.join(top[:5]) + "."
-    return LitioDataIntentResult(True, answer=answer, intent_key='data_aptitude_analytics')
+    actions: list[LitioAssistantAction] = []
+    try:
+        actions.append(LitioAssistantAction(
+            label='Open aptitude results',
+            action_type='navigate',
+            route='/dashboard',
+            query_params={'section': 'aptitude'},
+        ))
+        if passed:
+            actions.append(LitioAssistantAction(
+                label='View passed candidates',
+                action_type='navigate',
+                route='/dashboard',
+                query_params={'section': 'aptitude', 'filter': 'passed'},
+            ))
+        if top:
+            # use first top candidate if available
+            # best-effort: try to get candidate id
+            try:
+                first_r = top_qs[0]
+                cand = getattr(first_r.assignment, 'candidate', None)
+                if cand:
+                    actions.append(LitioAssistantAction(
+                        label=f"Open candidate: {cand.first_name or cand.username}",
+                        action_type='open_candidate',
+                        route='/dashboard',
+                        entity_type='candidate',
+                        entity_id=cand.id,
+                        query_params={'candidateId': cand.id},
+                    ))
+            except Exception:
+                pass
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=answer, intent_key='data_aptitude_analytics', actions=actions)
 
 
 def _handle_candidate_followups(user: User, question: str, context: dict | None):
@@ -474,7 +640,32 @@ def _handle_candidate_followups(user: User, question: str, context: dict | None)
         return LitioDataIntentResult(True, answer="I do not see immediate follow-up items based on interviews, applications, or aptitude assignments.", intent_key='data_candidate_followups')
 
     answer = "I found the following follow-up signals: " + '; '.join(parts) + "."
-    return LitioDataIntentResult(True, answer=answer, intent_key='data_candidate_followups')
+    actions: list[LitioAssistantAction] = []
+    try:
+        if follow['missed_interviews']:
+            actions.append(LitioAssistantAction(
+                label='View missed interviews',
+                action_type='navigate',
+                route='/dashboard',
+                query_params={'section': 'interviews', 'filter': 'missed'},
+            ))
+        if follow['pending_applications']:
+            actions.append(LitioAssistantAction(
+                label='View pending review',
+                action_type='navigate',
+                route='/dashboard',
+                query_params={'section': 'candidates', 'filter': 'pending_review'},
+            ))
+        if follow['aptitude_pending']:
+            actions.append(LitioAssistantAction(
+                label='View pending aptitude',
+                action_type='navigate',
+                route='/dashboard',
+                query_params={'section': 'aptitude', 'filter': 'pending'},
+            ))
+    except Exception:
+        actions = []
+    return LitioDataIntentResult(True, answer=answer, intent_key='data_candidate_followups', actions=actions)
 
 
 def answer_data_question(user: User | None, question: str, context: dict | None = None) -> LitioDataIntentResult:
